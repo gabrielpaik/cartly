@@ -65,11 +65,14 @@ class _HomePageState extends State<HomePage> {
   final List<CartItem> items = [];
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // ✅ 현재는 MockScanRepository로 서버형 플로우를 먼저 흉내내고,
-  // 나중에 NAS 실제 구현으로 갈아끼울 예정
-  final MockScanRepository _scanRepository = MockScanRepository(
-    analyzer: CostcoLabelAnalyzer(),
-  );
+  late final ScanRepository _scanRepository =
+      WimcRuntimeConfig.current.useRemoteScan
+      ? RemoteScanRepository(
+          baseUrl: WimcRuntimeConfig.current.remoteBaseUrl,
+        )
+      : MockScanRepository(
+          analyzer: CostcoLabelAnalyzer(),
+        );
 
   int get totalPrice => items.fold(0, (sum, item) => sum + item.totalPrice);
 
@@ -438,6 +441,15 @@ class TotalBar extends StatelessWidget {
               child: const Text(
                 '저장하기',
                 style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+ntWeight: FontWeight.w900),
               ),
             ),
           ),

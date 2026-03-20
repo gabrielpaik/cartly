@@ -1,12 +1,14 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
+from typing import Literal, Optional, Tuple
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
 
 from ..db.models import Session, User
+
+AuthProvider = Literal['email', 'google', 'kakao']
 
 
 def _hash_token(token: str) -> str:
@@ -46,7 +48,12 @@ def create_guest_session(db: OrmSession) -> Tuple[User, Session, str]:
     return user, session, raw_token
 
 
-def login_or_create_user(db: OrmSession, email: str, display_name: str) -> Tuple[User, Session, str]:
+def login_or_create_user(
+    db: OrmSession,
+    email: str,
+    display_name: str,
+    provider: AuthProvider = 'email',
+) -> Tuple[User, Session, str]:
     stmt = select(User).where(User.email == email)
     user = db.scalar(stmt)
 
@@ -54,7 +61,7 @@ def login_or_create_user(db: OrmSession, email: str, display_name: str) -> Tuple
         user = User(
             display_name=display_name,
             email=email,
-            auth_provider='email',
+            auth_provider=provider,
             status='active',
             is_guest=False,
         )
@@ -63,7 +70,7 @@ def login_or_create_user(db: OrmSession, email: str, display_name: str) -> Tuple
     else:
         user.display_name = display_name or user.display_name
         user.is_guest = False
-        user.auth_provider = 'email'
+        user.auth_provider = provider
         user.updated_at = datetime.utcnow()
 
     session, raw_token = _issue_session(db, user.id, False)

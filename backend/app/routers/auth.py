@@ -18,6 +18,7 @@ def guest_login(payload: GuestLoginRequest, db: OrmSession = Depends(db_dep)):
                 'id': user.id,
                 'displayName': user.display_name,
                 'email': user.email,
+                'provider': user.auth_provider,
                 'isGuest': user.is_guest,
             },
             'session': {
@@ -30,7 +31,12 @@ def guest_login(payload: GuestLoginRequest, db: OrmSession = Depends(db_dep)):
 
 @router.post('/login')
 def login(payload: LoginRequest, db: OrmSession = Depends(db_dep)):
-    user, session, token = login_or_create_user(db, payload.email, payload.displayName)
+    user, session, token = login_or_create_user(
+        db,
+        payload.email,
+        payload.displayName,
+        provider=payload.provider,
+    )
     return {
         'ok': True,
         'data': {
@@ -38,6 +44,7 @@ def login(payload: LoginRequest, db: OrmSession = Depends(db_dep)):
                 'id': user.id,
                 'displayName': user.display_name,
                 'email': user.email,
+                'provider': user.auth_provider,
                 'isGuest': user.is_guest,
             },
             'session': {
@@ -71,6 +78,7 @@ def me(current_user=Depends(current_user_dep)):
                 'id': current_user.id,
                 'displayName': current_user.display_name,
                 'email': current_user.email,
+                'provider': current_user.auth_provider,
                 'isGuest': current_user.is_guest,
             }
         },

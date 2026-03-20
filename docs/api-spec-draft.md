@@ -77,16 +77,26 @@ Response:
 ```
 
 ### POST /v1/auth/login
-Email-based login placeholder for now. Can later swap to Apple/Google.
+Provider-aware login entrypoint.
+The commercial shape should keep one exchange endpoint and pass provider metadata through it.
 
 Request:
 ```json
 {
   "email": "user@example.com",
   "displayName": "Seungdae",
+  "provider": "email",
   "deviceId": "device_abc123"
 }
 ```
+
+`provider` enum:
+- `email`
+- `google`
+- `kakao`
+
+For social providers, the next implementation step is token exchange while keeping this provider-aware payload shape.
+
 
 Response:
 ```json

@@ -5,12 +5,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/auth_provider_type.dart';
 import '../models/user_session.dart';
+import 'auth_repository.dart';
+import 'mock_auth_repository.dart';
 
 class AuthStore {
   AuthStore._();
   static final AuthStore instance = AuthStore._();
 
   static const _sessionKey = 'user_session_v1';
+
+  final AuthRepository _repository = const MockAuthRepository();
 
   final ValueNotifier<UserSession?> session = ValueNotifier<UserSession?>(null);
 
@@ -41,41 +45,25 @@ class AuthStore {
     session.value = next;
   }
 
-  Future<UserSession> signInLocally({
+  Future<UserSession> signInWithProvider(AuthProviderType provider) async {
+    final next = await _repository.signInWithProvider(provider);
+    await _persist(next);
+    return next;
+  }
+
+  Future<UserSession> signInWithEmail({
     required String displayName,
     required String email,
-    AuthProviderType provider = AuthProviderType.email,
   }) async {
-    final normalizedName = displayName.trim().isEmpty ? 'WIMC User' : displayName.trim();
-    final normalizedEmail = email.trim();
-
-    final providerLabel = switch (provider) {
-      AuthProviderType.kakao => 'Kakao',
-      AuthProviderType.google => 'Google',
-      AuthProviderType.email => normalizedName,
-      AuthProviderType.guest => 'Guest',
-    };
-
-    final next = UserSession(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      displayName: provider == AuthProviderType.email ? normalizedName : providerLabel,
-      email: normalizedEmail,
-      isGuest: false,
-      signedInAt: DateTime.now(),
+    final next = await _repository.signInWithEmail(
+      EmailAuthDraft(displayName: displayName, email: email),
     );
-
     await _persist(next);
     return next;
   }
 
   Future<UserSession> continueAsGuest() async {
-    final next = UserSession(
-      id: 'guest',
-      displayName: 'Guest',
-      email: '',
-      isGuest: true,
-      signedInAt: DateTime.now(),
-    );
+    final next = await _repository.continueAsGuest();
     await _persist(next);
     return next;
   }

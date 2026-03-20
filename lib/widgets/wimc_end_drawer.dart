@@ -97,9 +97,9 @@ class _WimcEndDrawerState extends State<WimcEndDrawer> {
                                 Text(
                                   loggedIn
                                       ? (session.email.isEmpty
-                                            ? session.badgeLabel
-                                            : '${session.email} · ${session.badgeLabel}')
-                                      : '지금은 간단 로그인 구조로 먼저 붙여놨어.\n다음엔 NAS 기반 계정/세션 로직을 연결하면 돼.',
+                                            ? '${session.providerBadge} · ${session.badgeLabel}'
+                                            : '${session.email} · ${session.providerBadge}')
+                                      : '저장한 카트와 스캔 기록을 이어가려면 로그인 구조가 필요해.\n지금은 provider 뼈대를 먼저 맞춰둬서 다음에 실제 인증만 붙이면 돼.',
                                   style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -124,13 +124,14 @@ class _WimcEndDrawerState extends State<WimcEndDrawer> {
                               ),
                               onPressed: () async {
                                 if (!loggedIn) {
-                                  final result = await Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => const LoginPage(),
-                                    ),
-                                  );
+                                  final result = await Navigator.of(context)
+                                      .push(
+                                        MaterialPageRoute(
+                                          builder: (_) => const LoginPage(),
+                                        ),
+                                      );
                                   if (result == true && context.mounted) {
-                                    _showMenuNotice('로그인 구조를 붙여뒀어');
+                                    _showMenuNotice('로그인 구조를 더 깔끔하게 정리해뒀어');
                                   }
                                   return;
                                 }
@@ -141,7 +142,9 @@ class _WimcEndDrawerState extends State<WimcEndDrawer> {
                               },
                               child: Text(
                                 loggedIn ? '로그아웃' : '로그인/회원가입 하기',
-                                style: const TextStyle(fontWeight: FontWeight.w800),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                             ),
                           ),
@@ -205,8 +208,11 @@ class _WimcEndDrawerState extends State<WimcEndDrawer> {
 
                     return Column(
                       children: carts.map((cart) {
-                        final d = DateFormat('yyyy년 M월 d일').format(cart.createdAt);
-                        final summary = '${cart.totalCount}개 · ₩${_fmt(cart.totalPrice)}';
+                        final d = DateFormat(
+                          'yyyy년 M월 d일',
+                        ).format(cart.createdAt);
+                        final summary =
+                            '${cart.totalCount}개 · ₩${_fmt(cart.totalPrice)}';
 
                         return ListTile(
                           title: Text(

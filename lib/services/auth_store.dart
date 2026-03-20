@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/auth_provider_type.dart';
 import '../models/user_session.dart';
 
 class AuthStore {
@@ -43,13 +44,21 @@ class AuthStore {
   Future<UserSession> signInLocally({
     required String displayName,
     required String email,
+    AuthProviderType provider = AuthProviderType.email,
   }) async {
     final normalizedName = displayName.trim().isEmpty ? 'WIMC User' : displayName.trim();
     final normalizedEmail = email.trim();
 
+    final providerLabel = switch (provider) {
+      AuthProviderType.kakao => 'Kakao',
+      AuthProviderType.google => 'Google',
+      AuthProviderType.email => normalizedName,
+      AuthProviderType.guest => 'Guest',
+    };
+
     final next = UserSession(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
-      displayName: normalizedName,
+      displayName: provider == AuthProviderType.email ? normalizedName : providerLabel,
       email: normalizedEmail,
       isGuest: false,
       signedInAt: DateTime.now(),

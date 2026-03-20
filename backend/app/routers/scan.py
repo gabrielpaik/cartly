@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session as OrmSession
 
 from ..deps import current_user_dep, db_dep
 from ..services.scan_service import create_scan_job, get_scan_job
+from ..services.worker_service import read_result
 from ..schemas.scan import ScanFeedbackRequest
 
 router = APIRouter()
@@ -83,21 +84,17 @@ def get_scan_result(job_id: str, db: OrmSession = Depends(db_dep)):
             },
         }
 
-    return {
-        'ok': True,
-        'data': {
-            'jobId': job.id,
-            'status': job.status,
-            'result': {
-                'name': 'placeholder',
-                'price': 0,
-                'sku': None,
-                'confidence': None,
-                'source': 'nas-ai',
-                'rawText': None,
+    payload = read_result(job.id)
+    if payload is None:
+        return {
+            'ok': False,
+            'error': {
+                'code': 'RESULT_NOT_FOUND',
+                'message': '결과 파일을 찾지 못했어',
             },
-        },
-    }
+        }
+
+    return {'ok': True, 'data': payload}
 
 
 @router.post('/jobs/{job_id}/feedback')

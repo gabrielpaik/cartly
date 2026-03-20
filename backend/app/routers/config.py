@@ -1,5 +1,7 @@
 from fastapi import APIRouter
 
+from ..core.settings import settings
+
 router = APIRouter()
 
 
@@ -9,14 +11,14 @@ def app_config():
         'ok': True,
         'data': {
             'features': {
-                'remoteScan': True,
-                'adsEnabled': True,
+                'remoteScan': settings.remote_scan_enabled,
+                'adsEnabled': settings.ads_enabled,
             },
             'adSlots': [
                 {
                     'slotKey': 'result_inline_1',
                     'placementType': 'inline',
-                    'enabled': True,
+                    'enabled': settings.ads_enabled,
                     'config': {'maxHeight': 96},
                 }
             ],

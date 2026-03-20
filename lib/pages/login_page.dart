@@ -58,7 +58,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('로그인')),
+      appBar: AppBar(title: const Text('계정 시작')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
@@ -78,7 +78,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 10),
               const Text(
-                '지금은 간단 로그인 구조만 먼저 붙여둘게.\n다음 단계에서 NAS 기반 계정/인증 로직을 얹기 쉬운 형태로 설계했어.',
+                '내 카트를 저장하고, 스캔 결과를 이어서 관리하고,\n앞으로 서버 기반 추천과 개인화까지 연결하는 시작점이야.',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -86,7 +86,35 @@ class _LoginPageState extends State<LoginPage> {
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '로그인하면 열리는 것',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      '• 저장된 카트 이어보기\n• 스캔 이력 관리\n• NAS 기반 분석 결과 연결\n• 이후 추천/광고 개인화 기반 확보',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
               TextField(
                 controller: _nameCtrl,
                 decoration: InputDecoration(
@@ -112,19 +140,20 @@ class _LoginPageState extends State<LoginPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: const Color(0xFFF8F8F8),
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.black12),
                 ),
                 child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '앞으로 붙을 서버 로직',
+                      '다음 단계 서버 로직',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
                     ),
                     SizedBox(height: 8),
                     Text(
-                      '• NAS 인증/세션 발급\n• 촬영 이미지 업로드\n• AI 분석 결과 조회\n• 사용자별 저장 카트 동기화',
+                      '• NAS 인증 / 세션 발급\n• 촬영 이미지 업로드\n• AI 분석 결과 조회\n• 사용자별 카트와 이벤트 동기화',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -168,7 +197,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   onPressed: _isSubmitting ? null : _guest,
                   child: const Text(
-                    '게스트로 둘러보기',
+                    '게스트로 먼저 둘러보기',
                     style: TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),

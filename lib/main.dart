@@ -1,18 +1,18 @@
-import 'dart:io';
-
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'splash_screen.dart';
 import 'services/label_analyzer.dart';
-import 'models/recognized_item.dart';
 import 'widgets/wimc_end_drawer.dart';
 
 import 'models/saved_cart.dart';
 import 'services/cart_store.dart';
 import 'services/auth_store.dart';
+import 'config/wimc_runtime_config.dart';
 import 'services/mock_scan_repository.dart';
+import 'services/remote_scan_repository.dart';
+import 'services/scan_repository.dart';
 import 'widgets/item_add_section.dart';
 
 List<CameraDescription> _cameras = [];
@@ -68,7 +68,8 @@ class _HomePageState extends State<HomePage> {
   late final ScanRepository _scanRepository =
       WimcRuntimeConfig.current.useRemoteScan
       ? RemoteScanRepository(
-          baseUrl: WimcRuntimeConfig.current.remoteBaseUrl,
+          baseUrl: WimcRuntimeConfig.current.normalizedRemoteBaseUrl,
+          authToken: WimcRuntimeConfig.current.effectiveRemoteAuthToken,
         )
       : MockScanRepository(
           analyzer: CostcoLabelAnalyzer(),
@@ -441,15 +442,6 @@ class TotalBar extends StatelessWidget {
               child: const Text(
                 '저장하기',
                 style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-ntWeight: FontWeight.w900),
               ),
             ),
           ),

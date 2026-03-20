@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../models/recognized_item.dart';
 import '../models/scan_job.dart';
+import '../services/remote_scan_repository.dart';
 import '../services/scan_repository.dart';
 
 final _priceFormatter = NumberFormat('#,###');
@@ -96,8 +97,10 @@ class _ItemAddSectionState extends State<ItemAddSection> {
       if (!mounted) return;
 
       ScanJob job = submitted;
+      var completed = job.status == ScanJobStatus.done;
+
       for (var i = 0; i < 15; i++) {
-        if (!mounted) return;
+        if (!mounted || completed) break;
         await Future.delayed(const Duration(milliseconds: 700));
         job = await widget.scanRepository.getJob(submitted.jobId);
 
@@ -112,13 +115,23 @@ class _ItemAddSectionState extends State<ItemAddSection> {
           };
         });
 
-        if (job.status == ScanJobStatus.done) break;
+        if (job.status == ScanJobStatus.done) {
+          completed = true;
+          break;
+        }
         if (job.status == ScanJobStatus.failed) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(job.errorMessage ?? '텍스트를 못 읽었어요. 더 가까이/선명하게 찍어봐요')),
           );
           return;
         }
+      }
+
+      if (!completed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('분석이 조금 지연되고 있어요. 잠시 후 다시 시도해봐요')),
+        );
+        return;
       }
 
       final result = await widget.scanRepository.getResult(submitted.jobId);
@@ -137,6 +150,11 @@ class _ItemAddSectionState extends State<ItemAddSection> {
         _capturedPath = imagePath;
         _statusMessage = null;
       });
+    } on ScanRepositoryException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(

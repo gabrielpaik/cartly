@@ -1,25 +1,34 @@
+from typing import Any, Dict, Optional
+
 from pydantic import BaseModel
 
 
 class ScanJobDto(BaseModel):
     id: str
     status: str
-    createdAt: str | None = None
-    updatedAt: str | None = None
-    errorCode: str | None = None
-    errorMessage: str | None = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+    errorCode: Optional[str] = None
+    errorMessage: Optional[str] = None
 
 
 class ScanResultDto(BaseModel):
     name: str
     price: int
-    sku: str | None = None
-    confidence: float | None = None
+    sku: Optional[str] = None
+    confidence: Optional[float] = None
     source: str
-    rawText: str | None = None
+    rawText: Optional[str] = None
 
 
 class ScanFeedbackRequest(BaseModel):
     accepted: bool
-    original: dict | None = None
-    corrected: dict | None = None
+    original: Optional[Dict[str, Any]] = None
+    corrected: Optional[Dict[str, Any]] = None
+
+
+class ScanFailureRequest(BaseModel):
+    stage: str = 'processing'
+    errorCode: Optional[str] = None
+    errorMessage: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None

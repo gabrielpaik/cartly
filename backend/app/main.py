@@ -18,5 +18,7 @@ def health():
     return {
         'ok': True,
         'service': 'wimc-api',
-        'storageRoot': '/Volumes/AI/WIMC',
+        'storageRoot': settings.storage_root,
+        'remoteScanEnabled': settings.remote_scan_enabled,
+        'adsEnabled': settings.ads_enabled,
     }

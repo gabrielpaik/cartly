@@ -16,11 +16,49 @@ def app_config():
             },
             'adSlots': [
                 {
-                    'slotKey': 'result_inline_1',
+                    'slotKey': 'save_complete_sheet_1',
+                    'placementType': 'bottom_sheet',
+                    'enabled': settings.ads_enabled,
+                    'config': {
+                        'maxHeight': 88,
+                        'screen': 'save_complete',
+                        'position': 'after_summary_before_actions',
+                        'tone': 'benefit_native',
+                    },
+                },
+                {
+                    'slotKey': 'saved_inline_1',
                     'placementType': 'inline',
                     'enabled': settings.ads_enabled,
-                    'config': {'maxHeight': 96},
-                }
+                    'config': {
+                        'maxHeight': 104,
+                        'screen': 'saved_list',
+                        'position': 'after_first_card',
+                        'tone': 'benefit_native',
+                    },
+                },
+                {
+                    'slotKey': 'saved_inline_2',
+                    'placementType': 'inline',
+                    'enabled': settings.ads_enabled,
+                    'config': {
+                        'maxHeight': 104,
+                        'screen': 'saved_list',
+                        'position': 'after_third_card',
+                        'tone': 'benefit_native',
+                    },
+                },
+                {
+                    'slotKey': 'my_perks_inline_1',
+                    'placementType': 'inline',
+                    'enabled': settings.ads_enabled,
+                    'config': {
+                        'maxHeight': 96,
+                        'screen': 'my',
+                        'position': 'below_account_card',
+                        'tone': 'soft_promo',
+                    },
+                },
             ],
         },
     }

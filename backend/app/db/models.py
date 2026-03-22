@@ -19,6 +19,7 @@ class User(Base):
     is_guest: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
 class Session(Base):
@@ -51,6 +52,31 @@ class ScanJob(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class ScanFeedback(Base):
+    __tablename__ = 'scan_feedback'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    scan_job_id: Mapped[str] = mapped_column(ForeignKey('scan_jobs.id'))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'), nullable=True)
+    accepted: Mapped[bool] = mapped_column(Boolean, default=False)
+    original_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    corrected_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class ScanFailureLog(Base):
+    __tablename__ = 'scan_failure_logs'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    scan_job_id: Mapped[str] = mapped_column(ForeignKey('scan_jobs.id'))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'), nullable=True)
+    stage: Mapped[str] = mapped_column(String(50), default='processing')
+    error_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    details_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class Cart(Base):
     __tablename__ = 'carts'
 
@@ -80,3 +106,48 @@ class CartItem(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     cart: Mapped['Cart'] = relationship(back_populates='items')
+
+
+class AppEvent(Base):
+    __tablename__ = 'app_events'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'), nullable=True)
+    session_id: Mapped[Optional[str]] = mapped_column(ForeignKey('sessions.id'), nullable=True)
+    event_name: Mapped[str] = mapped_column(String(80))
+    screen_name: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    event_props_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AdSlot(Base):
+    __tablename__ = 'ad_slots'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    slot_key: Mapped[str] = mapped_column(String(120), unique=True)
+    placement_type: Mapped[str] = mapped_column(String(50))
+    status: Mapped[str] = mapped_column(String(20), default='active')
+    config_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AdImpression(Base):
+    __tablename__ = 'ad_impressions'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    slot_id: Mapped[str] = mapped_column(ForeignKey('ad_slots.id'))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'), nullable=True)
+    session_id: Mapped[Optional[str]] = mapped_column(ForeignKey('sessions.id'), nullable=True)
+    screen_name: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    campaign_id: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    creative_id: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AdClick(Base):
+    __tablename__ = 'ad_clicks'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    impression_id: Mapped[str] = mapped_column(ForeignKey('ad_impressions.id'))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

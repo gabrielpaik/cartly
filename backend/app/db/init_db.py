@@ -1,5 +1,17 @@
 from .base import Base
-from .models import Cart, CartItem, ScanJob, Session, User  # noqa: F401
+from .models import (  # noqa: F401
+    AdClick,
+    AdImpression,
+    AdSlot,
+    AppEvent,
+    Cart,
+    CartItem,
+    ScanFailureLog,
+    ScanFeedback,
+    ScanJob,
+    Session,
+    User,
+)
 from .session import engine
 
 

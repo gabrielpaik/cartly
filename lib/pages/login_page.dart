@@ -160,7 +160,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 10),
               const Text(
-                '로그인하면 저장한 카트, 스캔 기록, 이후 맞춤 추천까지 자연스럽게 이어져.\n지금은 provider 구조를 먼저 정리했고, 다음 단계에서 실제 인증 연동만 붙이면 돼.',
+                '로그인하면 저장한 카트와 스캔 기록을 계속 이어서 볼 수 있어요. 나중에는 추천과 혜택도 더 정확하게 받을 수 있어요.',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -188,7 +188,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     SizedBox(height: 8),
                     Text(
-                      '• 저장한 카트를 다시 보고\n• 다음 구매 전에 비교하고\n• 나중엔 추천/혜택까지 이어지게 하려는 구조야',
+                      '• 저장한 카트를 다시 보고\n• 다음 구매 전에 비교하고\n• 나중에 더 개인화된 추천과 혜택을 받기 쉬워져요',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,

@@ -17,6 +17,7 @@ class ItemAddSection extends StatefulWidget {
   final ScanRepository scanRepository;
 
   final void Function(RecognizedItem item) onAdd;
+  final void Function(RecognizedItem item)? onRecognized;
   final VoidCallback? onAddedFeedback;
   final String addButtonText;
 
@@ -25,8 +26,9 @@ class ItemAddSection extends StatefulWidget {
     required this.cameras,
     required this.scanRepository,
     required this.onAdd,
+    this.onRecognized,
     this.onAddedFeedback,
-    this.addButtonText = '카트에 추가',
+    this.addButtonText = '카트에 담기',
   });
 
   @override
@@ -144,12 +146,14 @@ class _ItemAddSectionState extends State<ItemAddSection> {
         return;
       }
 
+      final recognizedItem = RecognizedItem.fromCandidate(result);
       setState(() {
-        recognized = RecognizedItem(name: result.name, price: result.price);
+        recognized = recognizedItem;
         manualEntryOpen = false;
         _capturedPath = imagePath;
         _statusMessage = null;
       });
+      widget.onRecognized?.call(recognizedItem);
     } on ScanRepositoryException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -552,7 +556,7 @@ class _InlineScannerBoxState extends State<InlineScannerBox> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.95),
+                            color: Colors.white.withValues(alpha: 0.95),
                             width: 2.2,
                           ),
                         ),
@@ -569,7 +573,7 @@ class _InlineScannerBoxState extends State<InlineScannerBox> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.35),
+                        color: Colors.black.withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
@@ -591,7 +595,7 @@ class _InlineScannerBoxState extends State<InlineScannerBox> {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.35),
+                          color: Colors.black.withValues(alpha: 0.35),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.close, color: Colors.white),
@@ -617,7 +621,7 @@ class _InlineScannerBoxState extends State<InlineScannerBox> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.35),
+                            color: Colors.black.withValues(alpha: 0.35),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: const Text(
@@ -665,6 +669,67 @@ class _InlineScannerBoxState extends State<InlineScannerBox> {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _ConfidenceBadge extends StatelessWidget {
+  final double confidence;
+  const _ConfidenceBadge({required this.confidence});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = confidence >= 0.85
+        ? '신뢰 높음'
+        : confidence >= 0.65
+            ? '확인 권장'
+            : '확인 필요';
+    final color = confidence >= 0.85
+        ? const Color(0xFF1E8E3E)
+        : confidence >= 0.65
+            ? const Color(0xFFB26A00)
+            : const Color(0xFFE31837);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label ${(confidence * 100).round()}%',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  final String label;
+  final String value;
+  const _MetaChip({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.black12),
+      ),
+      child: Text(
+        '$label: $value',
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Colors.black54,
         ),
       ),
     );
@@ -779,10 +844,68 @@ class _RecognizedResultCardState extends State<RecognizedResultCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            widget.title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  widget.title,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                ),
+              ),
+              if (item.confidence != null) _ConfidenceBadge(confidence: item.confidence!),
+            ],
           ),
+          const SizedBox(height: 6),
+          Text(
+            item.confidence == null
+                ? '인식 결과를 확인한 뒤 카트에 담아주세요.'
+                : item.confidence! >= 0.85
+                    ? '신뢰도가 높은 결과예요. 빠르게 확인하고 담아주세요.'
+                    : item.confidence! >= 0.65
+                        ? '한 번 확인하고 담는 걸 권장해요.'
+                        : '확인 필요 결과예요. 수정하거나 다시 찍는 게 좋아요.',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.black54,
+              height: 1.45,
+            ),
+          ),
+          if ((item.source ?? '').isNotEmpty || (item.sku ?? '').isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if ((item.source ?? '').isNotEmpty)
+                  _MetaChip(label: 'source', value: item.source!),
+                if ((item.sku ?? '').isNotEmpty)
+                  _MetaChip(label: 'sku', value: item.sku!),
+              ],
+            ),
+          ],
+          if ((item.rawText ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.black12),
+              ),
+              child: Text(
+                '원문: ${item.rawText!.trim()}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black54,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
 
           Row(

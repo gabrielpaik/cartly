@@ -2,9 +2,14 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session as OrmSession
 
 from ..deps import current_user_dep, db_dep
-from ..services.scan_service import create_scan_job, get_scan_job
+from ..schemas.scan import ScanFailureRequest, ScanFeedbackRequest
+from ..services.scan_service import (
+    create_scan_job,
+    get_scan_job,
+    log_scan_failure,
+    save_scan_feedback,
+)
 from ..services.worker_service import read_result
-from ..schemas.scan import ScanFeedbackRequest
 
 router = APIRouter()
 
@@ -98,5 +103,71 @@ def get_scan_result(job_id: str, db: OrmSession = Depends(db_dep)):
 
 
 @router.post('/jobs/{job_id}/feedback')
-def save_feedback(job_id: str, payload: ScanFeedbackRequest):
-    return {'ok': True, 'data': {'saved': True, 'jobId': job_id}}
+def save_feedback(
+    job_id: str,
+    payload: ScanFeedbackRequest,
+    db: OrmSession = Depends(db_dep),
+    current_user=Depends(current_user_dep),
+):
+    job = get_scan_job(db, job_id)
+    if job is None:
+        return {
+            'ok': False,
+            'error': {
+                'code': 'JOB_NOT_FOUND',
+                'message': 'scan job을 찾지 못했어',
+            },
+        }
+
+    feedback = save_scan_feedback(
+        db=db,
+        job_id=job_id,
+        user_id=getattr(current_user, 'id', None),
+        accepted=payload.accepted,
+        original=payload.original,
+        corrected=payload.corrected,
+    )
+    return {
+        'ok': True,
+        'data': {
+            'saved': True,
+            'jobId': job_id,
+            'feedbackId': feedback.id,
+        },
+    }
+
+
+@router.post('/jobs/{job_id}/failures')
+def save_failure_log(
+    job_id: str,
+    payload: ScanFailureRequest,
+    db: OrmSession = Depends(db_dep),
+    current_user=Depends(current_user_dep),
+):
+    job = get_scan_job(db, job_id)
+    if job is None:
+        return {
+            'ok': False,
+            'error': {
+                'code': 'JOB_NOT_FOUND',
+                'message': 'scan job을 찾지 못했어',
+            },
+        }
+
+    failure = log_scan_failure(
+        db=db,
+        job_id=job_id,
+        user_id=getattr(current_user, 'id', None),
+        stage=payload.stage,
+        error_code=payload.errorCode,
+        error_message=payload.errorMessage,
+        details=payload.details,
+    )
+    return {
+        'ok': True,
+        'data': {
+            'saved': True,
+            'jobId': job_id,
+            'failureId': failure.id,
+        },
+    }

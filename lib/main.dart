@@ -162,7 +162,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  '다음 쇼핑 전에 다시 꺼내 보고 이어서 수정할 수 있어요.',
+                  '다음 결제 전에 다시 볼 수 있어.',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -173,8 +173,8 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 14),
                 const _InlinePromoSlot(
                   slotKey: 'save_complete_sheet_1',
-                  title: '다음 쇼핑 혜택 추천',
-                  message: '저장된 카트와 잘 맞는 혜택이나 추천 상품은 여기에서 자연스럽게 보여주는 게 좋아요.',
+                  title: '더 저렴한 대안 보기',
+                  message: '결제 전에 더 나은 선택을 추천해.',
                   height: 88,
                 ),
                 const SizedBox(height: 16),
@@ -213,7 +213,7 @@ class _HomePageState extends State<HomePage> {
                           setState(() => _tabIndex = 1);
                         },
                         child: const Text(
-                          '저장된 카트 보기',
+                          'Saved 보기',
                           style: TextStyle(fontWeight: FontWeight.w900),
                         ),
                       ),
@@ -324,7 +324,7 @@ class HomeTabView extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         const Text(
-          '가격표를 찍고, 결과를 확인한 뒤, 카트로 저장해 다음 쇼핑 전에 다시 볼 수 있어요.',
+          '지금 카트 총액을 확인해',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -333,11 +333,6 @@ class HomeTabView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        _CurrentCartSummaryCard(
-          itemCount: items.fold(0, (sum, item) => sum + item.quantity),
-          totalPrice: items.fold(0, (sum, item) => sum + item.totalPrice),
-        ),
-        const SizedBox(height: 12),
         ValueListenableBuilder<List<SavedCart>>(
           valueListenable: CartStore.instance.carts,
           builder: (context, carts, _) {
@@ -348,7 +343,7 @@ class HomeTabView extends StatelessWidget {
           const SizedBox(height: 20),
           const _SectionHeader(
             title: '최근 스캔',
-            subtitle: '저장 전에도 최근 인식 결과를 다시 확인할 수 있어요.',
+            subtitle: '방금 읽은 결과',
           ),
           const SizedBox(height: 10),
           ...recentScans.take(3).map(
@@ -358,7 +353,7 @@ class HomeTabView extends StatelessWidget {
         const SizedBox(height: 20),
         const _SectionHeader(
           title: '새 상품 추가',
-          subtitle: '가격표를 인식하거나 직접 입력해서 현재 카트에 담아보세요.',
+          subtitle: '스캔하거나 바로 담기',
         ),
         const SizedBox(height: 10),
         ItemAddSection(
@@ -376,7 +371,7 @@ class HomeTabView extends StatelessWidget {
         const SizedBox(height: 20),
         const _SectionHeader(
           title: '현재 카트',
-          subtitle: '아직 저장되지 않은 임시 카트예요. 저장하면 다음에도 다시 볼 수 있어요.',
+          subtitle: '결제 전 합계를 확인해',
         ),
         const SizedBox(height: 10),
         if (items.isEmpty)
@@ -453,7 +448,7 @@ class SavedTabView extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              '저장한 카트를 다시 열어 보고, 수정하고, 다음 쇼핑 전에 꺼내볼 수 있어요.',
+              '저장한 카트를 다시 봐',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -484,7 +479,7 @@ class SavedTabView extends StatelessWidget {
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Home에서 현재 카트를 저장하면 여기에서 다시 볼 수 있어요.',
+                        'Home에서 저장하면 여기서 다시 볼 수 있어.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 13,
@@ -554,7 +549,7 @@ class MyPage extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         const Text(
-          '로그인하면 저장한 카트와 최근 스캔 기록을 계속 이어서 볼 수 있어요.',
+          '기록을 남기려면 로그인',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -587,7 +582,7 @@ class MyPage extends StatelessWidget {
                         ? (session.email.isEmpty
                             ? '${session.providerBadge} · ${session.badgeLabel}'
                             : '${session.email} · ${session.providerBadge}')
-                        : '로그인하면 저장한 카트와 스캔 기록을 여러 번 이어서 볼 수 있어요.',
+                        : '저장과 기록을 이어가려면 로그인',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -704,49 +699,6 @@ class _SectionHeader extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _CurrentCartSummaryCard extends StatelessWidget {
-  final int itemCount;
-  final int totalPrice;
-
-  const _CurrentCartSummaryCard({required this.itemCount, required this.totalPrice});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF4F5),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '현재 카트',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '$itemCount개 상품 · ₩${formatPrice(totalPrice)}',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            '지금 담은 상품은 아직 임시 상태예요. 저장하면 다음에도 다시 볼 수 있어요.',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
-              height: 1.45,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

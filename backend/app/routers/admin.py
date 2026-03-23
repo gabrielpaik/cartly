@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session as OrmSession
 
 from ..core.settings import settings
 from ..deps import db_dep
+from ..schemas.branding import BrandingRequest
 from ..services.admin_service import dashboard_summary
+from ..services.branding_service import get_branding, save_branding
 
 router = APIRouter()
 
@@ -84,8 +86,19 @@ def list_ad_slots(db: OrmSession = Depends(db_dep)):
     return {'ok': True, 'data': {'slots': slots}}
 
 
+@router.get('/branding')
+def admin_branding(db: OrmSession = Depends(db_dep)):
+    return {'ok': True, 'data': get_branding(db)}
+
+
+@router.put('/branding')
+def update_branding(payload: BrandingRequest, db: OrmSession = Depends(db_dep)):
+    data = save_branding(db, payload.model_dump())
+    return {'ok': True, 'data': data}
+
+
 @router.get('/config')
-def admin_config():
+def admin_config(db: OrmSession = Depends(db_dep)):
     return {
         'ok': True,
         'data': {
@@ -93,5 +106,6 @@ def admin_config():
             'adsEnabled': settings.ads_enabled,
             'storageRoot': settings.storage_root,
             'apiBase': settings.api_base_url,
+            'branding': get_branding(db),
         },
     }

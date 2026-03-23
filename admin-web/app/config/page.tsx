@@ -8,6 +8,14 @@ type ConfigDto = {
   adsEnabled: boolean
   storageRoot: string
   apiBase: string
+  branding: {
+    logoType: string
+    logoText: string
+    logoImageUrl: string | null
+    homeSubtitle: string
+    savedSubtitle: string
+    mySubtitle: string
+  }
 }
 
 export default async function ConfigPage() {
@@ -33,6 +41,16 @@ export default async function ConfigPage() {
       </div>
 
       <div className="section sectionGrid twoCol">
+        <div className="card successCard">
+          <h2 className="panelTitle">브랜딩 런타임</h2>
+          <ul className="inlineList">
+            <li>logoType: {cfg.branding.logoType}</li>
+            <li>logoText: {cfg.branding.logoText}</li>
+            <li>homeSubtitle: {cfg.branding.homeSubtitle}</li>
+            <li>savedSubtitle: {cfg.branding.savedSubtitle}</li>
+            <li>mySubtitle: {cfg.branding.mySubtitle}</li>
+          </ul>
+        </div>
         <div className="card">
           <h2 className="panelTitle">CTO 체크포인트</h2>
           <ul className="inlineList">

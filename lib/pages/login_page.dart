@@ -188,7 +188,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     SizedBox(height: 8),
                     Text(
-                      '• 저장한 카트를 다시 보고\n• 다음 구매 전에 비교하고\n• 나중에 더 개인화된 추천과 혜택을 받기 쉬워져요',
+                      '• 저장한 카트 보기\n• 다음 결제 전에 다시 확인\n• 더 저렴한 대안 추천',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,

@@ -1,12 +1,15 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session as OrmSession
 
 from ..core.settings import settings
+from ..deps import db_dep
+from ..services.branding_service import get_branding
 
 router = APIRouter()
 
 
 @router.get('/app-config')
-def app_config():
+def app_config(db: OrmSession = Depends(db_dep)):
     return {
         'ok': True,
         'data': {
@@ -14,6 +17,7 @@ def app_config():
                 'remoteScan': settings.remote_scan_enabled,
                 'adsEnabled': settings.ads_enabled,
             },
+            'branding': get_branding(db),
             'adSlots': [
                 {
                     'slotKey': 'save_complete_sheet_1',

@@ -4,6 +4,7 @@ from .models import (  # noqa: F401
     AdImpression,
     AdSlot,
     AppEvent,
+    AppSetting,
     Cart,
     CartItem,
     ScanFailureLog,

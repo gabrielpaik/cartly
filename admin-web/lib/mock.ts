@@ -80,9 +80,22 @@ export const mockSlots = [
   },
 ]
 
+export const mockBranding = {
+  logoType: 'text',
+  logoText: "What's in my cart",
+  logoImageUrl: null,
+  homeSubtitle: '지금 카트 총액을 확인해',
+  savedSubtitle: '저장한 카트를 다시 봐',
+  mySubtitle: '기록을 남기려면 로그인',
+  loginSubtitle: '저장과 기록을 이어가려면 로그인',
+  saveCompleteTitle: '카트 저장 완료',
+  saveCompleteSubtitle: '다음 장보기 전에 다시 볼 수 있어',
+}
+
 export const mockConfig = {
   remoteScan: true,
   adsEnabled: true,
   storageRoot: '/Volumes/AI/WIMC',
   apiBase: 'http://127.0.0.1:8011',
+  branding: mockBranding,
 }

@@ -12,6 +12,7 @@ const nav = [
   ['Scan Ops', '/scan-ops'],
   ['Carts', '/carts'],
   ['Ads', '/ads'],
+  ['Content', '/content'],
   ['Config', '/config'],
 ] as const
 

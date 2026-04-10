@@ -5,6 +5,7 @@ import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
 import '../services/remote_auth_repository.dart';
+import '../widgets/login_page_auth_dialogs.dart';
 import '../widgets/login_page_auth_form_section.dart';
 import '../widgets/login_page_guest_cta_section.dart';
 import '../widgets/login_page_header_section.dart';
@@ -107,29 +108,9 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _showExistingEmailDialog() async {
-    final choice = await showDialog<String>(
+    final choice = await showLoginPageExistingEmailDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(_text(['login', 'existingEmailTitle'], '이미 가입된 이메일입니다')),
-          content: Text(
-            _text(
-              ['login', 'existingEmailBody'],
-              '이미 가입된 이메일입니다. 로그인하시거나 비밀번호를 재설정해 주세요.',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop('reset'),
-              child: Text(_text(['login', 'existingEmailResetAction'], '비밀번호 재설정')),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop('login'),
-              child: Text(_text(['login', 'existingEmailLoginAction'], '로그인하기')),
-            ),
-          ],
-        );
-      },
+      text: _text,
     );
 
     if (!mounted) return;
@@ -141,29 +122,9 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _showForgotPasswordPrompt() async {
-    final choice = await showDialog<String>(
+    final choice = await showLoginPageForgotPasswordPrompt(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(_text(['login', 'forgotPasswordPromptTitle'], '비밀번호를 잊으셨나요?')),
-          content: Text(
-            _text(
-              ['login', 'forgotPasswordPromptBody'],
-              '비밀번호 입력을 여러 번 실패했습니다. 비밀번호 재설정으로 이동하시겠어요?',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop('stay'),
-              child: Text(_text(['login', 'forgotPasswordPromptStay'], '다시 입력하기')),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop('reset'),
-              child: Text(_text(['login', 'forgotPasswordPromptReset'], '비밀번호 재설정')),
-            ),
-          ],
-        );
-      },
+      text: _text,
     );
 
     if (!mounted) return;

@@ -26,6 +26,16 @@ class HomePageCartController {
     });
   }
 
+  void dismissRecentScan(RecentScanEntry entry) {
+    _setState(() {
+      recentScans.remove(entry);
+    });
+  }
+
+  void addRecentScanToCart(RecentScanEntry entry) {
+    addRecognizedItem(entry.item);
+  }
+
   void removeCartItem(CartItem item) {
     _setState(() {
       items.remove(item);

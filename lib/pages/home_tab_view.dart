@@ -20,6 +20,8 @@ class HomeTabView extends StatelessWidget {
   final List<RecentScanEntry> recentScans;
   final void Function(RecognizedItem item) onRecognized;
   final void Function(RecognizedItem item) onAdd;
+  final void Function(RecentScanEntry entry) onAddRecentScan;
+  final void Function(RecentScanEntry entry) onDismissRecentScan;
   final void Function(CartItem item) onRemove;
 
   const HomeTabView({
@@ -30,6 +32,8 @@ class HomeTabView extends StatelessWidget {
     required this.recentScans,
     required this.onRecognized,
     required this.onAdd,
+    required this.onAddRecentScan,
+    required this.onDismissRecentScan,
     required this.onRemove,
   });
 
@@ -98,10 +102,14 @@ class HomeTabView extends StatelessWidget {
             subtitle: AppRuntimeCopy.text([
               'home',
               'recentScanSubtitle',
-            ], '방금 읽은 결과'),
+            ], '등록하거나 지울 항목을 정리해'),
           ),
           const SizedBox(height: 10),
-          ...recentScans.take(3).map((entry) => RecentScanCard(entry: entry)),
+          RecentScanCarousel(
+            entries: recentScans,
+            onAdd: onAddRecentScan,
+            onDismiss: onDismissRecentScan,
+          ),
         ],
         const SizedBox(height: 20),
         SectionHeader(

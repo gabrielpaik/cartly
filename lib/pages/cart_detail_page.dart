@@ -8,6 +8,7 @@ import '../services/auth_store.dart';
 import '../services/cart_store.dart';
 import '../widgets/cart_detail_bottom_bar.dart';
 import '../widgets/cart_detail_guest_retention_section.dart';
+import '../widgets/cart_detail_item_tile.dart';
 import '../widgets/saved_cart_item_add_section.dart';
 
 final _cartPriceFormatter = NumberFormat('#,###');
@@ -451,135 +452,29 @@ class _CartDetailPageState extends State<CartDetailPage> {
                             final item = _cart.items[index];
                             final editing = _editingIndex == index;
 
-                            return Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              item.name,
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '₩${_fmt(item.price)} · ${item.quantity}개',
-                                              style: const TextStyle(
-                                                color: Colors.black54,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      if (_isEditing) ...[
-                                        IconButton(
-                                          onPressed: () => _openInlineEditor(index),
-                                          icon: const Icon(Icons.edit_outlined),
-                                        ),
-                                        IconButton(
-                                          onPressed: () {
-                                            setState(
-                                              () => _cart.items.removeAt(index),
-                                            );
-                                          },
-                                          icon: const Icon(Icons.close),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  if (_isEditing && !editing) ...[
-                                    const SizedBox(height: 10),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      children: [
-                                        IconButton(
-                                          onPressed: () => _decrease(index),
-                                          icon: const Icon(
-                                            Icons.remove_circle_outline,
-                                          ),
-                                        ),
-                                        Text(
-                                          '${item.quantity}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                        IconButton(
-                                          onPressed: () => _increase(index),
-                                          icon: const Icon(
-                                            Icons.add_circle_outline,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                  if (editing) ...[
-                                    const SizedBox(height: 12),
-                                    TextField(
-                                      controller: _nameCtrl,
-                                      decoration: InputDecoration(
-                                        labelText: AppRuntimeCopy.text([
-                                          'cartDetail',
-                                          'nameLabel',
-                                        ], '상품명'),
-                                        border: const OutlineInputBorder(),
-                                        isDense: true,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    TextField(
-                                      controller: _priceCtrl,
-                                      keyboardType: TextInputType.number,
-                                      decoration: InputDecoration(
-                                        labelText: AppRuntimeCopy.text([
-                                          'cartDetail',
-                                          'priceLabel',
-                                        ], '가격'),
-                                        border: const OutlineInputBorder(),
-                                        isDense: true,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      children: [
-                                        TextButton(
-                                          onPressed: _closeInlineEditor,
-                                          child: Text(
-                                            AppRuntimeCopy.text([
-                                              'common',
-                                              'cancel',
-                                            ], '취소'),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        ElevatedButton(
-                                          onPressed: _applyInlineEdits,
-                                          child: Text(
-                                            AppRuntimeCopy.text([
-                                              'cartDetail',
-                                              'apply',
-                                            ], '적용'),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ],
-                              ),
+                            return CartDetailItemTile(
+                              item: item,
+                              isEditingMode: _isEditing,
+                              isInlineEditing: editing,
+                              priceText: '₩${_fmt(item.price)}',
+                              nameController: _nameCtrl,
+                              priceController: _priceCtrl,
+                              onEdit: _isEditing
+                                  ? () => _openInlineEditor(index)
+                                  : null,
+                              onDelete: _isEditing
+                                  ? () {
+                                      setState(() => _cart.items.removeAt(index));
+                                    }
+                                  : null,
+                              onDecrease: _isEditing && !editing
+                                  ? () => _decrease(index)
+                                  : null,
+                              onIncrease: _isEditing && !editing
+                                  ? () => _increase(index)
+                                  : null,
+                              onCancelInlineEdit: _closeInlineEditor,
+                              onApplyInlineEdit: _applyInlineEdits,
                             );
                           },
                         ),

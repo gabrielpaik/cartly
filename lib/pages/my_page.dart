@@ -4,8 +4,8 @@ import '../pages/login_page.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
+import '../widgets/context_pill.dart';
 import '../widgets/inline_promo_slot.dart';
-import 'home_tab_view.dart';
 
 class MyPage extends StatelessWidget {
   const MyPage({super.key});

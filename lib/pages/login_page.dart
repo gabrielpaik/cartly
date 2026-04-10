@@ -5,10 +5,9 @@ import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
 import '../services/remote_auth_repository.dart';
+import '../widgets/login_page_auth_form_section.dart';
 import '../widgets/login_page_guest_cta_section.dart';
 import '../widgets/login_page_header_section.dart';
-
-enum _AuthMode { login, signup, reset }
 
 const _emailDomainOptions = <String>[
   'gmail.com',
@@ -42,13 +41,13 @@ class _LoginPageState extends State<LoginPage> {
   bool _signupCodeVerified = false;
   int _loginFailedCount = 0;
   String _selectedEmailDomain = 'gmail.com';
-  _AuthMode _mode = _AuthMode.login;
+  AuthMode _mode = AuthMode.login;
 
   @override
   void initState() {
     super.initState();
     if (widget.preferSignup) {
-      _mode = _AuthMode.signup;
+      _mode = AuthMode.signup;
     }
     AppConfigStore.instance.refresh().then((_) {
       if (mounted) setState(() {});
@@ -70,9 +69,9 @@ class _LoginPageState extends State<LoginPage> {
     return AppRuntimeCopy.text(path, fallback);
   }
 
-  bool get _isSignup => _mode == _AuthMode.signup;
-  bool get _isReset => _mode == _AuthMode.reset;
-  bool get _isLogin => _mode == _AuthMode.login;
+  bool get _isSignup => _mode == AuthMode.signup;
+  bool get _isReset => _mode == AuthMode.reset;
+  bool get _isLogin => _mode == AuthMode.login;
   bool get _usesCustomDomain => _selectedEmailDomain == '__custom__';
 
   String get _emailDomainValue =>
@@ -93,7 +92,7 @@ class _LoginPageState extends State<LoginPage> {
     _codeCtrl.clear();
   }
 
-  void _switchMode(_AuthMode mode) {
+  void _switchMode(AuthMode mode) {
     setState(() {
       _mode = mode;
       _resetCodeState();
@@ -135,9 +134,9 @@ class _LoginPageState extends State<LoginPage> {
 
     if (!mounted) return;
     if (choice == 'reset') {
-      _switchMode(_AuthMode.reset);
+      _switchMode(AuthMode.reset);
     } else {
-      _switchMode(_AuthMode.login);
+      _switchMode(AuthMode.login);
     }
   }
 
@@ -169,7 +168,7 @@ class _LoginPageState extends State<LoginPage> {
 
     if (!mounted) return;
     if (choice == 'reset') {
-      _switchMode(_AuthMode.reset);
+      _switchMode(AuthMode.reset);
     }
   }
 
@@ -340,324 +339,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  Widget _modeChip({required _AuthMode mode, required String label}) {
-    final selected = _mode == mode;
-    return Expanded(
-      child: GestureDetector(
-        onTap: _isSubmitting ? null : () => _switchMode(mode),
-        child: Container(
-          height: 42,
-          decoration: BoxDecoration(
-            color: selected ? const Color(0xFFE31837) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: selected ? const Color(0xFFE31837) : Colors.black12),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              color: selected ? Colors.white : Colors.black87,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _textField({
-    required TextEditingController controller,
-    required String label,
-    TextInputType? keyboardType,
-    bool obscureText = false,
-    bool enabled = true,
-    ValueChanged<String>? onChanged,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      obscureText: obscureText,
-      enabled: enabled,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-      ),
-      onChanged: onChanged,
-    );
-  }
-
-  Widget _emailInputBlock() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              flex: 6,
-              child: _textField(
-                controller: _emailLocalCtrl,
-                label: _text(['login', 'emailLocalFieldLabel'], '이메일 아이디'),
-                keyboardType: TextInputType.emailAddress,
-                onChanged: (_) {
-                  if (_isSignup && _signupCodeVerified) {
-                    setState(() => _signupCodeVerified = false);
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Text('@', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(width: 8),
-            Expanded(
-              flex: 7,
-              child: DropdownButtonFormField<String>(
-                initialValue: _selectedEmailDomain,
-                decoration: InputDecoration(
-                  labelText: _text(['login', 'emailDomainFieldLabel'], '도메인'),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                items: _emailDomainOptions.map((domain) {
-                  final label = domain == '__custom__'
-                      ? _text(['login', 'emailCustomDomainOption'], '직접입력')
-                      : domain;
-                  return DropdownMenuItem(value: domain, child: Text(label));
-                }).toList(),
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() {
-                    _selectedEmailDomain = value;
-                    if (_isSignup && _signupCodeVerified) {
-                      _signupCodeVerified = false;
-                    }
-                  });
-                },
-              ),
-            ),
-          ],
-        ),
-        if (_usesCustomDomain) ...[
-          const SizedBox(height: 12),
-          _textField(
-            controller: _emailCustomDomainCtrl,
-            label: _text(['login', 'emailCustomDomainFieldLabel'], '직접 입력 도메인'),
-            keyboardType: TextInputType.emailAddress,
-            onChanged: (_) {
-              if (_isSignup && _signupCodeVerified) {
-                setState(() => _signupCodeVerified = false);
-              }
-            },
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _loginForm() {
-    return Column(
-      children: [
-        _emailInputBlock(),
-        const SizedBox(height: 12),
-        _textField(
-          controller: _passwordCtrl,
-          label: _text(['login', 'passwordFieldLabel'], '비밀번호'),
-          obscureText: true,
-        ),
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: _isSubmitting ? null : () => _switchMode(_AuthMode.reset),
-            child: Text(_text(['login', 'forgotPasswordAction'], '비밀번호를 잊으셨나요?')),
-          ),
-        ),
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE31837),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
-            onPressed: _isSubmitting ? null : _submit,
-            child: Text(
-              _isSubmitting
-                  ? _text(['login', 'submitting'], '처리 중입니다...')
-                  : _text(['login', 'login', 'submit'], '로그인'),
-              style: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _signupForm() {
-    return Column(
-      children: [
-        _textField(
-          controller: _nameCtrl,
-          label: _text(['login', 'nameFieldLabel'], '이름'),
-        ),
-        const SizedBox(height: 12),
-        _emailInputBlock(),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _textField(
-                controller: _codeCtrl,
-                label: _text(['login', 'codeFieldLabel'], '인증 코드'),
-                keyboardType: TextInputType.number,
-                onChanged: (_) {
-                  if (_signupCodeVerified) {
-                    setState(() => _signupCodeVerified = false);
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 10),
-            SizedBox(
-              height: 56,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                onPressed: (_isSubmitting || _isSendingCode) ? null : _requestCode,
-                child: Text(
-                  _isSendingCode
-                      ? _text(['login', 'sendingCode'], '전송 중입니다...')
-                      : (_codeRequested
-                          ? _text(['login', 'resendCode'], '재전송')
-                          : _text(['login', 'sendCode'], '코드 전송')),
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: OutlinedButton(
-            onPressed: (_isSubmitting || _isVerifyingCode) ? null : _verifySignupCode,
-            child: Text(
-              _isVerifyingCode
-                  ? _text(['login', 'signup', 'verifyingCode'], '인증 확인 중입니다...')
-                  : (_signupCodeVerified
-                      ? _text(['login', 'signup', 'verifiedBadge'], '인증 완료')
-                      : _text(['login', 'signup', 'verifyCodeAction'], '인증 코드 확인')),
-            ),
-          ),
-        ),
-        if (_signupCodeVerified) ...[
-          const SizedBox(height: 16),
-          _textField(
-            controller: _passwordCtrl,
-            label: _text(['login', 'passwordFieldLabel'], '비밀번호'),
-            obscureText: true,
-          ),
-          const SizedBox(height: 12),
-          _textField(
-            controller: _passwordConfirmCtrl,
-            label: _text(['login', 'passwordConfirmFieldLabel'], '비밀번호 확인'),
-            obscureText: true,
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE31837),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              onPressed: _isSubmitting ? null : _submit,
-              child: Text(
-                _isSubmitting
-                    ? _text(['login', 'submitting'], '처리 중입니다...')
-                    : _text(['login', 'signup', 'submit'], '회원가입 완료'),
-                style: const TextStyle(fontWeight: FontWeight.w900),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _resetForm() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextButton(
-          onPressed: _isSubmitting ? null : () => _switchMode(_AuthMode.login),
-          child: Text(_text(['login', 'reset', 'backToLogin'], '로그인으로 돌아가기')),
-        ),
-        _emailInputBlock(),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _textField(
-                controller: _codeCtrl,
-                label: _text(['login', 'codeFieldLabel'], '인증 코드'),
-                keyboardType: TextInputType.number,
-              ),
-            ),
-            const SizedBox(width: 10),
-            SizedBox(
-              height: 56,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                onPressed: (_isSubmitting || _isSendingCode) ? null : _requestCode,
-                child: Text(
-                  _isSendingCode
-                      ? _text(['login', 'sendingCode'], '전송 중입니다...')
-                      : (_codeRequested
-                          ? _text(['login', 'resendCode'], '재전송')
-                          : _text(['login', 'sendCode'], '코드 전송')),
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _textField(
-          controller: _passwordCtrl,
-          label: _text(['login', 'reset', 'newPasswordLabel'], '새 비밀번호'),
-          obscureText: true,
-        ),
-        const SizedBox(height: 14),
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE31837),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
-            onPressed: _isSubmitting ? null : _submit,
-            child: Text(
-              _isSubmitting
-                  ? _text(['login', 'submitting'], '처리 중입니다...')
-                  : _text(['login', 'reset', 'submit'], '비밀번호 재설정'),
-              style: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final branding = AppConfigStore.instance.branding.value;
@@ -672,27 +353,49 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               LoginPageHeaderSection(branding: branding),
               const SizedBox(height: 18),
-              if (!_isReset)
-                Row(
-                  children: [
-                    _modeChip(mode: _AuthMode.login, label: _text(['login', 'mode', 'login'], '로그인')),
-                    const SizedBox(width: 8),
-                    _modeChip(mode: _AuthMode.signup, label: _text(['login', 'mode', 'signup'], '회원가입')),
-                  ],
-                ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: _isReset
-                    ? _resetForm()
-                    : _isSignup
-                        ? _signupForm()
-                        : _loginForm(),
+              LoginPageAuthFormSection(
+                mode: _mode,
+                isSubmitting: _isSubmitting,
+                isSendingCode: _isSendingCode,
+                isVerifyingCode: _isVerifyingCode,
+                codeRequested: _codeRequested,
+                signupCodeVerified: _signupCodeVerified,
+                nameController: _nameCtrl,
+                emailLocalController: _emailLocalCtrl,
+                emailCustomDomainController: _emailCustomDomainCtrl,
+                passwordController: _passwordCtrl,
+                passwordConfirmController: _passwordConfirmCtrl,
+                codeController: _codeCtrl,
+                selectedEmailDomain: _selectedEmailDomain,
+                emailDomainOptions: _emailDomainOptions,
+                text: _text,
+                onSubmit: _submit,
+                onRequestCode: _requestCode,
+                onVerifySignupCode: _verifySignupCode,
+                onModeChanged: _switchMode,
+                onEmailDomainChanged: (value) {
+                  setState(() {
+                    _selectedEmailDomain = value;
+                    if (_isSignup && _signupCodeVerified) {
+                      _signupCodeVerified = false;
+                    }
+                  });
+                },
+                onEmailLocalChanged: (_) {
+                  if (_isSignup && _signupCodeVerified) {
+                    setState(() => _signupCodeVerified = false);
+                  }
+                },
+                onEmailCustomDomainChanged: (_) {
+                  if (_isSignup && _signupCodeVerified) {
+                    setState(() => _signupCodeVerified = false);
+                  }
+                },
+                onCodeChanged: (_) {
+                  if (_signupCodeVerified) {
+                    setState(() => _signupCodeVerified = false);
+                  }
+                },
               ),
               const SizedBox(height: 16),
               LoginPageGuestCtaSection(

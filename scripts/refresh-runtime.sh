@@ -93,6 +93,50 @@ wait_for_http() {
   return 1
 }
 
+stop_process_match() {
+  local pattern="$1"
+  local label="$2"
+  local pids
+  pids=$((/usr/bin/pgrep -f "$pattern" 2>/dev/null || true) | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+  if [[ -z "$pids" ]]; then
+    echo "[$label] no matching process"
+    return 0
+  fi
+
+  echo "[$label] stopping process ($pids)"
+  kill $pids 2>/dev/null || true
+  for _ in {1..20}; do
+    if ! /usr/bin/pgrep -f "$pattern" >/dev/null 2>&1; then
+      echo "[$label] process stopped"
+      return 0
+    fi
+    /bin/sleep 0.5
+  done
+
+  pids=$((/usr/bin/pgrep -f "$pattern" 2>/dev/null || true) | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+  if [[ -n "$pids" ]]; then
+    echo "[$label] force-killing process ($pids)"
+    kill -9 $pids 2>/dev/null || true
+  fi
+}
+
+wait_for_process() {
+  local pattern="$1"
+  local label="$2"
+  local max_seconds="${3:-30}"
+
+  for _ in $(seq 1 "$max_seconds"); do
+    if /usr/bin/pgrep -f "$pattern" >/dev/null 2>&1; then
+      echo "[$label] ready: $pattern"
+      return 0
+    fi
+    /bin/sleep 1
+  done
+
+  echo "[$label] timeout waiting for process $pattern"
+  return 1
+}
+
 echo "[$(/bin/date '+%Y-%m-%d %H:%M:%S')] runtime refresh start"
 echo "repo=$REPO_ROOT"
 echo "with_preview=$WITH_PREVIEW skip_admin_build=$SKIP_ADMIN_BUILD"
@@ -112,6 +156,7 @@ fi
 
 stop_listener 3000 admin-web
 stop_listener 8011 backend
+stop_process_match "worker_daemon.py" worker
 
 echo "[backend] starting latest process"
 /usr/bin/nohup "$REPO_ROOT/scripts/run-backend-login-session.sh" >/dev/null 2>&1 &
@@ -119,8 +164,12 @@ echo "[backend] starting latest process"
 echo "[admin-web] starting latest process"
 /usr/bin/nohup "$REPO_ROOT/scripts/run-admin-web.sh" >/dev/null 2>&1 &
 
+echo "[worker] starting latest process"
+/usr/bin/nohup "$REPO_ROOT/scripts/run-worker-login-session.sh" >/dev/null 2>&1 &
+
 wait_for_http "$BACKEND_URL/health" backend 60
 wait_for_http "$ADMIN_URL/login" admin-web 60
+wait_for_process "worker_daemon.py" worker 30
 
 /usr/bin/curl -fsS "$BACKEND_URL/health" > "$TMP_DIR/health.json"
 /usr/bin/python3 - <<'PY' "$TMP_DIR/health.json"
@@ -158,5 +207,12 @@ do
   /usr/bin/curl -fsS -b "$COOKIE_JAR" "$path" >/dev/null
   echo "[smoke] ok $path"
 done
+
+if /usr/bin/pgrep -f "worker_daemon.py" >/dev/null 2>&1; then
+  echo "[smoke] worker process ok"
+else
+  echo "[smoke] worker process missing"
+  exit 1
+fi
 
 echo "[done] runtime refresh completed successfully"

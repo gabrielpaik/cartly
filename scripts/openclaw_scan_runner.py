@@ -118,6 +118,8 @@ def _coerce_result_shape(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     required_keys = {'name', 'price'}
     if required_keys.issubset(payload.keys()):
         return payload
+    if payload.get('ok') is False and isinstance(payload.get('error'), dict):
+        return payload
     return None
 
 
@@ -415,6 +417,9 @@ def main() -> int:
                 'stderr': stderr[:4000] if stderr else None,
             },
         )
+
+    if parsed.get('ok') is False and isinstance(parsed.get('error'), dict):
+        return parsed
 
     normalized = _normalize_result(parsed)
     if normalized is None:

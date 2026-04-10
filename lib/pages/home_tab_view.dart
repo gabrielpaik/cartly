@@ -18,6 +18,7 @@ class HomeTabView extends StatelessWidget {
   final List<RecentScanEntry> recentScans;
   final void Function(RecognizedItem item) onRecognized;
   final void Function(RecognizedItem item) onAdd;
+  final void Function(CartItem item) onRemove;
 
   const HomeTabView({
     super.key,
@@ -27,6 +28,7 @@ class HomeTabView extends StatelessWidget {
     required this.recentScans,
     required this.onRecognized,
     required this.onAdd,
+    required this.onRemove,
   });
 
   @override
@@ -152,7 +154,7 @@ class HomeTabView extends StatelessWidget {
               ),
               child: const Icon(Icons.delete, color: Colors.white),
             ),
-            onDismissed: (_) => items.remove(item),
+            onDismissed: (_) => onRemove(item),
             child: ItemCard(item: item),
           );
         }),

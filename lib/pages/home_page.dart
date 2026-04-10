@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../app_support.dart';
 import '../config/wimc_runtime_config.dart';
-import '../models/recognized_item.dart';
+import '../pages/home_page_cart_controller.dart';
 import '../pages/home_page_cart_save_controller.dart';
 import '../pages/home_tab_view.dart';
 import '../pages/my_page.dart';
@@ -31,20 +31,13 @@ class _HomePageState extends State<HomePage> {
     baseUrl: WimcRuntimeConfig.current.normalizedRemoteBaseUrl,
     authToken: WimcRuntimeConfig.current.effectiveRemoteAuthToken,
   );
+  late final HomePageCartController _cartController = HomePageCartController(
+    items: items,
+    recentScans: recentScans,
+    setState: setState,
+  );
 
   int get totalPrice => items.fold(0, (sum, item) => sum + item.totalPrice);
-
-  void _recordRecentScan(RecognizedItem item) {
-    setState(() {
-      recentScans.insert(
-        0,
-        RecentScanEntry(item: item, createdAt: DateTime.now()),
-      );
-      if (recentScans.length > 10) {
-        recentScans.removeRange(10, recentScans.length);
-      }
-    });
-  }
 
   Future<void> _saveCurrentCart() async {
     if (_savingCurrentCart) return;
@@ -61,7 +54,7 @@ class _HomePageState extends State<HomePage> {
       final savedCart = await HomePageCartSaveController.saveCart(items);
       if (!mounted) return;
 
-      setState(() => items.clear());
+      _cartController.clearItems();
 
       await HomePageCartSaveController.showSaveCompleteSheet(
         context: context,
@@ -88,12 +81,9 @@ class _HomePageState extends State<HomePage> {
           scanRepository: _scanRepository,
           items: items,
           recentScans: recentScans,
-          onRecognized: _recordRecentScan,
-          onAdd: (item) {
-            setState(() {
-              items.insert(0, CartItem(name: item.name, price: item.price));
-            });
-          },
+          onRecognized: _cartController.recordRecentScan,
+          onAdd: _cartController.addRecognizedItem,
+          onRemove: _cartController.removeCartItem,
         );
     }
   }

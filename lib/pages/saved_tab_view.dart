@@ -6,6 +6,7 @@ import '../services/app_runtime_copy.dart';
 import '../services/cart_store.dart';
 import '../widgets/inline_promo_slot.dart';
 import '../widgets/saved_cart_list_card.dart';
+import '../widgets/saved_tab_empty_state.dart';
 
 class SavedTabView extends StatelessWidget {
   const SavedTabView({super.key});
@@ -46,45 +47,7 @@ class SavedTabView extends StatelessWidget {
             ),
             if (carts.isNotEmpty) const SizedBox(height: 8),
             if (carts.isEmpty)
-              SizedBox(
-                height: MediaQuery.of(context).size.height * 0.5,
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Opacity(
-                        opacity: 0.16,
-                        child: Icon(Icons.bookmark_border, size: 72),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        AppRuntimeCopy.text([
-                          'saved',
-                          'emptyTitle',
-                        ], '아직 저장된 카트가 없어요'),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black45,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        AppRuntimeCopy.text([
-                          'saved',
-                          'emptyBody',
-                        ], 'Home에서 저장하면 여기서 다시 볼 수 있어.'),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black45,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
+              const SavedTabEmptyState()
             else
               ...List.generate(carts.length, (index) {
                 final cart = carts[index];

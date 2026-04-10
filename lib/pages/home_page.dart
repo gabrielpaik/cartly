@@ -11,6 +11,7 @@ import '../pages/saved_tab_view.dart';
 import '../services/app_config_store.dart';
 import '../services/remote_scan_repository.dart';
 import '../services/scan_repository.dart';
+import '../widgets/total_bar.dart';
 
 class HomePage extends StatefulWidget {
   final List<CameraDescription> cameras;

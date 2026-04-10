@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    app_name: str = 'WIMC API'
+    app_name: str = 'Cartly API'
     environment: str = 'development'
     database_url: str = 'postgresql+psycopg://localhost:5432/wimc'
     storage_root: str = '/Volumes/AI/WIMC'

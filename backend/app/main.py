@@ -26,7 +26,7 @@ async def lifespan(_: FastAPI):
         await snapshot_scheduler.stop()
 
 
-app = FastAPI(title='WIMC API', version='0.1.0', lifespan=lifespan)
+app = FastAPI(title='Cartly API', version='0.1.0', lifespan=lifespan)
 
 app.mount('/assets/branding', StaticFiles(directory=str(branding_assets_dir())), name='branding-assets')
 app.mount('/assets/ads', StaticFiles(directory=str(ads_assets_dir())), name='ads-assets')
@@ -45,7 +45,7 @@ def health():
     storage = storage_health_check(create_probe=False)
     return {
         'ok': True,
-        'service': 'wimc-api',
+        'service': 'cartly-api',
         'storageRoot': settings.storage_root,
         'storageWritable': storage['writable'],
         'storagePaths': storage['paths'],

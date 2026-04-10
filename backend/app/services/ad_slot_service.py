@@ -573,7 +573,7 @@ def export_ad_campaign_xlsx(db: OrmSession, campaign_id: str) -> tuple[bytes, st
     overview = workbook.active
     overview.title = 'Campaign'
 
-    overview['A1'] = 'WIMC Ad Campaign Export'
+    overview['A1'] = 'Cartly Ad Campaign Export'
     overview['A1'].font = Font(bold=True, size=16)
 
     rows = [
@@ -662,7 +662,7 @@ def export_ad_campaigns_xlsx(
     workbook = Workbook()
     overview = workbook.active
     overview.title = 'Overview'
-    overview['A1'] = 'WIMC Past Ad Campaign Export'
+    overview['A1'] = 'Cartly Past Ad Campaign Export'
     overview['A1'].font = Font(bold=True, size=16)
 
     overview_rows = [

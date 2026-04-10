@@ -1,6 +1,6 @@
-# WIMC backend
+# Cartly backend
 
-WIMC/ScanCart backend for app runtime, admin runtime, and scan processing.
+Cartly backend for app runtime, admin runtime, and scan processing.
 
 ## Current runtime shape
 - FastAPI API server

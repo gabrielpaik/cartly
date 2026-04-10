@@ -284,7 +284,7 @@ def _normalize_result(result: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 
 def _build_prompt(job_id: str, image_path: str) -> str:
-    return f'''You are analyzing a Korean grocery shelf label / price tag image for the ScanCart app.
+    return f'''You are analyzing a Korean grocery shelf label / price tag image for the Cartly app.
 
 Goal:
 Extract the most likely full product name and final selling price shown in the image as fast as possible.
@@ -332,7 +332,7 @@ Use exactly this success schema:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description='OpenClaw scan runner for WIMC/ScanCart')
+    parser = argparse.ArgumentParser(description='OpenClaw scan runner for Cartly')
     parser.add_argument('--job-id', required=True)
     parser.add_argument('--image-path', required=True)
     args = parser.parse_args()

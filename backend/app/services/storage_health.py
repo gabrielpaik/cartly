@@ -57,5 +57,5 @@ def ensure_storage_ready() -> dict:
     report = storage_health_check(create_probe=True)
     if not report['writable']:
         message = '; '.join(report['errors']) or 'storage volume is not writable'
-        raise RuntimeError(f'WIMC storage preflight failed: {message}')
+        raise RuntimeError(f'Cartly storage preflight failed: {message}')
     return report

@@ -1,15 +1,15 @@
-# WIMC Operations Runbook
+# Cartly Operations Runbook
 
 ## Current production-ish operating model
 
 ### Backend
 - Runs in a **Terminal login-session context** on the Mac mini
 - Do **not** run the backend as a direct launchd background process
-- Reason: direct launchd backend writes to `/Volumes/AI/WIMC` fail with `PermissionError`, while the same backend launched from the user login session writes successfully
+- Reason: direct launchd backend writes to `/Volumes/AI/Cartly` fail with `PermissionError`, while the same backend launched from the user login session writes successfully
 
 ### Scan worker
 - Runs as a **Terminal login-session daemon** on the Mac mini
-- Entrypoint: `/Users/sdpaik/dev/wimc/scripts/WIMC Worker.command`
+- Entrypoint: `/Users/sdpaik/dev/wimc/scripts/Cartly Worker.command`
 - Runtime loop: `/Users/sdpaik/dev/wimc/backend/worker_daemon.py`
 - Current purpose: continuously drain queued scan jobs from DB/NAS without requiring manual one-shot worker execution
 
@@ -18,7 +18,7 @@
 - Public access remains through the existing admin domain / reverse proxy path
 
 ### Storage
-- Storage root stays on NAS volume: `/Volumes/AI/WIMC`
+- Storage root stays on NAS volume: `/Volumes/AI/Cartly`
 - Backend startup performs storage preflight checks and `/health` exposes:
   - `storageWritable`
   - `storagePaths`
@@ -31,7 +31,7 @@
 ### Expected login flow
 1. User logs into macOS
 2. Login Item app opens Terminal and runs:
-   - `/Users/sdpaik/dev/wimc/scripts/WIMC Backend.command`
+   - `/Users/sdpaik/dev/wimc/scripts/Cartly Backend.command`
 3. That command launches:
    - `/Users/sdpaik/dev/wimc/scripts/run-backend-login-session.sh`
 4. Script starts uvicorn only if port `8011` is not already listening
@@ -39,7 +39,7 @@
 ### Expected result
 - Backend listens on `127.0.0.1:8011`
 - `/health` returns `storageWritable: true`
-- Scan job creation can write directly into `/Volumes/AI/WIMC`
+- Scan job creation can write directly into `/Volumes/AI/Cartly`
 
 ---
 
@@ -84,7 +84,7 @@ If backend is unhealthy or missing after login:
 1. Open Terminal
 2. Run:
 ```bash
-/Users/sdpaik/dev/wimc/scripts/WIMC\ Backend.command
+<repo>/scripts/Cartly\ Backend.command
 ```
 
 ### Stop backend manually
@@ -106,7 +106,7 @@ Avoid restoring or reusing a direct backend plist under `~/Library/LaunchAgents`
 
 Why:
 - launchd background backend can pass health checks
-- but still fail actual NAS writes to `/Volumes/AI/WIMC`
+- but still fail actual NAS writes to `/Volumes/AI/Cartly`
 - that breaks scan job creation in production paths
 
 ### Do not move OCR input/logs to local disk as a permanent workaround
@@ -144,13 +144,13 @@ Interpretation:
 Immediate actions:
 1. Check `/health`
 2. Confirm `storageWritable`
-3. Re-run `WIMC Backend.command` from Terminal
+3. Re-run `Cartly Backend.command` from Terminal
 4. Retry a scan job
 
 ### Symptom: Login Item ran but backend is not listening
 Immediate actions:
 1. Open Terminal
-2. Run `/Users/sdpaik/dev/wimc/scripts/WIMC Backend.command`
+2. Run `/Users/sdpaik/dev/wimc/scripts/Cartly Backend.command`
 3. Re-check `curl -sS http://127.0.0.1:8011/health`
 
 ---
@@ -159,8 +159,8 @@ Immediate actions:
 - Backend login-session runner:
   - `/Users/sdpaik/dev/wimc/scripts/run-backend-login-session.sh`
 - Terminal entrypoint:
-  - `/Users/sdpaik/dev/wimc/scripts/WIMC Backend.command`
+  - `/Users/sdpaik/dev/wimc/scripts/Cartly Backend.command`
 - Login-session runtime log:
-  - `/Users/sdpaik/Library/Logs/WIMC/backend-login-session.log`
+  - `/Users/sdpaik/Library/Logs/Cartly/backend-login-session.log`
 - Admin web LaunchAgent:
   - `~/Library/LaunchAgents/com.wimc.admin-web.plist`

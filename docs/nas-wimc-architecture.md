@@ -1,16 +1,16 @@
-# WIMC NAS architecture (MVP)
+# Cartly NAS architecture (MVP)
 
 ## NAS root
 
 - Mount: `/Volumes/AI`
-- App workspace: `/Volumes/AI/WIMC`
+- App workspace: `/Volumes/AI/Cartly`
 
-Use a dedicated WIMC subtree instead of mixing with `/Volumes/AI/input` or `/Volumes/AI/output` directly.
+Use a dedicated Cartly subtree instead of mixing with `/Volumes/AI/input` or `/Volumes/AI/output` directly.
 
 ## Folder layout
 
 ```text
-/Volumes/AI/WIMC/
+/Volumes/AI/Cartly/
   config/
   input/
   processing/

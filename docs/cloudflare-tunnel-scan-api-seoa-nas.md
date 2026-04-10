@@ -1,4 +1,4 @@
-# ScanCart app public API via Cloudflare Tunnel (`scan-api.seoa-nas.com`)
+# Cartly app public API via Cloudflare Tunnel (`scan-api.seoa-nas.com`)
 
 ## Goal
 
@@ -37,16 +37,16 @@ Not exposed through this path:
 
 ## Required local runtime env
 
-`$HOME/Library/Application Support/WIMC/admin.env`
+`$HOME/Library/Application Support/Cartly/admin.env`
 
 ```bash
-export WIMC_API_BASE='http://127.0.0.1:8011'
+export CARTLY_API_BASE='http://127.0.0.1:8011'
 export APP_PUBLIC_PROXY_PORT='3100'
 export APP_PUBLIC_PROXY_HOST='127.0.0.1'
 export APP_PUBLIC_PROXY_BACKEND_BASE='http://127.0.0.1:8011'
 ```
 
-`app-public-proxy` uses `APP_PUBLIC_PROXY_BACKEND_BASE` (defaulting to `WIMC_API_BASE`) to reach the private backend.
+`app-public-proxy` uses `APP_PUBLIC_PROXY_BACKEND_BASE` (defaulting to `CARTLY_API_BASE`) to reach the private backend.
 
 ## Cloudflare Tunnel setup
 
@@ -82,8 +82,8 @@ APP_CONFIG_BASE_URL='https://scan-api.seoa-nas.com' \
 
 The script injects:
 
-- `WIMC_REMOTE_BASE_URL`
-- `WIMC_APP_CONFIG_BASE_URL`
+- `CARTLY_REMOTE_BASE_URL`
+- `CARTLY_APP_CONFIG_BASE_URL`
 
 ## Expected result
 

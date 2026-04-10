@@ -1,4 +1,4 @@
-# WIMC auth provider flow
+# Cartly auth provider flow
 
 ## Why this change
 
@@ -35,8 +35,8 @@ That keeps real SDK integration cleaner later:
 
 Recommended commercial behavior later:
 - `email`: lightweight email login / magic-link / OTP
-- `google`: provider token exchange -> WIMC session token
-- `kakao`: provider token exchange -> WIMC session token
+- `google`: provider token exchange -> Cartly session token
+- `kakao`: provider token exchange -> Cartly session token
 - `guest`: separate guest endpoint still OK for analytics clarity
 
 ## Product notes

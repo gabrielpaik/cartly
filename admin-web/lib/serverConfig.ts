@@ -1,9 +1,9 @@
 import type { NextRequest } from 'next/server'
 
-export const ADMIN_COOKIE_NAME = 'wimc_admin_session'
+export const ADMIN_COOKIE_NAME = 'cartly_admin_session'
 
 export function getBackendApiBase() {
-  return (process.env.WIMC_API_BASE ?? process.env.NEXT_PUBLIC_WIMC_API_BASE ?? 'http://127.0.0.1:8011').replace(/\/$/, '')
+  return (process.env.CARTLY_API_BASE ?? process.env.NEXT_PUBLIC_CARTLY_API_BASE ?? process.env.WIMC_API_BASE ?? process.env.NEXT_PUBLIC_WIMC_API_BASE ?? 'http://127.0.0.1:8011').replace(/\/$/, '')
 }
 
 export function shouldUseSecureAdminCookie(request: NextRequest) {

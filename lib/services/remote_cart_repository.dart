@@ -10,7 +10,7 @@ class RemoteCartRepository {
 
   final HttpClient _httpClient;
 
-  Uri _uri(String path) => Uri.parse('${getWimcApiBaseUrl()}$path');
+  Uri _uri(String path) => Uri.parse('${getCartlyApiBaseUrl()}$path');
 
   Future<List<SavedCart>> listCarts(String authToken) async {
     final response = await _send('GET', '/v1/carts', authToken: authToken);

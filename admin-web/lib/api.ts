@@ -22,7 +22,7 @@ async function parseErrorMessage(res: Response) {
 }
 
 export async function fetchJson<T>(path: string): Promise<T> {
-  const res = await fetch(`/api/wimc-admin${path}`, {
+  const res = await fetch(`/api/cartly-admin${path}`, {
     cache: 'no-store',
     credentials: 'same-origin',
   })
@@ -45,7 +45,7 @@ export async function fetchJsonSafe<T>(path: string, fallback: T): Promise<{ dat
 }
 
 export async function putJson<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`/api/wimc-admin${path}`, {
+  const res = await fetch(`/api/cartly-admin${path}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -59,7 +59,7 @@ export async function putJson<T>(path: string, body: unknown): Promise<T> {
 }
 
 export async function postFormData<T>(path: string, formData: FormData): Promise<T> {
-  const res = await fetch(`/api/wimc-admin${path}`, {
+  const res = await fetch(`/api/cartly-admin${path}`, {
     method: 'POST',
     body: formData,
     cache: 'no-store',
@@ -72,7 +72,7 @@ export async function postFormData<T>(path: string, formData: FormData): Promise
 }
 
 export async function postJson<T>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`/api/wimc-admin${path}`, {
+  const res = await fetch(`/api/cartly-admin${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body ?? {}),

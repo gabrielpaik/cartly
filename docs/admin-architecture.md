@@ -1,8 +1,8 @@
-# WIMC Admin architecture v1
+# Cartly Admin architecture v1
 
 ## Goal
 
-Create a separate admin web console for operating WIMC as a commercial product.
+Create a separate admin web console for operating Cartly as a commercial product.
 
 This admin is not a developer-only panel. It should support:
 - KPI monitoring for CMO/CFO
@@ -23,7 +23,7 @@ Admin is a backoffice product with 3 simultaneous jobs:
 - Frontend: **Next.js**
 - UI: React + component library (keep clean and dashboard-oriented)
 - Charts: lightweight chart layer for KPI cards + trend lines
-- Backend: reuse WIMC API + add `/admin/*` endpoints
+- Backend: reuse Cartly API + add `/admin/*` endpoints
 - Auth: admin-only role-based access
 
 ## Admin app sections (IA)

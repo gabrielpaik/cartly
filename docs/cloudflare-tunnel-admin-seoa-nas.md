@@ -1,8 +1,8 @@
-# WIMC admin via Cloudflare Tunnel (`admin.seoa-nas.com`)
+# Cartly admin via Cloudflare Tunnel (`admin.seoa-nas.com`)
 
 ## Goal
 
-Expose WIMC admin publicly through Cloudflare without opening local router ports.
+Expose Cartly admin publicly through Cloudflare without opening local router ports.
 
 Recommended public URL:
 - `https://admin.seoa-nas.com`
@@ -44,7 +44,7 @@ Notes:
 
 ```bash
 cd /Users/sdpaik/dev/wimc/admin-web
-export WIMC_API_BASE='http://127.0.0.1:8011'
+export CARTLY_API_BASE='http://127.0.0.1:8011'
 npm run build
 npm run start
 ```
@@ -93,7 +93,7 @@ Protect `admin.seoa-nas.com` with a policy such as:
 
 This gives you:
 - Cloudflare identity check first
-- WIMC `ADMIN_TOKEN` second
+- Cartly `ADMIN_TOKEN` second
 
 ### 2) Keep backend off the network
 
@@ -126,7 +126,7 @@ Check in this order:
 2. local admin-web process on `127.0.0.1:3000`
 3. local backend process on `127.0.0.1:8011`
 4. backend has `ADMIN_TOKEN` set
-5. `WIMC_API_BASE` points to `http://127.0.0.1:8011`
+5. `CARTLY_API_BASE` points to `http://127.0.0.1:8011`
 6. app login succeeds but pages loop back to login → token mismatch or backend admin auth failure
 
 ## Nice next step

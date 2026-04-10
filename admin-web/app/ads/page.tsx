@@ -563,7 +563,7 @@ function SlotHistory({
               <td data-label={t('admin.ads.history.table.ctr', 'CTR')}>{formatPercent(campaign.ctr)}</td>
               <td data-label={t('admin.ads.history.table.image', '이미지')}>{campaign.imageUrl ? <a href={campaign.imageUrl} target="_blank" rel="noreferrer">보기</a> : '-'}</td>
               <td data-label={t('admin.ads.history.table.download', '다운로드')}>
-                <a className="ghostBtn pageActionBtn" href={`/api/wimc-admin/admin/ads/campaigns/${campaign.id}/export.xlsx`}>
+                <a className="ghostBtn pageActionBtn" href={`/api/cartly-admin/admin/ads/campaigns/${campaign.id}/export.xlsx`}>
                   {t('admin.ads.history.downloadSingle', 'Excel 다운로드')}
                 </a>
               </td>
@@ -726,7 +726,7 @@ export default function AdsPage() {
   if (historyStatusFilter !== 'all') exportParams.set('status', historyStatusFilter)
   if (historyPeriodFrom) exportParams.set('periodFrom', historyPeriodFrom)
   if (historyPeriodTo) exportParams.set('periodTo', historyPeriodTo)
-  const bulkExportHref = `/api/wimc-admin/admin/ads/campaigns/export.xlsx${exportParams.toString() ? `?${exportParams.toString()}` : ''}`
+  const bulkExportHref = `/api/cartly-admin/admin/ads/campaigns/export.xlsx${exportParams.toString() ? `?${exportParams.toString()}` : ''}`
 
   return (
     <div>

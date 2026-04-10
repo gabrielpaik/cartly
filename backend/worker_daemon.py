@@ -22,7 +22,7 @@ def run_once():
 
 
 def main():
-    parser = argparse.ArgumentParser(description='WIMC scan worker daemon')
+    parser = argparse.ArgumentParser(description='Cartly scan worker daemon')
     parser.add_argument('--poll-interval', type=float, default=2.0)
     parser.add_argument('--post-job-sleep', type=float, default=0.2)
     parser.add_argument('--idle-log-seconds', type=float, default=60.0)

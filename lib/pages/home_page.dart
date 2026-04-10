@@ -2,7 +2,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
 import '../app_support.dart';
-import '../config/wimc_runtime_config.dart';
+import '../config/cartly_runtime_config.dart';
 import '../pages/home_page_cart_controller.dart';
 import '../pages/home_page_cart_save_controller.dart';
 import '../pages/home_tab_view.dart';
@@ -29,8 +29,8 @@ class _HomePageState extends State<HomePage> {
   bool _savingCurrentCart = false;
 
   late final ScanRepository _scanRepository = RemoteScanRepository(
-    baseUrl: WimcRuntimeConfig.current.normalizedRemoteBaseUrl,
-    authToken: WimcRuntimeConfig.current.effectiveRemoteAuthToken,
+    baseUrl: CartlyRuntimeConfig.current.normalizedRemoteBaseUrl,
+    authToken: CartlyRuntimeConfig.current.effectiveRemoteAuthToken,
   );
   late final HomePageCartController _cartController = HomePageCartController(
     items: items,

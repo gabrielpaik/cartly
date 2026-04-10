@@ -13,7 +13,7 @@ class RemoteAuthRepository implements AuthRepository {
 
   final HttpClient _httpClient;
 
-  Uri _uri(String path) => Uri.parse('${getWimcApiBaseUrl()}$path');
+  Uri _uri(String path) => Uri.parse('${getCartlyApiBaseUrl()}$path');
 
   @override
   Future<UserSession> continueAsGuest() async {

@@ -18,7 +18,7 @@ class AppConfigStore {
 
   String get _baseUrl {
     const env = String.fromEnvironment(
-      'WIMC_APP_CONFIG_BASE_URL',
+      'CARTLY_APP_CONFIG_BASE_URL',
       defaultValue: '',
     );
     if (env.trim().isNotEmpty) {

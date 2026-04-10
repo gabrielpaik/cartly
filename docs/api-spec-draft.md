@@ -1,9 +1,9 @@
-# WIMC API spec draft v1
+# Cartly API spec draft v1
 
 Base assumption:
 - App-facing backend API
 - DB is source of truth
-- NAS `/Volumes/AI/WIMC` is storage/runtime infrastructure behind the API
+- NAS `/Volumes/AI/Cartly` is storage/runtime infrastructure behind the API
 
 ## Common rules
 

@@ -152,7 +152,7 @@ final reviewMemberSession = UserSession(
 final reviewRecognizedItem = RecognizedItem(
   name: '커클랜드 그릭요거트',
   price: 12990,
-  sku: 'WIMC-12990',
+  sku: 'CARTLY-12990',
   confidence: 0.92,
   source: 'ocr',
   rawText: 'KIRKLAND GREEK YOGURT 12,990',

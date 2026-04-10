@@ -1,4 +1,4 @@
-# WIMC Figma Design Review 기준
+# Cartly Figma Design Review 기준
 
 ## 목적
 - 기능 개발과 분리해서 UI를 시각적으로 검토한다.

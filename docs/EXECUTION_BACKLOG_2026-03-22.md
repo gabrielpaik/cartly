@@ -1,11 +1,11 @@
-# WIMC Execution Backlog — 2026-03-22
+# Cartly Execution Backlog — 2026-03-22
 
 Owner: CEO(승대)
 Working repo: `/Users/sdpaik/dev/wimc`
 
 ## Principle
 - OCR 품질이 아직 낮다는 점을 전제로 설계한다.
-- NAS(`/Volumes/AI/WIMC`)는 AI 처리/저장 인프라로 활용하고, 제품 상태의 source of truth는 backend + DB로 둔다.
+- NAS(`/Volumes/AI/Cartly`)는 AI 처리/저장 인프라로 활용하고, 제품 상태의 source of truth는 backend + DB로 둔다.
 - 홈 → 스캔 → 결과보정 → 현재카트 → 저장 → 히스토리 루프를 최우선으로 본다.
 - 광고는 핵심 루프를 해치지 않는 수준에서만 검토한다.
 
@@ -24,7 +24,7 @@ Working repo: `/Users/sdpaik/dev/wimc`
   - [ ] confidence threshold
   - [ ] 재촬영/수정 비율
 - [ ] 사용자 수정 결과를 학습/평가 데이터로 적재하는 feedback loop 정리
-- [ ] `/Volumes/AI/WIMC` 내 운영 폴더 역할 고정
+- [ ] `/Volumes/AI/Cartly` 내 운영 폴더 역할 고정
   - [ ] `input`
   - [ ] `processing`
   - [ ] `output`
@@ -46,7 +46,7 @@ Working repo: `/Users/sdpaik/dev/wimc`
 
 ## Track B — CDO / UX/UI
 ### Goal
-WIMC를 기능 데모가 아니라 제품 경험으로 바꾼다.
+Cartly를 기능 데모가 아니라 제품 경험으로 바꾼다.
 
 ### TODO
 - [ ] 홈 정보구조 재설계
@@ -65,10 +65,10 @@ WIMC를 기능 데모가 아니라 제품 경험으로 바꾼다.
 
 ## Track C — CMO / 포지셔닝 + 시장검증
 ### Goal
-WIMC를 단순 OCR 앱이 아니라 반복 사용되는 쇼핑 유틸리티로 포지셔닝한다.
+Cartly를 단순 OCR 앱이 아니라 반복 사용되는 쇼핑 유틸리티로 포지셔닝한다.
 
 ### TODO
-- [ ] WIMC 한 줄 정의 3안 작성
+- [ ] Cartly 한 줄 정의 3안 작성
 - [ ] 직접 경쟁 / 인접 경쟁 / 플랫폼 위협 구분
 - [ ] 첫 고객 세그먼트 정의
 - [ ] OCR 품질이 최고가 아니어도 설 수 있는 메시지 정리
@@ -108,7 +108,7 @@ WIMC를 단순 OCR 앱이 아니라 반복 사용되는 쇼핑 유틸리티로 �
 - [ ] CFO: 광고 정책 초안 + KPI 프레임
 
 ## CEO checkpoints
-- [ ] WIMC를 어떤 문장으로 정의할지 선택
+- [ ] Cartly를 어떤 문장으로 정의할지 선택
 - [ ] 광고 허용 수준 결정
 - [ ] OCR 품질 개선을 위한 우선 투자 범위 결정
 - [ ] 첫 출시 타깃(내부 검증 / 소규모 사용자 / 외부 공개) 결정

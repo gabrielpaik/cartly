@@ -1,8 +1,8 @@
-# WIMC Admin frontend spec v1
+# Cartly Admin frontend spec v1
 
 ## Purpose
 
-Define the first usable admin web UI for WIMC.
+Define the first usable admin web UI for Cartly.
 
 This should be readable enough for daily use by:
 - CEO

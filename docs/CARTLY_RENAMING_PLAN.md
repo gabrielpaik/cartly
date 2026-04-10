@@ -3,7 +3,7 @@
 ## Decision
 
 - External brand name moves to **Cartly**.
-- Existing internal/runtime codename **WIMC** stays temporarily where changing it would risk runtime breakage.
+- Legacy internal/runtime identifiers may remain temporarily where changing them would risk runtime breakage.
 - Current repo/app structure is kept for now. Do **not** do a big-bang move into a new folder during the first renaming pass.
 - If cleanup is still needed after branding stabilizes, do a second pass to create a lighter clean project shell.
 
@@ -33,24 +33,24 @@ These should move to **Cartly** in the first pass.
 
 #### App / iOS
 - `ios/Runner/Info.plist`
-  - app display name currently shows `ScanCart`
+  - app display name currently shows `Cartly`
 - `lib/models/app_branding.dart`
 - `lib/services/remote_auth_repository.dart`
-  - fallback user display name `ScanCart User`
+  - fallback user display name `Cartly User`
 - user-visible app runtime copy from backend/app-config
 
 #### Backend user-visible copy
 - `backend/app/services/auth_password_service.py`
-  - signup/reset email subject/body still says `ScanCart`
+  - signup/reset email subject/body still says `Cartly`
 - backend branding/app-copy defaults where app/admin preview text surfaces to the user
 
 #### Admin user-facing text
 - `admin-web/components/LoginScreen.tsx`
-  - `WIMC Admin 로그인`
+  - `Cartly Admin 로그인`
 - `admin-web/components/AdminChrome.tsx`
-  - `WIMC Admin`
+  - `Cartly Admin`
 - `admin-web/app/layout.tsx`
-  - title/description currently `WIMC Admin`
+  - title/description currently `Cartly Admin`
 - admin copy defaults and preview labels that surface app/admin brand name
 
 ### 2) Operational/internal text, change selectively
@@ -68,7 +68,7 @@ These can be renamed if low-risk, but do not block first-pass Cartly rollout.
   - `docs/cloudflare-tunnel-*.md`
 - ad export labels in backend:
   - `backend/app/services/ad_slot_service.py`
-    - `WIMC Ad Campaign Export`
+    - `Cartly Ad Campaign Export`
     - filenames like `wimc-ad-campaigns-*`
 - prompts/help text in scripts like OCR runner descriptions
 
@@ -81,16 +81,16 @@ These should stay until a dedicated technical migration step.
 - repo path: `/Users/sdpaik/dev/wimc`
 - bundle id: `com.seungdae.wimc`
 - env keys:
-  - `WIMC_API_BASE`
-  - `WIMC_REMOTE_BASE_URL`
-  - `WIMC_APP_CONFIG_BASE_URL`
+  - `CARTLY_API_BASE`
+  - `CARTLY_REMOTE_BASE_URL`
+  - `CARTLY_APP_CONFIG_BASE_URL`
 - storage path:
-  - `/Volumes/AI/WIMC`
-  - `~/Library/Application Support/WIMC`
-  - `~/Library/Logs/WIMC`
+  - `/Volumes/AI/Cartly`
+  - `~/Library/Application Support/Cartly`
+  - `~/Library/Logs/Cartly`
 - script names:
-  - `WIMC Backend.command`
-  - `WIMC Worker.command`
+  - `Cartly Backend.command`
+  - `Cartly Worker.command`
 - code identifiers that are stable but not user-facing:
   - `WimcRuntimeConfig`
   - install id keys like `wimc_install_id_v1`
@@ -104,7 +104,7 @@ These should stay until a dedicated technical migration step.
 ### Phase A, brand policy lock
 - External product/app/service name: **Cartly**
 - Admin visible name: recommend **Cartly Admin**
-- Internal codename: keep **WIMC** for now
+- Internal codename: keep legacy compatibility only where required
 - Bundle id: keep `com.seungdae.wimc` for now
 
 ### Phase B, rename user-facing brand
@@ -112,7 +112,7 @@ These should stay until a dedicated technical migration step.
 2. Admin visible branding text
 3. Auth email subjects/bodies
 4. Backend/app-config default branding/copy values
-5. Preview/default content labels that still say WIMC or ScanCart
+5. Preview/default content labels that still say Cartly or Cartly
 
 ### Phase C, verify runtime reflection
 After edits:
@@ -163,4 +163,4 @@ A user or tester should see **Cartly** consistently across:
 - auth emails
 - admin visible brand labels
 
-while runtime stays stable on the existing WIMC-based internal paths.
+while runtime stays stable on the existing legacy internal paths.

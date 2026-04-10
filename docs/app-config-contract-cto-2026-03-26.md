@@ -1,4 +1,4 @@
-# WIMC `/v1/app-config` CTO Contract
+# Cartly `/v1/app-config` CTO Contract
 
 Date: 2026-03-26
 Status: Proposed / next implementation target

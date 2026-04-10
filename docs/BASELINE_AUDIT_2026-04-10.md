@@ -1,4 +1,4 @@
-# Cartly / WIMC Baseline Audit - 2026-04-10
+# Cartly / Cartly Baseline Audit - 2026-04-10
 
 ## Purpose
 
@@ -36,7 +36,7 @@ Current working tree is concentrated in these areas:
 These changes look intentional and should be treated as real baseline work, not noise.
 
 ### 1. Product naming shift toward Cartly
-- user-facing brand is moving from WIMC/ScanCart toward Cartly
+- user-facing brand is moving from Cartly/Cartly toward Cartly
 - visible admin/app/auth copy already includes Cartly in multiple places
 - `docs/CARTLY_RENAMING_PLAN.md` exists and matches the current transition strategy
 
@@ -153,7 +153,7 @@ First:
 ### Step 2. Finish first-pass Cartly rename
 After baseline is stable:
 - complete user-facing Cartly naming across app/admin/auth/default runtime copy
-- keep internal WIMC infra names for now
+- keep internal Cartly infra names for now
 - do not rename repo path, env keys, bundle id, or storage roots in first pass
 
 ### Step 3. Decompose Flutter structure

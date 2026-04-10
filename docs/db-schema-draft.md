@@ -1,4 +1,4 @@
-# WIMC DB schema draft v1
+# Cartly DB schema draft v1
 
 ## 1. users
 Purpose: account identity

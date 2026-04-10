@@ -1,8 +1,8 @@
-# WIMC commercial architecture v1
+# Cartly commercial architecture v1
 
 ## Product stance
 
-WIMC is not just a single-device OCR helper. It should be treated as a multi-user commerce utility product with:
+Cartly is not just a single-device OCR helper. It should be treated as a multi-user commerce utility product with:
 - account/session support
 - cloud/NAS-backed scan processing
 - cart history
@@ -69,7 +69,7 @@ Current physical base:
 - `/Volumes/AI`
 
 Recommended app workspace:
-- `/Volumes/AI/WIMC`
+- `/Volumes/AI/Cartly`
 
 NAS responsibilities:
 - raw image storage
@@ -148,10 +148,10 @@ Therefore:
 - admin dashboard
 - analytics warehouse / BI sync
 
-## WIMC NAS folder recommendation
+## Cartly NAS folder recommendation
 
 ```text
-/Volumes/AI/WIMC/
+/Volumes/AI/Cartly/
   config/
   input/
   processing/

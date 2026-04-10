@@ -1,4 +1,4 @@
-# WIMC admin remote access MVP
+# Cartly admin remote access MVP
 
 ## Goal
 
@@ -20,7 +20,7 @@ export ADMIN_TOKEN='set-a-long-random-secret'
 export API_BASE_URL='https://your-api-base.example.com'
 # optional existing values
 export DATABASE_URL='postgresql+psycopg://localhost:5432/wimc'
-export STORAGE_ROOT='/Volumes/AI/WIMC'
+export STORAGE_ROOT='/Volumes/AI/Cartly'
 ```
 
 Run backend on an externally reachable bind address only if you actually need that.
@@ -35,12 +35,12 @@ uvicorn backend.app.main:app --host 0.0.0.0 --port 8011 --reload
 
 ```bash
 cd admin-web
-export WIMC_API_BASE='http://127.0.0.1:8011'
+export CARTLY_API_BASE='http://127.0.0.1:8011'
 npm run build
 npm run start
 ```
 
-If admin-web and backend run on different hosts, point `WIMC_API_BASE` at the backend base URL.
+If admin-web and backend run on different hosts, point `CARTLY_API_BASE` at the backend base URL.
 
 ## Access flow
 
@@ -90,7 +90,7 @@ If you want normal public domain access:
 - If `ADMIN_TOKEN` changes, new admin logins need the new root token; issued admin sessions can be revoked via `/admin/logout` and are rotated through backend-issued session tokens.
 - If `ADMIN_TOKEN` is not set, backend `/admin/*` returns `503 ADMIN_TOKEN_NOT_CONFIGURED`.
 - `admin-web` no longer needs direct browser access to backend; it uses server-side proxy routes.
-- For this deployment, backend storage stays on `/Volumes/AI/WIMC` and the backend itself should run in a Terminal login-session context (not a direct launchd background process) so NAS writes remain permitted.
+- For this deployment, backend storage stays on `/Volumes/AI/Cartly` and the backend itself should run in a Terminal login-session context (not a direct launchd background process) so NAS writes remain permitted.
 
 ## Next hardening steps
 

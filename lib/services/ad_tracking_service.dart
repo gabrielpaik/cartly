@@ -13,7 +13,7 @@ class AdTrackingService {
   final Set<String> _inflightImpressions = {};
   final HttpClient _httpClient = HttpClient();
 
-  Uri _uri(String path) => Uri.parse('${getWimcApiBaseUrl()}$path');
+  Uri _uri(String path) => Uri.parse('${getCartlyApiBaseUrl()}$path');
 
   String _trackKey(AppAdSlot slot) {
     final campaignId = slot.config.campaignId ?? '';

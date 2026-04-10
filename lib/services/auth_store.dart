@@ -150,7 +150,7 @@ class AuthStore {
       try {
         final client = HttpClient();
         final request = await client.postUrl(
-          Uri.parse('${getWimcApiBaseUrl()}/v1/auth/logout'),
+          Uri.parse('${getCartlyApiBaseUrl()}/v1/auth/logout'),
         );
         request.headers.set(
           HttpHeaders.authorizationHeader,

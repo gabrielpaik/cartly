@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use, avoid_web_libraries_in_flutter
+
 import 'dart:convert';
 import 'dart:html' as html;
 
@@ -13,7 +15,7 @@ void listenPreviewMessages(PreviewMessageHandler handler) {
       try {
         final parsed = jsonDecode(raw);
         if (parsed is Map) {
-          decoded = Map<String, dynamic>.from(parsed as Map);
+          decoded = Map<String, dynamic>.from(parsed);
         }
       } catch (_) {}
     } else if (raw is Map) {

@@ -1,16 +1,15 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../app_support.dart';
 import '../models/recognized_item.dart';
 import '../models/saved_cart.dart';
-import '../pages/cart_detail_page.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/cart_store.dart';
 import '../services/scan_repository.dart';
 import '../widgets/current_cart_section.dart';
 import '../widgets/item_add_section.dart';
+import '../widgets/recent_saved_preview_card.dart';
 
 class HomeTabView extends StatelessWidget {
   final List<CameraDescription> cameras;
@@ -152,104 +151,6 @@ class SectionHeader extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class RecentSavedPreviewCard extends StatelessWidget {
-  final SavedCart? cart;
-
-  const RecentSavedPreviewCard({super.key, required this.cart});
-
-  @override
-  Widget build(BuildContext context) {
-    if (cart == null) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              AppRuntimeCopy.text(['saved', 'recentTitle'], '최근 저장 카트'),
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              AppRuntimeCopy.text([
-                'saved',
-                'recentEmptyBody',
-              ], '아직 저장된 카트가 없어요. 현재 카트를 저장하면 다음 쇼핑 전에 다시 꺼내볼 수 있어요.'),
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.black54,
-                height: 1.45,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final dateText = DateFormat('M월 d일').format(cart!.createdAt);
-    final title = (cart!.title ?? '').trim();
-    final preview = cart!.items.take(2).map((e) => e.name).join(' · ');
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: () {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => CartDetailPage(cart: cart!)));
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title.isEmpty
-                        ? AppRuntimeCopy.text(['saved', 'recentTitle'], '최근 저장 카트')
-                        : title,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
-                  ),
-                ),
-                if (cart!.isExpired)
-                  const ContextPill(label: '만료됨', color: Color(0xFFE31837)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '$dateText · ${cart!.totalCount}개 · ₩${formatPrice(cart!.totalPrice)}',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              preview,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.black54,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

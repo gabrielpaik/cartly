@@ -21,28 +21,17 @@ String _scanText(String key, String fallback) =>
 String _scanNestedText(String group, String key, String fallback) =>
     AppRuntimeCopy.text(['scan', group, key], fallback);
 
-String _scanStatusText(ScanJob job) {
-  return switch (job.status) {
-    ScanJobStatus.queued => _scanText('queued', '대기 중...'),
-    ScanJobStatus.uploading => _scanText('uploading', '업로드 중...'),
-    ScanJobStatus.processing => _scanText('processing', '분석 중...'),
-    ScanJobStatus.done => _scanText('resultPreparing', '결과 정리 중...'),
-    ScanJobStatus.failed =>
-      job.errorMessage ?? _scanText('failed', '인식에 실패했어요'),
-  };
-}
-
 String _scanReviewMessage(double? confidence) {
   if (confidence == null) {
-    return _scanNestedText('review', 'default', '인식 결과를 확인한 뒤 카트에 담아주세요.');
+    return _scanNestedText('review', 'default', '상품명과 가격만 확인해 주세요.');
   }
   if (confidence >= 0.85) {
-    return _scanNestedText('review', 'high', '신뢰도가 높은 결과예요. 빠르게 확인하고 담아주세요.');
+    return _scanNestedText('review', 'high', '결과만 빠르게 확인하고 담아주세요.');
   }
   if (confidence >= 0.65) {
-    return _scanNestedText('review', 'medium', '한 번 확인하고 담는 걸 권장해요.');
+    return _scanNestedText('review', 'medium', '한 번 확인하고 담아주세요.');
   }
-  return _scanNestedText('review', 'low', '확인 필요 결과예요. 수정하거나 다시 찍는 게 좋아요.');
+  return _scanNestedText('review', 'low', '정확하지 않으면 수정하거나 다시 찍어주세요.');
 }
 
 String _scanConfidenceLabel(double confidence) {
@@ -88,20 +77,30 @@ class _ItemAddSectionState extends State<ItemAddSection> {
   RecognizedItemCandidate? _originalCandidate;
   String? _recognizedJobId;
   String? _pendingJobId;
-  String? _capturedPath; // ✅ 프리즈 이미지 경로
+  String? _capturedPath; // legacy capture path, kept for cleanup only
+  final List<String> _queuedImagePaths = [];
 
   bool get showResultCard => recognized != null;
 
+  String? get _queueStatusMessage {
+    if (isOcrRunning && _queuedImagePaths.isNotEmpty) {
+      return '분석 중 1건, 대기 ${_queuedImagePaths.length}건';
+    }
+    if (isOcrRunning) {
+      return '분석 중... 다른 가격표를 계속 찍을 수 있어요';
+    }
+    if (_queuedImagePaths.isNotEmpty) {
+      return '대기 ${_queuedImagePaths.length}건';
+    }
+    return null;
+  }
+
   void _openScanner() {
-    if (isOcrRunning) return;
     setState(() {
       isScannerOpen = true;
       manualEntryOpen = false;
-      recognized = null;
-      _originalCandidate = null;
-      _recognizedJobId = null;
-      _pendingJobId = null;
       _capturedPath = null;
+      _statusMessage = null;
     });
   }
 
@@ -111,11 +110,8 @@ class _ItemAddSectionState extends State<ItemAddSection> {
     setState(() {
       isScannerOpen = false;
       manualEntryOpen = false;
-      recognized = null;
-      _originalCandidate = null;
-      _recognizedJobId = null;
-      _pendingJobId = null;
       _capturedPath = null;
+      _statusMessage = null;
     });
 
     if (path != null) {
@@ -167,11 +163,44 @@ class _ItemAddSectionState extends State<ItemAddSection> {
     }
   }
 
+  void _clearRecognizedResult() {
+    if (!mounted) return;
+    setState(() {
+      recognized = null;
+      _originalCandidate = null;
+      _recognizedJobId = null;
+      _pendingJobId = null;
+      _statusMessage = null;
+      manualEntryOpen = false;
+    });
+  }
+
   Future<void> _addToParent(RecognizedItem item) async {
     unawaited(_submitFeedbackIfNeeded(item));
     widget.onAdd(item);
     widget.onAddedFeedback?.call();
+    _clearRecognizedResult();
     await _closeScanner();
+  }
+
+  Future<void> _deleteQueuedImage(String imagePath) async {
+    try {
+      await File(imagePath).delete();
+    } catch (_) {}
+  }
+
+  void _startNextQueuedScan() {
+    if (!mounted || isOcrRunning || _queuedImagePaths.isEmpty) return;
+    final nextImagePath = _queuedImagePaths.removeAt(0);
+    unawaited(_runOcrFromFilePath(nextImagePath));
+  }
+
+  void _enqueueCapturedImage(String imagePath) {
+    setState(() {
+      _queuedImagePaths.add(imagePath);
+      _statusMessage = null;
+    });
+    _startNextQueuedScan();
   }
 
   Future<void> _pollForSubmittedJob(ScanJob submitted, String imagePath) async {
@@ -186,7 +215,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
 
         if (!mounted || _pendingJobId != submitted.jobId) return;
         setState(() {
-          _statusMessage = _scanStatusText(job);
+          _statusMessage = null;
         });
 
         if (job.status == ScanJobStatus.done) {
@@ -201,15 +230,18 @@ class _ItemAddSectionState extends State<ItemAddSection> {
                 ),
               ),
             );
+            await _deleteQueuedImage(imagePath);
             setState(() {
               isOcrRunning = false;
               _pendingJobId = null;
               _capturedPath = null;
             });
+            _startNextQueuedScan();
             return;
           }
 
           final recognizedItem = RecognizedItem.fromCandidate(result);
+          await _deleteQueuedImage(imagePath);
           setState(() {
             isOcrRunning = false;
             recognized = recognizedItem;
@@ -217,10 +249,11 @@ class _ItemAddSectionState extends State<ItemAddSection> {
             _recognizedJobId = result.scanJobId ?? submitted.jobId;
             _pendingJobId = null;
             manualEntryOpen = false;
-            _capturedPath = imagePath;
+            _capturedPath = null;
             _statusMessage = null;
           });
           widget.onRecognized?.call(recognizedItem);
+          _startNextQueuedScan();
           return;
         }
 
@@ -233,30 +266,38 @@ class _ItemAddSectionState extends State<ItemAddSection> {
               ),
             ),
           );
+          await _deleteQueuedImage(imagePath);
           setState(() {
             isOcrRunning = false;
             _pendingJobId = null;
             _capturedPath = null;
             _statusMessage = null;
           });
+          _startNextQueuedScan();
           return;
         }
       }
 
       if (!mounted || _pendingJobId != submitted.jobId) return;
+      await _deleteQueuedImage(imagePath);
       setState(() {
         isOcrRunning = false;
+        _pendingJobId = null;
+        _capturedPath = null;
         _statusMessage = _scanText('timeout', '분석이 지연되고 있어요. 잠시 후 결과를 다시 확인해봐요');
       });
+      _startNextQueuedScan();
     } on ScanRepositoryException catch (error) {
       if (!mounted || _pendingJobId != submitted.jobId) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+      await _deleteQueuedImage(imagePath);
       setState(() {
         isOcrRunning = false;
         _pendingJobId = null;
         _capturedPath = null;
         _statusMessage = null;
       });
+      _startNextQueuedScan();
     } catch (_) {
       if (!mounted || _pendingJobId != submitted.jobId) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -264,12 +305,14 @@ class _ItemAddSectionState extends State<ItemAddSection> {
           content: Text(_scanText('processingError', '분석 처리 중 오류가 났어요')),
         ),
       );
+      await _deleteQueuedImage(imagePath);
       setState(() {
         isOcrRunning = false;
         _pendingJobId = null;
         _capturedPath = null;
         _statusMessage = null;
       });
+      _startNextQueuedScan();
     }
   }
 
@@ -277,7 +320,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
     if (isOcrRunning) return;
     setState(() {
       isOcrRunning = true;
-      _statusMessage = _scanText('uploading', '업로드 중...');
+      _statusMessage = null;
     });
 
     try {
@@ -285,11 +328,10 @@ class _ItemAddSectionState extends State<ItemAddSection> {
       if (!mounted) return;
 
       setState(() {
-        isScannerOpen = false;
         _pendingJobId = submitted.jobId;
         _recognizedJobId = submitted.jobId;
-        _capturedPath = imagePath;
-        _statusMessage = _scanText('processing', '분석 중...');
+        _capturedPath = null;
+        _statusMessage = null;
       });
 
       unawaited(_pollForSubmittedJob(submitted, imagePath));
@@ -298,12 +340,14 @@ class _ItemAddSectionState extends State<ItemAddSection> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error.message)));
+      await _deleteQueuedImage(imagePath);
       setState(() {
         isOcrRunning = false;
         _pendingJobId = null;
         _capturedPath = null;
         _statusMessage = null;
       });
+      _startNextQueuedScan();
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -311,22 +355,26 @@ class _ItemAddSectionState extends State<ItemAddSection> {
           content: Text(_scanText('processingError', '분석 처리 중 오류가 났어요')),
         ),
       );
+      await _deleteQueuedImage(imagePath);
       setState(() {
         isOcrRunning = false;
         _pendingJobId = null;
         _capturedPath = null;
         _statusMessage = null;
       });
+      _startNextQueuedScan();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final scanStatusMessage = _statusMessage ?? _queueStatusMessage;
+
     return Column(
       children: [
         // 가격표 인식하기
         GestureDetector(
-          onTap: isOcrRunning ? null : (isScannerOpen ? _closeScanner : _openScanner),
+          onTap: isScannerOpen ? _closeScanner : _openScanner,
           child: Container(
             height: 52,
             decoration: BoxDecoration(
@@ -339,7 +387,9 @@ class _ItemAddSectionState extends State<ItemAddSection> {
                 const Icon(Icons.camera_alt, color: Colors.white),
                 const SizedBox(width: 8),
                 Text(
-                  _scanText('captureButton', '가격표 인식하기'),
+                  _queueStatusMessage != null
+                      ? _scanText('captureQueuedButton', '가격표 계속 찍기')
+                      : _scanText('captureButton', '가격표 인식하기'),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -356,18 +406,16 @@ class _ItemAddSectionState extends State<ItemAddSection> {
         if (isScannerOpen) ...[
           InlineScannerBox(
             cameras: widget.cameras,
-            isBusy: isOcrRunning,
+            isBusy: false,
             capturedImagePath: _capturedPath,
-            onRecognize: _runOcrFromFilePath,
+            onRecognize: (imagePath) async {
+              _enqueueCapturedImage(imagePath);
+            },
             onClose: _closeScanner,
             onRetake: () async {
               final path = _capturedPath;
               setState(() {
                 _capturedPath = null;
-                recognized = null;
-                _originalCandidate = null;
-                _recognizedJobId = null;
-                _pendingJobId = null;
                 _statusMessage = null;
               });
               if (path != null) {
@@ -377,7 +425,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
               }
             },
           ),
-          if (_statusMessage != null) ...[
+          if (scanStatusMessage != null) ...[
             const SizedBox(height: 10),
             Container(
               width: double.infinity,
@@ -387,7 +435,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                _statusMessage!,
+                scanStatusMessage,
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
@@ -397,7 +445,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
             ),
           ],
           const SizedBox(height: 12),
-        ] else if (_statusMessage != null && (isOcrRunning || _pendingJobId != null)) ...[
+        ] else if (scanStatusMessage != null && (isOcrRunning || _pendingJobId != null || _queuedImagePaths.isNotEmpty)) ...[
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -406,7 +454,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              _statusMessage!,
+              scanStatusMessage,
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
@@ -615,6 +663,11 @@ class _InlineScannerBoxState extends State<InlineScannerBox> {
       final xfile = await c.takePicture();
       await c.pausePreview();
       await widget.onRecognize(xfile.path);
+      if (widget.capturedImagePath == null) {
+        try {
+          await c.resumePreview();
+        } catch (_) {}
+      }
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -881,32 +934,6 @@ class _ConfidenceBadge extends StatelessWidget {
   }
 }
 
-class _MetaChip extends StatelessWidget {
-  final String label;
-  final String value;
-  const _MetaChip({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.black12),
-      ),
-      child: Text(
-        '$label: $value',
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: Colors.black54,
-        ),
-      ),
-    );
-  }
-}
-
 /* =========================
    RecognizedResultCard
    ========================= */
@@ -1048,49 +1075,7 @@ class _RecognizedResultCardState extends State<RecognizedResultCard> {
               height: 1.45,
             ),
           ),
-          if ((item.source ?? '').isNotEmpty ||
-              (item.sku ?? '').isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if ((item.source ?? '').isNotEmpty)
-                  _MetaChip(
-                    label: _scanText('sourceLabel', 'source'),
-                    value: item.source!,
-                  ),
-                if ((item.sku ?? '').isNotEmpty)
-                  _MetaChip(
-                    label: _scanText('skuLabel', 'sku'),
-                    value: item.sku!,
-                  ),
-              ],
-            ),
-          ],
-          if ((item.rawText ?? '').trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.black12),
-              ),
-              child: Text(
-                '${_scanText('rawTextPrefix', '원문')}: ${item.rawText!.trim()}',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black54,
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
           Row(
             children: [

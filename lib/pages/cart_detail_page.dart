@@ -6,6 +6,7 @@ import '../services/admob_service.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
+import '../widgets/cart_detail_guest_retention_section.dart';
 import '../widgets/saved_cart_item_add_section.dart';
 
 final _cartPriceFormatter = NumberFormat('#,###');
@@ -417,134 +418,15 @@ class _CartDetailPageState extends State<CartDetailPage> {
       body: SafeArea(
         child: Column(
           children: [
-            if (_cart.expiresAt != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: _cart.isExpired
-                        ? const Color(0xFFFFF4F5)
-                        : Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: _cart.isExpired
-                          ? const Color(0xFFFFD7DE)
-                          : Colors.transparent,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _cart.isExpired
-                            ? '게스트 저장 기간이 만료돼서 카트가 잠겼어요'
-                            : '게스트 저장 기간이 남아 있어요',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _cart.isExpired
-                            ? '만료된 게스트 카트는 전체 내용이 가려져요. 광고를 끝까지 보면 14일 더 다시 열 수 있어요.'
-                            : '현재 보관 만료일은 ${DateFormat('M월 d일').format(_cart.expiresAt!)}예요.',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black54,
-                          height: 1.4,
-                        ),
-                      ),
-                      if (_cart.retentionExtensionCount > 0) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          '연장 ${_cart.retentionExtensionCount}회',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black45,
-                          ),
-                        ),
-                      ],
-                      if (_cart.isExpired && _cart.canExtendRetention) ...[
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFE31837),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            onPressed: _isExtendingRetention ? null : _extendRetention,
-                            child: Text(
-                              _isExtendingRetention
-                                  ? '광고 확인 중…'
-                                  : '광고 보고 14일 연장',
-                              style: const TextStyle(fontWeight: FontWeight.w900),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
+            CartDetailGuestRetentionSection(
+              cart: _cart,
+              isExtendingRetention: _isExtendingRetention,
+              onExtendRetention: _extendRetention,
+            ),
             Expanded(
               child: _isExpiredGuestLocked
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 28,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF6F7F9),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFE5E7EB)),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.lock_outline_rounded,
-                                size: 42,
-                                color: Color(0xFFE31837),
-                              ),
-                              const SizedBox(height: 14),
-                              const Text(
-                                '만료된 게스트 카트 전체가 잠겨 있어요',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _cart.canExtendRetention
-                                    ? '상품, 수량, 가격, 합계까지 모두 숨겨져 있어요. 광고 보상을 완료하면 다시 열려요.'
-                                    : '이 카트는 더 이상 연장할 수 없어서 내용을 다시 열 수 없어요.',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black54,
-                                  height: 1.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                  ? CartDetailGuestLockedView(
+                      canExtendRetention: _cart.canExtendRetention,
                     )
                   : _cart.items.isEmpty
                       ? Center(

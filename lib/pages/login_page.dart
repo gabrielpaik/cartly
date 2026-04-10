@@ -5,7 +5,7 @@ import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
 import '../services/remote_auth_repository.dart';
-import '../widgets/brand_mark.dart';
+import '../widgets/login_page_header_section.dart';
 
 enum _AuthMode { login, signup, reset }
 
@@ -669,34 +669,7 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (branding.loginHeroImageUrl != null && branding.loginHeroImageUrl!.isNotEmpty) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Image.network(
-                    branding.loginHeroImageUrl!,
-                    width: double.infinity,
-                    height: 180,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-              const BrandMark(),
-              const SizedBox(height: 20),
-              Text(
-                branding.loginPageTitle,
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                branding.loginSubtitle,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black54,
-                  height: 1.5,
-                ),
-              ),
+              LoginPageHeaderSection(branding: branding),
               const SizedBox(height: 18),
               if (!_isReset)
                 Row(

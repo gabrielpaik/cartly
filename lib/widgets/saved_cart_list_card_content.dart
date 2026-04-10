@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_support.dart';
 import '../models/saved_cart.dart';
-import 'context_pill.dart';
+import 'saved_cart_list_card_header.dart';
 
 class SavedCartListCardContent extends StatelessWidget {
   final SavedCart cart;
@@ -25,20 +25,10 @@ class SavedCartListCardContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                title.isEmpty ? dateText : title,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-            if (cart.isExpired)
-              const ContextPill(label: '만료됨', color: Color(0xFFE31837)),
-          ],
+        SavedCartListCardHeader(
+          title: title,
+          dateText: dateText,
+          isExpired: cart.isExpired,
         ),
         if (title.isNotEmpty) ...[
           const SizedBox(height: 6),

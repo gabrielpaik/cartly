@@ -6,6 +6,7 @@ import '../services/admob_service.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
+import '../widgets/cart_detail_app_bar_actions.dart';
 import '../widgets/cart_detail_bottom_bar.dart';
 import '../widgets/cart_detail_delete_confirmation_sheet.dart';
 import '../widgets/cart_detail_guest_retention_section.dart';
@@ -299,21 +300,12 @@ class _CartDetailPageState extends State<CartDetailPage> {
           '$dateText ${AppRuntimeCopy.text(['cartDetail', 'titleSuffix'], '카트')}',
         ),
         actions: [
-          if (!_isExpiredGuestLocked)
-            TextButton(
-              onPressed: _toggleEditMode,
-              child: Text(
-                _isEditing
-                    ? AppRuntimeCopy.text(['cartDetail', 'done'], '완료')
-                    : AppRuntimeCopy.text(['cartDetail', 'edit'], '수정'),
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-            ),
-          if (_isEditing && !_isExpiredGuestLocked)
-            IconButton(
-              onPressed: _confirmDelete,
-              icon: const Icon(Icons.delete_outline),
-            ),
+          CartDetailAppBarActions(
+            isEditing: _isEditing,
+            isExpiredGuestLocked: _isExpiredGuestLocked,
+            onToggleEditMode: _toggleEditMode,
+            onDelete: _confirmDelete,
+          ),
         ],
       ),
       body: SafeArea(

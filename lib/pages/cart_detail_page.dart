@@ -6,6 +6,7 @@ import '../services/admob_service.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
+import 'cart_detail_page_helpers.dart';
 import '../widgets/cart_detail_app_bar_actions.dart';
 import '../widgets/cart_detail_body.dart';
 import '../widgets/cart_detail_delete_confirmation_sheet.dart';
@@ -36,24 +37,7 @@ class _CartDetailPageState extends State<CartDetailPage> {
   @override
   void initState() {
     super.initState();
-    _cart = SavedCart(
-      id: widget.cart.id,
-      title: widget.cart.title,
-      createdAt: widget.cart.createdAt,
-      expiresAt: widget.cart.expiresAt,
-      isExpired: widget.cart.isExpired,
-      retentionExtensionCount: widget.cart.retentionExtensionCount,
-      canExtendRetention: widget.cart.canExtendRetention,
-      items: widget.cart.items
-          .map(
-            (e) => SavedCartItem(
-              name: e.name,
-              price: e.price,
-              quantity: e.quantity,
-            ),
-          )
-          .toList(),
-    );
+    _cart = cloneSavedCartSnapshot(widget.cart);
   }
 
   @override
@@ -98,19 +82,15 @@ class _CartDetailPageState extends State<CartDetailPage> {
     final newName = _nameCtrl.text.trim();
     final newPrice =
         int.tryParse(_priceCtrl.text.replaceAll(',', '').trim()) ?? 0;
+    final validationMessage = cartDetailInlineEditValidationMessage(
+      nameText: _nameCtrl.text,
+      priceText: _priceCtrl.text,
+    );
 
-    if (newName.isEmpty || newPrice <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            AppRuntimeCopy.text([
-              'cartDetail',
-              'validation',
-              'namePriceRequired',
-            ], '상품명/가격을 확인해주세요'),
-          ),
-        ),
-      );
+    if (validationMessage != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(validationMessage)));
       return;
     }
 
@@ -132,36 +112,12 @@ class _CartDetailPageState extends State<CartDetailPage> {
   Future<void> _save() async {
     if (_isSaving || _isExpiredGuestLocked) return;
 
-    for (final it in _cart.items) {
-      it.name = it.name.trim();
-      if (it.name.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppRuntimeCopy.text([
-                'cartDetail',
-                'validation',
-                'nameRequired',
-              ], '상품명이 비어있어요'),
-            ),
-          ),
-        );
-        return;
-      }
-      if (it.price <= 0 || it.quantity <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppRuntimeCopy.text([
-                'cartDetail',
-                'validation',
-                'priceQuantityRequired',
-              ], '가격/수량을 확인해주세요'),
-            ),
-          ),
-        );
-        return;
-      }
+    final validationMessage = cartDetailSaveValidationMessage(_cart.items);
+    if (validationMessage != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(validationMessage)));
+      return;
     }
 
     setState(() => _isSaving = true);
@@ -170,24 +126,7 @@ class _CartDetailPageState extends State<CartDetailPage> {
       if (!mounted) return;
 
       setState(() {
-        _cart = SavedCart(
-          id: savedSnapshot.id,
-          title: savedSnapshot.title,
-          createdAt: savedSnapshot.createdAt,
-          expiresAt: savedSnapshot.expiresAt,
-          isExpired: savedSnapshot.isExpired,
-          retentionExtensionCount: savedSnapshot.retentionExtensionCount,
-          canExtendRetention: savedSnapshot.canExtendRetention,
-          items: savedSnapshot.items
-              .map(
-                (e) => SavedCartItem(
-                  name: e.name,
-                  price: e.price,
-                  quantity: e.quantity,
-                ),
-              )
-              .toList(),
-        );
+        _cart = cloneSavedCartSnapshot(savedSnapshot);
         _isEditing = false;
         _editingIndex = null;
       });
@@ -223,12 +162,7 @@ class _CartDetailPageState extends State<CartDetailPage> {
       final result = await AdMobService.instance.showGuestRetentionRewarded();
       if (!mounted) return;
       if (result != RewardedAdResult.rewarded) {
-        final message = switch (result) {
-          RewardedAdResult.dismissed => '광고를 끝까지 봐야 카트가 다시 열려요',
-          RewardedAdResult.unavailable => '지금은 광고를 불러오지 못했어요. 잠시 후 다시 시도해주세요',
-          RewardedAdResult.failedToShow => '광고를 여는 데 실패했어요. 잠시 후 다시 시도해주세요',
-          RewardedAdResult.rewarded => null,
-        };
+        final message = cartDetailRetentionResultMessage(result);
         if (message != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(message)),
@@ -241,11 +175,8 @@ class _CartDetailPageState extends State<CartDetailPage> {
       if (!mounted) return;
 
       setState(() => _cart = updated);
-      final expiryText = updated.expiresAt == null
-          ? '저장 기간을 연장했어요'
-          : '저장 기간이 ${DateFormat('M월 d일').format(updated.expiresAt!)}까지 연장됐어요';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(expiryText)),
+        SnackBar(content: Text(cartDetailRetentionExtendedMessage(updated))),
       );
     } catch (error) {
       if (!mounted) return;

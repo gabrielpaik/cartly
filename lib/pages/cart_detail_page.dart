@@ -8,10 +8,9 @@ import '../services/auth_store.dart';
 import '../services/cart_store.dart';
 import '../widgets/cart_detail_app_bar_actions.dart';
 import '../widgets/cart_detail_body.dart';
-import '../widgets/cart_detail_bottom_bar.dart';
 import '../widgets/cart_detail_delete_confirmation_sheet.dart';
+import '../widgets/cart_detail_edit_actions_section.dart';
 import '../widgets/cart_detail_guest_retention_section.dart';
-import '../widgets/saved_cart_item_add_section.dart';
 
 final _cartPriceFormatter = NumberFormat('#,###');
 String _fmt(int v) => _cartPriceFormatter.format(v);
@@ -336,20 +335,14 @@ class _CartDetailPageState extends State<CartDetailPage> {
                 onApplyInlineEdit: _applyInlineEdits,
               ),
             ),
-            if (!_isExpiredGuestLocked)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: SavedCartItemAddSection(
-                  isEditing: _isEditing,
-                  onAdd: _addItem,
-                ),
-              ),
-            if (!_isExpiredGuestLocked)
-              CartDetailBottomBar(
-                totalPriceText: '₩${_fmt(_cart.totalPrice)}',
-                isSaving: _isSaving,
-                onSave: _save,
-              ),
+            CartDetailEditActionsSection(
+              isVisible: !_isExpiredGuestLocked,
+              isEditing: _isEditing,
+              onAddItem: _addItem,
+              totalPriceText: '₩${_fmt(_cart.totalPrice)}',
+              isSaving: _isSaving,
+              onSave: _save,
+            ),
           ],
         ),
       ),

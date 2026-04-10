@@ -53,7 +53,7 @@ stop_listener() {
   local port="$1"
   local label="$2"
   local pids
-  pids=$(/usr/sbin/lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+  pids=$((/usr/sbin/lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true) | tr '\n' ' ' | sed 's/[[:space:]]*$//')
   if [[ -z "$pids" ]]; then
     echo "[$label] nothing listening on :$port"
     return 0
@@ -69,7 +69,7 @@ stop_listener() {
     /bin/sleep 0.5
   done
 
-  pids=$(/usr/sbin/lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+  pids=$((/usr/sbin/lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true) | tr '\n' ' ' | sed 's/[[:space:]]*$//')
   if [[ -n "$pids" ]]; then
     echo "[$label] force-killing listener on :$port ($pids)"
     kill -9 $pids 2>/dev/null || true

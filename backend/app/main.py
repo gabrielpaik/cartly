@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from .core.runtime_surface import runtime_surface_labels
 from .core.storage_paths import ads_assets_dir, branding_assets_dir, runtime_assets_root
 from .core.settings import settings
 from .db.init_db import init_db
@@ -43,16 +44,27 @@ app.include_router(admin.router, prefix='/admin', tags=['admin'])
 @app.get('/health')
 def health():
     storage = storage_health_check(create_probe=False)
+    surface = runtime_surface_labels()
     return {
         'ok': True,
         'service': 'cartly-api',
+        'serviceName': surface['serviceName'],
         'storageRoot': settings.storage_root,
+        'storageRootDisplay': surface['storageRootDisplay'],
+        'storageRootActual': surface['storageRootActual'],
         'storageWritable': storage['writable'],
         'storagePaths': storage['paths'],
         'storageErrors': storage['errors'],
         'runtimeAssetsRoot': str(runtime_assets_root()),
+        'runtimeAssetsRootDisplay': surface['runtimeAssetsRootDisplay'],
+        'runtimeAssetsRootActual': surface['runtimeAssetsRootActual'],
         'brandingAssetsDir': str(branding_assets_dir()),
+        'brandingAssetsDirDisplay': surface['brandingAssetsDirDisplay'],
+        'brandingAssetsDirActual': surface['brandingAssetsDirActual'],
         'adsAssetsDir': str(ads_assets_dir()),
+        'adsAssetsDirDisplay': surface['adsAssetsDirDisplay'],
+        'adsAssetsDirActual': surface['adsAssetsDirActual'],
+        'legacyPathCompatibilityActive': surface['legacyPathCompatibilityActive'],
         'remoteScanEnabled': settings.remote_scan_enabled,
         'adsEnabled': settings.ads_enabled,
     }

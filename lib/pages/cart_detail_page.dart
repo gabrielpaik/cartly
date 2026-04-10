@@ -7,10 +7,10 @@ import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
 import '../widgets/cart_detail_app_bar_actions.dart';
+import '../widgets/cart_detail_body.dart';
 import '../widgets/cart_detail_bottom_bar.dart';
 import '../widgets/cart_detail_delete_confirmation_sheet.dart';
 import '../widgets/cart_detail_guest_retention_section.dart';
-import '../widgets/cart_detail_item_tile.dart';
 import '../widgets/saved_cart_item_add_section.dart';
 
 final _cartPriceFormatter = NumberFormat('#,###');
@@ -317,58 +317,24 @@ class _CartDetailPageState extends State<CartDetailPage> {
               onExtendRetention: _extendRetention,
             ),
             Expanded(
-              child: _isExpiredGuestLocked
-                  ? CartDetailGuestLockedView(
-                      canExtendRetention: _cart.canExtendRetention,
-                    )
-                  : _cart.items.isEmpty
-                      ? Center(
-                          child: Text(
-                            AppRuntimeCopy.text([
-                              'cartDetail',
-                              'empty',
-                            ], '카트가 비었어요'),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black54,
-                            ),
-                          ),
-                        )
-                      : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                          itemCount: _cart.items.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 10),
-                          itemBuilder: (context, index) {
-                            final item = _cart.items[index];
-                            final editing = _editingIndex == index;
-
-                            return CartDetailItemTile(
-                              item: item,
-                              isEditingMode: _isEditing,
-                              isInlineEditing: editing,
-                              priceText: '₩${_fmt(item.price)}',
-                              nameController: _nameCtrl,
-                              priceController: _priceCtrl,
-                              onEdit: _isEditing
-                                  ? () => _openInlineEditor(index)
-                                  : null,
-                              onDelete: _isEditing
-                                  ? () {
-                                      setState(() => _cart.items.removeAt(index));
-                                    }
-                                  : null,
-                              onDecrease: _isEditing && !editing
-                                  ? () => _decrease(index)
-                                  : null,
-                              onIncrease: _isEditing && !editing
-                                  ? () => _increase(index)
-                                  : null,
-                              onCancelInlineEdit: _closeInlineEditor,
-                              onApplyInlineEdit: _applyInlineEdits,
-                            );
-                          },
-                        ),
+              child: CartDetailBody(
+                isExpiredGuestLocked: _isExpiredGuestLocked,
+                canExtendRetention: _cart.canExtendRetention,
+                items: _cart.items,
+                isEditing: _isEditing,
+                editingIndex: _editingIndex,
+                nameController: _nameCtrl,
+                priceController: _priceCtrl,
+                formatPriceText: (price) => '₩${_fmt(price)}',
+                onEdit: _openInlineEditor,
+                onDelete: (index) {
+                  setState(() => _cart.items.removeAt(index));
+                },
+                onDecrease: _decrease,
+                onIncrease: _increase,
+                onCancelInlineEdit: _closeInlineEditor,
+                onApplyInlineEdit: _applyInlineEdits,
+              ),
             ),
             if (!_isExpiredGuestLocked)
               Padding(

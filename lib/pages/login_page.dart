@@ -5,6 +5,7 @@ import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
 import '../services/remote_auth_repository.dart';
+import '../widgets/login_page_guest_cta_section.dart';
 import '../widgets/login_page_header_section.dart';
 
 enum _AuthMode { login, signup, reset }
@@ -694,48 +695,11 @@ class _LoginPageState extends State<LoginPage> {
                         : _loginForm(),
               ),
               const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF4F5),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      branding.loginBenefitsTitle,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      branding.loginBenefitsBody,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.black87,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  onPressed: _isSubmitting ? null : _continueAsGuest,
-                  child: Text(
-                    _text(['login', 'continueAsGuest'], '게스트로 계속하기'),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
+              LoginPageGuestCtaSection(
+                benefitsTitle: branding.loginBenefitsTitle,
+                benefitsBody: branding.loginBenefitsBody,
+                guestButtonLabel: _text(['login', 'continueAsGuest'], '게스트로 계속하기'),
+                onContinueAsGuest: _isSubmitting ? null : _continueAsGuest,
               ),
             ],
           ),

@@ -56,3 +56,31 @@ build/admin-preview-web/
 **/xcuserdata/
 **/*.xcuserstate
 runlog.txt
+
+# Local tooling / scratch
+.claude/
+tmp/
+
+# Keep active mobile/web targets, ignore deferred desktop targets for now
+/macos/
+/linux/
+/windows/
+
+# Android local/generated
+/android/.gradle/
+/android/.kotlin/
+/android/local.properties
+/android/app/src/main/java/io/flutter/plugins/
+
+# iOS local/generated
+/ios/.symlinks/
+/ios/Pods/
+/ios/Flutter/ephemeral/
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/flutter_export_environment.sh
+/ios/Flutter/*.podspec
+/ios/Runner/GeneratedPluginRegistrant.h
+/ios/Runner/GeneratedPluginRegistrant.m
+/ios/Runner/Assets2.xcassets
+/ios/Runner/AssetsFixed.xcassets
+/ios/Runner/AssetsFixed2.xcassets

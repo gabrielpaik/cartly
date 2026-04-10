@@ -25,9 +25,9 @@ It should not know placeholder emails or provider-specific session details.
 `LoginPage -> AuthStore -> AuthRepository`
 
 That keeps real SDK integration cleaner later:
-- `MockAuthRepository` for local placeholder mode now
-- future `RemoteAuthRepository` for backend token exchange
+- current `RemoteAuthRepository` for backend token exchange
 - future provider SDK wrappers behind the same boundary
+- the UI/auth store boundary stays stable even as provider implementation changes
 
 ## Backend scaffold direction
 

@@ -2,8 +2,10 @@ import json
 import os
 import uuid
 from datetime import datetime
+from io import BytesIO
 from typing import Any, Dict, Optional
 
+from PIL import Image
 from sqlalchemy.orm import Session as OrmSession
 
 from ..core.settings import settings
@@ -21,6 +23,39 @@ def _ensure_dir(path: str) -> None:
 def _write_json(path: str, payload: Dict[str, Any]) -> None:
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
+
+
+
+def validate_image_bytes(image_bytes: bytes) -> Optional[str]:
+    if not image_bytes:
+        return '업로드된 이미지가 비어 있어'
+
+    try:
+        with Image.open(BytesIO(image_bytes)) as image:
+            image.verify()
+        with Image.open(BytesIO(image_bytes)) as image:
+            image.load()
+    except Exception:
+        return '유효한 이미지 파일만 업로드할 수 있어'
+
+    return None
+
+
+
+def validate_image_path(path: str) -> Optional[str]:
+    if not path or not os.path.exists(path):
+        return '원본 이미지 파일을 찾지 못했어'
+
+    try:
+        with Image.open(path) as image:
+            image.verify()
+        with Image.open(path) as image:
+            image.load()
+    except Exception:
+        return '원본 이미지 파일이 손상됐거나 이미지 형식이 아니야'
+
+    return None
+
 
 
 def create_scan_job(
@@ -57,8 +92,34 @@ def create_scan_job(
     return job
 
 
+
 def get_scan_job(db: OrmSession, job_id: str) -> Optional[ScanJob]:
     return db.get(ScanJob, job_id)
+
+
+
+def retry_scan_job(db: OrmSession, job: ScanJob) -> ScanJob:
+    job.status = 'queued'
+    job.error_code = None
+    job.error_message = None
+    job.started_at = None
+    job.finished_at = None
+    job.updated_at = datetime.utcnow()
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    return job
+
+
+
+def quarantine_scan_job(db: OrmSession, job: ScanJob) -> ScanJob:
+    job.status = 'quarantined'
+    job.updated_at = datetime.utcnow()
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    return job
+
 
 
 def save_scan_feedback(
@@ -96,6 +157,7 @@ def save_scan_feedback(
         },
     )
     return feedback
+
 
 
 def log_scan_failure(

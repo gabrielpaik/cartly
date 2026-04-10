@@ -1,8 +1,8 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -17,6 +17,14 @@ class User(Base):
     auth_provider: Mapped[str] = mapped_column(String(30), default='guest')
     status: Mapped[str] = mapped_column(String(20), default='active')
     is_guest: Mapped[bool] = mapped_column(Boolean, default=False)
+    guest_code: Mapped[Optional[str]] = mapped_column(String(4), unique=True, nullable=True)
+    password_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    email_verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    guest_key: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    last_device_platform: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    last_app_version: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    merged_into_user_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    merged_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -34,6 +42,18 @@ class Session(Base):
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     user: Mapped[Optional['User']] = relationship()
+
+
+class AdminSession(Base):
+    __tablename__ = 'admin_sessions'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    token_hash: Mapped[str] = mapped_column(String(255), unique=True)
+    status: Mapped[str] = mapped_column(String(20), default='active')
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
 class ScanJob(Base):
@@ -82,12 +102,17 @@ class Cart(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'), nullable=True)
+    source_cart_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default='active')
+    saved_date: Mapped[date] = mapped_column(Date, default=date.today)
     total_price_cached: Mapped[int] = mapped_column(Integer, default=0)
     total_count_cached: Mapped[int] = mapped_column(Integer, default=0)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    retention_extension_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     items: Mapped[List['CartItem']] = relationship(back_populates='cart', cascade='all, delete-orphan')
 
@@ -117,6 +142,12 @@ class AppEvent(Base):
     event_name: Mapped[str] = mapped_column(String(80))
     screen_name: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
     event_props_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    client_timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    device_platform: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    device_type: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    os_name: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    os_version: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    app_version: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -128,6 +159,24 @@ class AdSlot(Base):
     placement_type: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(20), default='active')
     config_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AdCampaign(Base):
+    __tablename__ = 'ad_campaigns'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    slot_id: Mapped[str] = mapped_column(ForeignKey('ad_slots.id'))
+    variant: Mapped[str] = mapped_column(String(20), default='live')
+    status: Mapped[str] = mapped_column(String(20), default='draft')
+    title: Mapped[str] = mapped_column(String(255), default='')
+    message: Mapped[str] = mapped_column(Text, default='')
+    cta_label: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    target_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    image_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    start_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    end_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -158,4 +207,38 @@ class AppSetting(Base):
 
     key: Mapped[str] = mapped_column(String(120), primary_key=True)
     value_json: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class EmailAuthCode(Base):
+    __tablename__ = 'email_auth_codes'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    purpose: Mapped[str] = mapped_column(String(40), index=True)
+    code_hash: Mapped[str] = mapped_column(String(255))
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    consumed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AdminDashboardSnapshot(Base):
+    __tablename__ = 'admin_dashboard_snapshots'
+
+    snapshot_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    source: Mapped[str] = mapped_column(String(20), default='scheduled')
+    dau: Mapped[int] = mapped_column(Integer, default=0)
+    wau: Mapped[int] = mapped_column(Integer, default=0)
+    mau: Mapped[int] = mapped_column(Integer, default=0)
+    active_users: Mapped[int] = mapped_column(Integer, default=0)
+    new_users: Mapped[int] = mapped_column(Integer, default=0)
+    guest_to_member_conversion: Mapped[float] = mapped_column(Float, default=0.0)
+    total_scans: Mapped[int] = mapped_column(Integer, default=0)
+    scan_success_rate: Mapped[float] = mapped_column(Float, default=0.0)
+    cart_save_rate: Mapped[float] = mapped_column(Float, default=0.0)
+    ad_impressions: Mapped[int] = mapped_column(Integer, default=0)
+    ad_clicks: Mapped[int] = mapped_column(Integer, default=0)
+    ad_ctr: Mapped[float] = mapped_column(Float, default=0.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

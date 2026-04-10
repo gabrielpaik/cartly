@@ -1,70 +1,153 @@
-import PageHeader from '../../components/PageHeader'
-import StatCard from '../../components/StatCard'
-import { fetchJsonSafe } from '../../lib/api'
-import { formatDate } from '../../lib/format'
-import { mockUsers } from '../../lib/mock'
+'use client'
 
-type UserRow = {
-  id: string
-  displayName: string
-  email: string | null
-  provider: string
-  isGuest: boolean
-  createdAt: string | null
-  lastSeenAt: string | null
+import Link from 'next/link'
+import { useEffect, useState } from 'react'
+
+import PageHeader from '../../components/PageHeader'
+import { useAdminCopy } from '../../components/AdminCopyProvider'
+import { postJson } from '../../lib/api'
+import { useAdminData } from '../../lib/useAdminData'
+
+const usersFallback = {
+  users: [],
 }
 
-export default async function UsersPage() {
-  const res = await fetchJsonSafe<{ ok: boolean; data: { users: UserRow[] } }>('/admin/users', {
+const legacyGuestsFallback = {
+  summary: {
+    count: 0,
+    withCarts: 0,
+    withoutCarts: 0,
+  },
+  users: [],
+}
+
+export default function UsersPage() {
+  const { t } = useAdminCopy()
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
+  const [busyLegacyId, setBusyLegacyId] = useState<string | null>(null)
+
+  const usersRes = useAdminData<{ ok: boolean; data: { users?: any[] } }>('/admin/users', {
     ok: true,
-    data: { users: mockUsers },
+    data: usersFallback,
   })
-  const users = res.data.data.users
-  const guests = users.filter((u) => u.isGuest).length
-  const members = users.length - guests
+  const legacyGuestsRes = useAdminData<{ ok: boolean; data: { summary?: Record<string, number>; users?: any[] } }>('/admin/users/legacy-guests', {
+    ok: true,
+    data: legacyGuestsFallback,
+  })
+
+  useEffect(() => {
+    void usersRes.reload()
+    void legacyGuestsRes.reload()
+  }, [])
+
+  const users = usersRes.data?.data?.users ?? []
+  const legacyGuests = legacyGuestsRes.data?.data?.users ?? []
+  const loading = usersRes.loading || legacyGuestsRes.loading
+  const usingFallback = usersRes.usingFallback || legacyGuestsRes.usingFallback
+  const error = usersRes.error ?? legacyGuestsRes.error
+
+  async function reloadAll() {
+    await Promise.all([usersRes.reload(), legacyGuestsRes.reload()])
+  }
+
+  async function archiveLegacyGuest(id: string) {
+    setBusyLegacyId(id)
+    setActionMessage(null)
+    try {
+      await postJson(`/admin/users/${id}/archive-legacy`)
+      await reloadAll()
+      setActionMessage(`${id} ${t('admin.users.legacy.archived', 'archived')}`)
+    } catch {
+      setActionMessage(t('admin.users.legacy.archiveFailed', 'archive failed'))
+    } finally {
+      setBusyLegacyId(null)
+    }
+  }
 
   return (
     <div>
       <PageHeader
-        badge={res.usingFallback ? 'Fallback data' : 'Live data'}
-        title="Users"
-        description="게스트, 멤버, 최근 활동 사용자를 빠르게 보고 전환 상태를 점검하는 운영 화면이야."
+        badge={usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : loading ? t('admin.common.badge.loading', 'Loading...') : t('admin.common.badge.live', 'Live data')}
+        title={t('admin.users.title', 'Users')}
+        description={t('admin.users.desc', '사용자 목록')}
+        onRefresh={() => void reloadAll()}
+        refreshing={loading}
       />
 
-      <div className="kpiGrid">
-        <StatCard label="Visible users" value={`${users.length}`} note="현재 화면에 표시된 사용자 수" />
-        <StatCard label="Guests" value={`${guests}`} note="즉시 가치 확인 중심의 top-of-funnel 사용자" />
-        <StatCard label="Members" value={`${members}`} note="저장/히스토리 가치를 이해하고 전환한 사용자" />
-        <StatCard label="Goal" value="Convert" note="로그인 강요가 아니라 가치 인지 후 전환이 핵심이야" />
-      </div>
+      {error ? <div className="loginError" style={{ marginBottom: 16 }}>{error}</div> : null}
+      {actionMessage ? <div className="saveMessage" style={{ marginBottom: 16 }}>{actionMessage}</div> : null}
 
-      <div className="section">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Provider</th>
-              <th>Type</th>
-              <th>Created</th>
-              <th>Last Seen</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.id}>
-                <td style={{ fontWeight: 700 }}>{u.displayName}</td>
-                <td>{u.email ?? '-'}</td>
-                <td>{u.provider}</td>
-                <td>
-                  <span className={`badge ${u.isGuest ? 'blue' : 'green'}`}>{u.isGuest ? 'guest' : 'member'}</span>
-                </td>
-                <td>{formatDate(u.createdAt)}</td>
-                <td>{formatDate(u.lastSeenAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="section sectionGrid twoCol">
+        <div className="card">
+          <div className="sectionHeader">
+            <div>
+              <h2 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.users.legacy.title', 'Legacy guest cleanup queue')}</h2>
+              <p className="pageDesc">{t('admin.users.legacy.desc', '자동 병합은 하지 않고, 운영자가 archive/merge 판단할 대상을 모아둔 목록')}</p>
+            </div>
+          </div>
+          {legacyGuests.length === 0 ? (
+            <div className="emptyState">{t('admin.users.legacy.empty', '정리할 legacy guest가 없어')}</div>
+          ) : (
+            <div className="tableWrap">
+              <table className="dataTable">
+                <thead>
+                  <tr>
+                    <th>{t('admin.users.legacy.table.guest', 'Guest')}</th>
+                    <th>{t('admin.users.legacy.table.savedCarts', 'Saved carts')}</th>
+                    <th>{t('admin.users.legacy.table.lastActive', 'Last active')}</th>
+                    <th>{t('admin.users.legacy.table.action', 'Action')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {legacyGuests.map((u: any, index: number) => (
+                    <tr key={u.id ?? index}>
+                      <td>{u.isGuest && u.guestCode ? `Guest#${u.guestCode}` : (u.displayName ?? u.id ?? '-')}</td>
+                      <td>{u.cartCount ?? u.savedCartCount ?? '-'}</td>
+                      <td>{u.lastSeenAt ?? u.lastActiveAt ?? '-'}</td>
+                      <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button className="ghostBtn" disabled={busyLegacyId === u.id} onClick={() => void archiveLegacyGuest(String(u.id))}>
+                          {busyLegacyId === u.id ? t('admin.users.legacy.archiving', '처리 중...') : t('admin.users.legacy.archive', 'Archive')}
+                        </button>
+                        <Link className="ghostBtn" href={`/users/${u.id}`}>{t('admin.users.legacy.merge', 'Merge 판단')}</Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="sectionHeader">
+            <div>
+              <h2 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.users.list.title', 'Users')}</h2>
+              <p className="pageDesc">{t('admin.users.list.desc', 'Current user list')}</p>
+            </div>
+          </div>
+          <div className="tableWrap">
+            <table className="dataTable">
+              <thead>
+                <tr>
+                  <th>{t('admin.users.list.table.name', 'Name')}</th>
+                  <th>{t('admin.users.list.table.email', 'Email')}</th>
+                  <th>{t('admin.users.list.table.type', 'Type')}</th>
+                  <th>{t('admin.users.list.table.joined', 'Joined')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user: any, index: number) => (
+                  <tr key={user.id ?? index}>
+                    <td>{user.isGuest && user.guestCode ? `Guest#${user.guestCode}` : (user.displayName ?? '-')}</td>
+                    <td>{user.email ?? '-'}</td>
+                    <td>{user.type ?? (user.isGuest ? t('admin.users.type.guest', 'guest') : t('admin.users.type.member', 'member'))}</td>
+                    <td>{user.createdAt ?? '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   )

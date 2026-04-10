@@ -5,6 +5,7 @@ class RecognizedItemCandidate {
   final double? confidence;
   final String source;
   final String? rawText;
+  final String? scanJobId;
 
   const RecognizedItemCandidate({
     required this.name,
@@ -13,5 +14,6 @@ class RecognizedItemCandidate {
     this.confidence,
     required this.source,
     this.rawText,
+    this.scanJobId,
   });
 }

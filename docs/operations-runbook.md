@@ -1,0 +1,166 @@
+# WIMC Operations Runbook
+
+## Current production-ish operating model
+
+### Backend
+- Runs in a **Terminal login-session context** on the Mac mini
+- Do **not** run the backend as a direct launchd background process
+- Reason: direct launchd backend writes to `/Volumes/AI/WIMC` fail with `PermissionError`, while the same backend launched from the user login session writes successfully
+
+### Scan worker
+- Runs as a **Terminal login-session daemon** on the Mac mini
+- Entrypoint: `/Users/sdpaik/dev/wimc/scripts/WIMC Worker.command`
+- Runtime loop: `/Users/sdpaik/dev/wimc/backend/worker_daemon.py`
+- Current purpose: continuously drain queued scan jobs from DB/NAS without requiring manual one-shot worker execution
+
+### Admin web
+- Still runs as the existing LaunchAgent (`com.wimc.admin-web.plist`)
+- Public access remains through the existing admin domain / reverse proxy path
+
+### Storage
+- Storage root stays on NAS volume: `/Volumes/AI/WIMC`
+- Backend startup performs storage preflight checks and `/health` exposes:
+  - `storageWritable`
+  - `storagePaths`
+  - `storageErrors`
+
+---
+
+## Startup / login behavior
+
+### Expected login flow
+1. User logs into macOS
+2. Login Item app opens Terminal and runs:
+   - `/Users/sdpaik/dev/wimc/scripts/WIMC Backend.command`
+3. That command launches:
+   - `/Users/sdpaik/dev/wimc/scripts/run-backend-login-session.sh`
+4. Script starts uvicorn only if port `8011` is not already listening
+
+### Expected result
+- Backend listens on `127.0.0.1:8011`
+- `/health` returns `storageWritable: true`
+- Scan job creation can write directly into `/Volumes/AI/WIMC`
+
+---
+
+## Verification commands
+
+### 1) Backend health
+```bash
+curl -sS http://127.0.0.1:8011/health
+```
+
+Healthy expected fields:
+```json
+{
+  "ok": true,
+  "storageWritable": true
+}
+```
+
+### 2) Process check
+```bash
+pgrep -fal 'uvicorn backend.app.main:app --host 127.0.0.1 --port 8011'
+```
+
+### 3) Quick scan write proof
+```bash
+printf 'fake-image' >/tmp/wimc-check.jpg
+TOKEN=$(curl -sS -X POST http://127.0.0.1:8011/v1/auth/guest \
+  -H 'Content-Type: application/json' \
+  --data '{"deviceId":"ops-check","platform":"ios","appVersion":"0.1.0"}' | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["session"]["token"])')
+
+curl -sS -X POST http://127.0.0.1:8011/v1/scan/jobs \
+  -H "Authorization: Bearer $TOKEN" \
+  -F image=@/tmp/wimc-check.jpg
+```
+
+---
+
+## Day-2 operations
+
+### Restart backend manually
+If backend is unhealthy or missing after login:
+1. Open Terminal
+2. Run:
+```bash
+/Users/sdpaik/dev/wimc/scripts/WIMC\ Backend.command
+```
+
+### Stop backend manually
+```bash
+pkill -f 'uvicorn backend.app.main:app --host 127.0.0.1 --port 8011'
+```
+
+### Check admin web
+```bash
+curl -sS http://127.0.0.1:3000/login >/dev/null && echo ok
+```
+
+---
+
+## What not to do
+
+### Do not re-enable direct backend LaunchAgent
+Avoid restoring or reusing a direct backend plist under `~/Library/LaunchAgents` for uvicorn itself.
+
+Why:
+- launchd background backend can pass health checks
+- but still fail actual NAS writes to `/Volumes/AI/WIMC`
+- that breaks scan job creation in production paths
+
+### Do not move OCR input/logs to local disk as a permanent workaround
+The chosen operating model intentionally keeps OCR storage on the NAS volume for continuous operations.
+
+---
+
+## Admin UI checks
+
+### Overview
+Use `/overview` to confirm lifecycle KPIs, top members by saved carts, and high-level app operations metrics.
+
+### Scan Ops
+Use `/scan-ops` to confirm:
+- feedback totals
+- accepted vs corrected counts
+- recent feedback rows
+- recent failure rows
+
+### Config
+Use `/config` to confirm:
+- backend run mode = `terminal-login-session`
+- `storageWritable = true`
+- current NAS storage paths
+
+---
+
+## Incident notes
+
+### Symptom: `/v1/scan/jobs` returns 500 with PermissionError
+Interpretation:
+- backend process is likely not running in the login-session Terminal context
+- or NAS mount/session permissions changed after login
+
+Immediate actions:
+1. Check `/health`
+2. Confirm `storageWritable`
+3. Re-run `WIMC Backend.command` from Terminal
+4. Retry a scan job
+
+### Symptom: Login Item ran but backend is not listening
+Immediate actions:
+1. Open Terminal
+2. Run `/Users/sdpaik/dev/wimc/scripts/WIMC Backend.command`
+3. Re-check `curl -sS http://127.0.0.1:8011/health`
+
+---
+
+## Local file references
+- Backend login-session runner:
+  - `/Users/sdpaik/dev/wimc/scripts/run-backend-login-session.sh`
+- Terminal entrypoint:
+  - `/Users/sdpaik/dev/wimc/scripts/WIMC Backend.command`
+- Login-session runtime log:
+  - `/Users/sdpaik/Library/Logs/WIMC/backend-login-session.log`
+- Admin web LaunchAgent:
+  - `~/Library/LaunchAgents/com.wimc.admin-web.plist`

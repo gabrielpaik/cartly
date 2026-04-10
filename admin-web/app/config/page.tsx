@@ -1,25 +1,37 @@
+'use client'
+
 import PageHeader from '../../components/PageHeader'
 import StatCard from '../../components/StatCard'
-import { fetchJsonSafe } from '../../lib/api'
+import { useAdminCopy } from '../../components/AdminCopyProvider'
 import { mockConfig } from '../../lib/mock'
+import { useAdminData } from '../../lib/useAdminData'
 
 type ConfigDto = {
   remoteScan: boolean
   adsEnabled: boolean
   storageRoot: string
+  storageWritable: boolean
+  storagePaths: Record<string, string>
+  storageErrors: string[]
+  backendRunMode: string
+  runtimeAssetsRoot: string
+  brandingAssetsDir: string
+  adsAssetsDir: string
   apiBase: string
   branding: {
     logoType: string
     logoText: string
     logoImageUrl: string | null
+    splashImageUrl: string | null
     homeSubtitle: string
     savedSubtitle: string
     mySubtitle: string
   }
 }
 
-export default async function ConfigPage() {
-  const res = await fetchJsonSafe<{ ok: boolean; data: ConfigDto }>('/admin/config', {
+export default function ConfigPage() {
+  const { t } = useAdminCopy()
+  const res = useAdminData<{ ok: boolean; data: ConfigDto }>('/admin/config', {
     ok: true,
     data: mockConfig,
   })
@@ -28,44 +40,49 @@ export default async function ConfigPage() {
   return (
     <div>
       <PageHeader
-        badge={res.usingFallback ? 'Fallback data' : 'Live data'}
-        title="Config"
-        description="운영 플래그, NAS 경로, API 기준점을 확인하는 CTO용 런타임 보드야."
+        badge={res.usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : res.loading ? t('admin.common.badge.loading', 'Loading...') : t('admin.common.badge.live', 'Live data')}
+        title={t('admin.config.title', 'Config')}
+        description={t('admin.config.desc', '런타임 설정')}
+        onRefresh={() => void res.reload()}
+        refreshing={res.loading}
       />
 
+      {res.error ? <div className="loginError" style={{ marginBottom: 16 }}>{res.error}</div> : null}
+
       <div className="kpiGrid">
-        <StatCard label="Remote Scan" value={cfg.remoteScan ? 'ON' : 'OFF'} note="앱이 remote scan 파이프라인을 쓰는지 여부" />
-        <StatCard label="Ads" value={cfg.adsEnabled ? 'ON' : 'OFF'} note="광고 슬롯 노출 가능 여부" />
-        <StatCard label="Storage" value="NAS" note={cfg.storageRoot} />
-        <StatCard label="API Base" value="Backend" note={cfg.apiBase} />
+        <StatCard label={t('admin.config.kpi.remoteScan', 'Remote Scan')} value={cfg.remoteScan ? t('admin.common.on', 'ON') : t('admin.common.off', 'OFF')} />
+        <StatCard label={t('admin.config.kpi.ads', 'Ads')} value={cfg.adsEnabled ? t('admin.common.on', 'ON') : t('admin.common.off', 'OFF')} />
+        <StatCard label={t('admin.config.kpi.storage', 'Storage')} value={cfg.storageWritable ? t('admin.config.kpi.storageWritable', 'Writable') : t('admin.config.kpi.storageBlocked', 'Blocked')} note={cfg.storageRoot} />
+        <StatCard label={t('admin.config.kpi.backendRun', 'Backend Run')} value={cfg.backendRunMode} note={t('admin.config.kpi.backendRunNote', 'launchd direct backend는 비활성화')} />
+        <StatCard label={t('admin.config.kpi.apiBase', 'API Base')} value={t('admin.config.kpi.apiBaseValue', 'Backend')} note={cfg.apiBase} />
       </div>
 
-      <div className="section sectionGrid twoCol">
+      <div className="sectionGrid twoCol section">
+        <div className={`card ${cfg.storageWritable ? 'successCard' : 'warnCard'}`}>
+          <h2 className="panelTitle">{t('admin.config.storage.title', 'Storage health')}</h2>
+          <ul className="inlineList">
+            <li>{t('admin.config.storage.root', 'storageRoot')}: {cfg.storageRoot}</li>
+            <li>{t('admin.config.storage.writable', 'storageWritable')}: {String(cfg.storageWritable)}</li>
+            <li>{t('admin.config.storage.input', 'input')}: {cfg.storagePaths.input ?? '-'}</li>
+            <li>{t('admin.config.storage.feedbackLogs', 'feedbackLogs')}: {cfg.storagePaths.feedbackLogs ?? '-'}</li>
+            <li>{t('admin.config.storage.failureLogs', 'failureLogs')}: {cfg.storagePaths.failureLogs ?? '-'}</li>
+            <li>{t('admin.config.storage.failed', 'failed')}: {cfg.storagePaths.failed ?? '-'}</li>
+            <li>{t('admin.config.storage.errors', 'errors')}: {cfg.storageErrors.length === 0 ? t('admin.common.none', 'none') : cfg.storageErrors.join(' | ')}</li>
+          </ul>
+        </div>
+
         <div className="card successCard">
-          <h2 className="panelTitle">브랜딩 런타임</h2>
+          <h2 className="panelTitle">{t('admin.config.branding.title', '브랜딩')}</h2>
           <ul className="inlineList">
-            <li>logoType: {cfg.branding.logoType}</li>
-            <li>logoText: {cfg.branding.logoText}</li>
-            <li>homeSubtitle: {cfg.branding.homeSubtitle}</li>
-            <li>savedSubtitle: {cfg.branding.savedSubtitle}</li>
-            <li>mySubtitle: {cfg.branding.mySubtitle}</li>
-          </ul>
-        </div>
-        <div className="card">
-          <h2 className="panelTitle">CTO 체크포인트</h2>
-          <ul className="inlineList">
-            <li>Backend/DB를 source of truth로 고정</li>
-            <li>NAS는 AI 처리/파일/로그 인프라로만 사용</li>
-            <li>feedback / failure / event 스키마를 먼저 확정</li>
-            <li>모델/프롬프트/파서 버전 추적 추가</li>
-          </ul>
-        </div>
-        <div className="card warnCard">
-          <h2 className="panelTitle">현재 리스크</h2>
-          <ul className="inlineList">
-            <li>DB(Postgres) 미기동이면 admin 데이터가 라이브로 안 뜬다.</li>
-            <li>OCR 품질이 낮은 상태라 feedback 루프 없이는 개선 속도가 느리다.</li>
-            <li>광고는 설정만 켜도 되는 게 아니라 위치/빈도/톤을 같이 제어해야 한다.</li>
+            <li>{t('admin.config.branding.logoType', 'logoType')}: {cfg.branding.logoType}</li>
+            <li>{t('admin.config.branding.logoText', 'logoText')}: {cfg.branding.logoText}</li>
+            <li>{t('admin.config.branding.logoImageUrl', 'logoImageUrl')}: {cfg.branding.logoImageUrl ?? '-'}</li>
+            <li>{t('admin.config.branding.splashImageUrl', 'splashImageUrl')}: {cfg.branding.splashImageUrl ?? '-'}</li>
+            <li>{t('admin.config.branding.assetsDir', 'brandingAssetsDir')}: {cfg.brandingAssetsDir}</li>
+            <li>{t('admin.config.branding.adsAssetsDir', 'adsAssetsDir')}: {cfg.adsAssetsDir}</li>
+            <li>{t('admin.config.branding.homeSubtitle', 'homeSubtitle')}: {cfg.branding.homeSubtitle}</li>
+            <li>{t('admin.config.branding.savedSubtitle', 'savedSubtitle')}: {cfg.branding.savedSubtitle}</li>
+            <li>{t('admin.config.branding.mySubtitle', 'mySubtitle')}: {cfg.branding.mySubtitle}</li>
           </ul>
         </div>
       </div>

@@ -7,6 +7,7 @@ class RecognizedItem {
   final double? confidence;
   final String? source;
   final String? rawText;
+  final String? scanJobId;
 
   RecognizedItem({
     required this.name,
@@ -15,6 +16,7 @@ class RecognizedItem {
     this.confidence,
     this.source,
     this.rawText,
+    this.scanJobId,
   });
 
   factory RecognizedItem.fromCandidate(RecognizedItemCandidate candidate) {
@@ -25,6 +27,7 @@ class RecognizedItem {
       confidence: candidate.confidence,
       source: candidate.source,
       rawText: candidate.rawText,
+      scanJobId: candidate.scanJobId,
     );
   }
 
@@ -35,6 +38,7 @@ class RecognizedItem {
     double? confidence,
     String? source,
     String? rawText,
+    String? scanJobId,
   }) {
     return RecognizedItem(
       name: name ?? this.name,
@@ -43,6 +47,7 @@ class RecognizedItem {
       confidence: confidence ?? this.confidence,
       source: source ?? this.source,
       rawText: rawText ?? this.rawText,
+      scanJobId: scanJobId ?? this.scanJobId,
     );
   }
 }

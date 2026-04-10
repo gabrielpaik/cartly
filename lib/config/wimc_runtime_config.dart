@@ -1,29 +1,29 @@
+import '../services/api_base.dart';
+
 class WimcRuntimeConfig {
-  final bool useRemoteScan;
   final String remoteBaseUrl;
   final String? remoteAuthToken;
 
-  const WimcRuntimeConfig({
-    required this.useRemoteScan,
-    required this.remoteBaseUrl,
-    this.remoteAuthToken,
-  });
+  const WimcRuntimeConfig({required this.remoteBaseUrl, this.remoteAuthToken});
 
   static const current = WimcRuntimeConfig(
-    useRemoteScan: bool.fromEnvironment('WIMC_USE_REMOTE_SCAN', defaultValue: false),
     remoteBaseUrl: String.fromEnvironment(
       'WIMC_REMOTE_BASE_URL',
-      defaultValue: 'http://YOUR-NAS-API:8000',
+      defaultValue: '',
     ),
-    remoteAuthToken: String.fromEnvironment('WIMC_REMOTE_AUTH_TOKEN', defaultValue: ''),
+    remoteAuthToken: String.fromEnvironment(
+      'WIMC_REMOTE_AUTH_TOKEN',
+      defaultValue: '',
+    ),
   );
 
   String get normalizedRemoteBaseUrl {
     final trimmed = remoteBaseUrl.trim();
-    if (trimmed.endsWith('/')) {
-      return trimmed.substring(0, trimmed.length - 1);
+    final base = trimmed.isEmpty ? getWimcApiBaseUrl() : trimmed;
+    if (base.endsWith('/')) {
+      return base.substring(0, base.length - 1);
     }
-    return trimmed;
+    return base;
   }
 
   String? get effectiveRemoteAuthToken {

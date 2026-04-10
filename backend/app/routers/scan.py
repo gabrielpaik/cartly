@@ -8,6 +8,7 @@ from ..services.scan_service import (
     get_scan_job,
     log_scan_failure,
     save_scan_feedback,
+    validate_image_bytes,
 )
 from ..services.worker_service import read_result
 
@@ -21,6 +22,16 @@ def create_scan_job_endpoint(
     current_user=Depends(current_user_dep),
 ):
     image_bytes = image.file.read()
+    image_error = validate_image_bytes(image_bytes)
+    if image_error is not None:
+        return {
+            'ok': False,
+            'error': {
+                'code': 'INVALID_IMAGE_UPLOAD',
+                'message': image_error,
+            },
+        }
+
     job = create_scan_job(
         db=db,
         user_id=getattr(current_user, 'id', None),

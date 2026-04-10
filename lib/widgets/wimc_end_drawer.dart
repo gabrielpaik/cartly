@@ -5,8 +5,11 @@ import 'package:intl/intl.dart';
 
 import '../pages/cart_detail_page.dart';
 import '../pages/login_page.dart';
+import '../services/app_config_store.dart';
+import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
+import 'brand_mark.dart';
 
 final _priceFormatter = NumberFormat('#,###');
 String _fmt(int v) => _priceFormatter.format(v);
@@ -41,6 +44,7 @@ class _WimcEndDrawerState extends State<WimcEndDrawer> {
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
+    final branding = AppConfigStore.instance.branding.value;
 
     return Drawer(
       width: w * 0.73,
@@ -50,25 +54,19 @@ class _WimcEndDrawerState extends State<WimcEndDrawer> {
             ListView(
               padding: EdgeInsets.zero,
               children: [
-                const DrawerHeader(
-                  decoration: BoxDecoration(color: Color(0xFFE31837)),
-                  child: Align(
+                DrawerHeader(
+                  decoration: const BoxDecoration(color: Color(0xFFE31837)),
+                  child: const Align(
                     alignment: Alignment.bottomLeft,
-                    child: Text(
-                      "What's in my cart",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    child: BrandMark(color: Colors.white, fontSize: 24),
                   ),
                 ),
 
                 ValueListenableBuilder(
                   valueListenable: AuthStore.instance.session,
                   builder: (context, session, _) {
-                    final loggedIn = session != null;
+                    final memberSignedIn = session != null && !session.isGuest;
+                    final isGuestMode = session?.isGuest == true;
 
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -85,9 +83,13 @@ class _WimcEndDrawerState extends State<WimcEndDrawer> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  loggedIn
+                                  memberSignedIn
                                       ? session.displayName
-                                      : '아직 로그인하지 않았어요',
+                                      : isGuestMode
+                                      ? ((session?.displayName.trim().isNotEmpty ?? false)
+                                            ? session!.displayName
+                                            : 'Guest')
+                                      : branding.drawerGuestTitle,
                                   style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w900,
@@ -95,11 +97,11 @@ class _WimcEndDrawerState extends State<WimcEndDrawer> {
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  loggedIn
+                                  memberSignedIn
                                       ? (session.email.isEmpty
                                             ? '${session.providerBadge} · ${session.badgeLabel}'
                                             : '${session.email} · ${session.providerBadge}')
-                                      : '저장한 카트와 스캔 기록을 이어가려면 로그인 구조가 필요해.\n지금은 provider 뼈대를 먼저 맞춰둬서 다음에 실제 인증만 붙이면 돼.',
+                                      : branding.drawerGuestBody,
                                   style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -123,25 +125,50 @@ class _WimcEndDrawerState extends State<WimcEndDrawer> {
                                 ),
                               ),
                               onPressed: () async {
-                                if (!loggedIn) {
+                                if (!memberSignedIn) {
                                   final result = await Navigator.of(context)
                                       .push(
                                         MaterialPageRoute(
-                                          builder: (_) => const LoginPage(),
+                                          builder: (_) => LoginPage(preferSignup: isGuestMode),
                                         ),
                                       );
                                   if (result == true && context.mounted) {
-                                    _showMenuNotice('로그인 구조를 더 깔끔하게 정리해뒀어');
+                                    _showMenuNotice(
+                                      AppRuntimeCopy.text([
+                                        'my',
+                                        'linkedDoneMessage',
+                                      ], '계정을 연결했어요'),
+                                    );
                                   }
                                   return;
                                 }
 
                                 await AuthStore.instance.signOut();
+                                await CartStore.instance
+                                    .refreshForCurrentSession();
                                 if (!context.mounted) return;
-                                _showMenuNotice('로그아웃했어');
+                                _showMenuNotice(
+                                  AppRuntimeCopy.text([
+                                    'my',
+                                    'logoutDoneMessage',
+                                  ], '로그아웃했어요'),
+                                );
                               },
                               child: Text(
-                                loggedIn ? '로그아웃' : '로그인/회원가입 하기',
+                                memberSignedIn
+                                    ? AppRuntimeCopy.text([
+                                        'my',
+                                        'logoutAction',
+                                      ], '로그아웃')
+                                    : isGuestMode
+                                    ? AppRuntimeCopy.text([
+                                        'my',
+                                        'guestSignupAction',
+                                      ], '회원가입하기')
+                                    : AppRuntimeCopy.text([
+                                        'my',
+                                        'loginAction',
+                                      ], '로그인 / 회원가입'),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w800,
                                 ),

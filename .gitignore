@@ -43,3 +43,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local generated / runtime artifacts
+admin-web/.next/
+admin-web/storybook-static/
+admin-web/public/app-preview/
+admin-web/node_modules/
+admin-web/*.tsbuildinfo
+backend/.venv/
+backend/storage/
+build/admin-preview-web/
+**/xcuserdata/
+**/*.xcuserstate
+runlog.txt

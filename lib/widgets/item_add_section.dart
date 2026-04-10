@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
@@ -5,12 +6,54 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/recognized_item.dart';
+import '../models/recognized_item_candidate.dart';
 import '../models/scan_job.dart';
+import '../services/app_runtime_copy.dart';
 import '../services/remote_scan_repository.dart';
 import '../services/scan_repository.dart';
 
 final _priceFormatter = NumberFormat('#,###');
 String _fmt(int v) => _priceFormatter.format(v);
+
+String _scanText(String key, String fallback) =>
+    AppRuntimeCopy.text(['scan', key], fallback);
+
+String _scanNestedText(String group, String key, String fallback) =>
+    AppRuntimeCopy.text(['scan', group, key], fallback);
+
+String _scanStatusText(ScanJob job) {
+  return switch (job.status) {
+    ScanJobStatus.queued => _scanText('queued', '대기 중...'),
+    ScanJobStatus.uploading => _scanText('uploading', '업로드 중...'),
+    ScanJobStatus.processing => _scanText('processing', '분석 중...'),
+    ScanJobStatus.done => _scanText('resultPreparing', '결과 정리 중...'),
+    ScanJobStatus.failed =>
+      job.errorMessage ?? _scanText('failed', '인식에 실패했어요'),
+  };
+}
+
+String _scanReviewMessage(double? confidence) {
+  if (confidence == null) {
+    return _scanNestedText('review', 'default', '인식 결과를 확인한 뒤 카트에 담아주세요.');
+  }
+  if (confidence >= 0.85) {
+    return _scanNestedText('review', 'high', '신뢰도가 높은 결과예요. 빠르게 확인하고 담아주세요.');
+  }
+  if (confidence >= 0.65) {
+    return _scanNestedText('review', 'medium', '한 번 확인하고 담는 걸 권장해요.');
+  }
+  return _scanNestedText('review', 'low', '확인 필요 결과예요. 수정하거나 다시 찍는 게 좋아요.');
+}
+
+String _scanConfidenceLabel(double confidence) {
+  if (confidence >= 0.85) {
+    return _scanNestedText('confidence', 'high', '신뢰 높음');
+  }
+  if (confidence >= 0.65) {
+    return _scanNestedText('confidence', 'medium', '확인 권장');
+  }
+  return _scanNestedText('confidence', 'low', '확인 필요');
+}
 
 class ItemAddSection extends StatefulWidget {
   final List<CameraDescription> cameras;
@@ -42,15 +85,22 @@ class _ItemAddSectionState extends State<ItemAddSection> {
   String? _statusMessage;
 
   RecognizedItem? recognized;
+  RecognizedItemCandidate? _originalCandidate;
+  String? _recognizedJobId;
+  String? _pendingJobId;
   String? _capturedPath; // ✅ 프리즈 이미지 경로
 
   bool get showResultCard => recognized != null;
 
   void _openScanner() {
+    if (isOcrRunning) return;
     setState(() {
       isScannerOpen = true;
       manualEntryOpen = false;
       recognized = null;
+      _originalCandidate = null;
+      _recognizedJobId = null;
+      _pendingJobId = null;
       _capturedPath = null;
     });
   }
@@ -62,6 +112,9 @@ class _ItemAddSectionState extends State<ItemAddSection> {
       isScannerOpen = false;
       manualEntryOpen = false;
       recognized = null;
+      _originalCandidate = null;
+      _recognizedJobId = null;
+      _pendingJobId = null;
       _capturedPath = null;
     });
 
@@ -77,102 +130,193 @@ class _ItemAddSectionState extends State<ItemAddSection> {
       isScannerOpen = false;
       manualEntryOpen = true;
       recognized = RecognizedItem(name: '', price: 0);
+      _originalCandidate = null;
+      _recognizedJobId = null;
+      _pendingJobId = null;
       _capturedPath = null;
     });
   }
 
+  bool _matchesOriginalCandidate(
+    RecognizedItem item,
+    RecognizedItemCandidate original,
+  ) {
+    return item.name.trim() == original.name.trim() &&
+        item.price == original.price &&
+        (item.sku ?? '').trim() == (original.sku ?? '').trim();
+  }
+
+  Future<void> _submitFeedbackIfNeeded(RecognizedItem item) async {
+    final original = _originalCandidate;
+    final jobId = item.scanJobId ?? _recognizedJobId;
+    if (original == null || jobId == null || jobId.trim().isEmpty) {
+      return;
+    }
+
+    final accepted = _matchesOriginalCandidate(item, original);
+
+    try {
+      await widget.scanRepository.submitFeedback(
+        jobId: jobId,
+        accepted: accepted,
+        original: original,
+        corrected: accepted ? null : item,
+      );
+    } catch (_) {
+      // feedback는 best-effort로 남긴다.
+    }
+  }
+
   Future<void> _addToParent(RecognizedItem item) async {
+    unawaited(_submitFeedbackIfNeeded(item));
     widget.onAdd(item);
     widget.onAddedFeedback?.call();
     await _closeScanner();
+  }
+
+  Future<void> _pollForSubmittedJob(ScanJob submitted, String imagePath) async {
+    try {
+      ScanJob job = submitted;
+
+      for (var i = 0; i < 60; i++) {
+        if (!mounted || _pendingJobId != submitted.jobId) return;
+
+        await Future.delayed(const Duration(milliseconds: 1000));
+        job = await widget.scanRepository.getJob(submitted.jobId);
+
+        if (!mounted || _pendingJobId != submitted.jobId) return;
+        setState(() {
+          _statusMessage = _scanStatusText(job);
+        });
+
+        if (job.status == ScanJobStatus.done) {
+          final result = await widget.scanRepository.getResult(submitted.jobId);
+          if (!mounted || _pendingJobId != submitted.jobId) return;
+
+          if (result == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  _scanText('resultEmpty', '텍스트를 못 읽었어요. 더 가까이/선명하게 찍어봐요'),
+                ),
+              ),
+            );
+            setState(() {
+              isOcrRunning = false;
+              _pendingJobId = null;
+              _capturedPath = null;
+            });
+            return;
+          }
+
+          final recognizedItem = RecognizedItem.fromCandidate(result);
+          setState(() {
+            isOcrRunning = false;
+            recognized = recognizedItem;
+            _originalCandidate = result;
+            _recognizedJobId = result.scanJobId ?? submitted.jobId;
+            _pendingJobId = null;
+            manualEntryOpen = false;
+            _capturedPath = imagePath;
+            _statusMessage = null;
+          });
+          widget.onRecognized?.call(recognizedItem);
+          return;
+        }
+
+        if (job.status == ScanJobStatus.failed) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                job.errorMessage ??
+                    _scanText('resultEmpty', '텍스트를 못 읽었어요. 더 가까이/선명하게 찍어봐요'),
+              ),
+            ),
+          );
+          setState(() {
+            isOcrRunning = false;
+            _pendingJobId = null;
+            _capturedPath = null;
+            _statusMessage = null;
+          });
+          return;
+        }
+      }
+
+      if (!mounted || _pendingJobId != submitted.jobId) return;
+      setState(() {
+        isOcrRunning = false;
+        _statusMessage = _scanText('timeout', '분석이 지연되고 있어요. 잠시 후 결과를 다시 확인해봐요');
+      });
+    } on ScanRepositoryException catch (error) {
+      if (!mounted || _pendingJobId != submitted.jobId) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+      setState(() {
+        isOcrRunning = false;
+        _pendingJobId = null;
+        _capturedPath = null;
+        _statusMessage = null;
+      });
+    } catch (_) {
+      if (!mounted || _pendingJobId != submitted.jobId) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_scanText('processingError', '분석 처리 중 오류가 났어요')),
+        ),
+      );
+      setState(() {
+        isOcrRunning = false;
+        _pendingJobId = null;
+        _capturedPath = null;
+        _statusMessage = null;
+      });
+    }
   }
 
   Future<void> _runOcrFromFilePath(String imagePath) async {
     if (isOcrRunning) return;
     setState(() {
       isOcrRunning = true;
-      _statusMessage = '업로드 중...';
+      _statusMessage = _scanText('uploading', '업로드 중...');
     });
 
     try {
       final submitted = await widget.scanRepository.submitImage(imagePath);
       if (!mounted) return;
 
-      ScanJob job = submitted;
-      var completed = job.status == ScanJobStatus.done;
-
-      for (var i = 0; i < 15; i++) {
-        if (!mounted || completed) break;
-        await Future.delayed(const Duration(milliseconds: 700));
-        job = await widget.scanRepository.getJob(submitted.jobId);
-
-        if (!mounted) return;
-        setState(() {
-          _statusMessage = switch (job.status) {
-            ScanJobStatus.queued => '대기 중...',
-            ScanJobStatus.uploading => '업로드 중...',
-            ScanJobStatus.processing => '분석 중...',
-            ScanJobStatus.done => '결과 정리 중...',
-            ScanJobStatus.failed => job.errorMessage ?? '인식에 실패했어요',
-          };
-        });
-
-        if (job.status == ScanJobStatus.done) {
-          completed = true;
-          break;
-        }
-        if (job.status == ScanJobStatus.failed) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(job.errorMessage ?? '텍스트를 못 읽었어요. 더 가까이/선명하게 찍어봐요')),
-          );
-          return;
-        }
-      }
-
-      if (!completed) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('분석이 조금 지연되고 있어요. 잠시 후 다시 시도해봐요')),
-        );
-        return;
-      }
-
-      final result = await widget.scanRepository.getResult(submitted.jobId);
-      if (!mounted) return;
-
-      if (result == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('텍스트를 못 읽었어요. 더 가까이/선명하게 찍어봐요')),
-        );
-        return;
-      }
-
-      final recognizedItem = RecognizedItem.fromCandidate(result);
       setState(() {
-        recognized = recognizedItem;
-        manualEntryOpen = false;
+        isScannerOpen = false;
+        _pendingJobId = submitted.jobId;
+        _recognizedJobId = submitted.jobId;
         _capturedPath = imagePath;
-        _statusMessage = null;
+        _statusMessage = _scanText('processing', '분석 중...');
       });
-      widget.onRecognized?.call(recognizedItem);
+
+      unawaited(_pollForSubmittedJob(submitted, imagePath));
     } on ScanRepositoryException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error.message)));
+      setState(() {
+        isOcrRunning = false;
+        _pendingJobId = null;
+        _capturedPath = null;
+        _statusMessage = null;
+      });
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('분석 처리 중 오류가 났어요')));
-    } finally {
-      if (mounted) {
-        setState(() {
-          isOcrRunning = false;
-          if (recognized != null) {
-            _statusMessage = null;
-          }
-        });
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_scanText('processingError', '분석 처리 중 오류가 났어요')),
+        ),
+      );
+      setState(() {
+        isOcrRunning = false;
+        _pendingJobId = null;
+        _capturedPath = null;
+        _statusMessage = null;
+      });
     }
   }
 
@@ -182,7 +326,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
       children: [
         // 가격표 인식하기
         GestureDetector(
-          onTap: isScannerOpen ? _closeScanner : _openScanner,
+          onTap: isOcrRunning ? null : (isScannerOpen ? _closeScanner : _openScanner),
           child: Container(
             height: 52,
             decoration: BoxDecoration(
@@ -191,12 +335,12 @@ class _ItemAddSectionState extends State<ItemAddSection> {
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.camera_alt, color: Colors.white),
-                SizedBox(width: 8),
+              children: [
+                const Icon(Icons.camera_alt, color: Colors.white),
+                const SizedBox(width: 8),
                 Text(
-                  '가격표 인식하기',
-                  style: TextStyle(
+                  _scanText('captureButton', '가격표 인식하기'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
                   ),
@@ -221,6 +365,9 @@ class _ItemAddSectionState extends State<ItemAddSection> {
               setState(() {
                 _capturedPath = null;
                 recognized = null;
+                _originalCandidate = null;
+                _recognizedJobId = null;
+                _pendingJobId = null;
                 _statusMessage = null;
               });
               if (path != null) {
@@ -250,12 +397,30 @@ class _ItemAddSectionState extends State<ItemAddSection> {
             ),
           ],
           const SizedBox(height: 12),
+        ] else if (_statusMessage != null && (isOcrRunning || _pendingJobId != null)) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              _statusMessage!,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
         ],
 
         // 인식 결과 (직접 추가하기 위)
         if (showResultCard && !manualEntryOpen) ...[
           RecognizedResultCard(
-            title: '인식 결과',
+            title: _scanText('recognizedTitle', '인식 결과'),
             item: recognized!,
             onChanged: (u) => setState(() => recognized = u),
             onAdd: _addToParent,
@@ -275,12 +440,12 @@ class _ItemAddSectionState extends State<ItemAddSection> {
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.edit, color: Colors.white),
-                SizedBox(width: 8),
+              children: [
+                const Icon(Icons.edit, color: Colors.white),
+                const SizedBox(width: 8),
                 Text(
-                  '직접 추가하기',
-                  style: TextStyle(
+                  _scanText('manualAddAction', '직접 추가하기'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
                   ),
@@ -293,7 +458,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
         if (manualEntryOpen) ...[
           const SizedBox(height: 12),
           RecognizedResultCard(
-            title: '직접 추가하기',
+            title: _scanText('manualAddTitle', '직접 추가하기'),
             item: recognized!,
             startEditing: true,
             showCancel: true,
@@ -453,7 +618,15 @@ class _InlineScannerBoxState extends State<InlineScannerBox> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('촬영/OCR에 실패했어요. 다시 시도해 주세요')),
+        SnackBar(
+          content: Text(
+            _scanNestedText(
+              'validation',
+              'captureFailed',
+              '촬영/OCR에 실패했어요. 다시 시도해 주세요',
+            ),
+          ),
+        ),
       );
       try {
         await _controller?.resumePreview();
@@ -515,9 +688,9 @@ class _InlineScannerBoxState extends State<InlineScannerBox> {
                         return Container(
                           color: Colors.black87,
                           alignment: Alignment.center,
-                          child: const Text(
-                            '카메라 준비 중...',
-                            style: TextStyle(color: Colors.white70),
+                          child: Text(
+                            _scanText('cameraPreparing', '카메라 준비 중...'),
+                            style: const TextStyle(color: Colors.white70),
                           ),
                         );
                       }
@@ -624,9 +797,9 @@ class _InlineScannerBoxState extends State<InlineScannerBox> {
                             color: Colors.black.withValues(alpha: 0.35),
                             borderRadius: BorderRadius.circular(999),
                           ),
-                          child: const Text(
-                            '다시 찍기',
-                            style: TextStyle(
+                          child: Text(
+                            _scanText('retakeAction', '다시 찍기'),
+                            style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
                             ),
@@ -655,7 +828,9 @@ class _InlineScannerBoxState extends State<InlineScannerBox> {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            (widget.isBusy || _isCapturing) ? '인식 중...' : '인식',
+                            (widget.isBusy || _isCapturing)
+                                ? _scanText('recognizing', '인식 중...')
+                                : _scanText('recognizeAction', '인식'),
                             style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
@@ -681,16 +856,12 @@ class _ConfidenceBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = confidence >= 0.85
-        ? '신뢰 높음'
-        : confidence >= 0.65
-            ? '확인 권장'
-            : '확인 필요';
+    final label = _scanConfidenceLabel(confidence);
     final color = confidence >= 0.85
         ? const Color(0xFF1E8E3E)
         : confidence >= 0.65
-            ? const Color(0xFFB26A00)
-            : const Color(0xFFE31837);
+        ? const Color(0xFFB26A00)
+        : const Color(0xFFE31837);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -744,7 +915,7 @@ class RecognizedResultCard extends StatefulWidget {
   final RecognizedItem item;
   final void Function(RecognizedItem updated) onChanged;
   final void Function(RecognizedItem item) onAdd;
-  final String title;
+  final String? title;
 
   final bool startEditing;
   final bool showCancel;
@@ -760,7 +931,7 @@ class RecognizedResultCard extends StatefulWidget {
     this.showCancel = false,
     this.onCancel,
     this.addButtonText = '카트에 추가',
-    this.title = '인식 결과',
+    this.title,
   });
 
   @override
@@ -819,9 +990,17 @@ class _RecognizedResultCardState extends State<RecognizedResultCard> {
     final parsed = int.tryParse(rawPrice);
 
     if (name.isEmpty || parsed == null || parsed <= 0) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('상품명/가격을 확인해주세요')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _scanNestedText(
+              'validation',
+              'namePriceRequired',
+              '상품명/가격을 확인해주세요',
+            ),
+          ),
+        ),
+      );
       return null;
     }
 
@@ -848,22 +1027,20 @@ class _RecognizedResultCardState extends State<RecognizedResultCard> {
             children: [
               Expanded(
                 child: Text(
-                  widget.title,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                  widget.title ?? _scanText('recognizedTitle', '인식 결과'),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-              if (item.confidence != null) _ConfidenceBadge(confidence: item.confidence!),
+              if (item.confidence != null)
+                _ConfidenceBadge(confidence: item.confidence!),
             ],
           ),
           const SizedBox(height: 6),
           Text(
-            item.confidence == null
-                ? '인식 결과를 확인한 뒤 카트에 담아주세요.'
-                : item.confidence! >= 0.85
-                    ? '신뢰도가 높은 결과예요. 빠르게 확인하고 담아주세요.'
-                    : item.confidence! >= 0.65
-                        ? '한 번 확인하고 담는 걸 권장해요.'
-                        : '확인 필요 결과예요. 수정하거나 다시 찍는 게 좋아요.',
+            _scanReviewMessage(item.confidence),
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -871,16 +1048,23 @@ class _RecognizedResultCardState extends State<RecognizedResultCard> {
               height: 1.45,
             ),
           ),
-          if ((item.source ?? '').isNotEmpty || (item.sku ?? '').isNotEmpty) ...[
+          if ((item.source ?? '').isNotEmpty ||
+              (item.sku ?? '').isNotEmpty) ...[
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 if ((item.source ?? '').isNotEmpty)
-                  _MetaChip(label: 'source', value: item.source!),
+                  _MetaChip(
+                    label: _scanText('sourceLabel', 'source'),
+                    value: item.source!,
+                  ),
                 if ((item.sku ?? '').isNotEmpty)
-                  _MetaChip(label: 'sku', value: item.sku!),
+                  _MetaChip(
+                    label: _scanText('skuLabel', 'sku'),
+                    value: item.sku!,
+                  ),
               ],
             ),
           ],
@@ -895,7 +1079,7 @@ class _RecognizedResultCardState extends State<RecognizedResultCard> {
                 border: Border.all(color: Colors.black12),
               ),
               child: Text(
-                '원문: ${item.rawText!.trim()}',
+                '${_scanText('rawTextPrefix', '원문')}: ${item.rawText!.trim()}',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -910,18 +1094,24 @@ class _RecognizedResultCardState extends State<RecognizedResultCard> {
 
           Row(
             children: [
-              const SizedBox(
+              SizedBox(
                 width: 64,
-                child: Text('상품명', style: TextStyle(color: Colors.black54)),
+                child: Text(
+                  AppRuntimeCopy.text(['cartDetail', 'nameLabel'], '상품명'),
+                  style: const TextStyle(color: Colors.black54),
+                ),
               ),
               Expanded(
                 child: isEditing
                     ? TextField(
                         controller: nameCtrl,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           isDense: true,
-                          border: OutlineInputBorder(),
-                          hintText: '상품명',
+                          border: const OutlineInputBorder(),
+                          hintText: AppRuntimeCopy.text([
+                            'cartDetail',
+                            'nameLabel',
+                          ], '상품명'),
                         ),
                       )
                     : Text(
@@ -936,19 +1126,22 @@ class _RecognizedResultCardState extends State<RecognizedResultCard> {
 
           Row(
             children: [
-              const SizedBox(
+              SizedBox(
                 width: 64,
-                child: Text('가격', style: TextStyle(color: Colors.black54)),
+                child: Text(
+                  AppRuntimeCopy.text(['cartDetail', 'priceLabel'], '가격'),
+                  style: const TextStyle(color: Colors.black54),
+                ),
               ),
               Expanded(
                 child: isEditing
                     ? TextField(
                         controller: priceCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           isDense: true,
-                          border: OutlineInputBorder(),
-                          hintText: '가격(숫자)',
+                          border: const OutlineInputBorder(),
+                          hintText: _scanText('priceHint', '가격(숫자)'),
                         ),
                         onChanged: (v) {
                           // 입력 중 콤마 포맷
@@ -982,9 +1175,9 @@ class _RecognizedResultCardState extends State<RecognizedResultCard> {
               if (widget.showCancel)
                 TextButton(
                   onPressed: widget.onCancel,
-                  child: const Text(
-                    '취소',
-                    style: TextStyle(
+                  child: Text(
+                    AppRuntimeCopy.text(['common', 'cancel'], '취소'),
+                    style: const TextStyle(
                       color: Colors.black54,
                       fontWeight: FontWeight.w600,
                     ),
@@ -994,7 +1187,9 @@ class _RecognizedResultCardState extends State<RecognizedResultCard> {
                 TextButton(
                   onPressed: isEditing ? cancelEdit : startEdit,
                   child: Text(
-                    isEditing ? '취소' : '수정',
+                    isEditing
+                        ? AppRuntimeCopy.text(['common', 'cancel'], '취소')
+                        : AppRuntimeCopy.text(['common', 'edit'], '수정'),
                     style: const TextStyle(
                       color: Colors.black54,
                       fontWeight: FontWeight.w600,

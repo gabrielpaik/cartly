@@ -1,0 +1,196 @@
+# Worktree Classification - 2026-04-10
+
+Generated from current `git status --short` for baseline cleanup planning.
+
+## A. checkpoint-candidate product/runtime work
+
+- ` M` `.gitignore`
+- ` M` `.metadata`
+- ` M` `admin-web/app/ads/page.tsx`
+- ` M` `admin-web/app/carts/page.tsx`
+- ` M` `admin-web/app/config/page.tsx`
+- ` M` `admin-web/app/content/page.tsx`
+- ` M` `admin-web/app/globals.css`
+- ` M` `admin-web/app/layout.tsx`
+- ` M` `admin-web/app/overview/page.tsx`
+- ` M` `admin-web/app/scan-ops/page.tsx`
+- ` M` `admin-web/app/users/page.tsx`
+- ` M` `admin-web/components/PageHeader.tsx`
+- ` M` `admin-web/components/StatCard.tsx`
+- ` M` `admin-web/lib/api.ts`
+- ` M` `admin-web/lib/mock.ts`
+- ` D` `assets/images/app_icon_1024.png`
+- ` M` `backend/README.md`
+- ` M` `backend/app/core/settings.py`
+- ` M` `backend/app/db/init_db.py`
+- ` M` `backend/app/db/models.py`
+- ` M` `backend/app/deps.py`
+- ` M` `backend/app/main.py`
+- ` M` `backend/app/routers/admin.py`
+- ` M` `backend/app/routers/auth.py`
+- ` M` `backend/app/routers/carts.py`
+- ` M` `backend/app/routers/config.py`
+- ` M` `backend/app/routers/events.py`
+- ` M` `backend/app/routers/scan.py`
+- ` M` `backend/app/schemas/auth.py`
+- ` M` `backend/app/schemas/branding.py`
+- ` M` `backend/app/schemas/cart.py`
+- ` M` `backend/app/schemas/event.py`
+- ` M` `backend/app/services/auth_service.py`
+- ` M` `backend/app/services/branding_service.py`
+- ` M` `backend/app/services/scan_service.py`
+- ` M` `backend/app/services/worker_service.py`
+- ` M` `backend/requirements.txt`
+- ` M` `docs/auth-provider-flow.md`
+- ` M` `lib/config/wimc_runtime_config.dart`
+- ` M` `lib/main.dart`
+- ` M` `lib/models/recognized_item.dart`
+- ` M` `lib/models/recognized_item_candidate.dart`
+- ` M` `lib/models/user_session.dart`
+- ` M` `lib/pages/login_page.dart`
+- ` M` `lib/services/auth_repository.dart`
+- ` M` `lib/services/auth_store.dart`
+- ` D` `lib/services/mock_auth_repository.dart`
+- ` D` `lib/services/mock_scan_repository.dart`
+- ` M` `lib/services/remote_scan_repository.dart`
+- ` M` `lib/services/scan_repository.dart`
+- ` M` `lib/widgets/item_add_section.dart`
+- ` M` `lib/widgets/wimc_end_drawer.dart`
+- ` M` `pubspec.lock`
+- ` M` `pubspec.yaml`
+- `??` `admin-web/.storybook/`
+- `??` `admin-web/app/api/`
+- `??` `admin-web/app/assets/`
+- `??` `admin-web/app/health/`
+- `??` `admin-web/app/login/`
+- `??` `admin-web/app/page.tsx`
+- `??` `admin-web/app/users/[id]/`
+- `??` `admin-web/app/v1/`
+- `??` `admin-web/components/AdminChrome.tsx`
+- `??` `admin-web/components/AdminCopyProvider.tsx`
+- `??` `admin-web/components/LoginScreen.tsx`
+- `??` `admin-web/components/LogoutButton.tsx`
+- `??` `admin-web/lib/adminCopyDefaults.ts`
+- `??` `admin-web/lib/appPublicProxy.ts`
+- `??` `admin-web/lib/format.ts`
+- `??` `admin-web/lib/serverConfig.ts`
+- `??` `admin-web/lib/useAdminData.ts`
+- `??` `admin-web/middleware.ts`
+- `??` `admin-web/next-env.d.ts`
+- `??` `admin-web/package-lock.json`
+- `??` `admin-web/package.json`
+- `??` `admin-web/stories/`
+- `??` `admin-web/tsconfig.json`
+- `??` `analysis_options.yaml`
+- `??` `assets/fonts/`
+- `??` `assets/images/intro.png`
+- `??` `backend/app/core/storage_paths.py`
+- `??` `backend/app/routers/ads_runtime.py`
+- `??` `backend/app/schemas/ad_slot.py`
+- `??` `backend/app/schemas/ad_tracking.py`
+- `??` `backend/app/schemas/admin_ui_copy.py`
+- `??` `backend/app/services/ad_slot_service.py`
+- `??` `backend/app/services/admin_auth_service.py`
+- `??` `backend/app/services/admin_service.py`
+- `??` `backend/app/services/admin_snapshot_scheduler.py`
+- `??` `backend/app/services/admin_ui_copy_service.py`
+- `??` `backend/app/services/admin_user_service.py`
+- `??` `backend/app/services/app_copy_service.py`
+- `??` `backend/app/services/auth_password_service.py`
+- `??` `backend/app/services/cart_service.py`
+- `??` `backend/app/services/mail_service.py`
+- `??` `backend/app/services/openclaw_scan_runner.py`
+- `??` `backend/app/services/storage_health.py`
+- `??` `backend/worker_daemon.py`
+- `??` `docs/BASELINE_AUDIT_2026-04-10.md`
+- `??` `docs/CARTLY_RENAMING_PLAN.md`
+- `??` `docs/admin-architecture.md`
+- `??` `docs/admin-frontend-spec.md`
+- `??` `docs/admin-remote-access.md`
+- `??` `docs/app-config-contract-cto-2026-03-26.md`
+- `??` `docs/cloudflare-tunnel-admin-seoa-nas.md`
+- `??` `docs/cloudflare-tunnel-scan-api-seoa-nas.md`
+- `??` `docs/commercial-architecture.md`
+- `??` `docs/db-schema-draft.md`
+- `??` `docs/figma-design-review.md`
+- `??` `docs/operations-runbook.md`
+- `??` `lib/design_review/`
+- `??` `lib/models/app_ad_slot.dart`
+- `??` `lib/models/app_branding.dart`
+- `??` `lib/models/saved_cart.dart`
+- `??` `lib/pages/cart_detail_page.dart`
+- `??` `lib/preview/`
+- `??` `lib/preview_main.dart`
+- `??` `lib/services/ad_tracking_service.dart`
+- `??` `lib/services/admob_service.dart`
+- `??` `lib/services/api_base.dart`
+- `??` `lib/services/app_config_store.dart`
+- `??` `lib/services/app_runtime_copy.dart`
+- `??` `lib/services/cart_store.dart`
+- `??` `lib/services/install_id_store.dart`
+- `??` `lib/services/remote_auth_repository.dart`
+- `??` `lib/services/remote_cart_repository.dart`
+- `??` `lib/splash_screen.dart`
+- `??` `lib/widgets/admob_banner_slot.dart`
+- `??` `lib/widgets/brand_mark.dart`
+- `??` `lib/widgets/saved_cart_item_add_section.dart`
+- `??` `scripts/`
+
+## B. platform scaffolding, verify separately
+
+- ` M` `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png`
+- ` M` `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png`
+- ` M` `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png`
+- ` M` `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@3x.png`
+- ` M` `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png`
+- ` M` `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png`
+- ` M` `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@3x.png`
+- ` M` `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@1x.png`
+- ` M` `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png`
+- ` M` `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@3x.png`
+- ` M` `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@2x.png`
+- ` M` `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@3x.png`
+- ` M` `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@1x.png`
+- ` M` `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png`
+- ` M` `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png`
+- `??` `android/`
+- `??` `ios/.gitignore`
+- `??` `ios/Flutter/`
+- `??` `ios/Podfile`
+- `??` `ios/Podfile.lock`
+- `??` `ios/Profile.xcconfig`
+- `??` `ios/Runner.xcodeproj/`
+- `??` `ios/Runner.xcworkspace/`
+- `??` `ios/Runner/AppDelegate.swift`
+- `??` `ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json`
+- `??` `ios/Runner/Assets.xcassets/LaunchImage.imageset/`
+- `??` `ios/Runner/Assets2.xcassets`
+- `??` `ios/Runner/Base.lproj/`
+- `??` `ios/Runner/Info.plist`
+- `??` `ios/Runner/Runner-Bridging-Header.h`
+- `??` `ios/RunnerTests/`
+- `??` `linux/`
+- `??` `macos/.gitignore`
+- `??` `macos/Flutter/`
+- `??` `macos/Podfile`
+- `??` `macos/Podfile.lock`
+- `??` `macos/Runner.xcodeproj/`
+- `??` `macos/Runner.xcworkspace/`
+- `??` `macos/Runner/AppDelegate.swift`
+- `??` `macos/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json`
+- `??` `macos/Runner/Base.lproj/`
+- `??` `macos/Runner/Configs/`
+- `??` `macos/Runner/DebugProfile.entitlements`
+- `??` `macos/Runner/Info.plist`
+- `??` `macos/Runner/MainFlutterWindow.swift`
+- `??` `macos/Runner/Release.entitlements`
+- `??` `macos/RunnerTests/`
+- `??` `web/index.html`
+- `??` `web/manifest.json`
+- `??` `windows/`
+
+## C. local/workspace noise or optional tooling
+
+- `??` `.claude/`
+- `??` `tmp/`
+

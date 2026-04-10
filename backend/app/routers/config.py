@@ -1,8 +1,12 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session as OrmSession
 
 from ..core.settings import settings
 from ..deps import db_dep
+from ..services.ad_slot_service import app_ad_slots_config
+from ..services.app_copy_service import get_app_copy
 from ..services.branding_service import get_branding
 
 router = APIRouter()
@@ -10,59 +14,41 @@ router = APIRouter()
 
 @router.get('/app-config')
 def app_config(db: OrmSession = Depends(db_dep)):
+    branding = get_branding(db)
+    ad_slots = app_ad_slots_config(db, settings.ads_enabled)
+    copy = get_app_copy(db, branding)
     return {
         'ok': True,
         'data': {
+            'version': 1,
+            'generatedAt': datetime.now(timezone.utc).isoformat(),
             'features': {
                 'remoteScan': settings.remote_scan_enabled,
                 'adsEnabled': settings.ads_enabled,
+                'manualAddEnabled': True,
+                'guestModeEnabled': True,
+                'savedCartEditingEnabled': True,
+                'emailSignupEnabled': True,
+                'kakaoEnabled': True,
+                'googleEnabled': True,
             },
-            'branding': get_branding(db),
-            'adSlots': [
-                {
-                    'slotKey': 'save_complete_sheet_1',
-                    'placementType': 'bottom_sheet',
-                    'enabled': settings.ads_enabled,
-                    'config': {
-                        'maxHeight': 88,
-                        'screen': 'save_complete',
-                        'position': 'after_summary_before_actions',
-                        'tone': 'benefit_native',
-                    },
+            'branding': {
+                'logoType': branding.get('logoType'),
+                'logoText': branding.get('logoText'),
+                'logoImageUrl': branding.get('logoImageUrl'),
+                'splashImageUrl': branding.get('splashImageUrl'),
+                'loginHeroImageUrl': branding.get('loginHeroImageUrl'),
+                'tabs': {
+                    'home': branding.get('homeTabLabel'),
+                    'saved': branding.get('savedTabLabel'),
+                    'my': branding.get('myTabLabel'),
                 },
-                {
-                    'slotKey': 'saved_inline_1',
-                    'placementType': 'inline',
-                    'enabled': settings.ads_enabled,
-                    'config': {
-                        'maxHeight': 104,
-                        'screen': 'saved_list',
-                        'position': 'after_first_card',
-                        'tone': 'benefit_native',
-                    },
-                },
-                {
-                    'slotKey': 'saved_inline_2',
-                    'placementType': 'inline',
-                    'enabled': settings.ads_enabled,
-                    'config': {
-                        'maxHeight': 104,
-                        'screen': 'saved_list',
-                        'position': 'after_third_card',
-                        'tone': 'benefit_native',
-                    },
-                },
-                {
-                    'slotKey': 'my_perks_inline_1',
-                    'placementType': 'inline',
-                    'enabled': settings.ads_enabled,
-                    'config': {
-                        'maxHeight': 96,
-                        'screen': 'my',
-                        'position': 'below_account_card',
-                        'tone': 'soft_promo',
-                    },
-                },
-            ],
+                **branding,
+            },
+            'copy': copy,
+            'ads': {
+                'slots': ad_slots,
+            },
+            'adSlots': ad_slots,
         },
     }

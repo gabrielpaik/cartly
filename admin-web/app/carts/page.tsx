@@ -1,49 +1,87 @@
+'use client'
+
+import { useMemo, useState } from 'react'
+
 import PageHeader from '../../components/PageHeader'
-import StatCard from '../../components/StatCard'
+import { useAdminCopy } from '../../components/AdminCopyProvider'
+import { useAdminData } from '../../lib/useAdminData'
+
+const fallbackData = {
+  carts: [],
+}
 
 export default function CartsPage() {
+  const { t } = useAdminCopy()
+  const [query, setQuery] = useState('')
+  const res = useAdminData<{ ok: boolean; data: { carts?: any[] } }>('/admin/carts', {
+    ok: true,
+    data: fallbackData,
+  })
+
+  const carts = res.data?.data?.carts ?? []
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return carts
+    return carts.filter((cart: any) => [cart.title, cart.userName, cart.userId, cart.id].filter(Boolean).some((value: any) => String(value).toLowerCase().includes(q)))
+  }, [carts, query])
+
   return (
     <div>
       <PageHeader
-        badge="Product loop"
-        title="Carts"
-        description="CDO와 CMO가 함께 보는 저장/재방문 중심 보드야. WIMC가 단순 OCR 앱이 아니라 반복 사용되는 카트 제품인지 확인하는 화면이야."
+        badge={res.usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : res.loading ? t('admin.common.badge.loading', 'Loading...') : t('admin.common.badge.live', 'Live data')}
+        title={t('admin.carts.title', 'Carts')}
+        description={t('admin.carts.desc', '고객별 저장 카트 히스토리')}
       />
 
-      <div className="kpiGrid">
-        <StatCard label="Current focus" value="Save" note="지금은 스캔 정확도보다 저장까지 이어지는 루프를 먼저 키워야 해" />
-        <StatCard label="Retention lever" value="History" note="Saved/History 경험이 재방문 가치의 핵심이야" />
-        <StatCard label="User promise" value="Reuse" note="다음 쇼핑 전에 다시 꺼내보는 경험이 제품 정체성에 가깝다" />
-        <StatCard label="Risk" value="Demo" note="저장 이후 맥락이 약하면 제품이 아니라 기술 데모처럼 느껴질 수 있어" />
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="sectionHeader" style={{ marginBottom: 12 }}>
+          <div>
+            <h2 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.carts.filters.title', '필터')}</h2>
+            <p className="pageDesc">{t('admin.carts.filters.desc', '고객/날짜 기준으로 조회하고 같은 조건으로 다운로드')}</p>
+          </div>
+        </div>
+        <div className="buttonRow">
+          <input className="textInput" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('admin.carts.filters.searchPlaceholder', 'user / cart')} />
+          <button className="ghostBtn pageActionBtn">{t('admin.carts.filters.downloadXlsx', 'Excel(.xlsx) 다운로드')}</button>
+          <button className="ghostBtn pageActionBtn">{t('admin.carts.filters.downloadCsv', 'CSV 다운로드')}</button>
+        </div>
       </div>
 
-      <div className="section sectionGrid threeCol">
-        <div className="card">
-          <h2 className="panelTitle">핵심 퍼널</h2>
-          <ul className="inlineList">
-            <li>Scan started</li>
-            <li>Result reviewed</li>
-            <li>Added to current cart</li>
-            <li>Cart saved</li>
-            <li>Saved cart reopened</li>
-          </ul>
+      <div className="card">
+        <div className="sectionHeader">
+          <div>
+            <h2 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.carts.history.title', '저장 카트 히스토리')}</h2>
+            <p className="pageDesc">{t('admin.carts.history.desc', 'snapshot lineage와 저장 시점별 상품 구성을 함께 본다')}</p>
+          </div>
         </div>
-        <div className="card">
-          <h2 className="panelTitle">지금 봐야 할 질문</h2>
-          <ul className="inlineList">
-            <li>사용자가 저장의 의미를 이해하나?</li>
-            <li>저장 후 다시 돌아올 이유가 있나?</li>
-            <li>현재 카트와 저장 카트의 역할이 분리되나?</li>
-          </ul>
-        </div>
-        <div className="card warnCard">
-          <h2 className="panelTitle">리스크</h2>
-          <ul className="inlineList">
-            <li>히스토리가 숨어 있으면 retention이 죽어.</li>
-            <li>저장 직후 다음 액션이 약하면 기억에 안 남아.</li>
-            <li>광고가 이 구간을 침범하면 신뢰가 깨져.</li>
-          </ul>
-        </div>
+        {filtered.length === 0 ? (
+          <div className="emptyState">{t('admin.carts.history.empty', '조건에 맞는 저장 카트가 없어')}</div>
+        ) : (
+          <div className="tableWrap">
+            <table className="dataTable">
+              <thead>
+                <tr>
+                  <th>{t('admin.carts.history.table.cart', 'Cart')}</th>
+                  <th>{t('admin.carts.history.table.user', 'User')}</th>
+                  <th>{t('admin.carts.history.table.items', 'Items')}</th>
+                  <th>{t('admin.carts.history.table.total', 'Total')}</th>
+                  <th>{t('admin.carts.history.table.savedAt', 'Saved at')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((cart: any, index: number) => (
+                  <tr key={cart.id ?? index}>
+                    <td>{cart.title ?? cart.id ?? '-'}</td>
+                    <td>{cart.userName ?? cart.userId ?? '-'}</td>
+                    <td>{cart.itemCount ?? cart.totalCount ?? '-'}</td>
+                    <td>{cart.totalValue ?? cart.totalPrice ?? '-'}</td>
+                    <td>{cart.savedAt ?? cart.createdAt ?? '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )

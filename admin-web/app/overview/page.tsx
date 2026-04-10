@@ -1,66 +1,366 @@
-import PageHeader from '../../components/PageHeader'
-import StatCard from '../../components/StatCard'
-import { fetchJsonSafe } from '../../lib/api'
-import { formatNumber, formatPercent } from '../../lib/format'
-import { mockSummary } from '../../lib/mock'
+'use client'
 
-export default async function OverviewPage() {
-  const res = await fetchJsonSafe<{ ok: boolean; data: typeof mockSummary }>('/admin/dashboard/summary', {
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+
+import PageHeader from '../../components/PageHeader'
+import { useAdminCopy } from '../../components/AdminCopyProvider'
+import { fetchJsonSafe, isUnauthorizedError, postJson } from '../../lib/api'
+import { formatDate, formatNumber, formatPercent } from '../../lib/format'
+import { mockPeriodSummary, mockSummary } from '../../lib/mock'
+import { useAdminData } from '../../lib/useAdminData'
+
+type PeriodKey = 'week' | 'month' | 'quarter' | 'year'
+type ComparisonPeriodKey = 'day' | 'week' | 'month'
+type SummaryComparisonMap = Partial<Record<'dau' | 'wau' | 'mau', Partial<Record<ComparisonPeriodKey, number>>>>
+
+function formatSignedNumber(value: number) {
+  if (value === 0) return '0'
+  return `${value > 0 ? '+' : '-'}${formatNumber(Math.abs(value))}`
+}
+
+function getDeltaTone(delta: number) {
+  if (delta > 0) return 'up'
+  if (delta < 0) return 'down'
+  return 'flat'
+}
+
+function buildComparisonSummary(current: number, previous?: number) {
+  if (previous == null || previous <= 0) {
+    return {
+      previousText: '-',
+      deltaText: '-',
+      tone: 'flat',
+    } as const
+  }
+
+  const delta = current - previous
+  const ratio = (delta / previous) * 100
+
+  return {
+    previousText: formatNumber(previous),
+    deltaText: `${formatSignedNumber(delta)} (${ratio > 0 ? '+' : ratio < 0 ? '-' : ''}${Math.abs(ratio).toFixed(1)}%)`,
+    tone: getDeltaTone(delta),
+  } as const
+}
+
+export default function OverviewPage() {
+  const router = useRouter()
+  const { t } = useAdminCopy()
+  const [period, setPeriod] = useState<PeriodKey>('month')
+  const [refreshingSnapshot, setRefreshingSnapshot] = useState(false)
+  const [refreshMessage, setRefreshMessage] = useState<string | null>(null)
+  const [periodData, setPeriodData] = useState(mockPeriodSummary)
+  const [periodLoading, setPeriodLoading] = useState(true)
+  const [periodError, setPeriodError] = useState<string | null>(null)
+  const [periodUsingFallback, setPeriodUsingFallback] = useState(true)
+
+  const periodOptions: Array<{ key: PeriodKey; label: string }> = [
+    { key: 'week', label: t('admin.overview.period.option.week', '주') },
+    { key: 'month', label: t('admin.overview.period.option.month', '월') },
+    { key: 'quarter', label: t('admin.overview.period.option.quarter', '분기') },
+    { key: 'year', label: t('admin.overview.period.option.year', '연') },
+  ]
+
+  const comparisonPeriodLabels: Record<ComparisonPeriodKey, string> = {
+    day: t('admin.overview.compare.day', '전일'),
+    week: t('admin.overview.compare.week', '전주'),
+    month: t('admin.overview.compare.month', '전월'),
+  }
+
+  const res = useAdminData<{ ok: boolean; data: typeof mockSummary }>('/admin/dashboard/summary', {
     ok: true,
     data: mockSummary,
   })
   const data = res.data.data
 
-  const summary = [
-    ['DAU', formatNumber(data.dau), '오늘 실제로 제품을 다시 연 사용자 수'],
-    ['WAU', formatNumber(data.wau), '최근 7일 유지되고 있는 사용자 풀'],
-    ['MAU', formatNumber(data.mau), '30일 기준 제품 체력'],
-    ['Total Scans', formatNumber(data.totalScans), 'OCR/AI 파이프라인 전체 볼륨'],
-    ['Scan Success', formatPercent(data.scanSuccessRate), 'CTO가 가장 먼저 끌어올려야 할 핵심 품질 지표'],
-    ['Cart Save', formatPercent(data.cartSaveRate), 'CDO/CMO가 함께 봐야 할 핵심 전환 지표'],
-    ['Guest→Member', formatPercent(data.guestToMemberConversion), '가치 체감 후 계정 전환율'],
-    ['Ad CTR', formatPercent(data.adCtr), '광고 실험은 retention 보조 수준으로만 본다'],
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadPeriodSummary() {
+      setPeriodLoading(true)
+      setPeriodError(null)
+      try {
+        const result = await fetchJsonSafe<{ ok: boolean; data: typeof mockPeriodSummary }>(
+          `/admin/dashboard/period-summary?period=${period}`,
+          { ok: true, data: mockPeriodSummary },
+        )
+        if (cancelled) return
+        setPeriodData(result.data.data)
+        setPeriodUsingFallback(result.usingFallback)
+      } catch (err) {
+        if (isUnauthorizedError(err)) {
+          router.replace('/login?reason=expired')
+          return
+        }
+        if (cancelled) return
+        setPeriodError(err instanceof Error ? err.message : t('admin.overview.period.loadFailed', '기간 집계를 불러오지 못했어'))
+      } finally {
+        if (!cancelled) {
+          setPeriodLoading(false)
+        }
+      }
+    }
+
+    void loadPeriodSummary()
+    return () => {
+      cancelled = true
+    }
+  }, [period, router, t])
+
+  async function onRefreshSnapshot() {
+    setRefreshingSnapshot(true)
+    setRefreshMessage(null)
+    try {
+      await postJson('/admin/dashboard/summary/refresh')
+      await res.reload()
+      setRefreshMessage(t('admin.overview.refresh.done', '오늘 스냅샷 갱신 완료'))
+    } catch (err) {
+      if (isUnauthorizedError(err)) {
+        router.replace('/login?reason=expired')
+        return
+      }
+      setRefreshMessage(err instanceof Error ? err.message : t('admin.overview.refresh.failed', '스냅샷 갱신 실패'))
+    } finally {
+      setRefreshingSnapshot(false)
+    }
+  }
+
+  const summaryComparisons =
+    typeof (data as { comparisons?: unknown }).comparisons === 'object' && (data as { comparisons?: unknown }).comparisons
+      ? ((data as { comparisons?: SummaryComparisonMap }).comparisons ?? {})
+      : undefined
+
+  const snapshotSummaryGroups = [
+    {
+      title: t('admin.overview.snapshot.data', 'Data'),
+      items: [
+        {
+          label: 'DAU',
+          value: formatNumber(data.dau),
+          comparisons: [
+            {
+              period: 'day' as const,
+              ...buildComparisonSummary(data.dau, summaryComparisons?.dau?.day),
+            },
+          ],
+        },
+        {
+          label: 'WAU',
+          value: formatNumber(data.wau),
+          comparisons: [
+            {
+              period: 'week' as const,
+              ...buildComparisonSummary(data.wau, summaryComparisons?.wau?.week),
+            },
+          ],
+        },
+        {
+          label: t('admin.overview.snapshot.mau', 'MAU'),
+          value: formatNumber(data.mau),
+          comparisons: [
+            {
+              period: 'month' as const,
+              ...buildComparisonSummary(data.mau, summaryComparisons?.mau?.month),
+            },
+          ],
+        },
+      ],
+    },
+    {
+      title: t('admin.overview.snapshot.scan', 'Scan'),
+      items: [
+        { label: t('admin.overview.snapshot.totalScans', 'Total Scans'), value: formatNumber(data.totalScans) },
+        { label: t('admin.overview.snapshot.scanSuccess', 'Scan Success'), value: formatPercent(data.scanSuccessRate) },
+        { placeholder: true },
+      ],
+    },
+    {
+      title: t('admin.overview.snapshot.members', 'Members'),
+      items: [
+        { label: t('admin.overview.snapshot.activeMembers', 'Active Members'), value: formatNumber(data.lifecycle.activeMembers) },
+        { placeholder: true },
+        { placeholder: true },
+      ],
+    },
+    {
+      title: t('admin.overview.snapshot.ad', 'Ad'),
+      items: [
+        { label: t('admin.overview.snapshot.adCtr', 'Ad CTR'), value: formatPercent(data.adCtr) },
+        { placeholder: true },
+        { placeholder: true },
+        { placeholder: true },
+        { placeholder: true },
+        { placeholder: true },
+        { placeholder: true },
+        { placeholder: true },
+        { placeholder: true },
+      ],
+    },
   ] as const
+
+  const cumulativeSummaryGroups = [
+    {
+      title: t('admin.overview.cumulative.users', 'Users'),
+      columns: 2,
+      items: [
+        [t('admin.overview.cumulative.activeUsers', 'Active Users'), formatNumber(periodData.activeUsers)],
+        [t('admin.overview.cumulative.newUsers', 'New Users'), formatNumber(periodData.newUsers)],
+      ],
+    },
+    {
+      title: t('admin.overview.cumulative.scan', 'Scan'),
+      columns: 3,
+      items: [
+        [t('admin.overview.cumulative.scans', 'Scans'), formatNumber(periodData.totalScans)],
+        [t('admin.overview.cumulative.successful', 'Successful'), formatNumber(periodData.successfulScans)],
+        [t('admin.overview.cumulative.cartSaves', 'Cart Saves'), formatNumber(periodData.cartSaves)],
+      ],
+    },
+  ] as const
+
+  const cumulativeAdRows = (periodData.adSlots ?? []).map((slot) => ({
+    name: slot.slotKey,
+    impressions: formatNumber(slot.impressions ?? 0),
+    clicks: formatNumber(slot.clicks ?? 0),
+    ctr: formatPercent(slot.ctr ?? 0),
+  }))
 
   return (
     <div>
       <PageHeader
-        badge={res.usingFallback ? 'Fallback data' : 'Live data'}
-        title="Overview"
-        description="CEO가 오늘 바로 봐야 하는 제품 건강도, 스캔 품질, 전환, 수익화 상태를 한 화면에 정리한 보드야."
+        badge={res.usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : res.loading ? t('admin.common.badge.loading', 'Loading...') : t('admin.common.badge.live', 'Live data')}
+        title={t('admin.overview.title', 'Overview')}
+        description={t('admin.overview.desc', '핵심 지표 요약')}
+        onRefresh={() => void onRefreshSnapshot()}
+        refreshing={refreshingSnapshot}
+        actionLabel={t('admin.common.refresh', '데이터 불러오기')}
+        inlineRefresh
       />
 
-      <div className="kpiGrid">
-        {summary.map(([label, value, note]) => (
-          <StatCard key={label} label={label} value={value} note={note} />
+      {res.error ? <div className="loginError" style={{ marginBottom: 16 }}>{res.error}</div> : null}
+      {refreshMessage ? <div className="saveMessage" style={{ marginBottom: 16 }}>{refreshMessage}</div> : null}
+
+      <div className="metaRow" style={{ marginBottom: 16 }}>
+        <div className="metaPill">{t('admin.overview.meta.snapshotDate', '기준일')} {data.snapshotDate ?? '-'}</div>
+        <div className="metaPill">{t('admin.overview.meta.generatedAt', '생성시각')} {formatDate(data.snapshotGeneratedAt)}</div>
+        <div className="metaPill">{t('admin.overview.meta.source', '소스')} {data.snapshotSource ?? '-'}</div>
+        <div className="metaPill">{t('admin.overview.meta.mode', '모드')} {data.dataMode ?? '-'}</div>
+      </div>
+
+      <div className="summaryClusterGrid">
+        {snapshotSummaryGroups.map((group) => (
+          <div key={group.title} className="card summaryClusterCard">
+            <div className="kpiLabel summaryClusterTitle">{group.title}</div>
+            <div className="summaryClusterInner">
+              {group.items.map((item, index) =>
+                'placeholder' in item ? (
+                  <div key={`${group.title}-${index}`} className="summaryMiniCard summaryMiniPlaceholder" aria-hidden="true" />
+                ) : (
+                  <div key={item.label} className="summaryMiniCard">
+                    <div>
+                      <div className="kpiLabel summaryMiniLabel">{item.label}</div>
+                      <div className="kpiValue summaryMiniValue">{item.value}</div>
+                    </div>
+                    {item.comparisons ? (
+                      <div className="summaryComparisonList">
+                        {item.comparisons.map((comparison) => (
+                          <div key={comparison.period} className="summaryComparisonRow">
+                            <span className="summaryComparisonPeriod">{comparisonPeriodLabels[comparison.period]}</span>
+                            <span className="summaryComparisonValue">{comparison.previousText}</span>
+                            <span className={`summaryComparisonDelta ${comparison.tone}`}>{comparison.deltaText}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ),
+              )}
+            </div>
+          </div>
         ))}
       </div>
 
-      <div className="section sectionGrid twoCol">
+      <div className="section">
         <div className="card">
-          <h2 className="panelTitle">오늘의 경영 해석</h2>
-          <ul className="inlineList">
-            <li>WIMC의 핵심은 OCR 정확도 자체보다 <strong>스캔 → 보정 → 저장 → 재방문</strong> 루프야.</li>
-            <li>Scan Success가 아직 완벽하지 않더라도 Cart Save와 Saved revisit를 올리면 제품 가치는 살아 있어.</li>
-            <li>광고는 핵심 루프가 아니라 저장/히스토리 기반 부가 수익 레이어로 봐야 해.</li>
-            <li>이번 주 우선순위는 OCR 품질 측정, Saved 경험 강화, 계정 가치 노출 정리야.</li>
-          </ul>
-          <div className="metaRow">
-            <div className="metaPill">CTO: OCR quality</div>
-            <div className="metaPill">CDO: save/history UX</div>
-            <div className="metaPill">CMO: value framing</div>
-            <div className="metaPill">CFO: controlled ad density</div>
+          <div className="sectionHeader">
+            <div>
+              <h2 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.overview.period.title', '누적 보기')}</h2>
+              <p className="pageDesc">{t('admin.overview.period.desc', '선택한 기간 안에서 집계된 누적 값')}</p>
+            </div>
+            <div className="segmentedControl">
+              {periodOptions.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  className={`segmentedBtn ${period === option.key ? 'active' : ''}`}
+                  onClick={() => setPeriod(option.key)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="card warnCard">
-          <h2 className="panelTitle">이번 주 경고 신호</h2>
-          <ul className="inlineList">
-            <li>OCR 품질이 낮은 상태에서 결과 신뢰 설계가 약하면 이탈이 커질 수 있어.</li>
-            <li>Saved 진입점이 약하면 재방문 가치가 살아나지 않아.</li>
-            <li>광고가 너무 앞에 나오면 제품을 방해하는 앱으로 느껴질 위험이 커.</li>
-            <li>Backend/DB를 state source of truth로 빨리 고정해야 NAS/AI 파이프라인이 안정돼.</li>
-          </ul>
+          {periodError ? <div className="loginError" style={{ marginBottom: 16 }}>{periodError}</div> : null}
+
+          <div className="metaRow" style={{ marginBottom: 16 }}>
+            <div className="metaPill">{t('admin.overview.period.range', '기간')} {periodData.rangeStart} ~ {periodData.rangeEnd}</div>
+            <div className="metaPill">{t('admin.overview.period.state', '상태')} {periodLoading ? t('admin.common.badge.loading', 'Loading...') : periodUsingFallback ? t('admin.common.badge.fallback', 'Fallback data') : t('admin.common.badge.live', 'Live data')}</div>
+            <div className="metaPill">{t('admin.overview.period.deviceReady', 'device 준비')} {periodData.deviceBreakdownReady ? t('admin.common.ready', '완료') : t('admin.common.notReady', '미완료')}</div>
+          </div>
+
+          <div className="cumulativeClusterGrid">
+            {cumulativeSummaryGroups.map((group) => (
+              <div key={group.title} className="card cumulativeClusterCard">
+                <div className="kpiLabel summaryClusterTitle">{group.title}</div>
+                <div className={`cumulativeClusterInner ${group.columns === 2 ? 'cols2' : 'cols3'}`}>
+                  {group.items.map(([label, value]) => (
+                    <div key={label} className="summaryMiniCard">
+                      <div className="kpiLabel summaryMiniLabel">{label}</div>
+                      <div className="kpiValue summaryMiniValue">{value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            <div className="card cumulativeClusterCard">
+              <div className="kpiLabel summaryClusterTitle">{t('admin.overview.cumulative.ad', 'Ad')}</div>
+              <div className="cumulativeClusterInner cols3">
+                <div className="summaryMiniCard">
+                  <div className="kpiLabel summaryMiniLabel">{t('admin.overview.cumulative.adImpressions', 'Ad Impressions')}</div>
+                  <div className="kpiValue summaryMiniValue">{formatNumber(periodData.adImpressions)}</div>
+                </div>
+                <div className="summaryMiniCard">
+                  <div className="kpiLabel summaryMiniLabel">{t('admin.overview.cumulative.adClicks', 'Ad Clicks')}</div>
+                  <div className="kpiValue summaryMiniValue">{formatNumber(periodData.adClicks)}</div>
+                </div>
+                <div className="summaryMiniCard">
+                  <div className="kpiLabel summaryMiniLabel">{t('admin.overview.cumulative.adCtr', 'Ad CTR')}</div>
+                  <div className="kpiValue summaryMiniValue">{formatPercent(periodData.adCtr)}</div>
+                </div>
+              </div>
+
+              <div className="cumulativeAdRows">
+                <div className="cumulativeAdRow cumulativeAdRowHead" aria-hidden="true">
+                  <div className="cumulativeAdName">{t('admin.overview.cumulative.slot', 'Slot')}</div>
+                  <div className="cumulativeAdValue">{t('admin.overview.cumulative.impressions', 'Impressions')}</div>
+                  <div className="cumulativeAdValue">{t('admin.overview.cumulative.clicks', 'Clicks')}</div>
+                  <div className="cumulativeAdValue">{t('admin.overview.cumulative.ctr', 'CTR')}</div>
+                </div>
+                {cumulativeAdRows.map((row) => (
+                  <div key={row.name} className="cumulativeAdRow">
+                    <div className="cumulativeAdName">{row.name}</div>
+                    <div className="cumulativeAdValue">{row.impressions}</div>
+                    <div className="cumulativeAdValue">{row.clicks}</div>
+                    <div className="cumulativeAdValue">{row.ctr}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

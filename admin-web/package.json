@@ -1,0 +1,25 @@
+{
+  "name": "wimc-admin-web",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev -H 127.0.0.1 -p 3000",
+    "build": "next build",
+    "start": "next start -H 127.0.0.1 -p 3000",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "dependencies": {
+    "next": "15.4.6",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@storybook/nextjs-vite": "^10.3.3",
+    "@types/node": "25.5.0",
+    "@types/react": "19.2.14",
+    "playwright": "^1.58.2",
+    "storybook": "^10.3.3",
+    "typescript": "5.9.3"
+  }
+}

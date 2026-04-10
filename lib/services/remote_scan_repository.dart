@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import '../models/recognized_item.dart';
 import '../models/recognized_item_candidate.dart';
 import '../models/scan_job.dart';
 import 'scan_repository.dart';
@@ -9,11 +10,13 @@ import 'scan_repository.dart';
 class RemoteScanRepository implements ScanRepository {
   final String baseUrl;
   final String? authToken;
+  final String? Function()? authTokenProvider;
   final HttpClient _httpClient;
 
   RemoteScanRepository({
     required this.baseUrl,
     this.authToken,
+    this.authTokenProvider,
     HttpClient? httpClient,
   }) : _httpClient = httpClient ?? HttpClient();
 
@@ -76,12 +79,16 @@ class RemoteScanRepository implements ScanRepository {
 
   @override
   Future<RecognizedItemCandidate?> getResult(String jobId) async {
-    final request = await _httpClient.getUrl(_uri('/v1/scan/jobs/$jobId/result'));
+    final request = await _httpClient.getUrl(
+      _uri('/v1/scan/jobs/$jobId/result'),
+    );
     _applyDefaultHeaders(request);
 
     final response = await request.close();
     final body = await response.transform(utf8.decoder).join();
-    final jsonBody = body.isEmpty ? <String, dynamic>{} : jsonDecode(body) as Map<String, dynamic>;
+    final jsonBody = body.isEmpty
+        ? <String, dynamic>{}
+        : jsonDecode(body) as Map<String, dynamic>;
 
     if (response.statusCode == HttpStatus.notFound) {
       throw const ScanRepositoryException('스캔 작업을 찾지 못했어요');
@@ -122,12 +129,59 @@ class RemoteScanRepository implements ScanRepository {
       confidence: _nullableDouble(result['confidence']),
       source: _readString(result, 'source'),
       rawText: _nullableString(result['rawText']),
+      scanJobId: _nullableString(data['jobId']) ?? jobId,
     );
+  }
+
+  @override
+  Future<void> submitFeedback({
+    required String jobId,
+    required bool accepted,
+    required RecognizedItemCandidate original,
+    RecognizedItem? corrected,
+  }) async {
+    final request = await _httpClient.postUrl(
+      _uri('/v1/scan/jobs/$jobId/feedback'),
+    );
+    _applyDefaultHeaders(request);
+    request.headers.contentType = ContentType.json;
+    request.write(
+      jsonEncode({
+        'accepted': accepted,
+        'original': _candidateToJson(original),
+        'corrected': corrected == null ? null : _recognizedToJson(corrected),
+      }),
+    );
+    await _sendJson(request);
+  }
+
+  @override
+  Future<void> reportFailure({
+    required String jobId,
+    required String stage,
+    String? errorCode,
+    String? errorMessage,
+    Map<String, dynamic>? details,
+  }) async {
+    final request = await _httpClient.postUrl(
+      _uri('/v1/scan/jobs/$jobId/failures'),
+    );
+    _applyDefaultHeaders(request);
+    request.headers.contentType = ContentType.json;
+    request.write(
+      jsonEncode({
+        'stage': stage,
+        'errorCode': errorCode,
+        'errorMessage': errorMessage,
+        'details': details,
+      }),
+    );
+    await _sendJson(request);
   }
 
   void _applyDefaultHeaders(HttpClientRequest request) {
     request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-    final token = authToken?.trim();
+    final token = (authTokenProvider?.call() ?? authToken)?.trim();
     if (token != null && token.isNotEmpty) {
       request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
     }
@@ -136,7 +190,9 @@ class RemoteScanRepository implements ScanRepository {
   Future<Map<String, dynamic>> _sendJson(HttpClientRequest request) async {
     final response = await request.close();
     final body = await response.transform(utf8.decoder).join();
-    final jsonBody = body.isEmpty ? <String, dynamic>{} : jsonDecode(body) as Map<String, dynamic>;
+    final jsonBody = body.isEmpty
+        ? <String, dynamic>{}
+        : jsonDecode(body) as Map<String, dynamic>;
 
     if (response.statusCode >= HttpStatus.badRequest) {
       throw ScanRepositoryException(
@@ -186,6 +242,24 @@ class RemoteScanRepository implements ScanRepository {
 
     return job;
   }
+
+  Map<String, dynamic> _candidateToJson(RecognizedItemCandidate candidate) => {
+    'name': candidate.name,
+    'price': candidate.price,
+    'sku': candidate.sku,
+    'confidence': candidate.confidence,
+    'source': candidate.source,
+    'rawText': candidate.rawText,
+  };
+
+  Map<String, dynamic> _recognizedToJson(RecognizedItem item) => {
+    'name': item.name,
+    'price': item.price,
+    'sku': item.sku,
+    'confidence': item.confidence,
+    'source': item.source,
+    'rawText': item.rawText,
+  };
 
   String _readString(Map<String, dynamic> json, String key) {
     final value = json[key];
@@ -260,7 +334,6 @@ class RemoteScanRepository implements ScanRepository {
 
 class ScanRepositoryException implements Exception {
   final String message;
-
   const ScanRepositoryException(this.message);
 
   @override

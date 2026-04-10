@@ -6,6 +6,7 @@ import '../services/admob_service.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
+import '../widgets/cart_detail_bottom_bar.dart';
 import '../widgets/cart_detail_guest_retention_section.dart';
 import '../widgets/saved_cart_item_add_section.dart';
 
@@ -592,73 +593,10 @@ class _CartDetailPageState extends State<CartDetailPage> {
                 ),
               ),
             if (!_isExpiredGuestLocked)
-              Container(
-                padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 12,
-                      offset: const Offset(0, -4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            AppRuntimeCopy.text([
-                              'cartDetail',
-                              'totalLabel',
-                            ], '총 합계'),
-                            style: const TextStyle(
-                              color: Colors.black54,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '₩${_fmt(_cart.totalPrice)}',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      height: 48,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE31837),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 22),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        onPressed: _isSaving ? null : _save,
-                        child: Text(
-                          _isSaving
-                              ? AppRuntimeCopy.text([
-                                  'cartDetail',
-                                  'saving',
-                                ], '저장 중…')
-                              : AppRuntimeCopy.text([
-                                  'cartDetail',
-                                  'saveButton',
-                                ], '저장하기'),
-                          style: const TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              CartDetailBottomBar(
+                totalPriceText: '₩${_fmt(_cart.totalPrice)}',
+                isSaving: _isSaving,
+                onSave: _save,
               ),
           ],
         ),

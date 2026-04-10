@@ -4,17 +4,13 @@ import 'package:flutter/material.dart';
 import '../app_support.dart';
 import '../config/wimc_runtime_config.dart';
 import '../models/recognized_item.dart';
-import '../models/saved_cart.dart';
+import '../pages/home_page_cart_save_controller.dart';
 import '../pages/home_tab_view.dart';
 import '../pages/my_page.dart';
 import '../pages/saved_tab_view.dart';
-import '../services/admob_service.dart';
 import '../services/app_config_store.dart';
-import '../services/auth_store.dart';
-import '../services/cart_store.dart';
 import '../services/remote_scan_repository.dart';
 import '../services/scan_repository.dart';
-import '../widgets/save_complete_bottom_sheet.dart';
 
 class HomePage extends StatefulWidget {
   final List<CameraDescription> cameras;
@@ -62,27 +58,12 @@ class _HomePageState extends State<HomePage> {
     setState(() => _savingCurrentCart = true);
 
     try {
-      final session = AuthStore.instance.session.value;
-      if (session?.isGuest == true) {
-        await AdMobService.instance.showGuestSaveInterstitial();
-      }
-
-      final savedItems = items
-          .map(
-            (e) => SavedCartItem(
-              name: e.name,
-              price: e.price,
-              quantity: e.quantity,
-            ),
-          )
-          .toList();
-
-      final savedCart = await CartStore.instance.saveNewCart(items: savedItems);
+      final savedCart = await HomePageCartSaveController.saveCart(items);
       if (!mounted) return;
 
       setState(() => items.clear());
 
-      await showSaveCompleteBottomSheet(
+      await HomePageCartSaveController.showSaveCompleteSheet(
         context: context,
         savedCart: savedCart,
         onViewSaved: () => setState(() => _tabIndex = 1),

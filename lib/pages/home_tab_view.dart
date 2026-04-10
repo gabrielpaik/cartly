@@ -9,6 +9,7 @@ import '../pages/cart_detail_page.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/cart_store.dart';
 import '../services/scan_repository.dart';
+import '../widgets/current_cart_section.dart';
 import '../widgets/item_add_section.dart';
 
 class HomeTabView extends StatelessWidget {
@@ -110,54 +111,7 @@ class HomeTabView extends StatelessWidget {
           ], '결제 전 합계를 확인해'),
         ),
         const SizedBox(height: 10),
-        if (items.isEmpty)
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.28,
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Opacity(
-                    opacity: 0.14,
-                    child: Icon(
-                      Icons.shopping_cart_outlined,
-                      size: 72,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    AppRuntimeCopy.text([
-                      'home',
-                      'currentCartEmpty',
-                    ], '아직 담은 상품이 없어요'),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black45,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ...items.map((item) {
-          return Dismissible(
-            key: ValueKey('${item.name}-${item.price}-${item.hashCode}'),
-            direction: DismissDirection.endToStart,
-            background: Container(
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.only(right: 20),
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.delete, color: Colors.white),
-            ),
-            onDismissed: (_) => onRemove(item),
-            child: ItemCard(item: item),
-          );
-        }),
+        CurrentCartSection(items: items, onRemove: onRemove),
         const SizedBox(height: 20),
         ValueListenableBuilder<List<SavedCart>>(
           valueListenable: CartStore.instance.carts,
@@ -386,63 +340,6 @@ class ContextPill extends StatelessWidget {
           fontWeight: FontWeight.w800,
           color: color,
         ),
-      ),
-    );
-  }
-}
-
-class ItemCard extends StatefulWidget {
-  final CartItem item;
-
-  const ItemCard({super.key, required this.item});
-
-  @override
-  State<ItemCard> createState() => _ItemCardState();
-}
-
-class _ItemCardState extends State<ItemCard> {
-  void increase() => setState(() => widget.item.quantity++);
-
-  void decrease() {
-    if (widget.item.quantity > 1) {
-      setState(() => widget.item.quantity--);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final item = widget.item;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.grey.shade100,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text(
-              item.name,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Row(
-            children: [
-              IconButton(icon: const Icon(Icons.remove), onPressed: decrease),
-              Text('${item.quantity}'),
-              IconButton(icon: const Icon(Icons.add), onPressed: increase),
-              const SizedBox(width: 8),
-              Text(
-                '₩${formatPrice(item.totalPrice)}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }

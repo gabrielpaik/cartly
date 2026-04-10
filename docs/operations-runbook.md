@@ -16,6 +16,7 @@
 ### Admin web
 - Still runs as the existing LaunchAgent (`com.wimc.admin-web.plist`)
 - Public access remains through the existing admin domain / reverse proxy path
+- After backend/admin source changes, do not rely on an already-running `next start` process staying fresh. Use the runtime refresh script below so the live process is rebuilt/restarted deterministically.
 
 ### Storage
 - Storage root stays on NAS volume: `/Volumes/AI/Cartly`
@@ -42,6 +43,27 @@
 - Scan job creation can write directly into `/Volumes/AI/Cartly`
 
 ---
+
+## Refresh after backend/admin changes
+
+### Canonical refresh command
+```bash
+<repo>/scripts/Cartly\ Runtime\ Refresh.command
+```
+
+What it does:
+1. rebuilds the admin-web production bundle
+2. optionally rebuilds app-preview when you pass `--with-preview`
+3. stops anything currently listening on `127.0.0.1:3000` and `127.0.0.1:8011`
+4. restarts backend + admin-web from the repo scripts
+5. runs a small smoke check for `/health`, `/v1/app-config`, and critical admin API paths
+
+### Optional preview refresh
+```bash
+<repo>/scripts/Cartly\ Runtime\ Refresh.command --with-preview
+```
+
+Use this when Flutter preview code changed and `/content` should reflect a fresh `app-preview` build.
 
 ## Verification commands
 
@@ -95,6 +117,12 @@ pkill -f 'uvicorn backend.app.main:app --host 127.0.0.1 --port 8011'
 ### Check admin web
 ```bash
 curl -sS http://127.0.0.1:3000/login >/dev/null && echo ok
+```
+
+### Canonical stale-process recovery
+If admin routes or exports behave like old code is still running, refresh the whole runtime instead of manually poking one process at a time:
+```bash
+<repo>/scripts/Cartly\ Runtime\ Refresh.command
 ```
 
 ---
@@ -153,6 +181,18 @@ Immediate actions:
 2. Run `/Users/sdpaik/dev/wimc/scripts/Cartly Backend.command`
 3. Re-check `curl -sS http://127.0.0.1:8011/health`
 
+### Symptom: admin pages load but `/api/cartly-admin/*` behaves like old code
+Common signals:
+- `/api/cartly-admin/*` returns 404 while older `/api/wimc-admin/*` paths still answer
+- an export or admin endpoint throws a stack trace that points at old line numbers after a refactor
+
+Interpretation:
+- admin-web and/or backend is still serving a stale already-running process rather than the latest source/build
+
+Immediate action:
+1. Run `/Users/sdpaik/dev/wimc/scripts/Cartly Runtime Refresh.command`
+2. Re-check `/login`, `/api/cartly-admin/admin/dashboard/summary`, and `/health`
+
 ---
 
 ## Local file references
@@ -160,7 +200,13 @@ Immediate actions:
   - `/Users/sdpaik/dev/wimc/scripts/run-backend-login-session.sh`
 - Terminal entrypoint:
   - `/Users/sdpaik/dev/wimc/scripts/Cartly Backend.command`
+- Full runtime refresh entrypoint:
+  - `/Users/sdpaik/dev/wimc/scripts/Cartly Runtime Refresh.command`
 - Login-session runtime log:
   - `/Users/sdpaik/Library/Logs/Cartly/backend-login-session.log`
+- Admin web runtime log:
+  - `/Users/sdpaik/Library/Logs/Cartly/admin-web.log`
+- Runtime refresh log:
+  - `/Users/sdpaik/Library/Logs/Cartly/runtime-refresh.log`
 - Admin web LaunchAgent:
   - `~/Library/LaunchAgents/com.wimc.admin-web.plist`

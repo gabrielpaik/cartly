@@ -204,7 +204,14 @@ class _CartDetailPageState extends State<CartDetailPage> {
     if (_isExpiredGuestLocked) return;
 
     setState(() {
-      _cart.items.add(SavedCartItem(name: name, price: price, quantity: 1));
+      _cart.items.add(
+        SavedCartItem(
+          name: name,
+          price: price,
+          quantity: 1,
+          source: 'manual',
+        ),
+      );
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

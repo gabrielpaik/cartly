@@ -16,7 +16,15 @@ class HomePageCartController {
 
   void addRecognizedItem(RecognizedItem item) {
     _setState(() {
-      items.insert(0, CartItem(name: item.name, price: item.price));
+      items.insert(
+        0,
+        CartItem(
+          name: item.name,
+          price: item.price,
+          source: item.source,
+          scanJobId: item.scanJobId,
+        ),
+      );
       recentScans.removeWhere(
         (entry) =>
             entry.item.name == item.name &&

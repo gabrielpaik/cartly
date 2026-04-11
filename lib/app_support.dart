@@ -9,8 +9,16 @@ class CartItem {
   String name;
   int price;
   int quantity;
+  String? source;
+  String? scanJobId;
 
-  CartItem({required this.name, required this.price, this.quantity = 1});
+  CartItem({
+    required this.name,
+    required this.price,
+    this.quantity = 1,
+    this.source,
+    this.scanJobId,
+  });
   int get totalPrice => price * quantity;
 }
 

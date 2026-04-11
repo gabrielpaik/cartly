@@ -2,11 +2,15 @@ class SavedCartItem {
   String name;
   int price;
   int quantity;
+  String? source;
+  String? scanResultId;
 
   SavedCartItem({
     required this.name,
     required this.price,
     required this.quantity,
+    this.source,
+    this.scanResultId,
   });
 
   int get total => price * quantity;
@@ -15,12 +19,16 @@ class SavedCartItem {
     'name': name,
     'price': price,
     'quantity': quantity,
+    'source': source,
+    'scanResultId': scanResultId,
   };
 
   static SavedCartItem fromJson(Map<String, dynamic> json) => SavedCartItem(
     name: (json['name'] ?? '') as String,
     price: (json['price'] ?? 0) as int,
     quantity: (json['quantity'] ?? 1) as int,
+    source: json['source'] as String?,
+    scanResultId: json['scanResultId'] as String?,
   );
 }
 

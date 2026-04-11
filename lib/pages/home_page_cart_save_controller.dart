@@ -41,6 +41,8 @@ class HomePageCartSaveController {
             name: item.name,
             price: item.price,
             quantity: item.quantity,
+            source: item.source,
+            scanResultId: item.scanJobId,
           ),
         )
         .toList();

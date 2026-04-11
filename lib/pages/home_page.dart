@@ -9,6 +9,7 @@ import '../pages/home_tab_view.dart';
 import '../pages/my_page.dart';
 import '../pages/saved_tab_view.dart';
 import '../services/app_config_store.dart';
+import '../services/auth_store.dart';
 import '../services/remote_scan_repository.dart';
 import '../services/scan_repository.dart';
 import '../widgets/total_bar.dart';
@@ -30,7 +31,13 @@ class _HomePageState extends State<HomePage> {
 
   late final ScanRepository _scanRepository = RemoteScanRepository(
     baseUrl: CartlyRuntimeConfig.current.normalizedRemoteBaseUrl,
-    authToken: CartlyRuntimeConfig.current.effectiveRemoteAuthToken,
+    authTokenProvider: () {
+      final sessionToken = AuthStore.instance.session.value?.authToken.trim();
+      if (sessionToken != null && sessionToken.isNotEmpty) {
+        return sessionToken;
+      }
+      return CartlyRuntimeConfig.current.effectiveRemoteAuthToken;
+    },
   );
   late final HomePageCartController _cartController = HomePageCartController(
     items: items,

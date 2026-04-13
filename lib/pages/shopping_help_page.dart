@@ -1,20 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../services/app_config_store.dart';
+import '../services/app_runtime_copy.dart';
 
 class ShoppingHelpPage extends StatelessWidget {
   const ShoppingHelpPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder(
-      valueListenable: AppConfigStore.instance.branding,
-      builder: (context, branding, _) {
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-          children: [
-            Text(
-              branding.helpPageTitle,
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      children: [
+        Text(
+          AppRuntimeCopy.text(['help', 'pageTitle'], 'Shopping help'),
               style: const TextStyle(
                 fontFamily: 'SpaceGrotesk',
                 fontSize: 30,
@@ -24,9 +21,12 @@ class ShoppingHelpPage extends StatelessWidget {
                 color: Color(0xFFE31837),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              branding.helpSubtitle,
+        const SizedBox(height: 8),
+        Text(
+          AppRuntimeCopy.text([
+            'help',
+            'subtitle',
+          ], '운영 부담이 큰 피드형 쇼핑 탭 대신, 정말 도움이 되는 기능부터 붙일 예정이야'),
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -34,21 +34,19 @@ class ShoppingHelpPage extends StatelessWidget {
                 height: 1.5,
               ),
             ),
-            const SizedBox(height: 20),
-            const _HelpPreviewCard(
-              icon: Icons.search,
-              title: '스캔 후 온라인 비교',
-              body: '상품을 스캔한 뒤 더 저렴한 대안이나 온라인 구매 옵션을 보여주는 흐름을 먼저 붙일 예정이야.',
-            ),
-            const SizedBox(height: 12),
-            const _HelpPreviewCard(
-              icon: Icons.local_offer_outlined,
-              title: '행사 / 추천은 나중에',
-              body: '과한 광고 앱처럼 보이지 않도록, 운영형 추천 피드는 충분히 준비된 뒤에만 열 거야.',
-            ),
-          ],
-        );
-      },
+        const SizedBox(height: 20),
+        const _HelpPreviewCard(
+          icon: Icons.search,
+          title: '스캔 후 온라인 비교',
+          body: '상품을 스캔한 뒤 더 저렴한 대안이나 온라인 구매 옵션을 보여주는 흐름을 먼저 붙일 예정이야.',
+        ),
+        const SizedBox(height: 12),
+        const _HelpPreviewCard(
+          icon: Icons.local_offer_outlined,
+          title: '행사 / 추천은 나중에',
+          body: '과한 광고 앱처럼 보이지 않도록, 운영형 추천 피드는 충분히 준비된 뒤에만 열 거야.',
+        ),
+      ],
     );
   }
 }

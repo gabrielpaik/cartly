@@ -370,3 +370,60 @@ def get_app_copy(db: OrmSession, branding: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(payload, dict):
         return fallback
     return _deep_merge(fallback, payload)
+
+
+COPY_FIELD_TO_PATH = {
+    branding_key: (section, *field.split('.'))
+    for (section, field), branding_key in BRANDING_COPY_FIELD_MAP.items()
+}
+COPY_FIELD_KEYS = frozenset(COPY_FIELD_TO_PATH.keys())
+
+
+def _read_nested_value(source: Dict[str, Any], path: tuple[str, ...]) -> Any:
+    node: Any = source
+    for key in path:
+        if not isinstance(node, dict):
+            return None
+        node = node.get(key)
+    return node
+
+
+def flatten_app_copy(payload: Dict[str, Any]) -> Dict[str, Any]:
+    flat: Dict[str, Any] = {}
+    for field_key, path in COPY_FIELD_TO_PATH.items():
+        value = _read_nested_value(payload, path)
+        if value is not None:
+            flat[field_key] = value
+    return flat
+
+
+def save_app_copy(db: OrmSession, payload: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = _normalize_copy(payload)
+    row = db.get(AppSetting, APP_COPY_KEY)
+    if row is None:
+        row = AppSetting(
+            key=APP_COPY_KEY,
+            value_json=json.dumps(normalized, ensure_ascii=False),
+        )
+        db.add(row)
+    else:
+        row.value_json = json.dumps(normalized, ensure_ascii=False)
+        db.add(row)
+    db.commit()
+    db.refresh(row)
+    return normalized
+
+
+def save_flat_app_copy(
+    db: OrmSession,
+    flat_payload: Dict[str, Any],
+    *,
+    branding: Dict[str, Any],
+) -> Dict[str, Any]:
+    current = get_app_copy(db, branding)
+    merged = deepcopy(current)
+    for field_key, path in COPY_FIELD_TO_PATH.items():
+        if field_key not in flat_payload:
+            continue
+        _set_nested_value(merged, '.'.join(path), flat_payload[field_key])
+    return save_app_copy(db, merged)

@@ -7,16 +7,17 @@ from ..core.settings import settings
 from ..deps import db_dep
 from ..services.ad_slot_service import app_ad_slots_config
 from ..services.app_copy_service import get_app_copy
-from ..services.branding_service import get_branding
+from ..services.branding_service import get_branding, project_branding
 
 router = APIRouter()
 
 
 @router.get('/app-config')
 def app_config(db: OrmSession = Depends(db_dep)):
-    branding = get_branding(db)
+    raw_branding = get_branding(db)
+    branding = project_branding(raw_branding)
     ad_slots = app_ad_slots_config(db, settings.ads_enabled)
-    copy = get_app_copy(db, branding)
+    copy = get_app_copy(db, raw_branding)
     return {
         'ok': True,
         'data': {
@@ -44,7 +45,6 @@ def app_config(db: OrmSession = Depends(db_dep)):
                     'saved': branding.get('savedTabLabel'),
                     'my': branding.get('myTabLabel'),
                 },
-                **branding,
             },
             'copy': copy,
             'ads': {

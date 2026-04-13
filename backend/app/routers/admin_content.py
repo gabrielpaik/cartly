@@ -1,3 +1,5 @@
+from typing import Any, Dict
+
 from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session as OrmSession
 
@@ -6,7 +8,8 @@ from ..deps import db_dep
 from ..schemas.admin_ui_copy import AdminUiCopyUpdateRequest
 from ..schemas.branding import BrandingRequest
 from ..services.admin_ui_copy_service import get_admin_ui_copy, save_admin_ui_copy
-from ..services.branding_service import get_branding, save_branding
+from ..services.branding_service import get_branding, project_branding, save_branding
+from ..services.content_settings_service import get_content_settings, save_content_settings
 from .admin_common import ADMIN_ROUTE_DEP, save_asset
 
 router = APIRouter(dependencies=ADMIN_ROUTE_DEP)
@@ -24,12 +27,22 @@ def update_admin_ui_copy(payload: AdminUiCopyUpdateRequest, db: OrmSession = Dep
 
 @router.get('/branding')
 def admin_branding(db: OrmSession = Depends(db_dep)):
-    return {'ok': True, 'data': get_branding(db)}
+    return {'ok': True, 'data': project_branding(get_branding(db))}
 
 
 @router.put('/branding')
 def update_branding(payload: BrandingRequest, db: OrmSession = Depends(db_dep)):
-    return {'ok': True, 'data': save_branding(db, payload.model_dump())}
+    return {'ok': True, 'data': project_branding(save_branding(db, payload.model_dump()))}
+
+
+@router.get('/content')
+def admin_content(db: OrmSession = Depends(db_dep)):
+    return {'ok': True, 'data': get_content_settings(db)}
+
+
+@router.put('/content')
+def update_content(payload: Dict[str, Any], db: OrmSession = Depends(db_dep)):
+    return {'ok': True, 'data': save_content_settings(db, payload)}
 
 
 @router.post('/branding/logo')

@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 
 import '../pages/cart_detail_page.dart';
 import '../pages/login_page.dart';
-import '../services/app_config_store.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
@@ -44,7 +43,6 @@ class _WimcEndDrawerState extends State<WimcEndDrawer> {
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
-    final branding = AppConfigStore.instance.branding.value;
 
     return Drawer(
       width: w * 0.73,
@@ -89,7 +87,10 @@ class _WimcEndDrawerState extends State<WimcEndDrawer> {
                                       ? ((session?.displayName.trim().isNotEmpty ?? false)
                                             ? session!.displayName
                                             : 'Guest')
-                                      : branding.drawerGuestTitle,
+                                      : AppRuntimeCopy.text(
+                                          ['my', 'guestModeLabel'],
+                                          '게스트로 사용 중이에요',
+                                        ),
                                   style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w900,
@@ -101,7 +102,10 @@ class _WimcEndDrawerState extends State<WimcEndDrawer> {
                                       ? (session.email.isEmpty
                                             ? '${session.providerBadge} · ${session.badgeLabel}'
                                             : '${session.email} · ${session.providerBadge}')
-                                      : branding.drawerGuestBody,
+                                      : AppRuntimeCopy.text(
+                                          ['my', 'guestBody'],
+                                          '저장한 카트와 스캔 기록을 이어가려면 로그인해.',
+                                        ),
                                   style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,

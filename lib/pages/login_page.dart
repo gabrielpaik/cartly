@@ -312,7 +312,14 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              LoginPageHeaderSection(branding: branding),
+              LoginPageHeaderSection(
+                loginHeroImageUrl: branding.loginHeroImageUrl,
+                title: _text(['login', 'pageTitle'], '계정 시작'),
+                subtitle: _text([
+                  'login',
+                  'subtitle',
+                ], '저장과 기록을 이어가려면 로그인'),
+              ),
               const SizedBox(height: 18),
               LoginPageAuthFormSection(
                 mode: _mode,
@@ -360,8 +367,14 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 16),
               LoginPageGuestCtaSection(
-                benefitsTitle: branding.loginBenefitsTitle,
-                benefitsBody: branding.loginBenefitsBody,
+                benefitsTitle: _text([
+                  'login',
+                  'benefitsTitle',
+                ], '왜 계정을 만들까'),
+                benefitsBody: _text([
+                  'login',
+                  'benefitsBody',
+                ], '• 저장한 카트 보기\n• 다음 결제 전에 다시 확인\n• 더 저렴한 대안 추천'),
                 guestButtonLabel: _text(['login', 'continueAsGuest'], '게스트로 계속하기'),
                 onContinueAsGuest: _isSubmitting ? null : _continueAsGuest,
               ),

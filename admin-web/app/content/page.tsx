@@ -213,7 +213,7 @@ export default function ContentPage() {
     let cancelled = false
     void (async () => {
       try {
-        const res = await fetchJsonSafe<{ ok: boolean; data: Branding }>('/admin/branding', { ok: true, data: mockBranding })
+        const res = await fetchJsonSafe<{ ok: boolean; data: Branding }>('/admin/content', { ok: true, data: mockBranding })
         if (cancelled) return
         setForm(res.data.data)
         setUsingFallback(res.usingFallback)
@@ -222,7 +222,7 @@ export default function ContentPage() {
           router.replace('/login?reason=expired')
           return
         }
-        if (!cancelled) setMessage(err instanceof Error ? err.message : t('admin.content.loadFailed', '브랜딩 데이터를 불러오지 못했어'))
+        if (!cancelled) setMessage(err instanceof Error ? err.message : t('admin.content.loadFailed', '콘텐츠 설정을 불러오지 못했어'))
       }
     })()
     return () => {
@@ -270,14 +270,14 @@ export default function ContentPage() {
     setSaving(true)
     setMessage(null)
     try {
-      await putJson<{ ok: boolean; data: Branding }>('/admin/branding', form)
-      setMessage(t('admin.content.saveDone', '브랜딩 설정 저장 완료'))
+      await putJson<{ ok: boolean; data: Branding }>('/admin/content', form)
+      setMessage(t('admin.content.saveDone', '콘텐츠 설정 저장 완료'))
     } catch (err) {
       if (isUnauthorizedError(err)) {
         router.replace('/login?reason=expired')
         return
       }
-      setMessage(err instanceof Error ? err.message : t('admin.content.saveFailed', '브랜딩 저장 실패'))
+      setMessage(err instanceof Error ? err.message : t('admin.content.saveFailed', '콘텐츠 설정 저장 실패'))
     } finally {
       setSaving(false)
     }

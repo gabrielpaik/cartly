@@ -44,6 +44,7 @@ function buildGroups(t: (key: string, fallback?: string) => string): Array<{ tit
       fields: [
         { key: 'logoText', label: t('admin.content.fields.logoText', '로고 텍스트') },
         { key: 'homeTabLabel', label: t('admin.content.fields.homeTabLabel', 'Home 탭 라벨') },
+        { key: 'helpTabLabel', label: t('admin.content.fields.helpTabLabel', '도움 탭 라벨') },
         { key: 'savedTabLabel', label: t('admin.content.fields.savedTabLabel', 'Saved 탭 라벨') },
         { key: 'myTabLabel', label: t('admin.content.fields.myTabLabel', 'My 탭 라벨') },
       ],
@@ -66,7 +67,15 @@ function buildGroups(t: (key: string, fallback?: string) => string): Array<{ tit
         { key: 'homeSaveCartButton', label: t('admin.content.fields.homeSaveCartButton', '카트 저장 버튼') },
         { key: 'homeCartTotalLabel', label: t('admin.content.fields.homeCartTotalLabel', '카트 합계 라벨') },
         { key: 'homeContinueScanAction', label: t('admin.content.fields.homeContinueScanAction', '계속 스캔 버튼') },
-        { key: 'homeRecentSavedAction', label: t('admin.content.fields.homeRecentSavedAction', 'Saved 보기 버튼') },
+        { key: 'homeRecentSavedAction', label: t('admin.content.fields.homeRecentSavedAction', '지난 카트 보기 버튼') },
+      ],
+    },
+    {
+      title: t('admin.content.groups.help.title', '도움 탭 카피'),
+      description: t('admin.content.groups.help.desc', '중간 도움 탭 문구'),
+      fields: [
+        { key: 'helpPageTitle', label: t('admin.content.fields.helpPageTitle', '도움 페이지 제목') },
+        { key: 'helpSubtitle', label: t('admin.content.fields.helpSubtitle', '도움 subtitle'), kind: 'textarea' },
       ],
     },
     {
@@ -176,6 +185,7 @@ function buildGroups(t: (key: string, fallback?: string) => string): Array<{ tit
       fields: [
         { key: 'saveCompleteTitle', label: t('admin.content.fields.saveCompleteTitle', '저장 완료 제목') },
         { key: 'saveCompleteSubtitle', label: t('admin.content.fields.saveCompleteSubtitle', '저장 완료 부제'), kind: 'textarea' },
+        { key: 'saveCompleteViewSavedAction', label: t('admin.content.fields.saveCompleteViewSavedAction', '지난 카트 보기 버튼') },
       ],
     },
   ]

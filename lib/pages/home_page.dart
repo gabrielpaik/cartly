@@ -9,7 +9,6 @@ import '../pages/home_tab_view.dart';
 import '../pages/my_page.dart';
 import '../pages/shopping_help_page.dart';
 import '../services/app_config_store.dart';
-import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/remote_scan_repository.dart';
 import '../services/scan_repository.dart';
@@ -127,7 +126,7 @@ class _HomePageState extends State<HomePage> {
               NavigationDestination(
                 icon: const Icon(Icons.explore_outlined),
                 selectedIcon: const Icon(Icons.explore),
-                label: AppRuntimeCopy.text(['help', 'tabLabel'], '도움'),
+                label: branding.helpTabLabel,
               ),
               NavigationDestination(
                 icon: const Icon(Icons.person_outline),

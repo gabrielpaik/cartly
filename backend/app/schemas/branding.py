@@ -10,12 +10,15 @@ class BrandingRequest(BaseModel):
     splashImageUrl: Optional[str] = None
     loginHeroImageUrl: Optional[str] = None
     homeTabLabel: str = 'Home'
+    helpTabLabel: str = '도움'
     savedTabLabel: str = 'Saved'
     myTabLabel: str = 'My'
     homePageTitle: str = 'Cartly'
+    helpPageTitle: str = 'Shopping help'
     savedPageTitle: str = 'Saved carts'
     myPageTitle: str = 'My account'
     homeSubtitle: str = '지금 카트 총액을 확인해'
+    helpSubtitle: str = '운영 부담이 큰 피드형 쇼핑 탭 대신, 정말 도움이 되는 기능부터 붙일 예정이야'
     homeRecentScanTitle: str = '최근 스캔'
     homeRecentScanSubtitle: str = '방금 읽은 결과'
     homeAddSectionTitle: str = '새 상품 추가'

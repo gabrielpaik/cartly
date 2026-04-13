@@ -5,11 +5,14 @@ class AppBranding {
   final String? splashImageUrl;
   final String? loginHeroImageUrl;
   final String homeTabLabel;
+  final String helpTabLabel;
   final String savedTabLabel;
   final String myTabLabel;
+  final String helpPageTitle;
   final String savedPageTitle;
   final String myPageTitle;
   final String homeSubtitle;
+  final String helpSubtitle;
   final String savedSubtitle;
   final String mySubtitle;
   final String loginPageTitle;
@@ -34,11 +37,14 @@ class AppBranding {
     required this.splashImageUrl,
     required this.loginHeroImageUrl,
     required this.homeTabLabel,
+    required this.helpTabLabel,
     required this.savedTabLabel,
     required this.myTabLabel,
+    required this.helpPageTitle,
     required this.savedPageTitle,
     required this.myPageTitle,
     required this.homeSubtitle,
+    required this.helpSubtitle,
     required this.savedSubtitle,
     required this.mySubtitle,
     required this.loginPageTitle,
@@ -64,11 +70,14 @@ class AppBranding {
     splashImageUrl: null,
     loginHeroImageUrl: null,
     homeTabLabel: 'Home',
+    helpTabLabel: '도움',
     savedTabLabel: 'Saved',
     myTabLabel: 'My',
+    helpPageTitle: 'Shopping help',
     savedPageTitle: 'Saved carts',
     myPageTitle: 'My account',
     homeSubtitle: '지금 카트 총액을 확인해',
+    helpSubtitle: '운영 부담이 큰 피드형 쇼핑 탭 대신, 정말 도움이 되는 기능부터 붙일 예정이야',
     savedSubtitle: '저장한 카트를 다시 봐',
     mySubtitle: '기록을 남기려면 로그인',
     loginPageTitle: '계정 시작',
@@ -107,11 +116,14 @@ class AppBranding {
       splashImageUrl: nullableStringValue('splashImageUrl'),
       loginHeroImageUrl: nullableStringValue('loginHeroImageUrl'),
       homeTabLabel: stringValue('homeTabLabel', fallback.homeTabLabel),
+      helpTabLabel: stringValue('helpTabLabel', fallback.helpTabLabel),
       savedTabLabel: stringValue('savedTabLabel', fallback.savedTabLabel),
       myTabLabel: stringValue('myTabLabel', fallback.myTabLabel),
+      helpPageTitle: stringValue('helpPageTitle', fallback.helpPageTitle),
       savedPageTitle: stringValue('savedPageTitle', fallback.savedPageTitle),
       myPageTitle: stringValue('myPageTitle', fallback.myPageTitle),
       homeSubtitle: stringValue('homeSubtitle', fallback.homeSubtitle),
+      helpSubtitle: stringValue('helpSubtitle', fallback.helpSubtitle),
       savedSubtitle: stringValue('savedSubtitle', fallback.savedSubtitle),
       mySubtitle: stringValue('mySubtitle', fallback.mySubtitle),
       loginPageTitle: stringValue('loginPageTitle', fallback.loginPageTitle),

@@ -40,6 +40,7 @@ def app_config(db: OrmSession = Depends(db_dep)):
                 'loginHeroImageUrl': branding.get('loginHeroImageUrl'),
                 'tabs': {
                     'home': branding.get('homeTabLabel'),
+                    'help': branding.get('helpTabLabel') or branding.get('savedTabLabel'),
                     'saved': branding.get('savedTabLabel'),
                     'my': branding.get('myTabLabel'),
                 },

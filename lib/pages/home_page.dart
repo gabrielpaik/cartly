@@ -7,8 +7,9 @@ import '../pages/home_page_cart_controller.dart';
 import '../pages/home_page_cart_save_controller.dart';
 import '../pages/home_tab_view.dart';
 import '../pages/my_page.dart';
-import '../pages/saved_tab_view.dart';
+import '../pages/shopping_help_page.dart';
 import '../services/app_config_store.dart';
+import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/remote_scan_repository.dart';
 import '../services/scan_repository.dart';
@@ -67,7 +68,7 @@ class _HomePageState extends State<HomePage> {
       await HomePageCartSaveController.showSaveCompleteSheet(
         context: context,
         savedCart: savedCart,
-        onViewSaved: () => setState(() => _tabIndex = 1),
+        onViewSaved: () => setState(() => _tabIndex = 2),
       );
     } finally {
       if (mounted) {
@@ -79,7 +80,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildBody() {
     switch (_tabIndex) {
       case 1:
-        return const SavedTabView();
+        return const ShoppingHelpPage();
       case 2:
         return const MyPage();
       case 0:
@@ -124,9 +125,9 @@ class _HomePageState extends State<HomePage> {
                 label: branding.homeTabLabel,
               ),
               NavigationDestination(
-                icon: const Icon(Icons.bookmark_border),
-                selectedIcon: const Icon(Icons.bookmark),
-                label: branding.savedTabLabel,
+                icon: const Icon(Icons.explore_outlined),
+                selectedIcon: const Icon(Icons.explore),
+                label: AppRuntimeCopy.text(['help', 'tabLabel'], '도움'),
               ),
               NavigationDestination(
                 icon: const Icon(Icons.person_outline),

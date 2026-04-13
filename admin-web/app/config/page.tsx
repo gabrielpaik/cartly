@@ -33,9 +33,6 @@ type ConfigDto = {
     logoText: string
     logoImageUrl: string | null
     splashImageUrl: string | null
-    homeSubtitle: string
-    savedSubtitle: string
-    mySubtitle: string
   }
 }
 
@@ -103,9 +100,6 @@ export default function ConfigPage() {
             <li>{t('admin.config.branding.runtimeAssetsDir', 'runtimeAssetsRoot')}: {runtimeAssetsDisplay}</li>
             {cfg.legacyPathCompatibilityActive ? <li>{t('admin.config.branding.actualBrandingAssetsDir', 'actualBrandingAssetsDir')}: {brandingAssetsActual}</li> : null}
             {cfg.legacyPathCompatibilityActive ? <li>{t('admin.config.branding.actualAdsAssetsDir', 'actualAdsAssetsDir')}: {adsAssetsActual}</li> : null}
-            <li>{t('admin.config.branding.homeSubtitle', 'homeSubtitle')}: {cfg.branding.homeSubtitle}</li>
-            <li>{t('admin.config.branding.savedSubtitle', 'savedSubtitle')}: {cfg.branding.savedSubtitle}</li>
-            <li>{t('admin.config.branding.mySubtitle', 'mySubtitle')}: {cfg.branding.mySubtitle}</li>
           </ul>
         </div>
       </div>

@@ -6,9 +6,9 @@ import { useRouter } from 'next/navigation'
 import PageHeader from '../../components/PageHeader'
 import { useAdminCopy } from '../../components/AdminCopyProvider'
 import { fetchJsonSafe, isUnauthorizedError, postFormData, putJson } from '../../lib/api'
-import { mockBranding } from '../../lib/mock'
+import { mockContentSettings } from '../../lib/mock'
 
-type Branding = typeof mockBranding
+type ContentSettings = typeof mockContentSettings
 
 type UploadResponse = {
   ok: boolean
@@ -25,7 +25,7 @@ type UploadResponse = {
 }
 
 type FieldConfig = {
-  key: keyof Branding
+  key: keyof ContentSettings
   label: string
   kind?: 'text' | 'textarea'
 }
@@ -194,7 +194,7 @@ function buildGroups(t: (key: string, fallback?: string) => string): Array<{ tit
 export default function ContentPage() {
   const router = useRouter()
   const { t } = useAdminCopy()
-  const [form, setForm] = useState<Branding>(mockBranding)
+  const [form, setForm] = useState<ContentSettings>(mockContentSettings)
   const [saving, setSaving] = useState(false)
   const [usingFallback, setUsingFallback] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
@@ -213,7 +213,7 @@ export default function ContentPage() {
     let cancelled = false
     void (async () => {
       try {
-        const res = await fetchJsonSafe<{ ok: boolean; data: Branding }>('/admin/content', { ok: true, data: mockBranding })
+        const res = await fetchJsonSafe<{ ok: boolean; data: ContentSettings }>('/admin/content', { ok: true, data: mockContentSettings })
         if (cancelled) return
         setForm(res.data.data)
         setUsingFallback(res.usingFallback)
@@ -230,7 +230,7 @@ export default function ContentPage() {
     }
   }, [router, t])
 
-  function update<K extends keyof Branding>(key: K, value: Branding[K]) {
+  function update<K extends keyof ContentSettings>(key: K, value: ContentSettings[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
@@ -240,9 +240,9 @@ export default function ContentPage() {
       <label className="field" key={String(field.key)}>
         <div className="fieldLabel">{field.label}</div>
         {field.kind === 'textarea' ? (
-          <textarea className="textInput" rows={3} value={value} onChange={(e) => update(field.key, e.target.value as Branding[typeof field.key])} />
+          <textarea className="textInput" rows={3} value={value} onChange={(e) => update(field.key, e.target.value as ContentSettings[typeof field.key])} />
         ) : (
-          <input className="textInput" value={value} onChange={(e) => update(field.key, e.target.value as Branding[typeof field.key])} />
+          <input className="textInput" value={value} onChange={(e) => update(field.key, e.target.value as ContentSettings[typeof field.key])} />
         )}
       </label>
     )
@@ -270,7 +270,7 @@ export default function ContentPage() {
     setSaving(true)
     setMessage(null)
     try {
-      await putJson<{ ok: boolean; data: Branding }>('/admin/content', form)
+      await putJson<{ ok: boolean; data: ContentSettings }>('/admin/content', form)
       setMessage(t('admin.content.saveDone', '콘텐츠 설정 저장 완료'))
     } catch (err) {
       if (isUnauthorizedError(err)) {
@@ -336,7 +336,7 @@ export default function ContentPage() {
             <div className="formGrid">
               <label className="field">
                 <div className="fieldLabel">{t('admin.content.fields.logoType', '로고 타입')}</div>
-                <select className="textInput" value={form.logoType} onChange={(e) => update('logoType', e.target.value as Branding['logoType'])}>
+                <select className="textInput" value={form.logoType} onChange={(e) => update('logoType', e.target.value as ContentSettings['logoType'])}>
                   {LOGO_TYPE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}

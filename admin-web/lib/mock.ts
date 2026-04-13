@@ -340,6 +340,18 @@ export const mockBranding = {
   helpTabLabel: '도움',
   savedTabLabel: 'Saved',
   myTabLabel: 'My',
+}
+
+export const mockContentSettings = {
+  logoType: 'text',
+  logoText: 'Cartly',
+  logoImageUrl: null,
+  splashImageUrl: null,
+  loginHeroImageUrl: null,
+  homeTabLabel: 'Home',
+  helpTabLabel: '도움',
+  savedTabLabel: 'Saved',
+  myTabLabel: 'My',
   homePageTitle: 'Cartly',
   helpPageTitle: 'Shopping help',
   savedPageTitle: 'Saved carts',

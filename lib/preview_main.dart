@@ -28,13 +28,15 @@ class _CartlyPreviewAppState extends State<CartlyPreviewApp> {
   @override
   void initState() {
     super.initState();
-    _applyPreviewPayload(_defaultPayload());
+    _applyPreviewPayload(_defaultContentSettings());
     listenPreviewMessages(_applyPreviewPayload);
     notifyPreviewReady();
   }
 
   void _applyPreviewPayload(Map<String, dynamic> payload) {
-    AppConfigStore.instance.branding.value = AppBranding.fromJson(payload);
+    AppConfigStore.instance.branding.value = AppBranding.fromJson(
+      _projectPreviewBranding(payload),
+    );
     AppConfigStore.instance.copy.value = _buildPreviewCopy(payload);
     AppConfigStore.instance.adSlots.value = const [];
     _previewScreen = (payload['__previewScreen'] as String?) ?? _previewScreen;
@@ -107,7 +109,24 @@ class _CartlyPreviewAppState extends State<CartlyPreviewApp> {
   }
 }
 
-Map<String, dynamic> _defaultPayload() => {
+const _previewBrandingKeys = <String>{
+  'logoType',
+  'logoText',
+  'logoImageUrl',
+  'splashImageUrl',
+  'loginHeroImageUrl',
+  'homeTabLabel',
+  'helpTabLabel',
+  'savedTabLabel',
+  'myTabLabel',
+};
+
+Map<String, dynamic> _projectPreviewBranding(Map<String, dynamic> payload) => {
+  for (final entry in payload.entries)
+    if (_previewBrandingKeys.contains(entry.key)) entry.key: entry.value,
+};
+
+Map<String, dynamic> _defaultContentSettings() => {
   'logoType': 'text',
   'logoText': 'Cartly',
   'logoImageUrl': null,

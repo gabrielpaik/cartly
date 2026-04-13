@@ -9,6 +9,7 @@ import '../services/cart_store.dart';
 import '../widgets/context_pill.dart';
 import '../widgets/inline_promo_slot.dart';
 import '../widgets/saved_tab_cart_list.dart';
+import '../widgets/saved_tab_empty_state.dart';
 
 class MyPage extends StatelessWidget {
   const MyPage({super.key});
@@ -24,10 +25,26 @@ class MyPage extends StatelessWidget {
         SizedBox(height: 16),
         _SavedCartsSection(),
         SizedBox(height: 16),
-        _MyPromoSection(),
-        SizedBox(height: 14),
-        _GuestBenefitsSection(),
+        _MySecondarySections(),
       ],
+    );
+  }
+}
+
+class _MySecondarySections extends StatelessWidget {
+  const _MySecondarySections();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: AuthStore.instance.session,
+      builder: (context, session, _) {
+        final memberSignedIn = session != null && !session.isGuest;
+        if (memberSignedIn) {
+          return const _MyPromoSection();
+        }
+        return const _GuestBenefitsSection();
+      },
     );
   }
 }
@@ -338,7 +355,7 @@ class _SavedCartsSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 if (carts.isEmpty)
-                  const _MySavedCartsEmptyCard()
+                  const SavedTabEmptyState(compact: true)
                 else
                   SavedTabCartList(
                     carts: carts,
@@ -355,56 +372,6 @@ class _SavedCartsSection extends StatelessWidget {
           },
         );
       },
-    );
-  }
-}
-
-class _MySavedCartsEmptyCard extends StatelessWidget {
-  const _MySavedCartsEmptyCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          const Opacity(
-            opacity: 0.16,
-            child: Icon(Icons.bookmark_border, size: 56),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            AppRuntimeCopy.text([
-              'saved',
-              'emptyTitle',
-            ], '아직 저장된 카트가 없어요'),
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: Colors.black54,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            AppRuntimeCopy.text([
-              'saved',
-              'emptyBody',
-            ], 'Home에서 저장하면 여기서 다시 볼 수 있어.'),
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.black45,
-              height: 1.45,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

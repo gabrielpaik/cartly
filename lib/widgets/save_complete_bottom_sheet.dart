@@ -154,9 +154,9 @@ class _SaveCompleteBottomSheet extends StatelessWidget {
                     onPressed: onViewSaved,
                     child: Text(
                       AppRuntimeCopy.text([
-                        'home',
-                        'recentSavedAction',
-                      ], 'Saved 보기'),
+                        'saveComplete',
+                        'viewSavedAction',
+                      ], '지난 카트 보기'),
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                   ),

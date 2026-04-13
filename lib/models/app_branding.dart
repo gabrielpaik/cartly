@@ -6,7 +6,6 @@ class AppBranding {
   final String? loginHeroImageUrl;
   final String homeTabLabel;
   final String helpTabLabel;
-  final String savedTabLabel;
   final String myTabLabel;
 
   const AppBranding({
@@ -17,7 +16,6 @@ class AppBranding {
     this.loginHeroImageUrl,
     required this.homeTabLabel,
     required this.helpTabLabel,
-    required this.savedTabLabel,
     required this.myTabLabel,
   });
 
@@ -29,7 +27,6 @@ class AppBranding {
     loginHeroImageUrl: null,
     homeTabLabel: 'Home',
     helpTabLabel: '도움',
-    savedTabLabel: 'Saved',
     myTabLabel: 'My',
   );
 
@@ -61,7 +58,6 @@ class AppBranding {
       loginHeroImageUrl: nullableString('loginHeroImageUrl'),
       homeTabLabel: stringValue('homeTabLabel', fallback.homeTabLabel),
       helpTabLabel: stringValue('helpTabLabel', fallback.helpTabLabel),
-      savedTabLabel: stringValue('savedTabLabel', fallback.savedTabLabel),
       myTabLabel: stringValue('myTabLabel', fallback.myTabLabel),
     );
   }

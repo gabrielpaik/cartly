@@ -13,7 +13,6 @@ final reviewBranding = AppBranding(
   loginHeroImageUrl: null,
   homeTabLabel: 'Home',
   helpTabLabel: '도움',
-  savedTabLabel: 'Saved',
   myTabLabel: 'My',
 );
 

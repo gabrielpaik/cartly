@@ -97,8 +97,8 @@ class _CartlyPreviewAppState extends State<CartlyPreviewApp> {
     switch (_previewScreen) {
       case 'home':
         return const PreviewHomeScreen();
-      case 'saved':
-        return const PreviewSavedScreen();
+      case 'help':
+        return const PreviewHelpScreen();
       case 'my':
         return const PreviewMyScreen();
       case 'login':
@@ -117,7 +117,6 @@ const _previewBrandingKeys = <String>{
   'loginHeroImageUrl',
   'homeTabLabel',
   'helpTabLabel',
-  'savedTabLabel',
   'myTabLabel',
 };
 
@@ -137,7 +136,6 @@ Map<String, dynamic> _defaultContentSettings() => {
   'helpSubtitle': '운영 부담이 큰 피드형 쇼핑 탭 대신, 정말 도움이 되는 기능부터 붙일 예정이야',
   'homeTabLabel': 'Home',
   'helpTabLabel': '도움',
-  'savedTabLabel': 'Saved',
   'myTabLabel': 'My',
   'savedTitle': '저장한 카트',
   'savedSubtitle': '다음 쇼핑 전에 다시 꺼내 비교할 수 있어요.',

@@ -45,7 +45,6 @@ function buildGroups(t: (key: string, fallback?: string) => string): Array<{ tit
         { key: 'logoText', label: t('admin.content.fields.logoText', '로고 텍스트') },
         { key: 'homeTabLabel', label: t('admin.content.fields.homeTabLabel', 'Home 탭 라벨') },
         { key: 'helpTabLabel', label: t('admin.content.fields.helpTabLabel', '도움 탭 라벨') },
-        { key: 'savedTabLabel', label: t('admin.content.fields.savedTabLabel', 'Saved 탭 라벨') },
         { key: 'myTabLabel', label: t('admin.content.fields.myTabLabel', 'My 탭 라벨') },
       ],
     },
@@ -79,8 +78,8 @@ function buildGroups(t: (key: string, fallback?: string) => string): Array<{ tit
       ],
     },
     {
-      title: t('admin.content.groups.saved.title', 'Saved 카피'),
-      description: t('admin.content.groups.saved.desc', '저장 카트 화면 문구'),
+      title: t('admin.content.groups.saved.title', '지난 카트 카피'),
+      description: t('admin.content.groups.saved.desc', 'My 내부 지난 카트 문구'),
       fields: [
         { key: 'savedPageTitle', label: t('admin.content.fields.savedPageTitle', 'Saved 페이지 제목') },
         { key: 'savedSubtitle', label: t('admin.content.fields.savedSubtitle', 'Saved subtitle') },
@@ -199,7 +198,7 @@ export default function ContentPage() {
   const [usingFallback, setUsingFallback] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
   const [uploading, setUploading] = useState<'logo' | 'splash' | 'loginHero' | null>(null)
-  const [previewScreen, setPreviewScreen] = useState<'home' | 'saved' | 'my' | 'login'>('home')
+  const [previewScreen, setPreviewScreen] = useState<'home' | 'help' | 'my' | 'login'>('home')
   const [previewMemberMode, setPreviewMemberMode] = useState(false)
   const [previewSrc, setPreviewSrc] = useState('')
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null)
@@ -403,7 +402,7 @@ export default function ContentPage() {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {([
                   ['home', 'Home'],
-                  ['saved', 'Saved'],
+                  ['help', 'Help'],
                   ['my', 'My'],
                   ['login', 'Login'],
                 ] as const).map(([value, label]) => (

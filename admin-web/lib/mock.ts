@@ -338,7 +338,6 @@ export const mockBranding = {
   loginHeroImageUrl: null,
   homeTabLabel: 'Home',
   helpTabLabel: '도움',
-  savedTabLabel: 'Saved',
   myTabLabel: 'My',
 }
 
@@ -350,7 +349,6 @@ export const mockContentSettings = {
   loginHeroImageUrl: null,
   homeTabLabel: 'Home',
   helpTabLabel: '도움',
-  savedTabLabel: 'Saved',
   myTabLabel: 'My',
   homePageTitle: 'Cartly',
   helpPageTitle: 'Shopping help',

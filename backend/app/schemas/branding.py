@@ -11,5 +11,4 @@ class BrandingRequest(BaseModel):
     loginHeroImageUrl: Optional[str] = None
     homeTabLabel: str = 'Home'
     helpTabLabel: str = '도움'
-    savedTabLabel: str = 'Saved'
     myTabLabel: str = 'My'

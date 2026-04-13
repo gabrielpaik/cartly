@@ -15,7 +15,6 @@ DEFAULT_BRANDING: Dict[str, Any] = {
     'loginHeroImageUrl': None,
     'homeTabLabel': 'Home',
     'helpTabLabel': '도움',
-    'savedTabLabel': 'Saved',
     'myTabLabel': 'My',
 }
 BRANDING_FIELD_KEYS = tuple(DEFAULT_BRANDING.keys())

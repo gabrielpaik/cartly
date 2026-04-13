@@ -81,8 +81,8 @@ function buildSlotPreviewSpecs(t: (key: string, fallback?: string) => string): R
       mode: 'saved-inline-first',
     },
     saved_inline_2: {
-      screenTitle: t('admin.ads.preview.spec.savedList.title', 'Saved List'),
-      screenSubtitle: t('admin.ads.preview.spec.savedList.subtitle', '저장 카트 목록'),
+      screenTitle: t('admin.ads.preview.spec.savedList.title', '지난 카트 리스트'),
+      screenSubtitle: t('admin.ads.preview.spec.savedList.subtitle', 'My 내부 지난 카트 목록'),
       placementLabel: t('admin.ads.preview.spec.savedThird.placement', '세 번째 카드 다음 위치'),
       mode: 'saved-inline-third',
     },
@@ -125,9 +125,9 @@ function buildFallbackConfig(slotKey: string) {
   }
   if (slotKey === 'saved_inline_1') {
     return {
-      slotLabel: 'Saved Inline 1',
-      slotDescription: 'Saved 리스트 첫 카드 뒤에 들어가는 inline 광고 슬롯',
-      placementNote: 'Saved 리스트 첫 카드 뒤 · 104px',
+      slotLabel: '지난 카트 Inline 1',
+      slotDescription: '지난 카트 리스트 첫 카드 뒤에 들어가는 inline 광고 슬롯',
+      placementNote: '지난 카트 리스트 첫 카드 뒤 · 104px',
       maxHeight: 104,
       screen: 'saved_list',
       position: 'after_first_card',
@@ -152,9 +152,9 @@ function buildFallbackConfig(slotKey: string) {
   }
   if (slotKey === 'saved_inline_2') {
     return {
-      slotLabel: 'Saved Inline 2',
-      slotDescription: 'Saved 리스트 세 번째 카드 뒤에 들어가는 inline 광고 슬롯',
-      placementNote: 'Saved 리스트 세 번째 카드 뒤 · 104px',
+      slotLabel: '지난 카트 Inline 2',
+      slotDescription: '지난 카트 리스트 세 번째 카드 뒤에 들어가는 inline 광고 슬롯',
+      placementNote: '지난 카트 리스트 세 번째 카드 뒤 · 104px',
       maxHeight: 104,
       screen: 'saved_list',
       position: 'after_third_card',

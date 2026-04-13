@@ -93,7 +93,7 @@ export default function UsersPage() {
                 <thead>
                   <tr>
                     <th>{t('admin.users.legacy.table.guest', 'Guest')}</th>
-                    <th>{t('admin.users.legacy.table.savedCarts', 'Saved carts')}</th>
+                    <th>{t('admin.users.legacy.table.savedCarts', '저장 카트 수')}</th>
                     <th>{t('admin.users.legacy.table.lastActive', 'Last active')}</th>
                     <th>{t('admin.users.legacy.table.action', 'Action')}</th>
                   </tr>

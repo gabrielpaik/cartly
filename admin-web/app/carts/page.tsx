@@ -65,7 +65,7 @@ export default function CartsPage() {
                   <th>{t('admin.carts.history.table.user', 'User')}</th>
                   <th>{t('admin.carts.history.table.items', 'Items')}</th>
                   <th>{t('admin.carts.history.table.total', 'Total')}</th>
-                  <th>{t('admin.carts.history.table.savedAt', 'Saved at')}</th>
+                  <th>{t('admin.carts.history.table.savedAt', '저장 시각')}</th>
                 </tr>
               </thead>
               <tbody>

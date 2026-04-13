@@ -81,12 +81,12 @@ function buildGroups(t: (key: string, fallback?: string) => string): Array<{ tit
       title: t('admin.content.groups.saved.title', '지난 카트 카피'),
       description: t('admin.content.groups.saved.desc', 'My 내부 지난 카트 문구'),
       fields: [
-        { key: 'savedPageTitle', label: t('admin.content.fields.savedPageTitle', 'Saved 페이지 제목') },
-        { key: 'savedSubtitle', label: t('admin.content.fields.savedSubtitle', 'Saved subtitle') },
-        { key: 'savedEmptyTitle', label: t('admin.content.fields.savedEmptyTitle', 'Saved empty 제목') },
-        { key: 'savedEmptyBody', label: t('admin.content.fields.savedEmptyBody', 'Saved empty 설명'), kind: 'textarea' },
-        { key: 'recentSavedTitle', label: t('admin.content.fields.recentSavedTitle', '최근 저장 카드 제목') },
-        { key: 'recentSavedEmptyBody', label: t('admin.content.fields.recentSavedEmptyBody', '최근 저장 empty 설명'), kind: 'textarea' },
+        { key: 'savedPageTitle', label: t('admin.content.fields.savedPageTitle', '지난 카트 섹션 제목') },
+        { key: 'savedSubtitle', label: t('admin.content.fields.savedSubtitle', '지난 카트 설명') },
+        { key: 'savedEmptyTitle', label: t('admin.content.fields.savedEmptyTitle', '지난 카트 empty 제목') },
+        { key: 'savedEmptyBody', label: t('admin.content.fields.savedEmptyBody', '지난 카트 empty 설명'), kind: 'textarea' },
+        { key: 'recentSavedTitle', label: t('admin.content.fields.recentSavedTitle', '최근 저장 카트 제목') },
+        { key: 'recentSavedEmptyBody', label: t('admin.content.fields.recentSavedEmptyBody', '최근 저장 카트 empty 설명'), kind: 'textarea' },
       ],
     },
     {
@@ -402,7 +402,7 @@ export default function ContentPage() {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {([
                   ['home', 'Home'],
-                  ['help', 'Help'],
+                  ['help', '도움'],
                   ['my', 'My'],
                   ['login', 'Login'],
                 ] as const).map(([value, label]) => (

@@ -161,7 +161,7 @@ export default function UserDetailPage() {
         <StatCard label={t('admin.users.detail.kpi.totalCarts', 'Total carts')} value={formatNumber(payload.summary.totalCarts)} />
         <StatCard label={t('admin.users.detail.kpi.totalItems', 'Total items')} value={formatNumber(payload.summary.totalItems)} />
         <StatCard label={t('admin.users.detail.kpi.totalValue', 'Total value')} value={`₩${formatNumber(payload.summary.totalValue)}`} />
-        <StatCard label={t('admin.users.detail.kpi.lastSaved', 'Last saved')} value={payload.summary.lastSavedAt ? formatDate(payload.summary.lastSavedAt) : '-'} />
+        <StatCard label={t('admin.users.detail.kpi.lastSaved', '최근 저장')} value={payload.summary.lastSavedAt ? formatDate(payload.summary.lastSavedAt) : '-'} />
       </div>
 
       <div className="sectionGrid twoCol section">
@@ -223,7 +223,7 @@ export default function UserDetailPage() {
         <div className="card">
           <div className="sectionHeader">
             <div>
-              <h2 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.users.detail.history.title', 'Saved cart history')}</h2>
+              <h2 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.users.detail.history.title', '지난 카트 기록')}</h2>
               <p className="pageDesc">{t('admin.users.detail.history.desc', '한 고객의 저장 이력을 날짜별 snapshot으로 본다')}</p>
             </div>
             <div className="metaPill">{payload.carts.length} {t('admin.users.detail.history.carts', 'carts')}</div>
@@ -236,7 +236,7 @@ export default function UserDetailPage() {
               <table className="dataTable">
                 <thead>
                   <tr>
-                    <th>{t('admin.users.detail.history.table.savedDate', 'Saved Date')}</th>
+                    <th>{t('admin.users.detail.history.table.savedDate', '저장일')}</th>
                     <th>{t('admin.users.detail.history.table.snapshot', 'Snapshot')}</th>
                     <th>{t('admin.users.detail.history.table.items', 'Items')}</th>
                     <th>{t('admin.users.detail.history.table.total', 'Total')}</th>
@@ -249,7 +249,7 @@ export default function UserDetailPage() {
                     const preview = cart.items.slice(0, 3).map((item) => item.name).join(' · ')
                     return (
                       <tr key={cart.id}>
-                        <td data-label={t('admin.users.detail.history.table.savedDate', 'Saved Date')}>
+                        <td data-label={t('admin.users.detail.history.table.savedDate', '저장일')}>
                           <div style={{ fontWeight: 700 }}>{cart.savedDate || '-'}</div>
                           <div className="tableSubtle">{formatDate(cart.createdAt)}</div>
                         </td>

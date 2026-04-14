@@ -20,6 +20,7 @@ class HomeTabView extends StatelessWidget {
   final List<RecentScanEntry> recentScans;
   final void Function(RecognizedItem item) onRecognized;
   final void Function(RecognizedItem item) onAdd;
+  final void Function(RecognizedItem item) onDismissRecognized;
   final void Function(RecentScanEntry entry) onAddRecentScan;
   final void Function(RecentScanEntry entry) onDismissRecentScan;
   final void Function(CartItem item) onRemove;
@@ -32,6 +33,7 @@ class HomeTabView extends StatelessWidget {
     required this.recentScans,
     required this.onRecognized,
     required this.onAdd,
+    required this.onDismissRecognized,
     required this.onAddRecentScan,
     required this.onDismissRecentScan,
     required this.onRemove,
@@ -77,6 +79,7 @@ class HomeTabView extends StatelessWidget {
           cameras: cameras,
           scanRepository: scanRepository,
           onRecognized: onRecognized,
+          onDismissRecognized: onDismissRecognized,
           onAdd: (item) {
             onAdd(item);
             ScaffoldMessenger.of(context).showSnackBar(
@@ -98,11 +101,11 @@ class HomeTabView extends StatelessWidget {
         if (recentScans.isNotEmpty) ...[
           const SizedBox(height: 20),
           SectionHeader(
-            title: AppRuntimeCopy.text(['home', 'recentScanTitle'], '최근 스캔'),
+            title: AppRuntimeCopy.text(['home', 'recentScanTitle'], '스캔 보관함'),
             subtitle: AppRuntimeCopy.text([
               'home',
               'recentScanSubtitle',
-            ], '등록하거나 지울 항목을 정리해'),
+            ], '검토 대기 결과를 한 번에 정리해'),
           ),
           const SizedBox(height: 10),
           RecentScanCarousel(
@@ -134,4 +137,3 @@ class HomeTabView extends StatelessWidget {
     );
   }
 }
-

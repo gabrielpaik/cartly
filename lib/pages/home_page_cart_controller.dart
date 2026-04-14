@@ -14,7 +14,7 @@ class HomePageCartController {
     required void Function(VoidCallback fn) setState,
   }) : _setState = setState;
 
-  void addRecognizedItem(RecognizedItem item) {
+  void addRecognizedItem(RecognizedItem item, {String? recentScanEntryId}) {
     _setState(() {
       items.insert(
         0,
@@ -25,23 +25,30 @@ class HomePageCartController {
           scanJobId: item.scanJobId,
         ),
       );
-      recentScans.removeWhere(
-        (entry) =>
-            entry.item.name == item.name &&
-            entry.item.price == item.price &&
-            (entry.item.sku ?? '').trim() == (item.sku ?? '').trim(),
-      );
+      final resolvedEntryId =
+          recentScanEntryId ?? _recentScanEntryIdForItem(item);
+      if (resolvedEntryId != null) {
+        recentScans.removeWhere((entry) => entry.id == resolvedEntryId);
+      }
     });
   }
 
   void dismissRecentScan(RecentScanEntry entry) {
     _setState(() {
-      recentScans.remove(entry);
+      recentScans.removeWhere((item) => item.id == entry.id);
+    });
+  }
+
+  void dismissRecognizedItem(RecognizedItem item) {
+    final entryId = _recentScanEntryIdForItem(item);
+    if (entryId == null) return;
+    _setState(() {
+      recentScans.removeWhere((entry) => entry.id == entryId);
     });
   }
 
   void addRecentScanToCart(RecentScanEntry entry) {
-    addRecognizedItem(entry.item);
+    addRecognizedItem(entry.item, recentScanEntryId: entry.id);
   }
 
   void removeCartItem(CartItem item) {
@@ -55,14 +62,27 @@ class HomePageCartController {
   }
 
   void recordRecentScan(RecognizedItem item) {
+    final now = DateTime.now();
+    final entryId =
+        _recentScanEntryIdForItem(item) ?? '${now.microsecondsSinceEpoch}';
+
     _setState(() {
+      recentScans.removeWhere((entry) => entry.id == entryId);
       recentScans.insert(
         0,
-        RecentScanEntry(item: item, createdAt: DateTime.now()),
+        RecentScanEntry(id: entryId, item: item, createdAt: now),
       );
       if (recentScans.length > 10) {
         recentScans.removeRange(10, recentScans.length);
       }
     });
+  }
+
+  String? _recentScanEntryIdForItem(RecognizedItem item) {
+    final scanJobId = item.scanJobId?.trim();
+    if (scanJobId == null || scanJobId.isEmpty) {
+      return null;
+    }
+    return scanJobId;
   }
 }

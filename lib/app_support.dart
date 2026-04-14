@@ -23,8 +23,13 @@ class CartItem {
 }
 
 class RecentScanEntry {
+  final String id;
   final RecognizedItem item;
   final DateTime createdAt;
 
-  const RecentScanEntry({required this.item, required this.createdAt});
+  const RecentScanEntry({
+    required this.id,
+    required this.item,
+    required this.createdAt,
+  });
 }

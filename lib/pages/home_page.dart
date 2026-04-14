@@ -91,6 +91,7 @@ class _HomePageState extends State<HomePage> {
           recentScans: recentScans,
           onRecognized: _cartController.recordRecentScan,
           onAdd: _cartController.addRecognizedItem,
+          onDismissRecognized: _cartController.dismissRecognizedItem,
           onAddRecentScan: _cartController.addRecentScanToCart,
           onDismissRecentScan: _cartController.dismissRecentScan,
           onRemove: _cartController.removeCartItem,

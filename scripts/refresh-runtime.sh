@@ -154,6 +154,11 @@ if [[ "$SKIP_ADMIN_BUILD" != "1" ]]; then
   )
 fi
 
+if ! "$REPO_ROOT/scripts/ensure-nas-mount.sh"; then
+  echo "[preflight] NAS mount is unavailable, refresh aborted before stopping runtime"
+  exit 1
+fi
+
 stop_listener 3000 admin-web
 stop_listener 8011 backend
 stop_process_match "worker_daemon.py" worker

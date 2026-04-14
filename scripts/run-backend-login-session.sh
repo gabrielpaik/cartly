@@ -29,5 +29,11 @@ if lsof -iTCP:8011 -sTCP:LISTEN >/dev/null 2>&1; then
   exit 0
 fi
 
+if ! "$REPO_ROOT/scripts/ensure-nas-mount.sh"; then
+  echo "[Cartly] backend launch aborted because NAS storage is unavailable"
+  echo "[Cartly] expected storage root: ${CARTLY_STORAGE_ROOT:-${STORAGE_ROOT:-/Volumes/AI/WIMC}}"
+  exit 1
+fi
+
 echo "[Cartly] starting backend in login-session context"
 exec "$REPO_ROOT/backend/.venv/bin/uvicorn" backend.app.main:app --host 127.0.0.1 --port 8011

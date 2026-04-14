@@ -27,5 +27,11 @@ if pgrep -f 'backend/worker_daemon.py' >/dev/null 2>&1; then
   exit 0
 fi
 
+if ! "$REPO_ROOT/scripts/ensure-nas-mount.sh"; then
+  echo "[Cartly] worker launch aborted because NAS storage is unavailable"
+  echo "[Cartly] expected storage root: ${CARTLY_STORAGE_ROOT:-${STORAGE_ROOT:-/Volumes/AI/WIMC}}"
+  exit 1
+fi
+
 echo "[Cartly] starting worker daemon in login-session context"
 exec "$REPO_ROOT/backend/.venv/bin/python" "$REPO_ROOT/backend/worker_daemon.py"

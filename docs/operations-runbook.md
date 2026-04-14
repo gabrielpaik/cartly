@@ -35,7 +35,9 @@
    - `/Users/sdpaik/dev/wimc/scripts/Cartly Backend.command`
 3. That command launches:
    - `/Users/sdpaik/dev/wimc/scripts/run-backend-login-session.sh`
-4. Script starts uvicorn only if port `8011` is not already listening
+4. Launcher first tries to restore the NAS mount via:
+   - `/Users/sdpaik/dev/wimc/scripts/ensure-nas-mount.sh`
+5. Script starts uvicorn only if port `8011` is not already listening
 
 ### Expected result
 - Backend listens on `127.0.0.1:8011`
@@ -172,8 +174,9 @@ Interpretation:
 Immediate actions:
 1. Check `/health`
 2. Confirm `storageWritable`
-3. Re-run `Cartly Backend.command` from Terminal
-4. Retry a scan job
+3. Confirm `/Volumes/AI` is mounted, or run `/Users/sdpaik/dev/wimc/scripts/ensure-nas-mount.sh`
+4. Re-run `Cartly Backend.command` from Terminal
+5. Retry a scan job
 
 ### Symptom: Login Item ran but backend is not listening
 Immediate actions:
@@ -202,6 +205,8 @@ Immediate action:
   - `/Users/sdpaik/dev/wimc/scripts/Cartly Backend.command`
 - Full runtime refresh entrypoint:
   - `/Users/sdpaik/dev/wimc/scripts/Cartly Runtime Refresh.command`
+- NAS mount preflight helper:
+  - `/Users/sdpaik/dev/wimc/scripts/ensure-nas-mount.sh`
 - Login-session runtime log:
   - `/Users/sdpaik/Library/Logs/Cartly/backend-login-session.log`
 - Admin web runtime log:

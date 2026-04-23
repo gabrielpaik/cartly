@@ -130,10 +130,6 @@ def launch(script: Path) -> subprocess.Popen:
     )
 
 
-def proc_alive(proc: Optional[subprocess.Popen]) -> bool:
-    return proc is not None and proc.poll() is None
-
-
 def reap(label: str, proc: Optional[subprocess.Popen]) -> Optional[subprocess.Popen]:
     if proc is None:
         return None
@@ -146,7 +142,7 @@ def reap(label: str, proc: Optional[subprocess.Popen]) -> Optional[subprocess.Po
 
 def ensure_backend() -> None:
     global backend_proc
-    if proc_alive(backend_proc) or port_listening(8011) or has_live_process('run-backend-once-login-session.sh'):
+    if port_listening(8011) or has_live_process('run-backend-once-login-session.sh'):
         return
     if not ensure_nas_ready():
         log('[supervisor] backend restart skipped because NAS mount is unavailable')
@@ -157,7 +153,7 @@ def ensure_backend() -> None:
 
 def ensure_worker() -> None:
     global worker_proc
-    if proc_alive(worker_proc) or has_live_process('backend/worker_daemon.py') or has_live_process('run-worker-login-session.sh'):
+    if has_live_process('backend/worker_daemon.py') or has_live_process('run-worker-login-session.sh'):
         return
     if not ensure_nas_ready():
         log('[supervisor] worker restart skipped because NAS mount is unavailable')

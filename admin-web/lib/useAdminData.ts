@@ -12,6 +12,7 @@ const CACHE_PREFIX = 'wimc_admin_cache:'
 type CacheRecord<T> = {
   data: T
   usingFallback: boolean
+  fallbackMessage?: string | null
   fetchedAt: number
 }
 
@@ -79,6 +80,7 @@ export function useAdminData<T>(path: string, fallback: T) {
   const [usingFallback, setUsingFallback] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [fallbackMessage, setFallbackMessage] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -88,9 +90,11 @@ export function useAdminData<T>(path: string, fallback: T) {
       const fetchedAt = Date.now()
       setData(res.data)
       setUsingFallback(res.usingFallback)
+      setFallbackMessage(res.fallbackMessage)
       writeCache(storageKey, {
         data: res.data,
         usingFallback: res.usingFallback,
+        fallbackMessage: res.fallbackMessage,
         fetchedAt,
       })
     } catch (err) {
@@ -112,6 +116,7 @@ export function useAdminData<T>(path: string, fallback: T) {
     if (cached) {
       setData(cached.data)
       setUsingFallback(cached.usingFallback)
+      setFallbackMessage(cached.fallbackMessage ?? null)
     }
 
     const shouldRefresh =
@@ -125,5 +130,5 @@ export function useAdminData<T>(path: string, fallback: T) {
     setLoading(false)
   }, [load, storageKey])
 
-  return { data, usingFallback, loading, error, reload: load }
+  return { data, usingFallback, fallbackMessage, loading, error, reload: load }
 }

@@ -63,6 +63,13 @@ export default function ConfigPage() {
       />
 
       {res.error ? <div className="loginError" style={{ marginBottom: 16 }}>{res.error}</div> : null}
+      {res.usingFallback ? (
+        <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
+          <strong>{t('admin.config.warning.fallbackTitle', 'Live config unavailable.')}</strong>{' '}
+          {t('admin.config.warning.fallbackBody', '지금 보이는 설정은 fallback/mock data일 수 있어서 실제 runtime 상태와 다를 수 있어요.')}
+          {res.fallbackMessage ? ` (${res.fallbackMessage})` : ''}
+        </div>
+      ) : null}
 
       <div className="kpiGrid">
         <StatCard label={t('admin.config.kpi.remoteScan', 'Remote Scan')} value={cfg.remoteScan ? t('admin.common.on', 'ON') : t('admin.common.off', 'OFF')} />

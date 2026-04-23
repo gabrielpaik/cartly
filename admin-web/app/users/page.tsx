@@ -76,6 +76,13 @@ export default function UsersPage() {
 
       {error ? <div className="loginError" style={{ marginBottom: 16 }}>{error}</div> : null}
       {actionMessage ? <div className="saveMessage" style={{ marginBottom: 16 }}>{actionMessage}</div> : null}
+      {usingFallback ? (
+        <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
+          <strong>{t('admin.users.warning.fallbackTitle', 'Live user data unavailable.')}</strong>{' '}
+          {t('admin.users.warning.fallbackBody', '지금 목록은 fallback/mock data일 수 있어서 archive 같은 운영 액션을 잠깐 막아두고 있어요.')}
+          {usersRes.fallbackMessage ? ` (${usersRes.fallbackMessage})` : legacyGuestsRes.fallbackMessage ? ` (${legacyGuestsRes.fallbackMessage})` : ''}
+        </div>
+      ) : null}
 
       <div className="section sectionGrid twoCol">
         <div className="card">
@@ -105,7 +112,7 @@ export default function UsersPage() {
                       <td>{u.cartCount ?? u.savedCartCount ?? '-'}</td>
                       <td>{u.lastSeenAt ?? u.lastActiveAt ?? '-'}</td>
                       <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button className="ghostBtn" disabled={busyLegacyId === u.id} onClick={() => void archiveLegacyGuest(String(u.id))}>
+                        <button className="ghostBtn" disabled={usingFallback || busyLegacyId === u.id} onClick={() => void archiveLegacyGuest(String(u.id))}>
                           {busyLegacyId === u.id ? t('admin.users.legacy.archiving', '처리 중...') : t('admin.users.legacy.archive', 'Archive')}
                         </button>
                         <Link className="ghostBtn" href={`/users/${u.id}`}>{t('admin.users.legacy.merge', 'Merge 판단')}</Link>

@@ -471,7 +471,7 @@ export const mockConfig = {
     failed: '/Volumes/AI/Cartly/failed/2026-03-24',
   },
   storageErrors: [],
-  backendRunMode: 'terminal-login-session',
+  backendRunMode: 'terminal-login-session-supervised',
   runtimeAssetsRoot: '~/Library/Application Support/WIMC/assets',
   runtimeAssetsRootDisplay: '~/Library/Application Support/Cartly/assets',
   runtimeAssetsRootActual: '~/Library/Application Support/WIMC/assets',

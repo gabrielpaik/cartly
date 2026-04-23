@@ -159,19 +159,21 @@ if ! "$REPO_ROOT/scripts/ensure-nas-mount.sh"; then
   exit 1
 fi
 
+stop_process_match "runtime_supervisor.py" runtime-supervisor
+stop_process_match "run-runtime-supervisor-login-session.sh" runtime-supervisor-shell
+stop_process_match "run-backend-once-login-session.sh" backend-launcher
+stop_process_match "run-worker-login-session.sh" worker-launcher
 stop_listener 3000 admin-web
 stop_listener 8011 backend
 stop_process_match "worker_daemon.py" worker
 
-echo "[backend] starting latest process"
+echo "[runtime-supervisor] starting latest process"
 /usr/bin/nohup "$REPO_ROOT/scripts/run-backend-login-session.sh" >/dev/null 2>&1 &
 
 echo "[admin-web] starting latest process"
 /usr/bin/nohup "$REPO_ROOT/scripts/run-admin-web.sh" >/dev/null 2>&1 &
 
-echo "[worker] starting latest process"
-/usr/bin/nohup "$REPO_ROOT/scripts/run-worker-login-session.sh" >/dev/null 2>&1 &
-
+wait_for_process "runtime_supervisor.py" runtime-supervisor 30
 wait_for_http "$BACKEND_URL/health" backend 60
 wait_for_http "$ADMIN_URL/login" admin-web 60
 wait_for_process "worker_daemon.py" worker 30

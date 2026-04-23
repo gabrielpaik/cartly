@@ -273,6 +273,12 @@ def create_receipt_for_saved_cart(
     image_bytes: bytes,
     original_filename: str,
 ) -> Receipt:
+    """Create the receipt record and run analysis inline before returning.
+
+    The current launch contract is effectively synchronous: callers should
+    expect a ready or failed receipt from the create path, not queue-style
+    background completion.
+    """
     image_error = validate_image_bytes(image_bytes)
     if image_error is not None:
         raise ValueError(image_error)

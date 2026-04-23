@@ -69,6 +69,11 @@ class _HomePageState extends State<HomePage> {
         savedCart: savedCart,
         onViewSaved: () => setState(() => _tabIndex = 2),
       );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       if (mounted) {
         setState(() => _savingCurrentCart = false);

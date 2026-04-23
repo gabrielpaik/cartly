@@ -196,6 +196,7 @@ export default function ContentPage() {
   const [form, setForm] = useState<ContentSettings>(mockContentSettings)
   const [saving, setSaving] = useState(false)
   const [usingFallback, setUsingFallback] = useState(true)
+  const [fallbackMessage, setFallbackMessage] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [uploading, setUploading] = useState<'logo' | 'splash' | 'loginHero' | null>(null)
   const [previewScreen, setPreviewScreen] = useState<'home' | 'help' | 'my' | 'login'>('home')
@@ -216,6 +217,7 @@ export default function ContentPage() {
         if (cancelled) return
         setForm(res.data.data)
         setUsingFallback(res.usingFallback)
+        setFallbackMessage(res.fallbackMessage)
       } catch (err) {
         if (isUnauthorizedError(err)) {
           router.replace('/login?reason=expired')
@@ -266,6 +268,11 @@ export default function ContentPage() {
   }, [form, previewScreen, previewMemberMode])
 
   async function onSave() {
+    if (usingFallback) {
+      setMessage(t('admin.content.fallbackActionBlocked', 'fallback/mock 데이터를 보고 있는 동안에는 저장을 막아둘게'))
+      return
+    }
+
     setSaving(true)
     setMessage(null)
     try {
@@ -283,6 +290,11 @@ export default function ContentPage() {
   }
 
   async function onAssetUpload(kind: 'logo' | 'splash' | 'loginHero', file: File) {
+    if (usingFallback) {
+      setMessage(t('admin.content.fallbackUploadBlocked', 'fallback/mock 데이터를 보고 있는 동안에는 자산 업로드도 막아둘게'))
+      return
+    }
+
     setUploading(kind)
     setMessage(null)
     try {
@@ -327,6 +339,14 @@ export default function ContentPage() {
         title={t('admin.content.title', 'Content')}
         description={t('admin.content.desc', '앱 문구와 로고 관리')}
       />
+
+      {usingFallback ? (
+        <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
+          <strong>{t('admin.content.warning.fallbackTitle', 'Live content config unavailable.')}</strong>{' '}
+          {t('admin.content.warning.fallbackBody', '지금 form 값은 fallback/mock data일 수 있어서 저장 액션을 잠깐 막아두고 있어요.')}
+          {fallbackMessage ? ` (${fallbackMessage})` : ''}
+        </div>
+      ) : null}
 
       <div className="section sectionGrid twoCol">
         <div className="sectionGrid">
@@ -384,7 +404,7 @@ export default function ContentPage() {
 
           <div className="card">
             <div className="buttonRow">
-              <button className="primaryBtn" disabled={saving} onClick={() => void onSave()}>
+              <button className="primaryBtn" disabled={saving || usingFallback} onClick={() => void onSave()}>
                 {saving ? t('admin.content.saving', '저장 중...') : t('admin.content.save', '저장')}
               </button>
               {message ? <div className="saveMessage">{message}</div> : null}

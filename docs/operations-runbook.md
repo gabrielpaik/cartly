@@ -6,12 +6,14 @@
 - Runs in a **Terminal login-session context** on the Mac mini
 - Do **not** run the backend as a direct launchd background process
 - Reason: direct launchd backend writes to `/Volumes/AI/Cartly` fail with `PermissionError`, while the same backend launched from the user login session writes successfully
+- Actual login-session entrypoint now starts a lightweight **runtime supervisor** that keeps backend and worker alive inside that same Terminal/login-session context
 
 ### Scan worker
 - Runs as a **Terminal login-session daemon** on the Mac mini
 - Entrypoint: `/Users/sdpaik/dev/wimc/scripts/Cartly Worker.command`
 - Runtime loop: `/Users/sdpaik/dev/wimc/backend/worker_daemon.py`
 - Current purpose: continuously drain queued scan jobs from DB/NAS without requiring manual one-shot worker execution
+- In normal operations, the runtime supervisor also restarts the worker automatically if it dies unexpectedly
 
 ### Admin web
 - Still runs as the existing LaunchAgent (`com.wimc.admin-web.plist`)
@@ -35,12 +37,17 @@
    - `/Users/sdpaik/dev/wimc/scripts/Cartly Backend.command`
 3. That command launches:
    - `/Users/sdpaik/dev/wimc/scripts/run-backend-login-session.sh`
-4. Launcher first tries to restore the NAS mount via:
+4. Backend launcher starts:
+   - `/Users/sdpaik/dev/wimc/scripts/run-runtime-supervisor-login-session.sh`
+5. Supervisor keeps checking backend + worker and restarts either one when missing
+6. Launchers first try to restore the NAS mount via:
    - `/Users/sdpaik/dev/wimc/scripts/ensure-nas-mount.sh`
-5. Script starts uvicorn only if port `8011` is not already listening
+7. Backend child launcher starts uvicorn only if port `8011` is not already listening
 
 ### Expected result
 - Backend listens on `127.0.0.1:8011`
+- Runtime supervisor process stays alive in the login-session context
+- Worker daemon is automatically re-started if it disappears
 - `/health` returns `storageWritable: true`
 - Scan job creation can write directly into `/Volumes/AI/Cartly`
 
@@ -57,7 +64,7 @@ What it does:
 1. rebuilds the admin-web production bundle
 2. optionally rebuilds app-preview when you pass `--with-preview`
 3. stops anything currently listening on `127.0.0.1:3000` and `127.0.0.1:8011`
-4. restarts backend + admin-web from the repo scripts
+4. stops and restarts the runtime supervisor + admin-web from the repo scripts
 5. runs a small smoke check for `/health`, `/v1/app-config`, and critical admin API paths
 
 ### Optional preview refresh
@@ -87,6 +94,11 @@ Healthy expected fields:
 pgrep -fal 'uvicorn backend.app.main:app --host 127.0.0.1 --port 8011'
 ```
 
+### 2-b) Supervisor check
+```bash
+pgrep -fal 'runtime_supervisor.py'
+```
+
 ### 3) Quick scan write proof
 ```bash
 printf 'fake-image' >/tmp/wimc-check.jpg
@@ -110,6 +122,8 @@ If backend is unhealthy or missing after login:
 ```bash
 <repo>/scripts/Cartly\ Backend.command
 ```
+
+This now restores the login-session runtime supervisor, which in turn restores backend + worker.
 
 ### Stop backend manually
 ```bash
@@ -201,6 +215,10 @@ Immediate action:
 ## Local file references
 - Backend login-session runner:
   - `/Users/sdpaik/dev/wimc/scripts/run-backend-login-session.sh`
+- Runtime supervisor:
+  - `/Users/sdpaik/dev/wimc/scripts/run-runtime-supervisor-login-session.sh`
+- Backend child launcher:
+  - `/Users/sdpaik/dev/wimc/scripts/run-backend-once-login-session.sh`
 - Terminal entrypoint:
   - `/Users/sdpaik/dev/wimc/scripts/Cartly Backend.command`
 - Full runtime refresh entrypoint:
@@ -209,6 +227,8 @@ Immediate action:
   - `/Users/sdpaik/dev/wimc/scripts/ensure-nas-mount.sh`
 - Login-session runtime log:
   - `/Users/sdpaik/Library/Logs/Cartly/backend-login-session.log`
+- Runtime supervisor log:
+  - `/Users/sdpaik/Library/Logs/Cartly/runtime-supervisor.log`
 - Admin web runtime log:
   - `/Users/sdpaik/Library/Logs/Cartly/admin-web.log`
 - Runtime refresh log:

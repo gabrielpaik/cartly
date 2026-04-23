@@ -70,25 +70,16 @@ class CartStore {
 
     final currentSession = AuthStore.instance.session.value;
     if (currentSession != null && currentSession.authToken.trim().isNotEmpty) {
-      try {
-        final created = await _remoteRepository.createCart(
-          authToken: currentSession.authToken,
-          cart: localCart,
-        );
-        final next = [
-          created,
-          ...carts.value.where((cart) => cart.id != created.id),
-        ];
-        await _persistLocal(next, ownerId: currentSession.id);
-        return created;
-      } catch (_) {
-        final next = [
-          localCart,
-          ...carts.value.where((cart) => cart.id != localCart.id),
-        ];
-        await _persistLocal(next, ownerId: currentSession.id);
-        return localCart;
-      }
+      final created = await _remoteRepository.createCart(
+        authToken: currentSession.authToken,
+        cart: localCart,
+      );
+      final next = [
+        created,
+        ...carts.value.where((cart) => cart.id != created.id),
+      ];
+      await _persistLocal(next, ownerId: currentSession.id);
+      return created;
     }
 
     final next = [
@@ -102,30 +93,18 @@ class CartStore {
   Future<SavedCart> updateCart(SavedCart updated) async {
     final currentSession = AuthStore.instance.session.value;
     if (currentSession != null && currentSession.authToken.trim().isNotEmpty) {
-      try {
-        final remote = await _remoteRepository.updateCart(
-          authToken: currentSession.authToken,
-          cart: updated,
-        );
-        final next = [
-          remote,
-          ...carts.value.where(
-            (cart) => cart.id != updated.id && cart.id != remote.id,
-          ),
-        ];
-        await _persistLocal(next, ownerId: currentSession.id);
-        return remote;
-      } catch (_) {
-        final localSnapshot = SavedCart(
-          id: DateTime.now().microsecondsSinceEpoch.toString(),
-          title: updated.title,
-          createdAt: DateTime.now(),
-          items: updated.items,
-        );
-        final next = [localSnapshot, ...carts.value];
-        await _persistLocal(next, ownerId: currentSession.id);
-        return localSnapshot;
-      }
+      final remote = await _remoteRepository.updateCart(
+        authToken: currentSession.authToken,
+        cart: updated,
+      );
+      final next = [
+        remote,
+        ...carts.value.where(
+          (cart) => cart.id != updated.id && cart.id != remote.id,
+        ),
+      ];
+      await _persistLocal(next, ownerId: currentSession.id);
+      return remote;
     }
 
     final localSnapshot = SavedCart(
@@ -142,14 +121,10 @@ class CartStore {
   Future<void> deleteCart(String id) async {
     final currentSession = AuthStore.instance.session.value;
     if (currentSession != null && currentSession.authToken.trim().isNotEmpty) {
-      try {
-        await _remoteRepository.deleteCart(
-          authToken: currentSession.authToken,
-          cartId: id,
-        );
-      } catch (_) {
-        // keep local cache fallback path even if remote delete fails
-      }
+      await _remoteRepository.deleteCart(
+        authToken: currentSession.authToken,
+        cartId: id,
+      );
       final next = carts.value.where((cart) => cart.id != id).toList();
       await _persistLocal(next, ownerId: currentSession.id);
       return;

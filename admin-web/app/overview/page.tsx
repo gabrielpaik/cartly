@@ -88,6 +88,7 @@ export default function OverviewPage() {
         if (cancelled) return
         setPeriodData(result.data.data)
         setPeriodUsingFallback(result.usingFallback)
+        setPeriodError(result.usingFallback ? result.fallbackMessage ?? t('admin.overview.period.fallbackWarning', '기간 집계가 live가 아니라 fallback data야') : null)
       } catch (err) {
         if (isUnauthorizedError(err)) {
           router.replace('/login?reason=expired')
@@ -237,6 +238,13 @@ export default function OverviewPage() {
 
       {res.error ? <div className="loginError" style={{ marginBottom: 16 }}>{res.error}</div> : null}
       {refreshMessage ? <div className="saveMessage" style={{ marginBottom: 16 }}>{refreshMessage}</div> : null}
+      {res.usingFallback ? (
+        <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
+          <strong>{t('admin.overview.warning.fallbackTitle', 'Live summary unavailable.')}</strong>{' '}
+          {t('admin.overview.warning.fallbackBody', '지금 보이는 값은 fallback/mock data일 수 있어서 운영 판단 기준으로 쓰면 안 돼요.')}
+          {res.fallbackMessage ? ` (${res.fallbackMessage})` : ''}
+        </div>
+      ) : null}
 
       <div className="metaRow" style={{ marginBottom: 16 }}>
         <div className="metaPill">{t('admin.overview.meta.snapshotDate', '기준일')} {data.snapshotDate ?? '-'}</div>
@@ -295,7 +303,13 @@ export default function OverviewPage() {
             </div>
           </div>
 
-          {periodError ? <div className="loginError" style={{ marginBottom: 16 }}>{periodError}</div> : null}
+          {periodError ? (
+            <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
+              <strong>{t('admin.overview.warning.periodFallbackTitle', 'Period summary fallback active.')}</strong>{' '}
+              {t('admin.overview.warning.periodFallbackBody', '기간 집계도 live 응답이 아니라 fallback/mock data일 수 있어요.')}
+              {` (${periodError})`}
+            </div>
+          ) : null}
 
           <div className="metaRow" style={{ marginBottom: 16 }}>
             <div className="metaPill">{t('admin.overview.period.range', '기간')} {periodData.rangeStart} ~ {periodData.rangeEnd}</div>

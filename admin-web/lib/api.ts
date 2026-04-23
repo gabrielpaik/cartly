@@ -32,15 +32,22 @@ export async function fetchJson<T>(path: string): Promise<T> {
   return res.json()
 }
 
-export async function fetchJsonSafe<T>(path: string, fallback: T): Promise<{ data: T; usingFallback: boolean }> {
+export async function fetchJsonSafe<T>(
+  path: string,
+  fallback: T,
+): Promise<{ data: T; usingFallback: boolean; fallbackMessage: string | null }> {
   try {
     const data = await fetchJson<T>(path)
-    return { data, usingFallback: false }
+    return { data, usingFallback: false, fallbackMessage: null }
   } catch (error) {
     if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
       throw error
     }
-    return { data: fallback, usingFallback: true }
+    return {
+      data: fallback,
+      usingFallback: true,
+      fallbackMessage: error instanceof Error ? error.message : 'Live admin API를 불러오지 못했어',
+    }
   }
 }
 

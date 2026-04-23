@@ -28,7 +28,7 @@ def admin_config(db: OrmSession = Depends(db_dep)):
             'storageWritable': storage['writable'],
             'storagePaths': storage['paths'],
             'storageErrors': storage['errors'],
-            'backendRunMode': 'terminal-login-session',
+            'backendRunMode': 'terminal-login-session-supervised',
             'runtimeAssetsRoot': str(runtime_assets_root()),
             'runtimeAssetsRootDisplay': surface['runtimeAssetsRootDisplay'],
             'runtimeAssetsRootActual': surface['runtimeAssetsRootActual'],

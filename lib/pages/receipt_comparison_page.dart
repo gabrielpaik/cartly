@@ -79,6 +79,25 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
     try {
       final receipt = await _repository.getReceipt(receiptId);
       if (!mounted) return;
+
+      if (receipt.status == 'failed') {
+        setState(() {
+          _receipt = receipt;
+          _state = _ReceiptCompareUiState.error;
+          _errorMessage = receipt.errorMessage ?? '영수증 분석에 실패했어요';
+        });
+        return;
+      }
+
+      if (receipt.status != 'ready') {
+        setState(() {
+          _receipt = receipt;
+          _state = _ReceiptCompareUiState.error;
+          _errorMessage = '영수증 정리가 아직 끝나지 않았어요. 잠시 후 다시 불러와 주세요';
+        });
+        return;
+      }
+
       setState(() {
         _receipt = receipt;
       });
@@ -130,11 +149,31 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
       );
       if (!mounted) return;
 
+      if (receipt.status == 'failed') {
+        setState(() {
+          _receipt = receipt;
+          _receiptId = receipt.id;
+          _state = _ReceiptCompareUiState.error;
+          _errorMessage = receipt.errorMessage ?? '영수증 분석에 실패했어요';
+        });
+        return;
+      }
+
+      if (receipt.status != 'ready') {
+        setState(() {
+          _receipt = receipt;
+          _receiptId = receipt.id;
+          _state = _ReceiptCompareUiState.error;
+          _errorMessage = '영수증 정리가 아직 끝나지 않았어요. 잠시 후 다시 불러와 주세요';
+        });
+        return;
+      }
+
       setState(() {
         _receipt = receipt;
         _receiptId = receipt.id;
         _state = _ReceiptCompareUiState.processing;
-        _progressMessage = '영수증 내용을 정리하는 중';
+        _progressMessage = '영수증 결과를 불러오는 중';
       });
 
       await _loadResult(receipt.id);
@@ -174,30 +213,11 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
     } on RemoteReceiptException catch (error) {
       if (!mounted) return;
 
-      if (error.code == 'RESULT_NOT_READY') {
-        try {
-          final receipt = await _repository.getReceipt(receiptId);
-          if (!mounted) return;
-          setState(() {
-            _receipt = receipt;
-            _receiptId = receipt.id;
-            _state = _ReceiptCompareUiState.processing;
-            _progressMessage = '영수증 내용을 정리하는 중';
-          });
-          return;
-        } on RemoteReceiptException catch (refreshError) {
-          if (!mounted) return;
-          setState(() {
-            _state = _ReceiptCompareUiState.error;
-            _errorMessage = refreshError.message;
-          });
-          return;
-        }
-      }
-
       setState(() {
         _state = _ReceiptCompareUiState.error;
-        _errorMessage = error.message;
+        _errorMessage = error.code == 'RESULT_NOT_READY'
+            ? '영수증 정리가 아직 끝나지 않았어요. 잠시 후 다시 불러와 주세요'
+            : error.message;
       });
     } catch (_) {
       if (!mounted) return;

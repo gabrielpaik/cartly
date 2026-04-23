@@ -145,6 +145,11 @@ class _CartDetailPageState extends State<CartDetailPage> {
           ),
         ),
       );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -199,9 +204,16 @@ class _CartDetailPageState extends State<CartDetailPage> {
 
     if (ok != true) return;
 
-    await CartStore.instance.deleteCart(_cart.id);
-    if (!mounted) return;
-    Navigator.of(context).pop(true);
+    try {
+      await CartStore.instance.deleteCart(_cart.id);
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
   }
 
   void _addItem(String name, int price) {

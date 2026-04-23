@@ -21,12 +21,16 @@ class CartStore {
   final ValueNotifier<List<SavedCart>> carts = ValueNotifier<List<SavedCart>>(
     [],
   );
+  final ValueNotifier<Set<String>> pendingCartIds = ValueNotifier<Set<String>>(
+    <String>{},
+  );
 
   Future<void> load() async {
     final local = await _readLocalState();
     final currentSession = AuthStore.instance.session.value;
 
     if (currentSession == null || currentSession.authToken.trim().isEmpty) {
+      pendingCartIds.value = <String>{};
       carts.value = local.ownerId.isEmpty ? local.carts : const [];
       return;
     }
@@ -54,15 +58,20 @@ class CartStore {
         ownerId: currentSession.id,
       );
       remoteCarts = await _remoteRepository.listCarts(currentSession.authToken);
-      final effectiveCarts = applyPendingCartOps(
-        remoteCarts,
-        remainingPending.where((op) => op.ownerId == currentSession.id).toList(),
-      );
+      final ownerPending = remainingPending
+          .where((op) => op.ownerId == currentSession.id)
+          .toList();
+      final effectiveCarts = applyPendingCartOps(remoteCarts, ownerPending);
 
+      _updatePendingCartIds(ownerPending);
       await _persistLocal(effectiveCarts, ownerId: currentSession.id);
       carts.value = List.unmodifiable(_sort(effectiveCarts));
     } catch (_) {
       if (local.ownerId.isEmpty || local.ownerId == currentSession.id) {
+        final pending = await _readPendingOps();
+        _updatePendingCartIds(
+          pending.where((op) => op.ownerId == currentSession.id).toList(),
+        );
         carts.value = List.unmodifiable(_sort(local.carts));
         return;
       }
@@ -265,6 +274,14 @@ class CartStore {
     final sp = await SharedPreferences.getInstance();
     final encoded = jsonEncode(ops.map((op) => op.toJson()).toList());
     await sp.setString(_pendingOpKey, encoded);
+    final ownerId = AuthStore.instance.session.value?.id;
+    if (ownerId != null && ownerId.isNotEmpty) {
+      _updatePendingCartIds(
+        ops.where((op) => op.ownerId == ownerId).toList(),
+      );
+    } else {
+      pendingCartIds.value = <String>{};
+    }
   }
 
   Future<void> _upsertPendingOp(PendingCartOp op) async {
@@ -338,6 +355,10 @@ class CartStore {
     await sp.setString(_key, encoded);
     await sp.setString(_ownerKey, ownerId);
     carts.value = List.unmodifiable(sorted);
+  }
+
+  void _updatePendingCartIds(List<PendingCartOp> ops) {
+    pendingCartIds.value = ops.map((op) => op.cartId).toSet();
   }
 
   List<SavedCart> _sort(List<SavedCart> input) {

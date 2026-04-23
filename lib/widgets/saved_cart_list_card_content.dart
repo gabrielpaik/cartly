@@ -10,6 +10,7 @@ class SavedCartListCardContent extends StatelessWidget {
   final String title;
   final String preview;
   final String? expiryText;
+  final String? statusText;
 
   const SavedCartListCardContent({
     super.key,
@@ -18,6 +19,7 @@ class SavedCartListCardContent extends StatelessWidget {
     required this.title,
     required this.preview,
     required this.expiryText,
+    required this.statusText,
   });
 
   @override
@@ -70,6 +72,19 @@ class SavedCartListCardContent extends StatelessWidget {
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: cart.isExpired ? const Color(0xFFE31837) : Colors.black45,
+            ),
+          ),
+        ],
+        if (statusText != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            statusText!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFFB45309),
             ),
           ),
         ],

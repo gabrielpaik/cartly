@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/saved_cart.dart';
+import '../services/cart_store.dart';
 import 'saved_cart_list_card_content.dart';
 
 class SavedCartListCard extends StatelessWidget {
@@ -39,12 +40,21 @@ class SavedCartListCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: SavedCartListCardContent(
-                cart: cart,
-                dateText: dateText,
-                title: title,
-                preview: preview,
-                expiryText: expiryText,
+              child: ValueListenableBuilder<Set<String>>(
+                valueListenable: CartStore.instance.pendingCartIds,
+                builder: (context, pendingCartIds, _) {
+                  final statusText = pendingCartIds.contains(cart.id)
+                      ? '서버 동기화 대기 중'
+                      : null;
+                  return SavedCartListCardContent(
+                    cart: cart,
+                    dateText: dateText,
+                    title: title,
+                    preview: preview,
+                    expiryText: expiryText,
+                    statusText: statusText,
+                  );
+                },
               ),
             ),
             const Icon(Icons.chevron_right),

@@ -11,6 +11,17 @@ SavedCart _cart({required String id, required int day}) => SavedCart(
 
 void main() {
   group('cart_sync_pending_ops', () {
+    test('PendingCartOp JSON round-trip preserves create payload', () {
+      final op = PendingCartOp.create(ownerId: 'user-1', cart: _cart(id: 'c1', day: 10));
+
+      final decoded = PendingCartOp.fromJson(op.toJson());
+
+      expect(decoded.kind, PendingCartOpKind.create);
+      expect(decoded.ownerId, 'user-1');
+      expect(decoded.cartId, 'c1');
+      expect(decoded.cartJson?['title'], 'cart-c1');
+    });
+
     test('PendingCartOp JSON round-trip preserves update payload', () {
       final op = PendingCartOp.update(ownerId: 'user-1', cart: _cart(id: 'c1', day: 10));
 
@@ -20,6 +31,24 @@ void main() {
       expect(decoded.ownerId, 'user-1');
       expect(decoded.cartId, 'c1');
       expect(decoded.cartJson?['title'], 'cart-c1');
+    });
+
+    test('applyPendingCartOps overlays pending create onto remote carts', () {
+      final remote = [_cart(id: 'c1', day: 1)];
+      final created = SavedCart(
+        id: 'temp-1',
+        title: 'created-local',
+        createdAt: DateTime(2026, 4, 21),
+        items: [SavedCartItem(name: 'temp-item', price: 3000, quantity: 1)],
+      );
+
+      final result = applyPendingCartOps(
+        remote,
+        [PendingCartOp.create(ownerId: 'user-1', cart: created)],
+      );
+
+      expect(result.map((cart) => cart.id), ['temp-1', 'c1']);
+      expect(result.first.title, 'created-local');
     });
 
     test('applyPendingCartOps overlays pending update onto remote carts', () {

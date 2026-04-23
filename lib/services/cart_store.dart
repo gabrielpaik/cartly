@@ -92,16 +92,30 @@ class CartStore {
 
     final currentSession = AuthStore.instance.session.value;
     if (currentSession != null && currentSession.authToken.trim().isNotEmpty) {
-      final created = await _remoteRepository.createCart(
-        authToken: currentSession.authToken,
-        cart: localCart,
-      );
-      final next = [
-        created,
-        ...carts.value.where((cart) => cart.id != created.id),
-      ];
-      await _persistLocal(next, ownerId: currentSession.id);
-      return created;
+      try {
+        final created = await _remoteRepository.createCart(
+          authToken: currentSession.authToken,
+          cart: localCart,
+        );
+        final next = [
+          created,
+          ...carts.value.where((cart) => cart.id != created.id),
+        ];
+        await _persistLocal(next, ownerId: currentSession.id);
+        return created;
+      } on RemoteCartException {
+        final next = [
+          localCart,
+          ...carts.value.where((cart) => cart.id != localCart.id),
+        ];
+        await _persistLocal(next, ownerId: currentSession.id);
+        await _upsertPendingOp(
+          PendingCartOp.create(ownerId: currentSession.id, cart: localCart),
+        );
+        throw const RemoteCartException(
+          '저장은 로컬에 반영했고, 서버 생성은 다시 시도할게',
+        );
+      }
     }
 
     final next = [
@@ -138,8 +152,14 @@ class CartStore {
           ...carts.value.where((cart) => cart.id != updated.id),
         ];
         await _persistLocal(next, ownerId: currentSession.id);
+        final existingPending = await _getPendingOpForCart(
+          ownerId: currentSession.id,
+          cartId: updated.id,
+        );
         await _upsertPendingOp(
-          PendingCartOp.update(ownerId: currentSession.id, cart: updated),
+          existingPending?.kind == PendingCartOpKind.create
+              ? PendingCartOp.create(ownerId: currentSession.id, cart: updated)
+              : PendingCartOp.update(ownerId: currentSession.id, cart: updated),
         );
         throw const RemoteCartException(
           '저장은 로컬에 반영했고, 서버 동기화는 다시 시도할게',
@@ -173,6 +193,14 @@ class CartStore {
       } on RemoteCartException {
         final next = carts.value.where((cart) => cart.id != id).toList();
         await _persistLocal(next, ownerId: currentSession.id);
+        final existingPending = await _getPendingOpForCart(
+          ownerId: currentSession.id,
+          cartId: id,
+        );
+        if (existingPending?.kind == PendingCartOpKind.create) {
+          await _clearPendingOp(ownerId: currentSession.id, cartId: id);
+          return;
+        }
         await _upsertPendingOp(
           PendingCartOp.delete(ownerId: currentSession.id, cartId: id),
         );
@@ -294,6 +322,19 @@ class CartStore {
     await _persistPendingOps(next);
   }
 
+  Future<PendingCartOp?> _getPendingOpForCart({
+    required String ownerId,
+    required String cartId,
+  }) async {
+    final ops = await _readPendingOps();
+    for (final op in ops) {
+      if (op.ownerId == ownerId && op.cartId == cartId) {
+        return op;
+      }
+    }
+    return null;
+  }
+
   Future<void> _clearPendingOp({
     required String ownerId,
     required String cartId,
@@ -321,6 +362,15 @@ class CartStore {
 
       try {
         switch (op.kind) {
+          case PendingCartOpKind.create:
+            final cartJson = op.cartJson;
+            if (cartJson == null) {
+              continue;
+            }
+            await _remoteRepository.createCart(
+              authToken: authToken,
+              cart: SavedCart.fromJson(cartJson),
+            );
           case PendingCartOpKind.update:
             final cartJson = op.cartJson;
             if (cartJson == null) {

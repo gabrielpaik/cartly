@@ -1,6 +1,6 @@
 import '../models/saved_cart.dart';
 
-enum PendingCartOpKind { update, delete }
+enum PendingCartOpKind { create, update, delete }
 
 class PendingCartOp {
   final PendingCartOpKind kind;
@@ -14,6 +14,16 @@ class PendingCartOp {
     required this.cartId,
     required this.cartJson,
   });
+
+  factory PendingCartOp.create({
+    required String ownerId,
+    required SavedCart cart,
+  }) => PendingCartOp(
+    kind: PendingCartOpKind.create,
+    ownerId: ownerId,
+    cartId: cart.id,
+    cartJson: cart.toJson(),
+  );
 
   factory PendingCartOp.update({
     required String ownerId,
@@ -44,9 +54,11 @@ class PendingCartOp {
 
   static PendingCartOp fromJson(Map<String, dynamic> json) {
     final kindName = (json['kind'] ?? 'update') as String;
-    final kind = kindName == PendingCartOpKind.delete.name
-        ? PendingCartOpKind.delete
-        : PendingCartOpKind.update;
+    final kind = switch (kindName) {
+      'create' => PendingCartOpKind.create,
+      'delete' => PendingCartOpKind.delete,
+      _ => PendingCartOpKind.update,
+    };
     return PendingCartOp(
       kind: kind,
       ownerId: (json['ownerId'] ?? '') as String,
@@ -68,6 +80,7 @@ List<SavedCart> applyPendingCartOps(
 
   for (final op in ops) {
     switch (op.kind) {
+      case PendingCartOpKind.create:
       case PendingCartOpKind.update:
         final cartJson = op.cartJson;
         if (cartJson == null) {

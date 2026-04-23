@@ -13,6 +13,16 @@ SavedCart cloneSavedCartSnapshot(SavedCart source) {
     isExpired: source.isExpired,
     retentionExtensionCount: source.retentionExtensionCount,
     canExtendRetention: source.canExtendRetention,
+    receiptStatus: source.receiptStatus == null
+        ? null
+        : SavedCartReceiptStatus(
+            receiptId: source.receiptStatus!.receiptId,
+            receiptStatus: source.receiptStatus!.receiptStatus,
+            merchantName: source.receiptStatus!.merchantName,
+            hasReceipt: source.receiptStatus!.hasReceipt,
+            updatedAt: source.receiptStatus!.updatedAt,
+            completedAt: source.receiptStatus!.completedAt,
+          ),
     items: source.items
         .map(
           (item) => SavedCartItem(

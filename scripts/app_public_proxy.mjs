@@ -4,11 +4,12 @@ const port = Number(process.env.APP_PUBLIC_PROXY_PORT || '3100')
 const host = process.env.APP_PUBLIC_PROXY_HOST || '127.0.0.1'
 const backendBase = (process.env.APP_PUBLIC_PROXY_BACKEND_BASE || process.env.CARTLY_API_BASE || process.env.CARTLY_API_BASE || 'http://127.0.0.1:8011').replace(/\/$/, '')
 
-const allowedExact = new Set(['/v1/app-config', '/v1/carts', '/health'])
+const allowedExact = new Set(['/v1/app-config', '/v1/carts', '/v1/receipts', '/health'])
 const allowedPrefixes = [
   '/v1/auth/',
   '/v1/scan/',
   '/v1/carts/',
+  '/v1/receipts/',
   '/v1/events/',
   '/v1/ads/',
   '/assets/branding/',

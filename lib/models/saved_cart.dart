@@ -1,3 +1,41 @@
+class SavedCartReceiptStatus {
+  final String receiptId;
+  final String receiptStatus;
+  final String? merchantName;
+  final bool hasReceipt;
+  final DateTime? updatedAt;
+  final DateTime? completedAt;
+
+  const SavedCartReceiptStatus({
+    required this.receiptId,
+    required this.receiptStatus,
+    required this.merchantName,
+    required this.hasReceipt,
+    required this.updatedAt,
+    required this.completedAt,
+  });
+
+  bool get isReady => receiptStatus == 'ready';
+
+  Map<String, dynamic> toJson() => {
+    'receiptId': receiptId,
+    'receiptStatus': receiptStatus,
+    'merchantName': merchantName,
+    'hasReceipt': hasReceipt,
+    'updatedAt': updatedAt?.toIso8601String(),
+    'completedAt': completedAt?.toIso8601String(),
+  };
+
+  static SavedCartReceiptStatus fromJson(Map<String, dynamic> json) => SavedCartReceiptStatus(
+    receiptId: (json['receiptId'] ?? '') as String,
+    receiptStatus: (json['receiptStatus'] ?? 'processing') as String,
+    merchantName: json['merchantName'] as String?,
+    hasReceipt: json['hasReceipt'] != false,
+    updatedAt: DateTime.tryParse((json['updatedAt'] ?? '') as String),
+    completedAt: DateTime.tryParse((json['completedAt'] ?? '') as String),
+  );
+}
+
 class SavedCartItem {
   String name;
   int price;
@@ -41,6 +79,7 @@ class SavedCart {
   bool isExpired;
   int retentionExtensionCount;
   bool canExtendRetention;
+  SavedCartReceiptStatus? receiptStatus;
 
   SavedCart({
     required this.id,
@@ -51,6 +90,7 @@ class SavedCart {
     this.isExpired = false,
     this.retentionExtensionCount = 0,
     this.canExtendRetention = false,
+    this.receiptStatus,
   });
 
   int get totalPrice => items.fold(0, (sum, it) => sum + it.total);
@@ -64,23 +104,27 @@ class SavedCart {
     'isExpired': isExpired,
     'retentionExtensionCount': retentionExtensionCount,
     'canExtendRetention': canExtendRetention,
+    'receiptStatus': receiptStatus?.toJson(),
     'items': items.map((e) => e.toJson()).toList(),
   };
 
   static SavedCart fromJson(Map<String, dynamic> json) => SavedCart(
-    id: (json['id'] ?? '') as String,
-    title: (json['title'] as String?)?.trim().isEmpty == true
-        ? null
-        : json['title'] as String?,
-    createdAt:
-        DateTime.tryParse((json['createdAt'] ?? '') as String) ??
-        DateTime.now(),
-    expiresAt: DateTime.tryParse((json['expiresAt'] ?? '') as String),
+    id: json['id'] as String,
+    title: json['title'] as String?,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+    expiresAt: json['expiresAt'] != null ? DateTime.tryParse(json['expiresAt'] as String) : null,
     isExpired: json['isExpired'] == true,
     retentionExtensionCount: (json['retentionExtensionCount'] ?? 0) as int,
     canExtendRetention: json['canExtendRetention'] == true,
-    items: ((json['items'] ?? []) as List)
-        .map((e) => SavedCartItem.fromJson(Map<String, dynamic>.from(e)))
-        .toList(),
+    receiptStatus: json['receiptStatus'] is Map<String, dynamic>
+        ? SavedCartReceiptStatus.fromJson(json['receiptStatus'] as Map<String, dynamic>)
+        : json['receiptStatus'] is Map
+        ? SavedCartReceiptStatus.fromJson(Map<String, dynamic>.from(json['receiptStatus'] as Map))
+        : null,
+    items:
+        (json['items'] as List<dynamic>? ?? const [])
+            .map((e) => SavedCartItem.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList(),
   );
 }
+

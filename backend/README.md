@@ -89,6 +89,30 @@ It asks the agent to read the local image path directly and return strict JSON.
 }
 ```
 
+## Receipt analysis pipeline
+Receipt analysis does not reuse the shelf-label parser itself. Instead, it uses the same operating model with a separate receipt-analysis path:
+- receipt image is stored under NAS `storage_root`
+- backend calls `scripts/openclaw_receipt_runner.py`
+- the runner uses `openclaw agent --local --json`
+- returned receipt line items/totals are persisted so the app can show stored detail and final-total comparison against the saved cart
+
+### Preferred receipt-analysis env
+```env
+OPENCLAW_RECEIPT_ANALYSIS_AGENT_ID=<configured-openclaw-agent-id>
+OPENCLAW_RECEIPT_ANALYSIS_TIMEOUT_SECONDS=120
+OPENCLAW_RECEIPT_ANALYSIS_COMMAND=python /Users/sdpaik/dev/wimc/scripts/openclaw_receipt_runner.py --receipt-id {receipt_id} --image-path {image_path}
+```
+
+Compatibility fallbacks still work in this order:
+- `OPENCLAW_RECEIPT_AGENT_ID`
+- `OPENCLAW_SCAN_AGENT_ID`
+
+Legacy command/timeouts also still work:
+- `OPENCLAW_RECEIPT_COMMAND`
+- `OPENCLAW_RECEIPT_TIMEOUT_SECONDS`
+- `OPENCLAW_RECEIPT_SCAN_COMMAND`
+- `OPENCLAW_RECEIPT_SCAN_TIMEOUT_SECONDS`
+
 ## Notes
 - Existing app API contract remains unchanged.
 - Worker still writes output / archive / failed artifacts under NAS storage.

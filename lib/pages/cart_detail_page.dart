@@ -7,6 +7,7 @@ import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
 import 'cart_detail_page_helpers.dart';
+import 'receipt_comparison_page.dart';
 import '../widgets/cart_detail_app_bar_actions.dart';
 import '../widgets/cart_detail_body.dart';
 import '../widgets/cart_detail_delete_confirmation_sheet.dart';
@@ -38,6 +39,9 @@ class _CartDetailPageState extends State<CartDetailPage> {
   void initState() {
     super.initState();
     _cart = cloneSavedCartSnapshot(widget.cart);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshCartFromStore();
+    });
   }
 
   @override
@@ -222,6 +226,34 @@ class _CartDetailPageState extends State<CartDetailPage> {
     );
   }
 
+  Future<void> _refreshCartFromStore() async {
+    final refreshed = await CartStore.instance.refreshCartById(_cart.id);
+    if (!mounted || refreshed == null) return;
+    setState(() {
+      _cart = cloneSavedCartSnapshot(refreshed);
+    });
+  }
+
+  Future<void> _openReceiptCompare() async {
+    if (_isEditing || _isSaving || _isExpiredGuestLocked) return;
+
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ReceiptCheckPage(cart: _cart),
+      ),
+    );
+
+    if (!mounted) return;
+    if (result is SavedCart) {
+      setState(() {
+        _cart = cloneSavedCartSnapshot(result);
+      });
+      return;
+    }
+
+    await _refreshCartFromStore();
+  }
+
   @override
   Widget build(BuildContext context) {
     final dateText = DateFormat('M월 d일').format(_cart.createdAt);
@@ -240,8 +272,10 @@ class _CartDetailPageState extends State<CartDetailPage> {
           CartDetailAppBarActions(
             isEditing: _isEditing,
             isExpiredGuestLocked: _isExpiredGuestLocked,
+            receiptStatus: _cart.receiptStatus,
             onToggleEditMode: _toggleEditMode,
             onDelete: _confirmDelete,
+            onReceiptCompare: _openReceiptCompare,
           ),
         ],
       ),
@@ -254,23 +288,37 @@ class _CartDetailPageState extends State<CartDetailPage> {
               onExtendRetention: _extendRetention,
             ),
             Expanded(
-              child: CartDetailBody(
-                isExpiredGuestLocked: _isExpiredGuestLocked,
-                canExtendRetention: _cart.canExtendRetention,
-                items: _cart.items,
-                isEditing: _isEditing,
-                editingIndex: _editingIndex,
-                nameController: _nameCtrl,
-                priceController: _priceCtrl,
-                formatPriceText: (price) => '₩${_fmt(price)}',
-                onEdit: _openInlineEditor,
-                onDelete: (index) {
-                  setState(() => _cart.items.removeAt(index));
-                },
-                onDecrease: _decrease,
-                onIncrease: _increase,
-                onCancelInlineEdit: _closeInlineEditor,
-                onApplyInlineEdit: _applyInlineEdits,
+              child: Column(
+                children: [
+                  if (_cart.receiptStatus != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: _CartReceiptStatusCard(
+                        status: _cart.receiptStatus!,
+                        onTap: _openReceiptCompare,
+                      ),
+                    ),
+                  Expanded(
+                    child: CartDetailBody(
+                      isExpiredGuestLocked: _isExpiredGuestLocked,
+                      canExtendRetention: _cart.canExtendRetention,
+                      items: _cart.items,
+                      isEditing: _isEditing,
+                      editingIndex: _editingIndex,
+                      nameController: _nameCtrl,
+                      priceController: _priceCtrl,
+                      formatPriceText: (price) => '₩${_fmt(price)}',
+                      onEdit: _openInlineEditor,
+                      onDelete: (index) {
+                        setState(() => _cart.items.removeAt(index));
+                      },
+                      onDecrease: _decrease,
+                      onIncrease: _increase,
+                      onCancelInlineEdit: _closeInlineEditor,
+                      onApplyInlineEdit: _applyInlineEdits,
+                    ),
+                  ),
+                ],
               ),
             ),
             CartDetailEditActionsSection(
@@ -282,6 +330,106 @@ class _CartDetailPageState extends State<CartDetailPage> {
               onSave: _save,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CartReceiptStatusCard extends StatelessWidget {
+  final SavedCartReceiptStatus status;
+  final VoidCallback onTap;
+
+  const _CartReceiptStatusCard({
+    required this.status,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final (badgeText, badgeColor, badgeForeground, bodyText) = switch (status.receiptStatus) {
+      'processing' => (
+        '처리 중',
+        const Color(0xFFE0F2FE),
+        const Color(0xFF0369A1),
+        '영수증 요약과 상세 내역을 준비하고 있어요.',
+      ),
+      'failed' => (
+        '분석 실패',
+        const Color(0xFFFDECEC),
+        const Color(0xFFB42318),
+        '영수증을 다시 올려서 한 번 더 정리해 주세요.',
+      ),
+      'ready' => (
+        '영수증 정리됨',
+        const Color(0xFFEAF7EE),
+        const Color(0xFF2E7D32),
+        '영수증 요약과 상세 내역을 다시 열어볼 수 있어요.',
+      ),
+      _ => (
+        '영수증 등록됨',
+        const Color(0xFFF3F4F6),
+        const Color(0xFF374151),
+        '영수증이 저장돼 있어요. 다시 열어서 확인할 수 있어요.',
+      ),
+    };
+
+    return Material(
+      color: const Color(0xFFF8FAFC),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: badgeColor,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        badgeText,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: badgeForeground,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      status.merchantName?.trim().isNotEmpty == true
+                          ? status.merchantName!.trim()
+                          : '이 카트에 연결된 영수증',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      bodyText,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black54,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
         ),
       ),
     );

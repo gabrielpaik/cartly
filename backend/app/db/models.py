@@ -133,6 +133,49 @@ class CartItem(Base):
     cart: Mapped['Cart'] = relationship(back_populates='items')
 
 
+class Receipt(Base):
+    __tablename__ = 'receipts'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.id'))
+    saved_cart_id: Mapped[str] = mapped_column(ForeignKey('carts.id'))
+    status: Mapped[str] = mapped_column(String(20), default='processing')
+    image_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    image_filename: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    merchant_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    purchased_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    currency: Mapped[str] = mapped_column(String(10), default='KRW')
+    subtotal: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    tax: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    total_amount: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    total_discount_amount: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    raw_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    line_items: Mapped[List['ReceiptLineItem']] = relationship(back_populates='receipt', cascade='all, delete-orphan')
+
+
+class ReceiptLineItem(Base):
+    __tablename__ = 'receipt_line_items'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    receipt_id: Mapped[str] = mapped_column(ForeignKey('receipts.id'))
+    raw_name: Mapped[str] = mapped_column(String(255))
+    normalized_name: Mapped[str] = mapped_column(String(255))
+    quantity: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    unit_price: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    line_amount: Mapped[int] = mapped_column(Integer)
+    final_amount: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    category: Mapped[str] = mapped_column(String(20), default='item')
+    confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    receipt: Mapped['Receipt'] = relationship(back_populates='line_items')
+
+
 class AppEvent(Base):
     __tablename__ = 'app_events'
 

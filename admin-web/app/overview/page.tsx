@@ -172,29 +172,26 @@ export default function OverviewPage() {
       items: [
         { label: t('admin.overview.snapshot.totalScans', 'Total Scans'), value: formatNumber(data.totalScans) },
         { label: t('admin.overview.snapshot.scanSuccess', 'Scan Success'), value: formatPercent(data.scanSuccessRate) },
-        { placeholder: true },
+        { label: t('admin.overview.snapshot.cartSaveRate', 'Cart Save Rate'), value: formatPercent(data.cartSaveRate) },
       ],
     },
     {
       title: t('admin.overview.snapshot.members', 'Members'),
       items: [
         { label: t('admin.overview.snapshot.activeMembers', 'Active Members'), value: formatNumber(data.lifecycle.activeMembers) },
-        { placeholder: true },
-        { placeholder: true },
+        { label: t('admin.overview.snapshot.guestProfiles', 'Guest Profiles'), value: formatNumber(data.lifecycle.guestProfiles) },
+        {
+          label: t('admin.overview.snapshot.guestToMemberConversion', 'Guest to Member'),
+          value: formatPercent(data.lifecycle.guestToMemberConversionRate),
+        },
       ],
     },
     {
       title: t('admin.overview.snapshot.ad', 'Ad'),
       items: [
+        { label: t('admin.overview.snapshot.adImpressions', 'Ad Impressions'), value: formatNumber(data.adImpressions) },
+        { label: t('admin.overview.snapshot.adClicks', 'Ad Clicks'), value: formatNumber(data.adClicks) },
         { label: t('admin.overview.snapshot.adCtr', 'Ad CTR'), value: formatPercent(data.adCtr) },
-        { placeholder: true },
-        { placeholder: true },
-        { placeholder: true },
-        { placeholder: true },
-        { placeholder: true },
-        { placeholder: true },
-        { placeholder: true },
-        { placeholder: true },
       ],
     },
   ] as const
@@ -253,29 +250,25 @@ export default function OverviewPage() {
           <div key={group.title} className="card summaryClusterCard">
             <div className="kpiLabel summaryClusterTitle">{group.title}</div>
             <div className="summaryClusterInner">
-              {group.items.map((item, index) =>
-                'placeholder' in item ? (
-                  <div key={`${group.title}-${index}`} className="summaryMiniCard summaryMiniPlaceholder" aria-hidden="true" />
-                ) : (
-                  <div key={item.label} className="summaryMiniCard">
-                    <div>
-                      <div className="kpiLabel summaryMiniLabel">{item.label}</div>
-                      <div className="kpiValue summaryMiniValue">{item.value}</div>
-                    </div>
-                    {item.comparisons ? (
-                      <div className="summaryComparisonList">
-                        {item.comparisons.map((comparison) => (
-                          <div key={comparison.period} className="summaryComparisonRow">
-                            <span className="summaryComparisonPeriod">{comparisonPeriodLabels[comparison.period]}</span>
-                            <span className="summaryComparisonValue">{comparison.previousText}</span>
-                            <span className={`summaryComparisonDelta ${comparison.tone}`}>{comparison.deltaText}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
+              {group.items.map((item) => (
+                <div key={item.label} className="summaryMiniCard">
+                  <div>
+                    <div className="kpiLabel summaryMiniLabel">{item.label}</div>
+                    <div className="kpiValue summaryMiniValue">{item.value}</div>
                   </div>
-                ),
-              )}
+                  {item.comparisons ? (
+                    <div className="summaryComparisonList">
+                      {item.comparisons.map((comparison) => (
+                        <div key={comparison.period} className="summaryComparisonRow">
+                          <span className="summaryComparisonPeriod">{comparisonPeriodLabels[comparison.period]}</span>
+                          <span className="summaryComparisonValue">{comparison.previousText}</span>
+                          <span className={`summaryComparisonDelta ${comparison.tone}`}>{comparison.deltaText}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
             </div>
           </div>
         ))}

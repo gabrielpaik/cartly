@@ -23,6 +23,18 @@ class RemoteCartRepository {
         .toList();
   }
 
+  Future<SavedCart> getCart({
+    required String authToken,
+    required String cartId,
+  }) async {
+    final response = await _send(
+      'GET',
+      '/v1/carts/$cartId',
+      authToken: authToken,
+    );
+    return _readCart(response);
+  }
+
   Future<SavedCart> createCart({
     required String authToken,
     required SavedCart cart,

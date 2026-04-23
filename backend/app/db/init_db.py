@@ -13,6 +13,8 @@ from .models import (  # noqa: F401
     EmailAuthCode,
     Cart,
     CartItem,
+    Receipt,
+    ReceiptLineItem,
     ScanFailureLog,
     ScanFeedback,
     ScanJob,

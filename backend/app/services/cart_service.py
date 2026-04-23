@@ -10,7 +10,7 @@ from openpyxl.styles import Font
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session as OrmSession, selectinload
 
-from ..db.models import Cart, CartItem, User
+from ..db.models import Cart, CartItem, Receipt, User
 
 
 _CartUserType = str
@@ -93,7 +93,46 @@ def _serialize_cart_item(item: CartItem) -> dict:
     }
 
 
-def _serialize_cart(cart: Cart, include_items: bool = True, user: Optional[User] = None) -> dict:
+def _load_latest_receipts_for_carts(db: OrmSession, carts: list[Cart]) -> dict[str, Receipt]:
+    cart_ids = [cart.id for cart in carts if cart.id]
+    if not cart_ids:
+        return {}
+
+    receipts = db.scalars(
+        select(Receipt)
+        .where(Receipt.saved_cart_id.in_(cart_ids))
+        .order_by(Receipt.saved_cart_id.asc(), Receipt.created_at.desc())
+    ).all()
+
+    latest_by_cart_id: dict[str, Receipt] = {}
+    for receipt in receipts:
+        if receipt.saved_cart_id not in latest_by_cart_id:
+            latest_by_cart_id[receipt.saved_cart_id] = receipt
+    return latest_by_cart_id
+
+
+def _serialize_receipt_status(receipt: Optional[Receipt]) -> Optional[dict]:
+    if receipt is None:
+        return None
+
+    completed_at = receipt.updated_at.isoformat() if receipt.status == 'ready' and receipt.updated_at else None
+
+    return {
+        'receiptId': receipt.id,
+        'receiptStatus': receipt.status,
+        'merchantName': receipt.merchant_name,
+        'hasReceipt': True,
+        'updatedAt': receipt.updated_at.isoformat() if receipt.updated_at else None,
+        'completedAt': completed_at,
+    }
+
+
+def _serialize_cart(
+    cart: Cart,
+    include_items: bool = True,
+    user: Optional[User] = None,
+    latest_receipt: Optional[Receipt] = None,
+) -> dict:
     is_member_cart = user is not None and not user.is_guest
     expires_at = None if is_member_cart else cart.expires_at
     is_expired = expires_at is not None and expires_at <= datetime.utcnow()
@@ -113,6 +152,7 @@ def _serialize_cart(cart: Cart, include_items: bool = True, user: Optional[User]
         'isExpired': is_expired,
         'retentionExtensionCount': 0 if is_member_cart else int(cart.retention_extension_count or 0),
         'canExtendRetention': False if is_member_cart else expires_at is not None,
+        'receiptStatus': _serialize_receipt_status(latest_receipt),
     }
     if user is not None:
         data['user'] = {
@@ -126,6 +166,41 @@ def _serialize_cart(cart: Cart, include_items: bool = True, user: Optional[User]
     if include_items:
         data['items'] = [_serialize_cart_item(item) for item in cart.items]
     return data
+
+
+def serialize_cart_with_receipt(
+    db: OrmSession,
+    cart: Cart,
+    *,
+    include_items: bool = True,
+    user: Optional[User] = None,
+) -> dict:
+    latest_receipt = _load_latest_receipts_for_carts(db, [cart]).get(cart.id)
+    return _serialize_cart(
+        cart,
+        include_items=include_items,
+        user=user,
+        latest_receipt=latest_receipt,
+    )
+
+
+def serialize_carts_with_receipts(
+    db: OrmSession,
+    carts: list[Cart],
+    *,
+    include_items: bool = True,
+    user: Optional[User] = None,
+) -> list[dict]:
+    latest_by_cart_id = _load_latest_receipts_for_carts(db, carts)
+    return [
+        _serialize_cart(
+            cart,
+            include_items=include_items,
+            user=user,
+            latest_receipt=latest_by_cart_id.get(cart.id),
+        )
+        for cart in carts
+    ]
 
 
 def _apply_cart_items(cart: Cart, items: Iterable[dict]) -> None:

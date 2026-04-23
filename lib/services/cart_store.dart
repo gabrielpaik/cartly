@@ -159,6 +159,34 @@ class CartStore {
     await _persistLocal(next, ownerId: '');
   }
 
+  Future<SavedCart?> refreshCartById(String id) async {
+    final currentSession = AuthStore.instance.session.value;
+    if (currentSession == null || currentSession.authToken.trim().isEmpty) {
+      for (final cart in carts.value) {
+        if (cart.id == id) return cart;
+      }
+      return null;
+    }
+
+    try {
+      final remote = await _remoteRepository.getCart(
+        authToken: currentSession.authToken,
+        cartId: id,
+      );
+      final next = [
+        remote,
+        ...carts.value.where((cart) => cart.id != id && cart.id != remote.id),
+      ];
+      await _persistLocal(next, ownerId: currentSession.id);
+      return remote;
+    } catch (_) {
+      for (final cart in carts.value) {
+        if (cart.id == id) return cart;
+      }
+      return null;
+    }
+  }
+
   Future<SavedCart> extendRetention(String id) async {
     final currentSession = AuthStore.instance.session.value;
     if (currentSession == null || currentSession.authToken.trim().isEmpty) {

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session as OrmSession
 
 from ..deps import current_user_dep, db_dep
 from ..schemas.cart import CreateCartRequest, UpdateCartRequest
-from ..services.cart_service import create_cart, delete_cart, extend_cart_retention, get_user_cart, list_user_carts, serialize_cart, update_cart
+from ..services.cart_service import create_cart, delete_cart, extend_cart_retention, get_user_cart, list_user_carts, serialize_cart_with_receipt, serialize_carts_with_receipts, update_cart
 
 router = APIRouter()
 
@@ -27,8 +27,8 @@ def list_carts(
     current_user=Depends(current_user_dep),
 ):
     user = _require_current_user(current_user)
-    carts = [serialize_cart(cart, user=user) for cart in list_user_carts(db, user.id)]
-    return {'ok': True, 'data': {'carts': carts}}
+    carts = list_user_carts(db, user.id)
+    return {'ok': True, 'data': {'carts': serialize_carts_with_receipts(db, carts, user=user)}}
 
 
 @router.post('')
@@ -39,7 +39,7 @@ def create_cart_endpoint(
 ):
     user = _require_current_user(current_user)
     cart = create_cart(db, user.id, payload.model_dump(), is_guest=user.is_guest)
-    return {'ok': True, 'data': {'cart': serialize_cart(cart, user=user)}}
+    return {'ok': True, 'data': {'cart': serialize_cart_with_receipt(db, cart, user=user)}}
 
 
 @router.get('/{cart_id}')
@@ -58,7 +58,7 @@ def get_cart(
                 'message': 'cart를 찾지 못했어',
             },
         }
-    return {'ok': True, 'data': {'cart': serialize_cart(cart, user=user)}}
+    return {'ok': True, 'data': {'cart': serialize_cart_with_receipt(db, cart, user=user)}}
 
 
 @router.patch('/{cart_id}')
@@ -79,7 +79,7 @@ def update_cart_endpoint(
             },
         }
     updated = update_cart(db, cart, payload.model_dump(exclude_unset=True))
-    return {'ok': True, 'data': {'cart': serialize_cart(updated, user=user)}}
+    return {'ok': True, 'data': {'cart': serialize_cart_with_receipt(db, updated, user=user)}}
 
 
 @router.post('/{cart_id}/retention/extend')
@@ -109,7 +109,7 @@ def extend_cart_retention_endpoint(
 
     # TODO: require verified rewarded-ad proof before granting extension.
     updated = extend_cart_retention(db, cart)
-    return {'ok': True, 'data': {'cart': serialize_cart(updated, user=user)}}
+    return {'ok': True, 'data': {'cart': serialize_cart_with_receipt(db, updated, user=user)}}
 
 
 @router.delete('/{cart_id}')

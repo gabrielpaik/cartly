@@ -302,6 +302,33 @@ class _CartDetailPageState extends State<CartDetailPage> {
             Expanded(
               child: Column(
                 children: [
+                  ValueListenableBuilder<Set<String>>(
+                    valueListenable: CartStore.instance.pendingCartIds,
+                    builder: (context, pendingCartIds, _) {
+                      if (!pendingCartIds.contains(_cart.id)) {
+                        return const SizedBox.shrink();
+                      }
+                      return Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF7ED),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFFED7AA)),
+                        ),
+                        child: const Text(
+                          '이 카트는 서버 동기화 대기 중이야. 연결되면 다시 시도할게.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFB45309),
+                            height: 1.5,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                   if (_cart.receiptStatus != null)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),

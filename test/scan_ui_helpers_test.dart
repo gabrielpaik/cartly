@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wimc/widgets/scan_ui_helpers.dart';
+import 'package:cartly/widgets/scan_ui_helpers.dart';
 
 void main() {
   group('scan_ui_helpers', () {

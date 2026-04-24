@@ -316,7 +316,7 @@ def _campaign_matches_filters(
 
 def _safe_xlsx_filename(value: str) -> str:
     cleaned = re.sub(r'[^A-Za-z0-9._-]+', '-', value.strip())
-    return cleaned.strip('-') or 'wimc-ad-campaign'
+    return cleaned.strip('-') or 'cartly-ad-campaign'
 
 
 def _campaign_image_formula_url(image_url: Optional[str]) -> Optional[str]:

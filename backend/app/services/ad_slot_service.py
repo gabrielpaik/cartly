@@ -456,7 +456,7 @@ def export_ad_campaigns_xlsx(
     output = io.BytesIO()
     workbook.save(output)
     suffix = f'{period_from or "all"}_{period_to or "all"}'
-    filename = _safe_xlsx_filename(f'wimc-ad-campaigns-{suffix}') + '.xlsx'
+    filename = _safe_xlsx_filename(f'cartly-ad-campaigns-{suffix}') + '.xlsx'
     return output.getvalue(), filename
 
 

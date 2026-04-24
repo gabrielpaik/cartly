@@ -27,7 +27,7 @@ def admin_carts_export_csv(
         content=csv_body,
         media_type='text/csv; charset=utf-8',
         headers={
-            'Content-Disposition': 'attachment; filename="wimc-carts-export.csv"',
+            'Content-Disposition': 'attachment; filename="cartly-carts-export.csv"',
         },
     )
 
@@ -51,7 +51,7 @@ def admin_carts_export_xlsx(
         content=xlsx_body,
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         headers={
-            'Content-Disposition': 'attachment; filename="wimc-carts-export.xlsx"',
+            'Content-Disposition': 'attachment; filename="cartly-carts-export.xlsx"',
         },
     )
 

@@ -37,7 +37,7 @@ export const mockSummary = {
       {
         userId: 'usr_002',
         displayName: 'Seungdae',
-        email: 'ceo@wimc.app',
+        email: 'ceo@cartly.app',
         cartCount: 12,
         totalValue: 482000,
         lastSavedAt: MOCK_TIMESTAMP,
@@ -45,7 +45,7 @@ export const mockSummary = {
       {
         userId: 'usr_010',
         displayName: 'Power saver',
-        email: 'member10@wimc.app',
+        email: 'member10@cartly.app',
         cartCount: 9,
         totalValue: 231000,
         lastSavedAt: MOCK_TIMESTAMP,
@@ -93,7 +93,7 @@ export const mockPeriodSummary = {
       {
         userId: 'usr_002',
         displayName: 'Seungdae',
-        email: 'ceo@wimc.app',
+        email: 'ceo@cartly.app',
         cartCount: 4,
         totalValue: 122000,
         lastSavedAt: MOCK_TIMESTAMP,
@@ -101,7 +101,7 @@ export const mockPeriodSummary = {
       {
         userId: 'usr_010',
         displayName: 'Power saver',
-        email: 'member10@wimc.app',
+        email: 'member10@cartly.app',
         cartCount: 3,
         totalValue: 88000,
         lastSavedAt: MOCK_TIMESTAMP,
@@ -126,7 +126,7 @@ export const mockUsers = [
   {
     id: 'usr_002',
     displayName: 'Seungdae',
-    email: 'ceo@wimc.app',
+    email: 'ceo@cartly.app',
     provider: 'google',
     isGuest: false,
     guestKey: null,
@@ -216,7 +216,7 @@ export const mockCarts = {
       user: {
         id: 'usr_002',
         displayName: 'Seungdae',
-        email: 'ceo@wimc.app',
+        email: 'ceo@cartly.app',
         isGuest: false,
         provider: 'google',
       },

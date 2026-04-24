@@ -92,9 +92,8 @@ These should stay until a dedicated technical migration step.
   - `Cartly Backend.command`
   - `Cartly Worker.command`
 - code identifiers that are stable but not user-facing:
-  - `WimcRuntimeConfig`
-  - install id keys like `wimc_install_id_v1`
-  - multipart boundaries / probe files / scheduler names
+  - legacy install id fallback keys like `wimc_install_id_v1`
+  - bundle/package identifiers that still stay under legacy app ids
 - internal service hostnames/domains unless explicitly re-scoped later:
   - `scancart-api.seoa-nas.com`
   - `wimc-admin.seoa-nas.com`

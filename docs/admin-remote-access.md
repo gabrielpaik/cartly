@@ -47,8 +47,8 @@ If admin-web and backend run on different hosts, point `CARTLY_API_BASE` at the 
 1. Open `/login`
 2. Enter `ADMIN_TOKEN`
 3. admin-web validates it against `GET /admin/session`
-4. If valid, admin-web exchanges the root admin token for a revocable admin session and stores `wimc_admin_session` as an httpOnly cookie
-5. All admin page fetches proxy through `/api/wimc-admin/*`
+4. If valid, admin-web exchanges the root admin token for a revocable admin session and stores `cartly_admin_session` as an httpOnly cookie
+5. All admin page fetches proxy through `/api/cartly-admin/*`
 
 ## What is protected
 

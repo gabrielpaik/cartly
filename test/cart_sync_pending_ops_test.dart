@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wimc/models/saved_cart.dart';
-import 'package:wimc/services/cart_sync_pending_ops.dart';
+import 'package:cartly/models/saved_cart.dart';
+import 'package:cartly/services/cart_sync_pending_ops.dart';
 
 SavedCart _cart({required String id, required int day}) => SavedCart(
   id: id,

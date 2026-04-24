@@ -33,9 +33,10 @@
 
 ### Expected login flow
 1. User logs into macOS
-2. Login Item app opens Terminal and runs the backend entry script. In the current machine setup, the existing login item app is still `WIMC Backend Login.app`, so keep the compatibility target alive too:
+2. Login Item app opens Terminal and runs the backend entry script. Primary login item app is now `Cartly Backend Login.app`, while the legacy `WIMC Backend Login.app` can remain as a temporary compatibility backup:
+   - `/Users/sdpaik/Applications/Cartly Backend Login.app`
    - `/Users/sdpaik/dev/wimc/scripts/Cartly Backend.command`
-   - `/Users/sdpaik/dev/wimc/scripts/WIMC Backend.command` (compatibility shim for the existing login item app)
+   - `/Users/sdpaik/dev/wimc/scripts/WIMC Backend.command` (legacy compatibility shim if the old app is still launched manually)
 3. That command launches:
    - `/Users/sdpaik/dev/wimc/scripts/run-backend-login-session.sh`
 4. Backend launcher starts:
@@ -103,14 +104,14 @@ pgrep -fal 'runtime_supervisor.py'
 
 ### 3) Quick scan write proof
 ```bash
-printf 'fake-image' >/tmp/wimc-check.jpg
+printf 'fake-image' >/tmp/cartly-check.jpg
 TOKEN=$(curl -sS -X POST http://127.0.0.1:8011/v1/auth/guest \
   -H 'Content-Type: application/json' \
   --data '{"deviceId":"ops-check","platform":"ios","appVersion":"0.1.0"}' | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["session"]["token"])')
 
 curl -sS -X POST http://127.0.0.1:8011/v1/scan/jobs \
   -H "Authorization: Bearer $TOKEN" \
-  -F image=@/tmp/wimc-check.jpg
+  -F image=@/tmp/cartly-check.jpg
 ```
 
 ---

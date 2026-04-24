@@ -116,7 +116,7 @@ class RemoteAuthRepository implements AuthRepository {
     final installId = await InstallIdStore.getOrCreate();
     final providerKey = provider.name;
     final response = await _postJson('/v1/auth/login', {
-      'email': '$providerKey-$installId@wimc.app',
+      'email': '$providerKey-$installId@cartly.app',
       'displayName': provider == AuthProviderType.kakao
           ? 'Kakao User'
           : 'Google User',

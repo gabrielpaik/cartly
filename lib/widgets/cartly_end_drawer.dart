@@ -13,14 +13,14 @@ import 'brand_mark.dart';
 final _priceFormatter = NumberFormat('#,###');
 String _fmt(int v) => _priceFormatter.format(v);
 
-class WimcEndDrawer extends StatefulWidget {
-  const WimcEndDrawer({super.key});
+class CartlyEndDrawer extends StatefulWidget {
+  const CartlyEndDrawer({super.key});
 
   @override
-  State<WimcEndDrawer> createState() => _WimcEndDrawerState();
+  State<CartlyEndDrawer> createState() => _CartlyEndDrawerState();
 }
 
-class _WimcEndDrawerState extends State<WimcEndDrawer> {
+class _CartlyEndDrawerState extends State<CartlyEndDrawer> {
   String? _notice;
   Timer? _timer;
 

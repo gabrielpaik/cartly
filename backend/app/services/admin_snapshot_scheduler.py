@@ -16,7 +16,7 @@ class AdminDashboardSnapshotScheduler:
     async def start(self) -> None:
         if self._task and not self._task.done():
             return
-        self._task = asyncio.create_task(self._run_loop(), name='wimc-admin-dashboard-snapshot-scheduler')
+        self._task = asyncio.create_task(self._run_loop(), name='cartly-admin-dashboard-snapshot-scheduler')
 
     async def stop(self) -> None:
         if self._task is None:

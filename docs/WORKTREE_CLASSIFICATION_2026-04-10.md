@@ -55,7 +55,7 @@ Generated from current `git status --short` for baseline cleanup planning.
 - ` M` `lib/services/remote_scan_repository.dart`
 - ` M` `lib/services/scan_repository.dart`
 - ` M` `lib/widgets/item_add_section.dart`
-- ` M` `lib/widgets/wimc_end_drawer.dart`
+- ` M` `lib/widgets/cartly_end_drawer.dart`
 - ` M` `pubspec.lock`
 - ` M` `pubspec.yaml`
 - `??` `admin-web/.storybook/`

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-ThemeData buildWimcReviewTheme() {
+ThemeData buildCartlyReviewTheme() {
   return ThemeData(
     fontFamily: 'Pretendard',
     colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE31837)),

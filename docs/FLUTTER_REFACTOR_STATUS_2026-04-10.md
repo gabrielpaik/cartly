@@ -24,7 +24,7 @@ The result is a much flatter, more navigable Flutter app structure with the majo
 Key files:
 - `lib/main.dart`
 - `lib/app/app_bootstrap.dart`
-- `lib/app/wimc_app.dart`
+- `lib/app/cartly_app.dart`
 - `lib/app_support.dart`
 
 ### 2. Home flow

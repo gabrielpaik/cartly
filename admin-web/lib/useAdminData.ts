@@ -7,7 +7,7 @@ import { fetchJsonSafe, isUnauthorizedError } from './api'
 
 const AUTO_REFRESH_HOUR_KST = 0
 const KST_TIME_ZONE = 'Asia/Seoul'
-const CACHE_PREFIX = 'wimc_admin_cache:'
+const CACHE_PREFIX = 'cartly_admin_cache:'
 
 type CacheRecord<T> = {
   data: T

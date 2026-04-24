@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wimc/models/saved_cart.dart';
-import 'package:wimc/pages/cart_detail_page_helpers.dart';
+import 'package:cartly/models/saved_cart.dart';
+import 'package:cartly/pages/cart_detail_page_helpers.dart';
 
 void main() {
   group('cart_detail_page_helpers', () {

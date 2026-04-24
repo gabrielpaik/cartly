@@ -123,7 +123,7 @@ final reviewMemberSession = UserSession(
   id: 'usr_review_member_001',
   provider: AuthProviderType.google,
   displayName: '승대',
-  email: 'seungdae@wimc.app',
+  email: 'seungdae@cartly.app',
   isGuest: false,
   signedInAt: DateTime.parse('2026-03-24T06:00:00Z').toLocal(),
   authToken: 'review-member-token',

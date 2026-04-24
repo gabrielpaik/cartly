@@ -5,13 +5,13 @@ import '../services/admob_service.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
 
-class WimcAppBootstrap {
+class CartlyAppBootstrap {
   final List<CameraDescription> cameras;
 
-  const WimcAppBootstrap({required this.cameras});
+  const CartlyAppBootstrap({required this.cameras});
 }
 
-Future<WimcAppBootstrap> initializeWimcApp() async {
+Future<CartlyAppBootstrap> initializeCartlyApp() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final cameras = await availableCameras();
@@ -19,5 +19,5 @@ Future<WimcAppBootstrap> initializeWimcApp() async {
   await CartStore.instance.load();
   await AdMobService.instance.initialize();
 
-  return WimcAppBootstrap(cameras: cameras);
+  return CartlyAppBootstrap(cameras: cameras);
 }

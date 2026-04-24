@@ -65,14 +65,14 @@
 ### 2-1. 부트스트랩 순서
 
 ```
-main() ──► initializeWimcApp()
+main() ──► initializeCartlyApp()
             ├── availableCameras()        ← 카메라 권한 + 목록
             ├── AuthStore.instance.load() ← 저장된 세션 복원 + 서버 refresh
             ├── CartStore.instance.load() ← 로컬 캐시 + 원격 동기화
             └── AdMobService.initialize() ← AdMob SDK 초기화
                     │
                     ▼
-            WimcApp(cameras)
+            CartlyApp(cameras)
                     │
                     ▼
             SplashScreen (1200ms)
@@ -636,7 +636,7 @@ API 요청
 | **어드민** | 스캔 작업 재시도/격리 | ✅ 완료 |
 | **어드민** | 브랜딩/UI텍스트 편집 | ✅ 완료 |
 | **어드민** | 카트 Excel 내보내기 | ✅ 완료 |
-| **네이밍** | wimc → cartly 통일 | ⚠️ 일부 미완 (파일명, pubspec) |
+| **네이밍** | wimc → cartly 통일 | ⚠️ 일부 미완 (bundle/package id, storage/infra 식별자) |
 | **워크트리** | cranky-mclean → main 머지 | ⚠️ 대기 중 |
-| **테스트** | 자동화 테스트 | ❌ 없음 |
+| **테스트** | 자동화 테스트 | ✅ helper/unit + live smoke baseline 확보 |
 | **배포** | CI/CD 파이프라인 | ❌ 수동 배포 |

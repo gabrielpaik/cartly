@@ -32,7 +32,7 @@ class RemoteScanRepository implements ScanRepository {
     final request = await _httpClient.postUrl(_uri('/v1/scan/jobs'));
     _applyDefaultHeaders(request);
 
-    final boundary = 'wimc-${DateTime.now().microsecondsSinceEpoch}';
+    final boundary = 'cartly-${DateTime.now().microsecondsSinceEpoch}';
     request.headers.set(
       HttpHeaders.contentTypeHeader,
       'multipart/form-data; boundary=$boundary',

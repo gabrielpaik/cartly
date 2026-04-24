@@ -1,16 +1,17 @@
-# wimc
+# Cartly
 
-A new Flutter project.
+Cartly app, admin web, backend, and runtime scripts live in this repository.
 
-## Getting Started
+## Main areas
 
-This project is a starting point for a Flutter application.
+- `lib/` Flutter app
+- `admin-web/` operator admin UI
+- `backend/` FastAPI backend and worker flow
+- `scripts/` local runtime and deployment helpers
 
-A few resources to get you started if this is your first Flutter project:
+## Current naming policy
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- External and user-facing brand: `Cartly`
+- Legacy internal identifiers may still remain where runtime compatibility matters
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+See `docs/CARTLY_RENAMING_PLAN.md` for staged rename scope and safety rules.

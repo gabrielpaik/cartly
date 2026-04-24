@@ -7,16 +7,16 @@ import '../pages/home_page.dart';
 import '../services/app_config_store.dart';
 import '../splash_screen.dart';
 
-class WimcApp extends StatefulWidget {
+class CartlyApp extends StatefulWidget {
   final List<CameraDescription> cameras;
 
-  const WimcApp({super.key, required this.cameras});
+  const CartlyApp({super.key, required this.cameras});
 
   @override
-  State<WimcApp> createState() => _WimcAppState();
+  State<CartlyApp> createState() => _CartlyAppState();
 }
 
-class _WimcAppState extends State<WimcApp> with WidgetsBindingObserver {
+class _CartlyAppState extends State<CartlyApp> with WidgetsBindingObserver {
   late final Listenable _runtimeListenable = Listenable.merge([
     AppConfigStore.instance.branding,
     AppConfigStore.instance.copy,

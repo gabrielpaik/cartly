@@ -37,7 +37,7 @@ def storage_health_check(create_probe: bool = False) -> dict:
             errors.append(f'{name}: {error}')
 
     if create_probe and writable:
-        probe = paths['input'] / '.wimc-write-probe'
+        probe = paths['input'] / '.cartly-write-probe'
         try:
             probe.write_text('ok', encoding='utf-8')
             probe.unlink(missing_ok=True)

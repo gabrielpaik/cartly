@@ -75,6 +75,8 @@ export default function UsersPage() {
   const { t } = useAdminCopy()
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [busyLegacyId, setBusyLegacyId] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [accountFilter, setAccountFilter] = useState<'all' | 'member' | 'guest'>('all')
 
   const usersRes = useAdminData<{ ok: boolean; data: { users?: UserRow[] } }>('/admin/users', {
     ok: true,
@@ -100,6 +102,14 @@ export default function UsersPage() {
   const memberUsers = useMemo(() => users.filter((user) => !user.isGuest), [users])
   const guestUsers = useMemo(() => users.filter((user) => Boolean(user.isGuest)), [users])
   const membersWithEmail = useMemo(() => memberUsers.filter((user) => Boolean(user.email)).length, [memberUsers])
+  const filteredUsers = useMemo(() => {
+    const trimmed = query.trim().toLowerCase()
+    return users.filter((user) => {
+      const matchesAccount = accountFilter === 'all' ? true : accountFilter === 'guest' ? Boolean(user.isGuest) : !user.isGuest
+      const matchesQuery = !trimmed || [user.id, user.displayName, user.email, user.provider, user.guestCode, user.lastDevicePlatform].filter(Boolean).some((value) => String(value).toLowerCase().includes(trimmed))
+      return matchesAccount && matchesQuery
+    })
+  }, [accountFilter, query, users])
   const legacyWithCarts = legacySummary?.withCarts ?? legacyGuests.filter((user) => savedCartCount(user) > 0).length
   const legacyWithoutCarts = legacySummary?.withoutCarts ?? Math.max(legacyGuests.length - legacyWithCarts, 0)
   const totalLegacy = legacySummary?.count ?? legacyGuests.length
@@ -147,6 +157,13 @@ export default function UsersPage() {
         <StatCard label={t('admin.users.kpi.members', 'Members')} value={formatNumber(memberUsers.length)} note={`${t('admin.users.kpi.memberEmails', 'email linked')} ${formatNumber(membersWithEmail)}`} />
         <StatCard label={t('admin.users.kpi.guests', 'Guest Profiles')} value={formatNumber(guestUsers.length)} note={t('admin.users.kpi.guestNote', '게스트 세션/프로필')} />
         <StatCard label={t('admin.users.kpi.legacyQueue', 'Legacy Queue')} value={formatNumber(totalLegacy)} note={`${t('admin.users.kpi.withCarts', 'with carts')} ${formatNumber(legacyWithCarts)}`} />
+      </div>
+
+      <div className="metaRow section" style={{ marginTop: 16 }}>
+        <span className="metaPill">{t('admin.users.meta.filter', 'filter')} {accountFilter}</span>
+        <span className="metaPill">{t('admin.users.meta.query', 'query')} {query.trim() || '-'}</span>
+        <span className="metaPill">{t('admin.users.meta.legacyQueue', 'legacy queue')} {formatNumber(totalLegacy)}</span>
+        <span className="metaPill">{usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : t('admin.common.badge.live', 'Live data')}</span>
       </div>
 
       <div className="section sectionGrid twoCol">
@@ -220,15 +237,27 @@ export default function UsersPage() {
               <h2 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.users.list.title', 'Users')}</h2>
               <p className="pageDesc">{t('admin.users.list.desc', 'Current user list')}</p>
             </div>
+            <div className="metaRow" style={{ marginTop: 0 }}>
+              <span className="metaPill">{t('admin.users.summary.members', 'members')} {formatNumber(memberUsers.length)}</span>
+              <span className="metaPill">{t('admin.users.summary.guests', 'guests')} {formatNumber(guestUsers.length)}</span>
+              <span className="metaPill">{t('admin.users.summary.emailLinked', 'email linked')} {formatNumber(membersWithEmail)}</span>
+            </div>
           </div>
 
-          <div className="metaRow" style={{ marginBottom: 16 }}>
-            <span className="metaPill">{t('admin.users.summary.members', 'members')} {formatNumber(memberUsers.length)}</span>
-            <span className="metaPill">{t('admin.users.summary.guests', 'guests')} {formatNumber(guestUsers.length)}</span>
-            <span className="metaPill">{t('admin.users.summary.emailLinked', 'email linked')} {formatNumber(membersWithEmail)}</span>
+          <div className="buttonRow" style={{ marginTop: 0, marginBottom: 16, flexWrap: 'wrap' }}>
+            <input className="textInput" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.users.list.searchPlaceholder', 'name / email / id / device')} />
+            <button className={accountFilter === 'all' ? 'primaryBtn pageActionBtn' : 'ghostBtn pageActionBtn'} type="button" onClick={() => setAccountFilter('all')}>
+              {t('admin.users.filter.all', 'All')}
+            </button>
+            <button className={accountFilter === 'member' ? 'primaryBtn pageActionBtn' : 'ghostBtn pageActionBtn'} type="button" onClick={() => setAccountFilter('member')}>
+              {t('admin.users.filter.member', 'Members')}
+            </button>
+            <button className={accountFilter === 'guest' ? 'primaryBtn pageActionBtn' : 'ghostBtn pageActionBtn'} type="button" onClick={() => setAccountFilter('guest')}>
+              {t('admin.users.filter.guest', 'Guests')}
+            </button>
           </div>
 
-          {users.length === 0 ? (
+          {filteredUsers.length === 0 ? (
             <div className="emptyState">{t('admin.users.list.empty', '아직 표시할 사용자가 없어')}</div>
           ) : (
             <div className="tableWrap">
@@ -240,10 +269,11 @@ export default function UsersPage() {
                     <th>{t('admin.users.list.table.device', 'Device')}</th>
                     <th>{t('admin.users.list.table.lastActive', 'Last active')}</th>
                     <th>{t('admin.users.list.table.joined', 'Joined')}</th>
+                    <th>{t('admin.users.list.table.action', 'Action')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user, index) => (
+                  {filteredUsers.map((user, index) => (
                     <tr key={user.id ?? index}>
                       <td data-label={t('admin.users.list.table.name', 'Name')}>
                         <div>
@@ -274,6 +304,11 @@ export default function UsersPage() {
                           <div style={{ fontWeight: 800 }}>{formatDate(user.createdAt)}</div>
                           <div className="tableSubtle">{t('admin.users.list.joinedHint', '가입/생성 시각')}</div>
                         </div>
+                      </td>
+                      <td data-label={t('admin.users.list.table.action', 'Action')}>
+                        <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}`}>
+                          {t('admin.users.list.detail', 'Detail')}
+                        </Link>
                       </td>
                     </tr>
                   ))}

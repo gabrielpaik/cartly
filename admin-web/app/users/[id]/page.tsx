@@ -156,12 +156,26 @@ export default function UserDetailPage() {
       {res.error ? <div className="loginError" style={{ marginBottom: 16 }}>{res.error}</div> : null}
       {errorMessage ? <div className="loginError" style={{ marginBottom: 16 }}>{errorMessage}</div> : null}
       {message ? <div className="saveMessage" style={{ marginBottom: 16 }}>{message}</div> : null}
+      {res.usingFallback ? (
+        <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
+          <strong>{t('admin.users.detail.warning.fallbackTitle', 'Live user detail unavailable.')}</strong>{' '}
+          {t('admin.users.detail.warning.fallbackBody', '지금 화면은 fallback/mock data일 수 있어서 merge 판단 전에 live runtime 상태를 같이 확인하는 편이 안전해.')}
+        </div>
+      ) : null}
 
       <div className="kpiGrid">
-        <StatCard label={t('admin.users.detail.kpi.totalCarts', 'Total carts')} value={formatNumber(payload.summary.totalCarts)} />
-        <StatCard label={t('admin.users.detail.kpi.totalItems', 'Total items')} value={formatNumber(payload.summary.totalItems)} />
-        <StatCard label={t('admin.users.detail.kpi.totalValue', 'Total value')} value={`₩${formatNumber(payload.summary.totalValue)}`} />
-        <StatCard label={t('admin.users.detail.kpi.lastSaved', '최근 저장')} value={payload.summary.lastSavedAt ? formatDate(payload.summary.lastSavedAt) : '-'} />
+        <StatCard label={t('admin.users.detail.kpi.totalCarts', 'Total carts')} value={formatNumber(payload.summary.totalCarts)} note={payload.summary.firstSavedAt ? `${t('admin.users.detail.kpi.firstSaved', 'first saved')} ${formatDate(payload.summary.firstSavedAt)}` : undefined} />
+        <StatCard label={t('admin.users.detail.kpi.totalItems', 'Total items')} value={formatNumber(payload.summary.totalItems)} note={t('admin.users.detail.kpi.totalItemsNote', '모든 저장 snapshot 기준 합계')} />
+        <StatCard label={t('admin.users.detail.kpi.totalValue', 'Total value')} value={`₩${formatNumber(payload.summary.totalValue)}`} note={t('admin.users.detail.kpi.totalValueNote', '누적 저장 금액')} />
+        <StatCard label={t('admin.users.detail.kpi.lastSaved', '최근 저장')} value={payload.summary.lastSavedAt ? formatDate(payload.summary.lastSavedAt) : '-'} note={user.lastSeenAt ? `${t('admin.users.detail.kpi.lastSeen', 'last seen')} ${formatDate(user.lastSeenAt)}` : undefined} />
+      </div>
+
+      <div className="metaRow section" style={{ marginTop: 16 }}>
+        <div className="metaPill">{t('admin.users.detail.profile.provider', 'provider')} {user.provider}</div>
+        <div className="metaPill">{t('admin.users.detail.profile.type', 'type')} {user.isGuest ? t('admin.users.type.guest', 'guest') : t('admin.users.type.member', 'member')}</div>
+        <div className="metaPill">{t('admin.users.detail.profile.status', 'status')} {user.status ?? 'active'}</div>
+        <div className="metaPill">{t('admin.users.detail.profile.platform', 'platform')} {user.lastDevicePlatform ?? '-'}</div>
+        <div className="metaPill">{t('admin.users.detail.profile.appVersion', 'app version')} {user.lastAppVersion ?? '-'}</div>
       </div>
 
       <div className="sectionGrid twoCol section">
@@ -188,6 +202,11 @@ export default function UserDetailPage() {
 
         <div className="card">
           <h2 className="panelTitle">{t('admin.users.detail.cleanup.title', 'Cleanup policy')}</h2>
+          <p className="pageDesc" style={{ marginTop: 0, marginBottom: 14 }}>
+            {isLegacyGuest
+              ? t('admin.users.detail.cleanup.legacyHint', 'legacy guest 여부와 merge 대상 확인이 핵심이야. 잘못 합치면 cart lineage가 꼬일 수 있어.')
+              : t('admin.users.detail.cleanup.normalHint', '현재 계정은 정상 lineage로 보이고, install/session continuity 위주로 확인하면 돼.')}
+          </p>
           {isLegacyGuest ? (
             <div>
               <p className="pageDesc" style={{ marginBottom: 14 }}>
@@ -226,7 +245,11 @@ export default function UserDetailPage() {
               <h2 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.users.detail.history.title', '지난 카트 기록')}</h2>
               <p className="pageDesc">{t('admin.users.detail.history.desc', '한 고객의 저장 이력을 날짜별 snapshot으로 본다')}</p>
             </div>
-            <div className="metaPill">{payload.carts.length} {t('admin.users.detail.history.carts', 'carts')}</div>
+            <div className="metaRow" style={{ marginTop: 0 }}>
+              <div className="metaPill">{payload.carts.length} {t('admin.users.detail.history.carts', 'carts')}</div>
+              <div className="metaPill">{t('admin.users.detail.history.firstSaved', 'first')} {payload.summary.firstSavedAt ? formatDate(payload.summary.firstSavedAt) : '-'}</div>
+              <div className="metaPill">{t('admin.users.detail.history.lastSaved', 'last')} {payload.summary.lastSavedAt ? formatDate(payload.summary.lastSavedAt) : '-'}</div>
+            </div>
           </div>
 
           {payload.carts.length === 0 ? (

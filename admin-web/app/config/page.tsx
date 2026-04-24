@@ -51,6 +51,12 @@ export default function ConfigPage() {
   const brandingAssetsActual = cfg.brandingAssetsDirActual ?? cfg.brandingAssetsDir
   const adsAssetsDisplay = cfg.adsAssetsDirDisplay ?? cfg.adsAssetsDir
   const adsAssetsActual = cfg.adsAssetsDirActual ?? cfg.adsAssetsDir
+  const storageErrorCount = cfg.storageErrors.length
+  const pathCompatibility = cfg.legacyPathCompatibilityActive ? t('admin.config.compat.on', '호환 경로 유지 중') : t('admin.config.compat.off', '호환 경로 없음')
+  const startupModeNote =
+    cfg.backendRunMode === 'terminal-login-session'
+      ? t('admin.config.runtime.startupNote', 'login-session supervisor 기준으로 부팅/로그인 후 따라 켜져야 해')
+      : t('admin.config.runtime.startupNoteUnexpected', '예상한 login-session runtime 모드와 다를 수 있어 확인이 필요해')
 
   return (
     <div>
@@ -72,11 +78,18 @@ export default function ConfigPage() {
       ) : null}
 
       <div className="kpiGrid">
-        <StatCard label={t('admin.config.kpi.remoteScan', 'Remote Scan')} value={cfg.remoteScan ? t('admin.common.on', 'ON') : t('admin.common.off', 'OFF')} />
-        <StatCard label={t('admin.config.kpi.ads', 'Ads')} value={cfg.adsEnabled ? t('admin.common.on', 'ON') : t('admin.common.off', 'OFF')} />
+        <StatCard label={t('admin.config.kpi.remoteScan', 'Remote Scan')} value={cfg.remoteScan ? t('admin.common.on', 'ON') : t('admin.common.off', 'OFF')} note={t('admin.config.kpi.remoteScanNote', 'remote scan API 사용 여부')} />
+        <StatCard label={t('admin.config.kpi.ads', 'Ads')} value={cfg.adsEnabled ? t('admin.common.on', 'ON') : t('admin.common.off', 'OFF')} note={t('admin.config.kpi.adsNote', '광고 슬롯 활성화 여부')} />
         <StatCard label={t('admin.config.kpi.storage', 'Storage')} value={cfg.storageWritable ? t('admin.config.kpi.storageWritable', 'Writable') : t('admin.config.kpi.storageBlocked', 'Blocked')} note={storageRootDisplay} />
-        <StatCard label={t('admin.config.kpi.backendRun', 'Backend Run')} value={cfg.backendRunMode} note={cfg.serviceName ?? t('admin.config.kpi.backendRunNote', 'launchd direct backend는 비활성화')} />
-        <StatCard label={t('admin.config.kpi.apiBase', 'API Base')} value={t('admin.config.kpi.apiBaseValue', 'Backend')} note={cfg.apiBase} />
+        <StatCard label={t('admin.config.kpi.runtimeStartup', 'Runtime Startup')} value={cfg.backendRunMode} note={startupModeNote} />
+        <StatCard label={t('admin.config.kpi.pathCompatibility', 'Path Compatibility')} value={pathCompatibility} note={cfg.legacyPathCompatibilityActive ? storageRootActual : t('admin.config.compat.noteClean', 'rename 이후 clean path 상태')} />
+      </div>
+
+      <div className="metaRow section" style={{ marginTop: 16 }}>
+        <span className="metaPill">{t('admin.config.meta.apiBase', 'api base')} {cfg.apiBase}</span>
+        <span className="metaPill">{t('admin.config.meta.storageErrors', 'storage errors')} {storageErrorCount}</span>
+        <span className="metaPill">{t('admin.config.meta.logoMode', 'logo mode')} {cfg.branding.logoType}</span>
+        <span className="metaPill">{t('admin.config.meta.logoText', 'logo text')} {cfg.branding.logoText}</span>
       </div>
 
       <div className="sectionGrid twoCol section">
@@ -96,6 +109,23 @@ export default function ConfigPage() {
         </div>
 
         <div className="card successCard">
+          <h2 className="panelTitle">{t('admin.config.runtime.title', 'Runtime & startup')}</h2>
+          <ul className="inlineList">
+            <li>{t('admin.config.runtime.backendRunMode', 'backendRunMode')}: {cfg.backendRunMode}</li>
+            <li>{t('admin.config.runtime.serviceName', 'serviceName')}: {cfg.serviceName ?? '-'}</li>
+            <li>{t('admin.config.runtime.apiBase', 'apiBase')}: {cfg.apiBase}</li>
+            <li>{t('admin.config.runtime.pathCompatibility', 'pathCompatibility')}: {pathCompatibility}</li>
+            <li>{t('admin.config.runtime.runtimeAssets', 'runtimeAssetsRoot')}: {runtimeAssetsDisplay}</li>
+            <li>{t('admin.config.runtime.brandingAssets', 'brandingAssetsDir')}: {brandingAssetsDisplay}</li>
+            <li>{t('admin.config.runtime.adsAssets', 'adsAssetsDir')}: {adsAssetsDisplay}</li>
+            {cfg.legacyPathCompatibilityActive ? <li>{t('admin.config.runtime.actualBrandingAssets', 'actualBrandingAssetsDir')}: {brandingAssetsActual}</li> : null}
+            {cfg.legacyPathCompatibilityActive ? <li>{t('admin.config.runtime.actualAdsAssets', 'actualAdsAssetsDir')}: {adsAssetsActual}</li> : null}
+          </ul>
+        </div>
+      </div>
+
+      <div className="sectionGrid twoCol section">
+        <div className="card">
           <h2 className="panelTitle">{t('admin.config.branding.title', '브랜딩')}</h2>
           <ul className="inlineList">
             <li>{t('admin.config.branding.logoType', 'logoType')}: {cfg.branding.logoType}</li>
@@ -105,8 +135,16 @@ export default function ConfigPage() {
             <li>{t('admin.config.branding.assetsDir', 'brandingAssetsDir')}: {brandingAssetsDisplay}</li>
             <li>{t('admin.config.branding.adsAssetsDir', 'adsAssetsDir')}: {adsAssetsDisplay}</li>
             <li>{t('admin.config.branding.runtimeAssetsDir', 'runtimeAssetsRoot')}: {runtimeAssetsDisplay}</li>
-            {cfg.legacyPathCompatibilityActive ? <li>{t('admin.config.branding.actualBrandingAssetsDir', 'actualBrandingAssetsDir')}: {brandingAssetsActual}</li> : null}
-            {cfg.legacyPathCompatibilityActive ? <li>{t('admin.config.branding.actualAdsAssetsDir', 'actualAdsAssetsDir')}: {adsAssetsActual}</li> : null}
+          </ul>
+        </div>
+
+        <div className={`card ${cfg.storageWritable ? 'successCard' : 'warnCard'}`}>
+          <h2 className="panelTitle">{t('admin.config.operator.title', 'Operator notes')}</h2>
+          <ul className="inlineList">
+            <li>{startupModeNote}</li>
+            <li>{cfg.storageWritable ? t('admin.config.operator.storageHealthy', '지금 storageWritable=true 라서 NAS write 경로는 정상으로 보인다') : t('admin.config.operator.storageUnhealthy', 'storageWritable=false 면 scan/job 저장 전부 흔들릴 수 있어 먼저 runtime/storage를 봐야 해')}</li>
+            <li>{cfg.legacyPathCompatibilityActive ? t('admin.config.operator.compatEnabled', 'rename 잔재 호환 경로가 아직 살아 있어서 display path와 actual path가 다를 수 있어') : t('admin.config.operator.compatDisabled', '호환 경로 없이 clean path 상태로 보인다')}</li>
+            <li>{t('admin.config.operator.recoveryHint', '이상 징후가 있으면 partial restart보다 canonical runtime refresh 기준으로 복구하는 편이 안전해')}</li>
           </ul>
         </div>
       </div>

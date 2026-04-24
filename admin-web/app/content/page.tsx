@@ -190,6 +190,14 @@ function buildGroups(t: (key: string, fallback?: string) => string): Array<{ tit
   ]
 }
 
+function groupAnchorId(title: string, index: number) {
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9가-힣]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return `content-group-${index + 1}-${slug || 'section'}`
+}
+
 export default function ContentPage() {
   const router = useRouter()
   const { t } = useAdminCopy()
@@ -204,6 +212,8 @@ export default function ContentPage() {
   const [previewSrc, setPreviewSrc] = useState('')
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null)
   const groups = buildGroups(t)
+  const groupNav = groups.map((group, index) => ({ ...group, id: groupAnchorId(group.title, index) }))
+  const totalFields = groupNav.reduce((sum, group) => sum + group.fields.length, 0)
 
   useEffect(() => {
     setPreviewSrc(`/app-preview/index.html?v=${Date.now()}`)
@@ -348,8 +358,42 @@ export default function ContentPage() {
         </div>
       ) : null}
 
+      <div className="metaRow" style={{ marginBottom: 16 }}>
+        <span className="metaPill">{t('admin.content.meta.groups', 'groups')} {groupNav.length}</span>
+        <span className="metaPill">{t('admin.content.meta.fields', 'fields')} {totalFields}</span>
+        <span className="metaPill">{t('admin.content.meta.preview', 'preview')} {previewScreen} · {previewMemberMode ? 'member' : 'guest'}</span>
+        <span className="metaPill">{usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : t('admin.common.badge.live', 'Live data')}</span>
+      </div>
+
       <div className="section sectionGrid twoCol">
         <div className="sectionGrid">
+          <div className="card">
+            <h2 className="panelTitle">{t('admin.content.quickJump.title', '빠른 이동 & 저장')}</h2>
+            <p className="pageDesc" style={{ marginTop: 0, marginBottom: 16 }}>
+              {t('admin.content.quickJump.desc', '긴 폼이라서 필요한 그룹으로 바로 이동하고, 현재 preview/save 상태를 같이 보자.')}
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+              {groupNav.map((group) => (
+                <a key={group.id} className="ghostBtn ghostBtnSmall" href={`#${group.id}`}>
+                  {group.title}
+                </a>
+              ))}
+              <a className="ghostBtn ghostBtnSmall" href="#content-preview-card">
+                {t('admin.content.quickJump.preview', '프리뷰로 이동')}
+              </a>
+            </div>
+            <div className="metaRow" style={{ marginTop: 0, marginBottom: 16 }}>
+              <span className="metaPill">{t('admin.content.quickJump.previewState', 'preview state')} {previewScreen} / {previewMemberMode ? 'member' : 'guest'}</span>
+              <span className="metaPill">{saving ? t('admin.content.saving', '저장 중...') : t('admin.content.quickJump.ready', '편집 가능')}</span>
+            </div>
+            <div className="buttonRow" style={{ marginTop: 0 }}>
+              <button className="primaryBtn" disabled={saving || usingFallback} onClick={() => void onSave()}>
+                {saving ? t('admin.content.saving', '저장 중...') : t('admin.content.save', '저장')}
+              </button>
+              {message ? <div className="saveMessage">{message}</div> : null}
+            </div>
+          </div>
+
           <div className="card">
             <h2 className="panelTitle">{t('admin.content.assets.title', '브랜드 자산')}</h2>
             <div className="formGrid">
@@ -394,26 +438,22 @@ export default function ContentPage() {
             </div>
           </div>
 
-          {groups.map((group) => (
-            <div className="card" key={group.title}>
-              <h2 className="panelTitle">{group.title}</h2>
-              <p className="pageDesc" style={{ marginTop: 0, marginBottom: 16 }}>{group.description}</p>
+          {groupNav.map((group) => (
+            <div className="card" key={group.id} id={group.id}>
+              <div className="sectionHeader">
+                <div>
+                  <h2 className="panelTitle" style={{ marginBottom: 6 }}>{group.title}</h2>
+                  <p className="pageDesc" style={{ marginTop: 0, marginBottom: 0 }}>{group.description}</p>
+                </div>
+                <span className="metaPill">{t('admin.content.group.fieldCount', 'fields')} {group.fields.length}</span>
+              </div>
               <div className="formGrid">{group.fields.map(renderField)}</div>
             </div>
           ))}
-
-          <div className="card">
-            <div className="buttonRow">
-              <button className="primaryBtn" disabled={saving || usingFallback} onClick={() => void onSave()}>
-                {saving ? t('admin.content.saving', '저장 중...') : t('admin.content.save', '저장')}
-              </button>
-              {message ? <div className="saveMessage">{message}</div> : null}
-            </div>
-          </div>
         </div>
 
         <div className="sectionGrid">
-          <div className="card">
+          <div className="card" id="content-preview-card">
             <h2 className="panelTitle">{t('admin.content.preview.title', '프리뷰')}</h2>
             <div className="previewCard" style={{ display: 'grid', gap: 12 }}>
               <div className="previewSubtitle">

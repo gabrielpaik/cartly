@@ -30,7 +30,7 @@ Verified on this Mac mini:
 ### Backend
 
 ```bash
-cd /Users/sdpaik/dev/wimc
+cd /Users/sdpaik/dev/cartly
 export ADMIN_TOKEN='replace-with-long-random-secret'
 export API_BASE_URL='https://admin.seoa-nas.com'
 uvicorn backend.app.main:app --host 127.0.0.1 --port 8011
@@ -43,7 +43,7 @@ Notes:
 ### Admin web
 
 ```bash
-cd /Users/sdpaik/dev/wimc/admin-web
+cd /Users/sdpaik/dev/cartly/admin-web
 export CARTLY_API_BASE='http://127.0.0.1:8011'
 npm run build
 npm run start
@@ -61,7 +61,7 @@ Assumes `seoa-nas.com` is already active in your Cloudflare account.
 2. Go to **Networks → Tunnels**.
 3. Create a new tunnel.
 4. Connector type: **cloudflared**.
-5. Tunnel name suggestion: `wimc-admin-macmini`.
+5. Tunnel name suggestion: `cartly-admin-macmini`.
 6. In **Public hostnames**, add:
    - Subdomain: `admin`
    - Domain: `seoa-nas.com`

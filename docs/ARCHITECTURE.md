@@ -41,7 +41,7 @@
       ┌────────┼──────────────────────────────────┐
       ▼        ▼                                   ▼
 ┌──────────┐  ┌────────────────────────────────────────┐
-│PostgreSQL│  │           NAS  /Volumes/AI/WIMC/        │
+│PostgreSQL│  │           NAS  /Volumes/AI/Cartly/        │
 │  DB      │  │                                        │
 │  16개    │  │  input/   ← 원본 이미지 업로드            │
 │  테이블   │  │  output/  ← 분석 결과 JSON              │
@@ -395,9 +395,9 @@ GET /v1/scan/jobs/{id}/result
 ### 3-6. 환경 설정 (settings.py)
 
 ```
-DATABASE_URL              postgresql+psycopg://localhost:5432/wimc
-STORAGE_ROOT              /Volumes/AI/WIMC
-RUNTIME_ASSETS_ROOT       ~/Library/Application Support/WIMC/assets
+DATABASE_URL              postgresql+psycopg://localhost:5432/cartly
+STORAGE_ROOT              /Volumes/AI/Cartly
+RUNTIME_ASSETS_ROOT       ~/Library/Application Support/Cartly/assets
 BEARER_SECRET             세션 토큰 서명 키
 ADMIN_TOKEN               관리자 root_token
 API_BASE_URL              http://127.0.0.1:8011
@@ -587,12 +587,12 @@ API 요청
 │  └───────────────────────────────────────────────────┘  │
 │                                                         │
 │  ┌───────────────────────────────────────────────────┐  │
-│  │  PostgreSQL  (wimc DB)                            │  │
+│  │  PostgreSQL  (cartly DB)                          │  │
 │  │  16개 테이블                                       │  │
 │  └───────────────────────────────────────────────────┘  │
 │                                                         │
 │  ┌───────────────────────────────────────────────────┐  │
-│  │  NAS  /Volumes/AI/WIMC/                           │  │
+│  │  NAS  /Volumes/AI/Cartly/                           │  │
 │  │    input/   processing/   output/                 │  │
 │  │    archive/  failed/                              │  │
 │  └───────────────────────────────────────────────────┘  │
@@ -636,7 +636,7 @@ API 요청
 | **어드민** | 스캔 작업 재시도/격리 | ✅ 완료 |
 | **어드민** | 브랜딩/UI텍스트 편집 | ✅ 완료 |
 | **어드민** | 카트 Excel 내보내기 | ✅ 완료 |
-| **네이밍** | wimc → cartly 통일 | ⚠️ 일부 미완 (bundle/package id, storage/infra 식별자) |
+| **네이밍** | wimc → cartly 통일 | ⚠️ 일부 미완 (public hostname / external infra 식별자) |
 | **워크트리** | cranky-mclean → main 머지 | ⚠️ 대기 중 |
 | **테스트** | 자동화 테스트 | ✅ helper/unit + live smoke baseline 확보 |
 | **배포** | CI/CD 파이프라인 | ❌ 수동 배포 |

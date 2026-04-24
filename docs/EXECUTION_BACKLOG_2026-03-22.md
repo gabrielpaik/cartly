@@ -1,7 +1,7 @@
 # Cartly Execution Backlog — 2026-03-22
 
 Owner: CEO(승대)
-Working repo: `/Users/sdpaik/dev/wimc`
+Working repo: `/Users/sdpaik/dev/cartly`
 
 ## Principle
 - OCR 품질이 아직 낮다는 점을 전제로 설계한다.

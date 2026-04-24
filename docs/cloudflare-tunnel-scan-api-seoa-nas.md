@@ -64,7 +64,7 @@ This intentionally points to a dedicated app-only proxy service, not the admin w
 Use:
 
 ```bash
-/Users/sdpaik/dev/wimc/scripts/build-ios-testflight-public.sh
+/Users/sdpaik/dev/cartly/scripts/build-ios-testflight-public.sh
 ```
 
 Default target:
@@ -77,7 +77,7 @@ Override if needed:
 ```bash
 PUBLIC_BASE_URL='https://scan-api.seoa-nas.com' \
 APP_CONFIG_BASE_URL='https://scan-api.seoa-nas.com' \
-/Users/sdpaik/dev/wimc/scripts/build-ios-testflight-public.sh
+/Users/sdpaik/dev/cartly/scripts/build-ios-testflight-public.sh
 ```
 
 The script injects:

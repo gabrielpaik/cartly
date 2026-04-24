@@ -78,8 +78,8 @@ Recommendation: rename visible docs/export labels to Cartly where useful, but ke
 
 These should stay until a dedicated technical migration step.
 
-- repo path: `/Users/sdpaik/dev/wimc`
-- bundle id: `com.seungdae.wimc`
+- repo path: `/Users/sdpaik/dev/cartly`
+- bundle id: `com.seungdae.cartly`
 - env keys:
   - `CARTLY_API_BASE`
   - `CARTLY_REMOTE_BASE_URL`
@@ -93,7 +93,7 @@ These should stay until a dedicated technical migration step.
   - `Cartly Worker.command`
 - code identifiers that are stable but not user-facing:
   - legacy install id fallback keys like `wimc_install_id_v1`
-  - bundle/package identifiers that still stay under legacy app ids
+  - remaining hostnames / external identities that still stay outside repo-controlled app ids
 - internal service hostnames/domains unless explicitly re-scoped later:
   - `scancart-api.seoa-nas.com`
   - `wimc-admin.seoa-nas.com`
@@ -104,7 +104,7 @@ These should stay until a dedicated technical migration step.
 - External product/app/service name: **Cartly**
 - Admin visible name: recommend **Cartly Admin**
 - Internal codename: keep legacy compatibility only where required
-- Bundle id: keep `com.seungdae.wimc` for now
+- Bundle id: now migrated to `com.seungdae.cartly`
 
 ### Phase B, rename user-facing brand
 1. App visible name/default copy

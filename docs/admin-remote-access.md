@@ -19,7 +19,7 @@ Current MVP approach:
 export ADMIN_TOKEN='set-a-long-random-secret'
 export API_BASE_URL='https://your-api-base.example.com'
 # optional existing values
-export DATABASE_URL='postgresql+psycopg://localhost:5432/wimc'
+export DATABASE_URL='postgresql+psycopg://localhost:5432/cartly'
 export STORAGE_ROOT='/Volumes/AI/Cartly'
 ```
 

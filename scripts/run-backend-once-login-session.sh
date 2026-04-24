@@ -31,7 +31,7 @@ fi
 
 if ! "$REPO_ROOT/scripts/ensure-nas-mount.sh"; then
   echo "[Cartly] backend launch aborted because NAS storage is unavailable"
-  echo "[Cartly] expected storage root: ${CARTLY_STORAGE_ROOT:-${STORAGE_ROOT:-/Volumes/AI/WIMC}}"
+  echo "[Cartly] expected storage root: ${CARTLY_STORAGE_ROOT:-${STORAGE_ROOT:-/Volumes/AI/Cartly}}"
   exit 1
 fi
 

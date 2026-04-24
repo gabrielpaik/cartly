@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 
-ROOT="/Users/sdpaik/dev/wimc"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/build/admin-preview-web"
 TARGET="$ROOT/admin-web/public/app-preview"
 
@@ -19,7 +19,7 @@ rsync -a --delete "$OUT/" "$TARGET/"
 python3 - <<'PY'
 from pathlib import Path
 import re
-path = Path('/Users/sdpaik/dev/wimc/admin-web/public/app-preview/flutter_bootstrap.js')
+path = Path("$ROOT/admin-web/public/app-preview/flutter_bootstrap.js")
 text = path.read_text()
 old = """_flutter.loader.load({
   serviceWorkerSettings: {

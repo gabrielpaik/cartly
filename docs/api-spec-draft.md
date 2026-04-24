@@ -9,7 +9,7 @@ Base assumption:
 
 ### Base URL
 Example:
-- `https://api.wimc.app`
+- `https://scancart-api.seoa-nas.com`
 - local/dev example: `http://192.168.x.x:8000`
 
 ### Auth

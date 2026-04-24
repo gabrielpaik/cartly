@@ -11,7 +11,7 @@ elif [[ -f "$HOME/Library/Application Support/WIMC/admin.env" ]]; then
   source "$HOME/Library/Application Support/WIMC/admin.env"
 fi
 
-STORAGE_ROOT="${CARTLY_STORAGE_ROOT:-${STORAGE_ROOT:-/Volumes/AI/WIMC}}"
+STORAGE_ROOT="${CARTLY_STORAGE_ROOT:-${STORAGE_ROOT:-/Volumes/AI/Cartly}}"
 NAS_MOUNT_POINT="${CARTLY_NAS_MOUNT_POINT:-${STORAGE_ROOT:h}}"
 NAS_SHARE="${CARTLY_NAS_SHARE:-${NAS_MOUNT_POINT:t}}"
 NAS_HOST="${CARTLY_NAS_HOST:-192.168.68.67}"

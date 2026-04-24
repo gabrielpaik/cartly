@@ -4,9 +4,9 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     app_name: str = 'Cartly API'
     environment: str = 'development'
-    database_url: str = 'postgresql+psycopg://localhost:5432/wimc'
-    storage_root: str = '/Volumes/AI/WIMC'
-    runtime_assets_root: str = '~/Library/Application Support/WIMC/assets'
+    database_url: str = 'postgresql+psycopg://localhost:5432/cartly'
+    storage_root: str = '/Volumes/AI/Cartly'
+    runtime_assets_root: str = '~/Library/Application Support/Cartly/assets'
     bearer_secret: str = 'change-me'
     admin_token: str = ''
     api_base_url: str = 'http://127.0.0.1:8011'

@@ -30,7 +30,7 @@ Uses local OCR + label parser inside `worker_service.py`.
 ### 2) OpenClaw mode
 ```env
 SCAN_ENGINE=openclaw
-OPENCLAW_SCAN_COMMAND=python /Users/sdpaik/dev/wimc/scripts/openclaw_scan_runner.py --job-id {job_id} --image-path {image_path}
+OPENCLAW_SCAN_COMMAND=python /Users/sdpaik/dev/cartly/scripts/openclaw_scan_runner.py --job-id {job_id} --image-path {image_path}
 OPENCLAW_SCAN_AGENT_ID=<configured-openclaw-agent-id>
 OPENCLAW_SCAN_TIMEOUT_SECONDS=90
 OPENCLAW_SCAN_FALLBACK_TO_TESSERACT=true
@@ -39,7 +39,7 @@ OPENCLAW_SCAN_FALLBACK_TO_TESSERACT=true
 ### 3) Hybrid mode
 ```env
 SCAN_ENGINE=hybrid
-OPENCLAW_SCAN_COMMAND=python /Users/sdpaik/dev/wimc/scripts/openclaw_scan_runner.py --job-id {job_id} --image-path {image_path}
+OPENCLAW_SCAN_COMMAND=python /Users/sdpaik/dev/cartly/scripts/openclaw_scan_runner.py --job-id {job_id} --image-path {image_path}
 OPENCLAW_SCAN_AGENT_ID=<configured-openclaw-agent-id>
 ```
 Hybrid tries OpenClaw first and falls back to Tesseract if OpenClaw fails.
@@ -100,7 +100,7 @@ Receipt analysis does not reuse the shelf-label parser itself. Instead, it uses 
 ```env
 OPENCLAW_RECEIPT_ANALYSIS_AGENT_ID=<configured-openclaw-agent-id>
 OPENCLAW_RECEIPT_ANALYSIS_TIMEOUT_SECONDS=120
-OPENCLAW_RECEIPT_ANALYSIS_COMMAND=python /Users/sdpaik/dev/wimc/scripts/openclaw_receipt_runner.py --receipt-id {receipt_id} --image-path {image_path}
+OPENCLAW_RECEIPT_ANALYSIS_COMMAND=python /Users/sdpaik/dev/cartly/scripts/openclaw_receipt_runner.py --receipt-id {receipt_id} --image-path {image_path}
 ```
 
 Compatibility fallbacks still work in this order:

@@ -1,4 +1,4 @@
-package com.example.wimc
+package com.seungdae.cartly
 
 import io.flutter.embedding.android.FlutterActivity
 

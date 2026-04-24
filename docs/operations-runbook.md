@@ -10,13 +10,13 @@
 
 ### Scan worker
 - Runs as a **Terminal login-session daemon** on the Mac mini
-- Entrypoint: `/Users/sdpaik/dev/wimc/scripts/Cartly Worker.command`
-- Runtime loop: `/Users/sdpaik/dev/wimc/backend/worker_daemon.py`
+- Entrypoint: `/Users/sdpaik/dev/cartly/scripts/Cartly Worker.command`
+- Runtime loop: `/Users/sdpaik/dev/cartly/backend/worker_daemon.py`
 - Current purpose: continuously drain queued scan jobs from DB/NAS without requiring manual one-shot worker execution
 - In normal operations, the runtime supervisor also restarts the worker automatically if it dies unexpectedly
 
 ### Admin web
-- Still runs as the existing LaunchAgent (`com.wimc.admin-web.plist`)
+- Runs as the Cartly LaunchAgent (`com.cartly.admin-web.plist`)
 - Public access remains through the existing admin domain / reverse proxy path
 - After backend/admin source changes, do not rely on an already-running `next start` process staying fresh. Use the runtime refresh script below so the live process is rebuilt/restarted deterministically.
 
@@ -35,16 +35,16 @@
 1. User logs into macOS
 2. Login Item app opens Terminal and runs the backend entry script. Primary login item app is now `Cartly Backend Login.app`, while the legacy `WIMC Backend Login.app` can remain as a temporary compatibility backup:
    - `/Users/sdpaik/Applications/Cartly Backend Login.app`
-   - `/Users/sdpaik/dev/wimc/scripts/Cartly Backend.command`
-   - `/Users/sdpaik/dev/wimc/scripts/WIMC Backend.command` (legacy compatibility shim if the old app is still launched manually)
+   - `/Users/sdpaik/dev/cartly/scripts/Cartly Backend.command`
+   - `/Users/sdpaik/dev/cartly/scripts/WIMC Backend.command` (legacy compatibility shim if the old app is still launched manually)
 3. That command launches:
-   - `/Users/sdpaik/dev/wimc/scripts/run-backend-login-session.sh`
+   - `/Users/sdpaik/dev/cartly/scripts/run-backend-login-session.sh`
 4. Backend launcher starts:
-   - `/Users/sdpaik/dev/wimc/scripts/run-runtime-supervisor-login-session.sh`
+   - `/Users/sdpaik/dev/cartly/scripts/run-runtime-supervisor-login-session.sh`
 5. Supervisor keeps checking backend + worker and restarts either one when missing
 5-b. Runtime refresh launches the supervisor in a detached session/process group so OpenClaw gateway restarts do not take backend + worker down with them
 6. Launchers first try to restore the NAS mount via:
-   - `/Users/sdpaik/dev/wimc/scripts/ensure-nas-mount.sh`
+   - `/Users/sdpaik/dev/cartly/scripts/ensure-nas-mount.sh`
 7. Backend child launcher starts uvicorn only if port `8011` is not already listening
 
 ### Expected result
@@ -191,14 +191,14 @@ Interpretation:
 Immediate actions:
 1. Check `/health`
 2. Confirm `storageWritable`
-3. Confirm `/Volumes/AI` is mounted, or run `/Users/sdpaik/dev/wimc/scripts/ensure-nas-mount.sh`
+3. Confirm `/Volumes/AI` is mounted, or run `/Users/sdpaik/dev/cartly/scripts/ensure-nas-mount.sh`
 4. Re-run `Cartly Backend.command` from Terminal
 5. Retry a scan job
 
 ### Symptom: Login Item ran but backend is not listening
 Immediate actions:
 1. Open Terminal
-2. Run `/Users/sdpaik/dev/wimc/scripts/Cartly Backend.command`
+2. Run `/Users/sdpaik/dev/cartly/scripts/Cartly Backend.command`
 3. Re-check `curl -sS http://127.0.0.1:8011/health`
 
 ### Symptom: admin pages load but `/api/cartly-admin/*` behaves like old code
@@ -210,24 +210,24 @@ Interpretation:
 - admin-web and/or backend is still serving a stale already-running process rather than the latest source/build
 
 Immediate action:
-1. Run `/Users/sdpaik/dev/wimc/scripts/Cartly Runtime Refresh.command`
+1. Run `/Users/sdpaik/dev/cartly/scripts/Cartly Runtime Refresh.command`
 2. Re-check `/login`, `/api/cartly-admin/admin/dashboard/summary`, and `/health`
 
 ---
 
 ## Local file references
 - Backend login-session runner:
-  - `/Users/sdpaik/dev/wimc/scripts/run-backend-login-session.sh`
+  - `/Users/sdpaik/dev/cartly/scripts/run-backend-login-session.sh`
 - Runtime supervisor:
-  - `/Users/sdpaik/dev/wimc/scripts/run-runtime-supervisor-login-session.sh`
+  - `/Users/sdpaik/dev/cartly/scripts/run-runtime-supervisor-login-session.sh`
 - Backend child launcher:
-  - `/Users/sdpaik/dev/wimc/scripts/run-backend-once-login-session.sh`
+  - `/Users/sdpaik/dev/cartly/scripts/run-backend-once-login-session.sh`
 - Terminal entrypoint:
-  - `/Users/sdpaik/dev/wimc/scripts/Cartly Backend.command`
+  - `/Users/sdpaik/dev/cartly/scripts/Cartly Backend.command`
 - Full runtime refresh entrypoint:
-  - `/Users/sdpaik/dev/wimc/scripts/Cartly Runtime Refresh.command`
+  - `/Users/sdpaik/dev/cartly/scripts/Cartly Runtime Refresh.command`
 - NAS mount preflight helper:
-  - `/Users/sdpaik/dev/wimc/scripts/ensure-nas-mount.sh`
+  - `/Users/sdpaik/dev/cartly/scripts/ensure-nas-mount.sh`
 - Login-session runtime log:
   - `/Users/sdpaik/Library/Logs/Cartly/backend-login-session.log`
 - Runtime supervisor log:
@@ -237,4 +237,4 @@ Immediate action:
 - Runtime refresh log:
   - `/Users/sdpaik/Library/Logs/Cartly/runtime-refresh.log`
 - Admin web LaunchAgent:
-  - `~/Library/LaunchAgents/com.wimc.admin-web.plist`
+  - `~/Library/LaunchAgents/com.cartly.admin-web.plist`

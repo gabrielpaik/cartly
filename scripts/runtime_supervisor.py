@@ -124,8 +124,11 @@ def launch(script: Path) -> subprocess.Popen:
     return subprocess.Popen(
         [str(script)],
         cwd=str(REPO_ROOT),
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
+        start_new_session=True,
+        close_fds=True,
         env={**os.environ, 'PATH': SAFE_PATH},
     )
 
@@ -175,6 +178,7 @@ def main() -> int:
     log(f"PWD={os.getcwd()}")
     os.chdir(REPO_ROOT)
     log(f"cwd={REPO_ROOT}")
+    log(f"[supervisor] pid={os.getpid()} pgid={os.getpgrp()}")
     log(f"[supervisor] intervalSeconds={INTERVAL_SECONDS:g}")
 
     ensure_singleton()

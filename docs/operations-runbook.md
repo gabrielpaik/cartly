@@ -33,13 +33,15 @@
 
 ### Expected login flow
 1. User logs into macOS
-2. Login Item app opens Terminal and runs:
+2. Login Item app opens Terminal and runs the backend entry script. In the current machine setup, the existing login item app is still `WIMC Backend Login.app`, so keep the compatibility target alive too:
    - `/Users/sdpaik/dev/wimc/scripts/Cartly Backend.command`
+   - `/Users/sdpaik/dev/wimc/scripts/WIMC Backend.command` (compatibility shim for the existing login item app)
 3. That command launches:
    - `/Users/sdpaik/dev/wimc/scripts/run-backend-login-session.sh`
 4. Backend launcher starts:
    - `/Users/sdpaik/dev/wimc/scripts/run-runtime-supervisor-login-session.sh`
 5. Supervisor keeps checking backend + worker and restarts either one when missing
+5-b. Runtime refresh launches the supervisor in a detached session/process group so OpenClaw gateway restarts do not take backend + worker down with them
 6. Launchers first try to restore the NAS mount via:
    - `/Users/sdpaik/dev/wimc/scripts/ensure-nas-mount.sh`
 7. Backend child launcher starts uvicorn only if port `8011` is not already listening

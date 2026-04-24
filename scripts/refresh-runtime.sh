@@ -168,10 +168,12 @@ stop_listener 8011 backend
 stop_process_match "worker_daemon.py" worker
 
 echo "[runtime-supervisor] starting latest process"
-/usr/bin/nohup "$REPO_ROOT/scripts/run-backend-login-session.sh" >/dev/null 2>&1 &
+SUPERVISOR_PID=$(/usr/bin/python3 "$REPO_ROOT/scripts/spawn_detached.py" "$REPO_ROOT/scripts/run-backend-login-session.sh" "$REPO_ROOT")
+echo "[runtime-supervisor] detached pid=$SUPERVISOR_PID"
 
 echo "[admin-web] starting latest process"
-/usr/bin/nohup "$REPO_ROOT/scripts/run-admin-web.sh" >/dev/null 2>&1 &
+ADMIN_PID=$(/usr/bin/python3 "$REPO_ROOT/scripts/spawn_detached.py" "$REPO_ROOT/scripts/run-admin-web.sh" "$REPO_ROOT/admin-web")
+echo "[admin-web] detached pid=$ADMIN_PID"
 
 wait_for_process "runtime_supervisor.py" runtime-supervisor 30
 wait_for_http "$BACKEND_URL/health" backend 60

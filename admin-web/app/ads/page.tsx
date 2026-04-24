@@ -42,6 +42,9 @@ export default function AdsPage() {
   const [historyPeriodTo, setHistoryPeriodTo] = useState('')
 
   const activeSlots = useMemo(() => slots.filter((slot) => slot.status === 'active').length, [slots])
+  const liveCampaigns = useMemo(() => campaigns.filter((campaign) => campaign.variant === 'live').length, [campaigns])
+  const reservedCampaigns = useMemo(() => campaigns.filter((campaign) => campaign.variant === 'reserved').length, [campaigns])
+  const liveStatusCampaigns = useMemo(() => campaigns.filter((campaign) => campaign.status === 'live').length, [campaigns])
   const campaignsBySlot = useMemo(
     () => campaigns.reduce<Record<string, CampaignRow[]>>((acc, campaign) => {
       if (!acc[campaign.slotKey]) acc[campaign.slotKey] = []
@@ -189,12 +192,26 @@ export default function AdsPage() {
 
       {error ? <div className="loginError" style={{ marginBottom: 16 }}>{error}</div> : null}
       {message ? <div className="saveMessage" style={{ marginBottom: 16 }}>{message}</div> : null}
+      {usingFallback ? (
+        <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
+          <strong>{t('admin.ads.warning.fallbackTitle', 'Live ads data unavailable.')}</strong>{' '}
+          {t('admin.ads.warning.fallbackBody', '지금 화면은 fallback/mock data일 수 있어서 슬롯 저장과 배너 업로드는 잠깐 막아둘게.')}
+        </div>
+      ) : null}
 
       <div className="kpiGrid">
-        <StatCard label="Slots" value={`${slots.length}`} />
-        <StatCard label="Active" value={`${activeSlots}`} />
-        <StatCard label="Inactive" value={`${slots.length - activeSlots}`} />
-        <StatCard label="Campaigns" value={`${campaigns.length}`} />
+        <StatCard label="Slots" value={`${slots.length}`} note={`${t('admin.ads.kpi.active', 'active')} ${activeSlots} · ${t('admin.ads.kpi.inactive', 'inactive')} ${slots.length - activeSlots}`} />
+        <StatCard label="Campaigns" value={`${campaigns.length}`} note={`${t('admin.ads.kpi.liveVariant', 'live variant')} ${liveCampaigns} · ${t('admin.ads.kpi.reservedVariant', 'reserved variant')} ${reservedCampaigns}`} />
+        <StatCard label={t('admin.ads.kpi.liveStatus', 'Live Status')} value={`${liveStatusCampaigns}`} note={t('admin.ads.kpi.liveStatusNote', '실제 status=live 캠페인 수')} />
+        <StatCard label={t('admin.ads.kpi.export', 'Export Scope')} value={historyQuery.trim() ? historyQuery.trim() : t('admin.ads.kpi.exportAll', 'all')} note={`${historyVariantFilter} · ${historyStatusFilter}`} />
+      </div>
+
+      <div className="metaRow section" style={{ marginTop: 16 }}>
+        <div className="metaPill">{t('admin.ads.meta.query', 'query')} {historyQuery.trim() || '-'}</div>
+        <div className="metaPill">{t('admin.ads.meta.variant', 'variant')} {historyVariantFilter}</div>
+        <div className="metaPill">{t('admin.ads.meta.status', 'status')} {historyStatusFilter}</div>
+        <div className="metaPill">{t('admin.ads.meta.period', 'period')} {historyPeriodFrom || '-'} → {historyPeriodTo || '-'}</div>
+        <div className="metaPill">{usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : t('admin.common.badge.live', 'Live data')}</div>
       </div>
 
       <form className="card" style={{ marginTop: 16, marginBottom: 16 }} onSubmit={(e) => e.preventDefault()}>
@@ -271,6 +288,7 @@ export default function AdsPage() {
                   variant="live"
                   uploading={uploadingKey === `${slot.slotKey}:imageUrl`}
                   saving={savingKey === `${slot.slotKey}:live`}
+                  readOnly={usingFallback}
                   onSlotChange={(patch) => updateSlot(slot.slotKey, patch)}
                   onConfigChange={(patch) => updateConfig(slot.slotKey, patch)}
                   onUpload={(file) => void uploadAsset(slot.slotKey, file, 'imageUrl')}
@@ -283,6 +301,7 @@ export default function AdsPage() {
                   variant="reserved"
                   uploading={uploadingKey === `${slot.slotKey}:reservedImageUrl`}
                   saving={savingKey === `${slot.slotKey}:reserved`}
+                  readOnly={usingFallback}
                   onSlotChange={(patch) => updateSlot(slot.slotKey, patch)}
                   onConfigChange={(patch) => updateConfig(slot.slotKey, patch)}
                   onUpload={(file) => void uploadAsset(slot.slotKey, file, 'reservedImageUrl')}

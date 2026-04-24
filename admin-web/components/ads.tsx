@@ -247,6 +247,7 @@ export function SlotEditorPanel({
   variant,
   uploading,
   saving,
+  readOnly,
   onSlotChange,
   onConfigChange,
   onUpload,
@@ -258,6 +259,7 @@ export function SlotEditorPanel({
   variant: 'live' | 'reserved'
   uploading: boolean
   saving: boolean
+  readOnly?: boolean
   onSlotChange: (patch: Partial<SlotRow>) => void
   onConfigChange: (patch: Partial<SlotConfig>) => void
   onUpload: (file: File) => void
@@ -284,7 +286,7 @@ export function SlotEditorPanel({
         {isLive ? (
           <label className="field">
             <div className="fieldLabel">{t('admin.ads.fields.status', '상태')}</div>
-            <select className="textInput" value={slot.status} onChange={(e) => onSlotChange({ status: e.target.value })}>
+            <select className="textInput" value={slot.status} disabled={readOnly} onChange={(e) => onSlotChange({ status: e.target.value })}>
               <option value="active">active</option>
               <option value="inactive">inactive</option>
             </select>
@@ -294,42 +296,42 @@ export function SlotEditorPanel({
         {isLive ? (
           <label className="field">
             <div className="fieldLabel">{t('admin.ads.fields.slotLabel', '슬롯 이름')}</div>
-            <input className="textInput" value={slot.config.slotLabel ?? ''} onChange={(e) => onConfigChange({ slotLabel: e.target.value })} />
+            <input className="textInput" value={slot.config.slotLabel ?? ''} disabled={readOnly} onChange={(e) => onConfigChange({ slotLabel: e.target.value })} />
           </label>
         ) : null}
 
         {isLive ? (
           <label className="field">
             <div className="fieldLabel">{t('admin.ads.fields.slotDescription', '슬롯 설명')}</div>
-            <textarea className="textInput" rows={3} value={slot.config.slotDescription ?? ''} onChange={(e) => onConfigChange({ slotDescription: e.target.value })} />
+            <textarea className="textInput" rows={3} value={slot.config.slotDescription ?? ''} disabled={readOnly} onChange={(e) => onConfigChange({ slotDescription: e.target.value })} />
           </label>
         ) : null}
 
         {isLive ? (
           <label className="field">
             <div className="fieldLabel">{t('admin.ads.fields.placementNote', '노출 위치 설명')}</div>
-            <input className="textInput" value={slot.config.placementNote ?? ''} onChange={(e) => onConfigChange({ placementNote: e.target.value })} />
+            <input className="textInput" value={slot.config.placementNote ?? ''} disabled={readOnly} onChange={(e) => onConfigChange({ placementNote: e.target.value })} />
           </label>
         ) : null}
 
         <label className="field">
           <div className="fieldLabel">{t('admin.ads.fields.title', '제목')}</div>
-          <input className="textInput" value={currentTitle} onChange={(e) => onConfigChange(isLive ? { title: e.target.value } : { reservedTitle: e.target.value })} />
+          <input className="textInput" value={currentTitle} disabled={readOnly} onChange={(e) => onConfigChange(isLive ? { title: e.target.value } : { reservedTitle: e.target.value })} />
         </label>
 
         <label className="field">
           <div className="fieldLabel">{t('admin.ads.fields.message', '문구')}</div>
-          <textarea className="textInput" rows={3} value={currentMessage} onChange={(e) => onConfigChange(isLive ? { message: e.target.value } : { reservedMessage: e.target.value })} />
+          <textarea className="textInput" rows={3} value={currentMessage} disabled={readOnly} onChange={(e) => onConfigChange(isLive ? { message: e.target.value } : { reservedMessage: e.target.value })} />
         </label>
 
         <label className="field">
           <div className="fieldLabel">{t('admin.ads.fields.cta', 'CTA')}</div>
-          <input className="textInput" value={currentCta} onChange={(e) => onConfigChange(isLive ? { ctaLabel: e.target.value || null } : { reservedCtaLabel: e.target.value || null })} />
+          <input className="textInput" value={currentCta} disabled={readOnly} onChange={(e) => onConfigChange(isLive ? { ctaLabel: e.target.value || null } : { reservedCtaLabel: e.target.value || null })} />
         </label>
 
         <label className="field">
           <div className="fieldLabel">{t('admin.ads.fields.link', '링크')}</div>
-          <input className="textInput" value={currentLink} placeholder="https://..." onChange={(e) => onConfigChange(isLive ? { targetUrl: e.target.value || null } : { reservedTargetUrl: e.target.value || null })} />
+          <input className="textInput" value={currentLink} disabled={readOnly} placeholder="https://..." onChange={(e) => onConfigChange(isLive ? { targetUrl: e.target.value || null } : { reservedTargetUrl: e.target.value || null })} />
         </label>
 
         <div className="scheduleEditorCard">
@@ -341,6 +343,7 @@ export function SlotEditorPanel({
                 type="datetime-local"
                 className="textInput"
                 value={isLive ? (slot.config.exposureStartAt ?? '') : (slot.config.reservationStartAt ?? '')}
+                disabled={readOnly}
                 onChange={(e) => onConfigChange(isLive ? { exposureStartAt: e.target.value || null } : { reservationStartAt: e.target.value || null })}
               />
             </label>
@@ -350,6 +353,7 @@ export function SlotEditorPanel({
                 type="datetime-local"
                 className="textInput"
                 value={isLive ? (slot.config.exposureEndAt ?? '') : (slot.config.reservationEndAt ?? '')}
+                disabled={readOnly}
                 onChange={(e) => onConfigChange(isLive ? { exposureEndAt: e.target.value || null } : { reservationEndAt: e.target.value || null })}
               />
             </label>
@@ -363,6 +367,7 @@ export function SlotEditorPanel({
               type="file"
               accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
               className="hiddenInput"
+              disabled={readOnly}
               onChange={(e) => {
                 const file = e.target.files?.[0]
                 if (file) onUpload(file)
@@ -388,7 +393,7 @@ export function SlotEditorPanel({
       ) : null}
 
       <div className="buttonRow slotPanelSaveRow">
-        <button className="primaryBtn slotPanelSaveBtn" disabled={saving} onClick={onSave}>
+        <button className="primaryBtn slotPanelSaveBtn" disabled={saving || readOnly} onClick={onSave}>
           {saving ? t('admin.ads.saving', '저장 중...') : isLive ? t('admin.ads.livePanel.save', '현재 광고 저장') : t('admin.ads.reservedPanel.save', '예약 광고 저장')}
         </button>
       </div>

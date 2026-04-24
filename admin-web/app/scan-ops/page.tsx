@@ -6,6 +6,7 @@ import PageHeader from '../../components/PageHeader'
 import StatCard from '../../components/StatCard'
 import { useAdminCopy } from '../../components/AdminCopyProvider'
 import { postJson } from '../../lib/api'
+import { mockScanJobs } from '../../lib/mock'
 import { useAdminData } from '../../lib/useAdminData'
 
 type ScanJobRow = {
@@ -65,25 +66,7 @@ type JobActionResponse = {
 
 type JobFilterKey = 'all' | 'failed' | 'quarantined' | 'done'
 
-const fallbackData: ScanOpsDto = {
-  summary: {
-    jobsTotal: 0,
-    queuedJobs: 0,
-    processingJobs: 0,
-    doneJobs: 0,
-    failedJobs: 0,
-    quarantinedJobs: 0,
-    oldestQueuedAt: null,
-    workerRunning: false,
-    feedbackTotal: 0,
-    feedbackAccepted: 0,
-    feedbackCorrected: 0,
-    failureLogs: 0,
-  },
-  jobs: [],
-  recentFeedback: [],
-  recentFailures: [],
-}
+const fallbackData: ScanOpsDto = mockScanJobs
 
 function fmt(value?: string | null) {
   if (!value) return '-'
@@ -96,6 +79,7 @@ export default function ScanOpsPage() {
   const [retryingJobId, setRetryingJobId] = useState<string | null>(null)
   const [quarantiningJobId, setQuarantiningJobId] = useState<string | null>(null)
   const [filter, setFilter] = useState<JobFilterKey>('all')
+  const [query, setQuery] = useState('')
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
 
   const res = useAdminData<{ ok: boolean; data: ScanOpsDto }>('/admin/scan-jobs', {
@@ -110,15 +94,23 @@ export default function ScanOpsPage() {
   const failures = data.recentFailures ?? []
 
   const filteredJobs = useMemo(() => {
-    if (filter === 'all') return jobs
-    return jobs.filter((job) => job.status === filter)
-  }, [filter, jobs])
+    const trimmed = query.trim().toLowerCase()
+    return jobs.filter((job) => {
+      const matchesFilter = filter === 'all' ? true : job.status === filter
+      const matchesQuery = !trimmed || [job.id, job.userId, job.status, job.errorCode, job.errorMessage].filter(Boolean).some((value) => String(value).toLowerCase().includes(trimmed))
+      return matchesFilter && matchesQuery
+    })
+  }, [filter, jobs, query])
 
   const selectedJob = useMemo(() => {
     return jobs.find((job) => job.id === selectedJobId) ?? filteredJobs[0] ?? jobs[0] ?? null
   }, [filteredJobs, jobs, selectedJobId])
 
   async function retryJob(jobId: string) {
+    if (res.usingFallback) {
+      setActionMessage(t('admin.scanops.action.fallbackBlocked', 'fallback/mock 상태에서는 retry 액션을 막아둘게'))
+      return
+    }
     setRetryingJobId(jobId)
     setActionMessage(null)
     try {
@@ -133,6 +125,10 @@ export default function ScanOpsPage() {
   }
 
   async function quarantineJob(jobId: string) {
+    if (res.usingFallback) {
+      setActionMessage(t('admin.scanops.action.fallbackBlocked', 'fallback/mock 상태에서는 quarantine 액션을 막아둘게'))
+      return
+    }
     setQuarantiningJobId(jobId)
     setActionMessage(null)
     try {
@@ -166,6 +162,12 @@ export default function ScanOpsPage() {
 
       {res.error ? <div className="loginError" style={{ marginBottom: 16 }}>{res.error}</div> : null}
       {actionMessage ? <div className="saveMessage" style={{ marginBottom: 16 }}>{actionMessage}</div> : null}
+      {res.usingFallback ? (
+        <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
+          <strong>{t('admin.scanops.warning.fallbackTitle', 'Live scan ops unavailable.')}</strong>{' '}
+          {t('admin.scanops.warning.fallbackBody', '지금 화면은 fallback/mock data일 수 있어서 retry, quarantine 같은 운영 액션은 잠깐 막아둘게.')}
+        </div>
+      ) : null}
 
       <div className="kpiGrid">
         <StatCard label={t('admin.scanops.kpi.jobs', 'Jobs')} value={String(summary.jobsTotal ?? 0)} note={`${t('admin.scanops.kpi.jobsNoteQueued', 'queued')} ${summary.queuedJobs ?? 0} · ${t('admin.scanops.kpi.jobsNoteProcessing', 'processing')} ${summary.processingJobs ?? 0}`} />
@@ -174,6 +176,14 @@ export default function ScanOpsPage() {
         <StatCard label={t('admin.scanops.kpi.quarantine', 'Quarantined')} value={String(summary.quarantinedJobs ?? 0)} note={t('admin.scanops.kpi.quarantineNote', 'worker 제외 운영 보관')} />
         <StatCard label={t('admin.scanops.kpi.feedback', 'Feedback')} value={String(summary.feedbackTotal ?? 0)} note={`${t('admin.scanops.kpi.feedbackAccepted', 'accepted')} ${summary.feedbackAccepted ?? 0} · ${t('admin.scanops.kpi.feedbackCorrected', 'corrected')} ${summary.feedbackCorrected ?? 0}`} />
         <StatCard label={t('admin.scanops.kpi.failures', 'Failures')} value={String(summary.failureLogs ?? 0)} note={t('admin.scanops.kpi.failuresNote', 'submit / polling / result / worker')} />
+      </div>
+
+      <div className="metaRow section" style={{ marginTop: 16 }}>
+        <div className="metaPill">{t('admin.scanops.meta.filter', 'filter')} {filter}</div>
+        <div className="metaPill">{t('admin.scanops.meta.query', 'query')} {query.trim() || '-'}</div>
+        <div className="metaPill">{t('admin.scanops.meta.selected', 'selected')} {selectedJob?.id ?? '-'}</div>
+        <div className="metaPill">{t('admin.scanops.meta.worker', 'worker')} {summary.workerRunning ? 'running' : 'stopped'}</div>
+        <div className="metaPill">{res.usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : t('admin.common.badge.live', 'Live data')}</div>
       </div>
 
       <div className="section sectionGrid twoCol">
@@ -186,10 +196,18 @@ export default function ScanOpsPage() {
             ))}
           </div>
 
+          <div className="buttonRow" style={{ marginTop: 0, marginBottom: 16, flexWrap: 'wrap' }}>
+            <input className="textInput" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.scanops.filters.searchPlaceholder', 'job id / user / error code')} />
+          </div>
+
           <div className="sectionHeader">
             <div>
               <h2 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.scanops.jobs.title', 'Recent jobs')}</h2>
               <p className="pageDesc">{t('admin.scanops.jobs.desc', '현재 queue 적체와 완료/실패 상태를 본다')}</p>
+            </div>
+            <div className="metaRow" style={{ marginTop: 0 }}>
+              <div className="metaPill">{t('admin.scanops.jobs.filtered', 'filtered')} {filteredJobs.length}</div>
+              <div className="metaPill">{t('admin.scanops.jobs.failed', 'failed')} {summary.failedJobs ?? 0}</div>
             </div>
           </div>
           {filteredJobs.length === 0 ? (
@@ -218,10 +236,10 @@ export default function ScanOpsPage() {
                       <td>
                         {row.status === 'failed' ? (
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            <button className="ghostBtn ghostBtnSmall" type="button" disabled={retryingJobId === row.id} onClick={(event) => { event.stopPropagation(); void retryJob(row.id) }}>
+                            <button className="ghostBtn ghostBtnSmall" type="button" disabled={retryingJobId === row.id || res.usingFallback} onClick={(event) => { event.stopPropagation(); void retryJob(row.id) }}>
                               {retryingJobId === row.id ? t('admin.scanops.action.retrying', 'retrying...') : t('admin.scanops.action.retry', 'retry')}
                             </button>
-                            <button className="ghostBtn ghostBtnSmall" type="button" disabled={quarantiningJobId === row.id} onClick={(event) => { event.stopPropagation(); void quarantineJob(row.id) }}>
+                            <button className="ghostBtn ghostBtnSmall" type="button" disabled={quarantiningJobId === row.id || res.usingFallback} onClick={(event) => { event.stopPropagation(); void quarantineJob(row.id) }}>
                               {quarantiningJobId === row.id ? t('admin.scanops.action.moving', 'moving...') : t('admin.scanops.action.quarantine', 'quarantine')}
                             </button>
                           </div>
@@ -246,6 +264,16 @@ export default function ScanOpsPage() {
           </div>
           {selectedJob ? (
             <div className="sectionGrid" style={{ gap: 12 }}>
+              <div className={`card ${selectedJob.status === 'failed' ? 'warnCard' : 'successCard'}`} style={{ padding: 14 }}>
+                <strong>{t('admin.scanops.jobs.detail.operatorNote', 'Operator note')}</strong>
+                <div style={{ marginTop: 6 }}>
+                  {selectedJob.status === 'failed'
+                    ? t('admin.scanops.jobs.detail.failedHint', 'failed job이면 error code와 최근 failure log를 먼저 보고, live 상태일 때만 retry/quarantine 판단을 내리는 게 안전해.')
+                    : selectedJob.status === 'quarantined'
+                      ? t('admin.scanops.jobs.detail.quarantinedHint', 'quarantine job은 worker 자동흐름 밖에 있으니 재처리 전에 원인 정리가 먼저야.')
+                      : t('admin.scanops.jobs.detail.normalHint', '현재 선택 job은 읽기 확인 위주면 충분해 보여.')}
+                </div>
+              </div>
               <div className="field"><div className="fieldLabel">{t('admin.scanops.jobs.detail.jobId', 'Job ID')}</div><div>{selectedJob.id}</div></div>
               <div className="field"><div className="fieldLabel">{t('admin.scanops.jobs.detail.status', 'Status')}</div><div>{selectedJob.status ?? '-'}</div></div>
               <div className="field"><div className="fieldLabel">{t('admin.scanops.jobs.detail.errorCode', 'Error code')}</div><div>{selectedJob.errorCode ?? '-'}</div></div>

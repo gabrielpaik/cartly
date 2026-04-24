@@ -73,6 +73,8 @@ export default function OverviewPage() {
     data: mockSummary,
   })
   const data = res.data.data
+  const overviewUsingFallback = res.usingFallback || periodUsingFallback
+  const overviewLoading = res.loading || periodLoading
 
   useEffect(() => {
     let cancelled = false
@@ -95,6 +97,8 @@ export default function OverviewPage() {
           return
         }
         if (cancelled) return
+        setPeriodUsingFallback(true)
+        setPeriodData(mockPeriodSummary)
         setPeriodError(err instanceof Error ? err.message : t('admin.overview.period.loadFailed', '기간 집계를 불러오지 못했어'))
       } finally {
         if (!cancelled) {
@@ -110,6 +114,10 @@ export default function OverviewPage() {
   }, [period, router, t])
 
   async function onRefreshSnapshot() {
+    if (res.usingFallback) {
+      setRefreshMessage(t('admin.overview.refresh.blockedFallback', 'fallback/mock 상태에서는 snapshot refresh를 막아둘게'))
+      return
+    }
     setRefreshingSnapshot(true)
     setRefreshMessage(null)
     try {
@@ -227,7 +235,7 @@ export default function OverviewPage() {
   return (
     <div>
       <PageHeader
-        badge={res.usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : res.loading ? t('admin.common.badge.loading', 'Loading...') : t('admin.common.badge.live', 'Live data')}
+        badge={overviewUsingFallback ? t('admin.common.badge.fallback', 'Fallback data') : overviewLoading ? t('admin.common.badge.loading', 'Loading...') : t('admin.common.badge.live', 'Live data')}
         title={t('admin.overview.title', 'Overview')}
         description={t('admin.overview.desc', '핵심 지표 요약')}
         onRefresh={() => void onRefreshSnapshot()}
@@ -251,6 +259,8 @@ export default function OverviewPage() {
         <div className="metaPill">{t('admin.overview.meta.generatedAt', '생성시각')} {formatDate(data.snapshotGeneratedAt)}</div>
         <div className="metaPill">{t('admin.overview.meta.source', '소스')} {data.snapshotSource ?? '-'}</div>
         <div className="metaPill">{t('admin.overview.meta.mode', '모드')} {data.dataMode ?? '-'}</div>
+        <div className="metaPill">{t('admin.overview.meta.period', 'period')} {period}</div>
+        <div className="metaPill">{t('admin.overview.meta.periodState', 'period state')} {periodLoading ? t('admin.common.badge.loading', 'Loading...') : periodUsingFallback ? t('admin.common.badge.fallback', 'Fallback data') : t('admin.common.badge.live', 'Live data')}</div>
       </div>
 
       <div className="summaryClusterGrid">

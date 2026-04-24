@@ -9,17 +9,11 @@ class CartlyRuntimeConfig {
   static const current = CartlyRuntimeConfig(
     remoteBaseUrl: String.fromEnvironment(
       'CARTLY_REMOTE_BASE_URL',
-      defaultValue: String.fromEnvironment(
-        'WIMC_REMOTE_BASE_URL',
-        defaultValue: '',
-      ),
+      defaultValue: '',
     ),
     remoteAuthToken: String.fromEnvironment(
       'CARTLY_REMOTE_AUTH_TOKEN',
-      defaultValue: String.fromEnvironment(
-        'WIMC_REMOTE_AUTH_TOKEN',
-        defaultValue: '',
-      ),
+      defaultValue: '',
     ),
   );
 

@@ -6,8 +6,7 @@ from .storage_paths import ads_assets_dir, branding_assets_dir, runtime_assets_r
 
 
 def _cartly_display_path(value: Union[str, Path]) -> str:
-    path = str(value)
-    return path.replace('/WIMC', '/Cartly').replace('Application Support/WIMC', 'Application Support/Cartly')
+    return str(value)
 
 
 def runtime_surface_labels() -> Dict[str, Any]:

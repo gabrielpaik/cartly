@@ -14,8 +14,6 @@ echo "PWD=$(pwd)"
 
 if [[ -f "$HOME/Library/Application Support/Cartly/admin.env" ]]; then
   source "$HOME/Library/Application Support/Cartly/admin.env"
-elif [[ -f "$HOME/Library/Application Support/WIMC/admin.env" ]]; then
-  source "$HOME/Library/Application Support/WIMC/admin.env"
 fi
 export PATH="$SAFE_PATH:${PATH:-}"
 

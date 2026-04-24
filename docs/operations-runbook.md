@@ -33,11 +33,10 @@
 
 ### Expected login flow
 1. User logs into macOS
-2. Login Item app runs a small trigger script. Primary login item app is now `Cartly Backend Login.app`, while the legacy `WIMC Backend Login.app` can remain as a temporary compatibility backup:
+2. Login Item app runs a small trigger script:
    - `/Users/sdpaik/Applications/Cartly Backend Login.app`
    - `/Users/sdpaik/dev/cartly/scripts/trigger-backend-login.sh`
    - `/Users/sdpaik/dev/cartly/scripts/Cartly Backend.command`
-   - `/Users/sdpaik/dev/cartly/scripts/WIMC Backend.command` (legacy compatibility shim if the old app is still launched manually)
 3. The trigger waits briefly for the login session to settle, then opens Terminal with:
    - `/Users/sdpaik/dev/cartly/scripts/Cartly Backend.command`
 4. That command launches:

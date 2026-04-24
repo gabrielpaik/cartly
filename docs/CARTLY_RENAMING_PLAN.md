@@ -95,8 +95,8 @@ These should stay until a dedicated technical migration step.
   - legacy install id fallback keys like `wimc_install_id_v1`
   - remaining hostnames / external identities that still stay outside repo-controlled app ids
 - internal service hostnames/domains unless explicitly re-scoped later:
-  - `scancart-api.seoa-nas.com`
-  - `wimc-admin.seoa-nas.com`
+  - `scan-api.seoa-nas.com`
+  - `cartly-admin.seoa-nas.com`
 
 ## First-pass execution plan
 

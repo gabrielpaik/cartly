@@ -1,18 +1,18 @@
-# Cartly admin via Cloudflare Tunnel (`admin.seoa-nas.com`)
+# Cartly admin via Cloudflare Tunnel (`cartly-admin.seoa-nas.com`)
 
 ## Goal
 
 Expose Cartly admin publicly through Cloudflare without opening local router ports.
 
 Recommended public URL:
-- `https://admin.seoa-nas.com`
+- `https://cartly-admin.seoa-nas.com`
 
 Do **not** expose the root domain for admin.
 Use a subdomain and keep backend private.
 
 ## Security posture
 
-- Public: `admin.seoa-nas.com` → Cloudflare Tunnel → `admin-web` on `127.0.0.1:3000`
+- Public: `cartly-admin.seoa-nas.com` → Cloudflare Tunnel → `admin-web` on `127.0.0.1:3000`
 - Private only: backend API on `127.0.0.1:8011`
 - App admin APIs still require `ADMIN_TOKEN`
 - Recommended next layer: Cloudflare Access email allowlist on top of `ADMIN_TOKEN`
@@ -32,7 +32,7 @@ Verified on this Mac mini:
 ```bash
 cd /Users/sdpaik/dev/cartly
 export ADMIN_TOKEN='replace-with-long-random-secret'
-export API_BASE_URL='https://admin.seoa-nas.com'
+export API_BASE_URL='https://cartly-admin.seoa-nas.com'
 uvicorn backend.app.main:app --host 127.0.0.1 --port 8011
 ```
 
@@ -81,13 +81,13 @@ Typical flow:
 - dashboard gives one command for this Mac
 - run that command locally
 - connector becomes Healthy
-- `https://admin.seoa-nas.com` starts routing to local `127.0.0.1:3000`
+- `https://cartly-admin.seoa-nas.com` starts routing to local `127.0.0.1:3000`
 
 ## Recommended hardening after first boot
 
 ### 1) Add Cloudflare Access
 
-Protect `admin.seoa-nas.com` with a policy such as:
+Protect `cartly-admin.seoa-nas.com` with a policy such as:
 - allow only your email address
 - or allow only a small email/domain list
 
@@ -111,7 +111,7 @@ If operators change:
 1. Start backend on `127.0.0.1:8011`
 2. Start admin-web on `127.0.0.1:3000`
 3. Run Cloudflare tunnel connector command
-4. Open `https://admin.seoa-nas.com`
+4. Open `https://cartly-admin.seoa-nas.com`
 5. Confirm:
    - login page appears
    - correct `ADMIN_TOKEN` enters successfully

@@ -12,7 +12,7 @@ Recommended public URL:
 - Public app hostname: `scan-api.seoa-nas.com` → Cloudflare Tunnel → `app-public-proxy` on `127.0.0.1:3100`
 - `app-public-proxy` forwards only app-safe routes to backend `127.0.0.1:8011`
 - backend stays local/private on `127.0.0.1:8011`
-- admin UI stays on its own domain (`wimc-admin.seoa-nas.com`) on separate `admin-web` service `127.0.0.1:3000`
+- admin UI stays on its own domain (`cartly-admin.seoa-nas.com`) on separate `admin-web` service `127.0.0.1:3000`
 
 ## Public routes exposed for the app
 

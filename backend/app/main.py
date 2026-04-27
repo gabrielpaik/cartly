@@ -8,7 +8,7 @@ from .core.runtime_surface import runtime_surface_labels
 from .core.storage_paths import ads_assets_dir, branding_assets_dir, runtime_assets_root
 from .core.settings import settings
 from .db.init_db import init_db
-from .routers import admin, ads_runtime, auth, carts, config, events, receipts, scan
+from .routers import admin, ads_runtime, auth, carts, config, events, explore, receipts, scan
 from .services.admin_snapshot_scheduler import AdminDashboardSnapshotScheduler
 from .services.storage_health import ensure_storage_ready, storage_health_check
 
@@ -38,6 +38,7 @@ app.include_router(carts.router, prefix='/v1/carts', tags=['carts'])
 app.include_router(receipts.router, prefix='/v1/receipts', tags=['receipts'])
 app.include_router(events.router, prefix='/v1/events', tags=['events'])
 app.include_router(ads_runtime.router, prefix='/v1/ads', tags=['ads'])
+app.include_router(explore.router, prefix='/v1/explore', tags=['explore'])
 app.include_router(config.router, prefix='/v1', tags=['config'])
 app.include_router(admin.router, prefix='/admin', tags=['admin'])
 

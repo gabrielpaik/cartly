@@ -25,12 +25,29 @@ class HomePageCartController {
           scanJobId: item.scanJobId,
         ),
       );
-      final resolvedEntryId =
-          recentScanEntryId ?? _recentScanEntryIdForItem(item);
-      if (resolvedEntryId != null) {
-        recentScans.removeWhere((entry) => entry.id == resolvedEntryId);
-      }
+      _removeRecentScanEntry(item, recentScanEntryId: recentScanEntryId);
     });
+  }
+
+  void increaseMatchingCartItem(
+    CartItem existing,
+    RecognizedItem item, {
+    String? recentScanEntryId,
+  }) {
+    _setState(() {
+      existing.quantity++;
+      _removeRecentScanEntry(item, recentScanEntryId: recentScanEntryId);
+    });
+  }
+
+  CartItem? findDuplicateCartItem(RecognizedItem item) {
+    final normalizedName = _normalizeItemName(item.name);
+    for (final existing in items) {
+      if (_normalizeItemName(existing.name) != normalizedName) continue;
+      if (existing.price != item.price) continue;
+      return existing;
+    }
+    return null;
   }
 
   void dismissRecentScan(RecentScanEntry entry) {
@@ -78,11 +95,25 @@ class HomePageCartController {
     });
   }
 
+  void _removeRecentScanEntry(
+    RecognizedItem item, {
+    String? recentScanEntryId,
+  }) {
+    final resolvedEntryId = recentScanEntryId ?? _recentScanEntryIdForItem(item);
+    if (resolvedEntryId != null) {
+      recentScans.removeWhere((entry) => entry.id == resolvedEntryId);
+    }
+  }
+
   String? _recentScanEntryIdForItem(RecognizedItem item) {
     final scanJobId = item.scanJobId?.trim();
     if (scanJobId == null || scanJobId.isEmpty) {
       return null;
     }
     return scanJobId;
+  }
+
+  String _normalizeItemName(String value) {
+    return value.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 }

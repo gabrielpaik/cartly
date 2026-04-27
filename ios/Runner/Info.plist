@@ -34,6 +34,10 @@
 	<string>인식 결과나 검수용 이미지를 저장할 때 사진 보관함 접근이 필요합니다.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>가격표 이미지를 선택해 OCR 인식을 진행하기 위해 사진 보관함 접근이 필요합니다.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>저장한 카트 이름에 매장/지역 힌트를 제안하기 위해 현재 위치 접근이 필요합니다.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>저장한 카트 이름에 매장/지역 힌트를 제안하기 위해 현재 위치 접근이 필요합니다.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -7,7 +7,7 @@ import 'scan_ui_helpers.dart';
 class RecognizedResultCard extends StatefulWidget {
   final RecognizedItem item;
   final void Function(RecognizedItem updated) onChanged;
-  final void Function(RecognizedItem item) onAdd;
+  final Future<void> Function(RecognizedItem item) onAdd;
   final String? title;
 
   final bool startEditing;
@@ -254,7 +254,7 @@ class _RecognizedResultCardState extends State<RecognizedResultCard> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                onPressed: () {
+                onPressed: () async {
                   RecognizedItem toAdd = widget.item;
 
                   if (isEditing) {
@@ -263,7 +263,7 @@ class _RecognizedResultCardState extends State<RecognizedResultCard> {
                     toAdd = updated;
                   }
 
-                  widget.onAdd(toAdd);
+                  await widget.onAdd(toAdd);
                 },
                 child: Text(
                   widget.addButtonText,

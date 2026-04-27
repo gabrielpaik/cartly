@@ -20,7 +20,7 @@ class ItemAddSection extends StatefulWidget {
   final List<CameraDescription> cameras;
   final ScanRepository scanRepository;
 
-  final void Function(RecognizedItem item) onAdd;
+  final Future<bool> Function(RecognizedItem item) onAdd;
   final void Function(RecognizedItem item)? onRecognized;
   final void Function(RecognizedItem item)? onDismissRecognized;
   final VoidCallback? onAddedFeedback;
@@ -58,8 +58,23 @@ class _ItemAddSectionState extends State<ItemAddSection> {
   String? _activeQueueEntryId;
 
   bool get showResultCard => recognized != null;
+
+  bool _isActiveReviewEntry(_ScanQueueEntry entry) {
+    return entry.id == _activeQueueEntryId &&
+        recognized != null &&
+        !manualEntryOpen;
+  }
+
+  List<_ScanQueueEntry> get _visibleScanInboxEntries => _scanInbox
+      .where((entry) => !_isActiveReviewEntry(entry))
+      .toList(growable: false);
+
   int get _readyCount => _scanInbox
-      .where((entry) => entry.status == _ScanQueueStatus.ready)
+      .where(
+        (entry) =>
+            entry.status == _ScanQueueStatus.ready &&
+            !_isActiveReviewEntry(entry),
+      )
       .length;
   int get _failedCount => _scanInbox
       .where((entry) => entry.status == _ScanQueueStatus.failed)
@@ -177,8 +192,11 @@ class _ItemAddSectionState extends State<ItemAddSection> {
 
   Future<void> _addToParent(RecognizedItem item) async {
     final activeQueueEntryId = _activeQueueEntryId;
+    final added = await widget.onAdd(item);
+    if (!added) return;
+
     unawaited(_submitFeedbackIfNeeded(item));
-    widget.onAdd(item);
+    widget.onDismissRecognized?.call(item);
     widget.onAddedFeedback?.call();
     if (activeQueueEntryId != null) {
       setState(() {
@@ -268,6 +286,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
         setState(() {
           _activateReadyEntry(entry);
         });
+        widget.onDismissRecognized?.call(entry.item!);
         return;
       }
     }
@@ -340,6 +359,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
           }
 
           final recognizedItem = RecognizedItem.fromCandidate(result);
+          var promotedToActive = false;
           await _deleteQueuedImage(imagePath);
           setState(() {
             isOcrRunning = false;
@@ -356,16 +376,22 @@ class _ItemAddSectionState extends State<ItemAddSection> {
               );
               if (recognized == null && !manualEntryOpen) {
                 final entry = _findQueueEntryByImagePath(imagePath);
-                if (entry != null) _activateReadyEntry(entry);
+                if (entry != null) {
+                  _activateReadyEntry(entry);
+                  promotedToActive = true;
+                }
               }
             } else {
               recognized = recognizedItem;
               _originalCandidate = result;
               _recognizedJobId = result.scanJobId ?? submitted.jobId;
               manualEntryOpen = false;
+              promotedToActive = true;
             }
           });
-          widget.onRecognized?.call(recognizedItem);
+          if (!promotedToActive) {
+            widget.onRecognized?.call(recognizedItem);
+          }
           _startNextQueuedScan();
           return;
         }
@@ -604,10 +630,10 @@ class _ItemAddSectionState extends State<ItemAddSection> {
           const SizedBox(height: 12),
         ],
 
-        if (_scanInbox.isNotEmpty) ...[
+        if (_visibleScanInboxEntries.isNotEmpty) ...[
           _ScanInboxCard(
             summaryText: _queueSummaryText,
-            entries: _scanInbox,
+            entries: _visibleScanInboxEntries,
             activeEntryId: _activeQueueEntryId,
             onActivate: (entry) {
               if (entry.status != _ScanQueueStatus.ready ||

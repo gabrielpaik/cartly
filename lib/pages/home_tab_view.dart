@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
@@ -19,9 +21,9 @@ class HomeTabView extends StatelessWidget {
   final List<CartItem> items;
   final List<RecentScanEntry> recentScans;
   final void Function(RecognizedItem item) onRecognized;
-  final void Function(RecognizedItem item) onAdd;
+  final Future<bool> Function(RecognizedItem item) onAdd;
   final void Function(RecognizedItem item) onDismissRecognized;
-  final void Function(RecentScanEntry entry) onAddRecentScan;
+  final Future<bool> Function(RecentScanEntry entry) onAddRecentScan;
   final void Function(RecentScanEntry entry) onDismissRecentScan;
   final void Function(CartItem item) onRemove;
 
@@ -80,8 +82,9 @@ class HomeTabView extends StatelessWidget {
           scanRepository: scanRepository,
           onRecognized: onRecognized,
           onDismissRecognized: onDismissRecognized,
-          onAdd: (item) {
-            onAdd(item);
+          onAdd: (item) async {
+            final added = await onAdd(item);
+            if (!context.mounted || !added) return false;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
@@ -92,6 +95,7 @@ class HomeTabView extends StatelessWidget {
                 ),
               ),
             );
+            return true;
           },
           addButtonText: AppRuntimeCopy.text([
             'home',
@@ -110,7 +114,22 @@ class HomeTabView extends StatelessWidget {
           const SizedBox(height: 10),
           RecentScanCarousel(
             entries: recentScans,
-            onAdd: onAddRecentScan,
+            onAdd: (entry) {
+              unawaited(() async {
+                final added = await onAddRecentScan(entry);
+                if (!context.mounted || !added) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      AppRuntimeCopy.text([
+                        'home',
+                        'addToCurrentCartDone',
+                      ], '현재 카트에 담았어요'),
+                    ),
+                  ),
+                );
+              }());
+            },
             onDismiss: onDismissRecentScan,
           ),
         ],

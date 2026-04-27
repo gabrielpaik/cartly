@@ -157,6 +157,38 @@ function buildGroups(t: (key: string, fallback?: string) => string): Array<{ tit
       ],
     },
     {
+      title: t('admin.content.groups.publicSite.title', '공개 랜딩 카피'),
+      description: t('admin.content.groups.publicSite.desc', 'scan-api 공개 랜딩과 privacy 문구'),
+      fields: [
+        { key: 'publicSiteEyebrow', label: t('admin.content.fields.publicSiteEyebrow', '랜딩 eyebrow') },
+        { key: 'publicSiteHeroTitle', label: t('admin.content.fields.publicSiteHeroTitle', '랜딩 메인 제목'), kind: 'textarea' },
+        { key: 'publicSiteHeroBody', label: t('admin.content.fields.publicSiteHeroBody', '랜딩 소개 문구'), kind: 'textarea' },
+        { key: 'publicSitePrimaryCtaLabel', label: t('admin.content.fields.publicSitePrimaryCtaLabel', '랜딩 1차 CTA') },
+        { key: 'publicSiteSecondaryCtaLabel', label: t('admin.content.fields.publicSiteSecondaryCtaLabel', '랜딩 2차 CTA') },
+        { key: 'publicSiteHeroPoints', label: t('admin.content.fields.publicSiteHeroPoints', '랜딩 핵심 포인트'), kind: 'textarea' },
+        { key: 'publicSiteEnabledSections', label: t('admin.content.fields.publicSiteEnabledSections', '표시할 섹션 목록') },
+        { key: 'publicSiteSectionOrder', label: t('admin.content.fields.publicSiteSectionOrder', '섹션 순서') },
+        { key: 'publicSiteFlowTitle', label: t('admin.content.fields.publicSiteFlowTitle', '랜딩 흐름 제목') },
+        { key: 'publicSiteFlowBody', label: t('admin.content.fields.publicSiteFlowBody', '랜딩 흐름 설명'), kind: 'textarea' },
+        { key: 'publicSiteStatusTitle', label: t('admin.content.fields.publicSiteStatusTitle', '운영 상태 제목') },
+        { key: 'publicSiteStatusPoints', label: t('admin.content.fields.publicSiteStatusPoints', '운영 상태 포인트'), kind: 'textarea' },
+        { key: 'publicSitePartnerReviewTitle', label: t('admin.content.fields.publicSitePartnerReviewTitle', '파트너 검토 제목') },
+        { key: 'publicSitePartnerReviewPoints', label: t('admin.content.fields.publicSitePartnerReviewPoints', '파트너 검토 포인트'), kind: 'textarea' },
+        { key: 'publicSiteLinkPlacementTitle', label: t('admin.content.fields.publicSiteLinkPlacementTitle', '링크 위치 섹션 제목') },
+        { key: 'publicSiteLinkPlacementBody', label: t('admin.content.fields.publicSiteLinkPlacementBody', '링크 위치 섹션 설명'), kind: 'textarea' },
+        { key: 'publicSiteLinkPlacementPoints', label: t('admin.content.fields.publicSiteLinkPlacementPoints', '링크 위치 포인트'), kind: 'textarea' },
+        { key: 'publicSitePrivacyTitle', label: t('admin.content.fields.publicSitePrivacyTitle', 'Privacy 제목') },
+        { key: 'publicSitePrivacyIntro', label: t('admin.content.fields.publicSitePrivacyIntro', 'Privacy 소개'), kind: 'textarea' },
+        { key: 'publicSitePrivacyCollectionTitle', label: t('admin.content.fields.publicSitePrivacyCollectionTitle', 'Privacy 수집 제목') },
+        { key: 'publicSitePrivacyCollectionPoints', label: t('admin.content.fields.publicSitePrivacyCollectionPoints', 'Privacy 수집 항목'), kind: 'textarea' },
+        { key: 'publicSitePrivacyExternalTitle', label: t('admin.content.fields.publicSitePrivacyExternalTitle', 'Privacy 외부 링크 제목') },
+        { key: 'publicSitePrivacyExternalBody', label: t('admin.content.fields.publicSitePrivacyExternalBody', 'Privacy 외부 링크 설명'), kind: 'textarea' },
+        { key: 'publicSitePrivacyStatusTitle', label: t('admin.content.fields.publicSitePrivacyStatusTitle', 'Privacy 현재 상태 제목') },
+        { key: 'publicSitePrivacyStatusBody', label: t('admin.content.fields.publicSitePrivacyStatusBody', 'Privacy 현재 상태 설명'), kind: 'textarea' },
+        { key: 'publicSitePrivacyBackAction', label: t('admin.content.fields.publicSitePrivacyBackAction', 'Privacy 돌아가기 버튼') },
+      ],
+    },
+    {
       title: t('admin.content.groups.scan.title', '스캔 카피'),
       description: t('admin.content.groups.scan.desc', '스캔/인식 흐름 문구'),
       fields: [
@@ -210,6 +242,8 @@ export default function ContentPage() {
   const [previewScreen, setPreviewScreen] = useState<'home' | 'help' | 'my' | 'login'>('home')
   const [previewMemberMode, setPreviewMemberMode] = useState(false)
   const [previewSrc, setPreviewSrc] = useState('')
+  const [publicPreviewPath, setPublicPreviewPath] = useState<'/' | '/privacy'>('/')
+  const [publicPreviewSrc, setPublicPreviewSrc] = useState('')
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null)
   const groups = buildGroups(t)
   const groupNav = groups.map((group, index) => ({ ...group, id: groupAnchorId(group.title, index) }))
@@ -217,6 +251,7 @@ export default function ContentPage() {
 
   useEffect(() => {
     setPreviewSrc(`/app-preview/index.html?v=${Date.now()}`)
+    setPublicPreviewSrc(`https://scan-api.seoa-nas.com/?previewTs=${Date.now()}`)
   }, [])
 
   useEffect(() => {
@@ -287,6 +322,7 @@ export default function ContentPage() {
     setMessage(null)
     try {
       await putJson<{ ok: boolean; data: ContentSettings }>('/admin/content', form)
+      setPublicPreviewSrc(`https://scan-api.seoa-nas.com${publicPreviewPath}?previewTs=${Date.now()}`)
       setMessage(t('admin.content.saveDone', '콘텐츠 설정 저장 완료'))
     } catch (err) {
       if (isUnauthorizedError(err)) {
@@ -323,6 +359,7 @@ export default function ContentPage() {
         if (kind === 'logo') update('logoImageUrl', res.data.url)
         else if (kind === 'splash') update('splashImageUrl', res.data.url)
         else update('loginHeroImageUrl', res.data.url)
+        setPublicPreviewSrc(`https://scan-api.seoa-nas.com${publicPreviewPath}?previewTs=${Date.now()}`)
         setMessage(
           kind === 'logo'
             ? t('admin.content.upload.logoDone', '로고 업로드 완료')
@@ -452,7 +489,7 @@ export default function ContentPage() {
           ))}
         </div>
 
-        <div className="sectionGrid">
+        <div className="sectionGrid twoCol">
           <div className="card" id="content-preview-card">
             <h2 className="panelTitle">{t('admin.content.preview.title', '프리뷰')}</h2>
             <div className="previewCard" style={{ display: 'grid', gap: 12 }}>
@@ -535,6 +572,71 @@ export default function ContentPage() {
                   }}
                 >
                   preview 불러오는 중...
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <h2 className="panelTitle">공개 랜딩 live preview</h2>
+            <div className="previewCard" style={{ display: 'grid', gap: 12 }}>
+              <div className="previewSubtitle">
+                저장된 admin content 기준으로 지금 공개 중인 `scan-api` surface를 보여줘. 저장 후 바로 새로고침해서 확인하면 돼.
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {([
+                  ['/', 'Landing'],
+                  ['/privacy', 'Privacy'],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className="ghostBtn"
+                    onClick={() => {
+                      setPublicPreviewPath(value)
+                      setPublicPreviewSrc(`https://scan-api.seoa-nas.com${value}?previewTs=${Date.now()}`)
+                    }}
+                    style={{
+                      background: publicPreviewPath === value ? '#111827' : '#fff',
+                      color: publicPreviewPath === value ? '#fff' : '#111827',
+                      borderColor: publicPreviewPath === value ? '#111827' : 'rgba(15,23,42,0.12)',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+                <a className="ghostBtn ghostBtnSmall" href={publicPreviewSrc || 'https://scan-api.seoa-nas.com/'} target="_blank" rel="noreferrer">
+                  새 탭에서 열기
+                </a>
+              </div>
+              {publicPreviewSrc ? (
+                <iframe
+                  key={publicPreviewSrc}
+                  title="Cartly public landing preview"
+                  src={publicPreviewSrc}
+                  style={{
+                    width: '100%',
+                    minHeight: 980,
+                    border: '1px solid rgba(15,23,42,0.08)',
+                    borderRadius: 24,
+                    background: '#fff',
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: '100%',
+                    minHeight: 980,
+                    border: '1px solid rgba(15,23,42,0.08)',
+                    borderRadius: 24,
+                    background: '#fff',
+                    display: 'grid',
+                    placeItems: 'center',
+                    color: '#64748b',
+                    fontWeight: 700,
+                  }}
+                >
+                  public preview 불러오는 중...
                 </div>
               )}
             </div>

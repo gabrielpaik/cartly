@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     bearer_secret: str = 'change-me'
     admin_token: str = ''
     api_base_url: str = 'http://127.0.0.1:8011'
+    coupang_partners_enabled: bool = False
+    coupang_partners_access_key: str = ''
+    coupang_partners_secret_key: str = ''
     remote_scan_enabled: bool = True
     ads_enabled: bool = True
     openclaw_scan_command: str = ''

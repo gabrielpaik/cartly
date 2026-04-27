@@ -10,9 +10,15 @@ import '../widgets/save_complete_bottom_sheet.dart';
 class HomePageCartSaveController {
   const HomePageCartSaveController._();
 
-  static Future<SavedCart> saveCart(List<CartItem> items) async {
+  static Future<SavedCart> saveCart(
+    List<CartItem> items, {
+    String? title,
+  }) async {
     await _showGuestSaveInterstitialIfNeeded();
-    return CartStore.instance.saveNewCart(items: _toSavedCartItems(items));
+    return CartStore.instance.saveNewCart(
+      items: _toSavedCartItems(items),
+      title: title,
+    );
   }
 
   static Future<void> showSaveCompleteSheet({

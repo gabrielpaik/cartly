@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cartly | Smart grocery planning and same-intent alternatives</title>
+    <meta
+      name="description"
+      content="Cartly helps shoppers scan items, track carts, revisit saved trips, and review same-intent alternatives before checkout."
+    />
+    <link rel="stylesheet" href="/site.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow">Cartly · private beta</div>
+          <h1>장보기를 기록하고, 같은 구매 의도 안에서 더 나은 선택을 찾는 앱</h1>
+          <p class="lede">
+            Cartly는 스캔, 현재 카트, 저장된 장보기 기록을 바탕으로 사용자가 이미 사려던 상품과
+            같은 의도의 대체안을 다시 검토할 수 있게 도와줍니다.
+          </p>
+          <div class="cta-row">
+            <a class="button primary" href="#how">작동 방식 보기</a>
+            <a class="button secondary" href="/privacy">개인정보 안내</a>
+          </div>
+          <ul class="hero-points">
+            <li>상품 스캔 및 검토</li>
+            <li>현재 카트와 저장된 장보기 기록 관리</li>
+            <li>같은 구매 의도(same-intent) 기준 대체안 탐색</li>
+            <li>사용자 탭 이후에만 외부 파트너 링크 열기</li>
+          </ul>
+        </div>
+        <div class="hero-visual card">
+          <img src="/site-media/intro.png" alt="Cartly grocery shopping visual" />
+          <div class="caption">현재는 iOS private beta 기반으로 제품 흐름을 다듬고 있습니다.</div>
+        </div>
+      </section>
+
+      <section class="grid two" id="how">
+        <article class="card">
+          <h2>Cartly가 하는 일</h2>
+          <ol class="steps">
+            <li><strong>Scan</strong> 상품을 촬영하거나 직접 추가합니다.</li>
+            <li><strong>Review</strong> 인식 결과를 검토하고 현재 카트에 담습니다.</li>
+            <li><strong>Explore</strong> 같은 상품군 안에서 다시 볼 후보와 대체안을 모읍니다.</li>
+            <li><strong>Save</strong> 장보기 결과를 저장해 다음 구매 의사결정에 활용합니다.</li>
+          </ol>
+        </article>
+        <article class="card emphasis">
+          <h2>파트너 링크가 붙는 위치</h2>
+          <p>
+            Cartly는 무관한 크로스셀 피드 대신, 사용자가 이미 사려던 상품과 같은 구매 의도를 유지하는
+            대체안만 Explore 영역에서 보여주도록 설계되어 있습니다.
+          </p>
+          <ul class="bullet-list">
+            <li>최근 스캔 후 아직 확정하지 않은 상품</li>
+            <li>현재 카트에 담긴 핵심 구매 후보</li>
+            <li>반복 구매 가능성이 높은 저장 카트 품목</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="preview">
+        <div class="section-head">
+          <div class="eyebrow">App flow preview</div>
+          <h2>사용자 흐름</h2>
+          <p>
+            아래 흐름은 실제 앱에서 파트너 오퍼가 어떻게 맥락 안에서 노출되는지 설명하기 위한 개요입니다.
+          </p>
+        </div>
+        <div class="grid three">
+          <article class="card phone">
+            <div class="phone-badge">1. Scan inbox</div>
+            <h3>스캔 후 검토</h3>
+            <p>사용자는 스캔한 상품명을 확인하고 현재 카트에 넣거나 보류합니다.</p>
+          </article>
+          <article class="card phone">
+            <div class="phone-badge">2. Explore</div>
+            <h3>같은 의도 대체안 확인</h3>
+            <p>Explore 탭은 저장 기록, 현재 카트, 최근 스캔을 묶어 같은 상품군 대체안을 모읍니다.</p>
+          </article>
+          <article class="card phone">
+            <div class="phone-badge">3. Outbound</div>
+            <h3>사용자 탭 후 외부 이동</h3>
+            <p>외부 쇼핑 링크는 사용자가 특정 대체안을 선택했을 때만 열립니다.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="grid two">
+        <article class="card">
+          <h2>현재 운영 상태</h2>
+          <ul class="bullet-list">
+            <li>iOS private beta(TestFlight) 운영 중</li>
+            <li>OCR 스캔, 카트 저장, 반복 구매 맥락 정리 기능 포함</li>
+            <li>Explore 탭은 same-intent alternative 중심으로 고도화 중</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h2>파트너 검토 참고</h2>
+          <ul class="bullet-list">
+            <li>무작위 광고 피드가 아니라 장보기 의사결정 보조 흐름 안에 배치됩니다.</li>
+            <li>사용자 액션 없이 외부 링크를 자동 실행하지 않습니다.</li>
+            <li>제품 맥락과 구매 의도를 유지하는 대체안만 다룹니다.</li>
+          </ul>
+        </article>
+      </section>
+
+      <footer class="footer">
+        <div>
+          <strong>Cartly</strong>
+          <span>smart grocery planning and same-intent alternative discovery</span>
+        </div>
+        <div class="footer-note">파트너 검토 및 서비스 문의는 계정 등록 채널을 통해 응답합니다.</div>
+      </footer>
+    </main>
+  </body>
+</html>

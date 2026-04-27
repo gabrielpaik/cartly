@@ -8,6 +8,7 @@ from ..deps import db_dep
 from ..services.ad_slot_service import app_ad_slots_config
 from ..services.app_copy_service import get_app_copy
 from ..services.branding_service import get_branding, project_branding
+from ..services.coupang_runtime_service import get_coupang_runtime_status
 
 router = APIRouter()
 
@@ -18,6 +19,7 @@ def app_config(db: OrmSession = Depends(db_dep)):
     branding = project_branding(raw_branding)
     ad_slots = app_ad_slots_config(db, settings.ads_enabled)
     copy = get_app_copy(db, raw_branding)
+    coupang_runtime = get_coupang_runtime_status(db)
     return {
         'ok': True,
         'data': {
@@ -26,6 +28,9 @@ def app_config(db: OrmSession = Depends(db_dep)):
             'features': {
                 'remoteScan': settings.remote_scan_enabled,
                 'adsEnabled': settings.ads_enabled,
+                'exploreOfferBridgeEnabled': True,
+                'coupangPartnersEnabled': coupang_runtime['enabled'],
+                'coupangPartnersAffiliateReady': coupang_runtime['affiliateReady'],
                 'manualAddEnabled': True,
                 'guestModeEnabled': True,
                 'savedCartEditingEnabled': True,

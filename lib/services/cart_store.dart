@@ -16,7 +16,10 @@ class CartStore {
   static const _ownerKey = 'saved_carts_owner_v1';
   static const _pendingOpKey = 'saved_carts_pending_ops_v1';
 
-  final RemoteCartRepository _remoteRepository = RemoteCartRepository();
+  RemoteCartRepository? _remoteRepository;
+
+  RemoteCartRepository get _cartRepository =>
+      _remoteRepository ??= RemoteCartRepository();
 
   final ValueNotifier<List<SavedCart>> carts = ValueNotifier<List<SavedCart>>(
     [],
@@ -36,19 +39,19 @@ class CartStore {
     }
 
     try {
-      var remoteCarts = await _remoteRepository.listCarts(
+      var remoteCarts = await _cartRepository.listCarts(
         currentSession.authToken,
       );
       if (local.carts.isNotEmpty &&
           (local.ownerId.isEmpty ||
               (local.ownerId == currentSession.id && remoteCarts.isEmpty))) {
         for (final cart in local.carts) {
-          await _remoteRepository.createCart(
+          await _cartRepository.createCart(
             authToken: currentSession.authToken,
             cart: cart,
           );
         }
-        remoteCarts = await _remoteRepository.listCarts(
+        remoteCarts = await _cartRepository.listCarts(
           currentSession.authToken,
         );
       }
@@ -57,7 +60,7 @@ class CartStore {
         authToken: currentSession.authToken,
         ownerId: currentSession.id,
       );
-      remoteCarts = await _remoteRepository.listCarts(currentSession.authToken);
+      remoteCarts = await _cartRepository.listCarts(currentSession.authToken);
       final ownerPending = remainingPending
           .where((op) => op.ownerId == currentSession.id)
           .toList();
@@ -93,7 +96,7 @@ class CartStore {
     final currentSession = AuthStore.instance.session.value;
     if (currentSession != null && currentSession.authToken.trim().isNotEmpty) {
       try {
-        final created = await _remoteRepository.createCart(
+        final created = await _cartRepository.createCart(
           authToken: currentSession.authToken,
           cart: localCart,
         );
@@ -130,7 +133,7 @@ class CartStore {
     final currentSession = AuthStore.instance.session.value;
     if (currentSession != null && currentSession.authToken.trim().isNotEmpty) {
       try {
-        final remote = await _remoteRepository.updateCart(
+        final remote = await _cartRepository.updateCart(
           authToken: currentSession.authToken,
           cart: updated,
         );
@@ -182,7 +185,7 @@ class CartStore {
     final currentSession = AuthStore.instance.session.value;
     if (currentSession != null && currentSession.authToken.trim().isNotEmpty) {
       try {
-        await _remoteRepository.deleteCart(
+        await _cartRepository.deleteCart(
           authToken: currentSession.authToken,
           cartId: id,
         );
@@ -224,7 +227,7 @@ class CartStore {
     }
 
     try {
-      final remote = await _remoteRepository.getCart(
+      final remote = await _cartRepository.getCart(
         authToken: currentSession.authToken,
         cartId: id,
       );
@@ -248,7 +251,7 @@ class CartStore {
       throw const RemoteCartException('로그인이 필요해');
     }
 
-    final updated = await _remoteRepository.extendCartRetention(
+    final updated = await _cartRepository.extendCartRetention(
       authToken: currentSession.authToken,
       cartId: id,
     );
@@ -367,7 +370,7 @@ class CartStore {
             if (cartJson == null) {
               continue;
             }
-            await _remoteRepository.createCart(
+            await _cartRepository.createCart(
               authToken: authToken,
               cart: SavedCart.fromJson(cartJson),
             );
@@ -376,12 +379,12 @@ class CartStore {
             if (cartJson == null) {
               continue;
             }
-            await _remoteRepository.updateCart(
+            await _cartRepository.updateCart(
               authToken: authToken,
               cart: SavedCart.fromJson(cartJson),
             );
           case PendingCartOpKind.delete:
-            await _remoteRepository.deleteCart(
+            await _cartRepository.deleteCart(
               authToken: authToken,
               cartId: op.cartId,
             );

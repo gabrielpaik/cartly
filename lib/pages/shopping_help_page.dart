@@ -48,7 +48,7 @@ class ShoppingHelpPage extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
           children: [
             Text(
-              'Explore',
+              AppRuntimeCopy.text(['help', 'pageTitle'], 'Explore'),
               style: const TextStyle(
                 fontFamily: 'SpaceGrotesk',
                 fontSize: 30,

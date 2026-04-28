@@ -8,6 +8,7 @@ from ..deps import db_dep
 from ..services.ad_slot_service import app_ad_slots_config
 from ..services.app_copy_service import get_app_copy
 from ..services.branding_service import get_branding, project_branding
+from ..services.content_settings_service import apply_due_content_schedule
 from ..services.coupang_runtime_service import get_coupang_runtime_status
 
 router = APIRouter()
@@ -15,6 +16,7 @@ router = APIRouter()
 
 @router.get('/app-config')
 def app_config(db: OrmSession = Depends(db_dep)):
+    apply_due_content_schedule(db)
     raw_branding = get_branding(db)
     branding = project_branding(raw_branding)
     ad_slots = app_ad_slots_config(db, settings.ads_enabled)

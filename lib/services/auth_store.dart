@@ -16,7 +16,9 @@ class AuthStore {
 
   static const _sessionKey = 'user_session_v1';
 
-  final AuthRepository _repository = RemoteAuthRepository();
+  AuthRepository? _repository;
+
+  AuthRepository get _authRepository => _repository ??= RemoteAuthRepository();
 
   final ValueNotifier<UserSession?> session = ValueNotifier<UserSession?>(null);
 
@@ -46,7 +48,7 @@ class AuthStore {
       session.value = next;
 
       try {
-        final refreshed = await _repository.refreshSession(next);
+        final refreshed = await _authRepository.refreshSession(next);
         await _persist(refreshed);
       } on AuthRepositoryException catch (error) {
         if (error.code == 'UNAUTHORIZED') {
@@ -74,20 +76,20 @@ class AuthStore {
   }
 
   Future<UserSession> signInWithProvider(AuthProviderType provider) async {
-    final next = await _repository.signInWithProvider(provider);
+    final next = await _authRepository.signInWithProvider(provider);
     await _persist(next);
     return next;
   }
 
   Future<void> requestSignupCode(String email) {
-    return _repository.requestSignupCode(email);
+    return _authRepository.requestSignupCode(email);
   }
 
   Future<void> verifySignupCode({
     required String email,
     required String code,
   }) {
-    return _repository.verifySignupCode(email: email, code: code);
+    return _authRepository.verifySignupCode(email: email, code: code);
   }
 
   Future<UserSession> registerWithEmail({
@@ -96,7 +98,7 @@ class AuthStore {
     required String password,
     required String code,
   }) async {
-    final next = await _repository.registerWithEmail(
+    final next = await _authRepository.registerWithEmail(
       EmailRegisterDraft(
         displayName: displayName,
         email: email,
@@ -112,7 +114,7 @@ class AuthStore {
     required String email,
     required String password,
   }) async {
-    final next = await _repository.signInWithPassword(
+    final next = await _authRepository.signInWithPassword(
       email: email,
       password: password,
     );
@@ -121,7 +123,7 @@ class AuthStore {
   }
 
   Future<void> requestPasswordResetCode(String email) {
-    return _repository.requestPasswordResetCode(email);
+    return _authRepository.requestPasswordResetCode(email);
   }
 
   Future<UserSession> resetPassword({
@@ -129,7 +131,7 @@ class AuthStore {
     required String code,
     required String newPassword,
   }) async {
-    final next = await _repository.resetPassword(
+    final next = await _authRepository.resetPassword(
       email: email,
       code: code,
       newPassword: newPassword,
@@ -139,7 +141,7 @@ class AuthStore {
   }
 
   Future<UserSession> continueAsGuest() async {
-    final next = await _repository.continueAsGuest();
+    final next = await _authRepository.continueAsGuest();
     await _persist(next);
     return next;
   }

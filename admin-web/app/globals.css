@@ -91,8 +91,68 @@ a { color: inherit; text-decoration: none; }
 .opsSignalHint { font-size: 13px; color: #475569; font-weight: 600; line-height: 1.5; }
 .stickySideColumn { position: sticky; top: 28px; align-self: start; display: grid; gap: 16px; }
 .formSectionCard { scroll-margin-top: 24px; }
+.compactActionRow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.compactJumpGrid { display: flex; gap: 8px; flex-wrap: wrap; }
+.compactSectionActions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+.compactActionCard { padding-top: 14px; padding-bottom: 14px; }
+.compactPrimaryBtn { width: auto; min-width: 112px; }
+.compactGhostBtn { width: auto; }
+.contentToolbarRow { align-items: stretch; }
+.contentJumpGrid { row-gap: 10px; }
+.anchorChip,
+.toolbarLinkPill,
+.toolbarGhostBtn,
+.previewToggleChip { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; font-size: 12px; font-weight: 800; line-height: 1; text-decoration: none; }
+.anchorChip { padding: 9px 12px; background: #f8fafc; border: 1px solid #e2e8f0; color: #334155; }
+.toolbarLinkPill { padding: 9px 12px; background: #fff4f5; border: 1px solid #ffd6dc; color: #b31631; }
+.toolbarGhostBtn { padding: 9px 12px; background: #fff; color: #475569; border: 1px solid #e2e8f0; cursor: pointer; }
+.previewControlStack { display: grid; gap: 8px; }
+.previewToggleRow { display: flex; gap: 8px; flex-wrap: wrap; }
+.previewModeRow { align-items: center; }
+.previewToggleChip { padding: 9px 12px; background: #fff; color: #475569; border: 1px solid #e2e8f0; cursor: pointer; }
+.previewToggleChip.active { background: #111827; color: #fff; border-color: #111827; }
+.previewToggleChip.active.accent { background: #e11d48; border-color: #e11d48; }
+.contentEditorLayout { grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.9fr); align-items: start; }
+.contentEditorCard { padding: 22px; }
+.editorTabRow { display: flex; flex-wrap: wrap; gap: 8px; }
+.editorSectionTab { display: inline-flex; align-items: center; justify-content: center; text-align: center; padding: 8px 12px; border-radius: 999px; border: 1px solid #e6e8ec; background: #fbfcfd; color: #475569; cursor: pointer; }
+.editorSectionTab span { font-size: 12px; font-weight: 800; }
+.editorSectionTab.active { background: #fff4f5; border-color: #ffd6dc; color: #b31631; box-shadow: inset 0 0 0 1px rgba(227,24,55,0.05); }
+.editorSubtabRow { display: flex; flex-wrap: wrap; gap: 8px; }
+.editorSubtab { padding: 8px 12px; border-radius: 999px; border: 1px solid #e2e8f0; background: #fff; color: #475569; font-size: 12px; font-weight: 800; cursor: pointer; }
+.editorSubtab.active { background: #111827; color: #fff; border-color: #111827; }
+.editorSubsectionCard { border: 1px solid #eceff3; border-radius: 18px; padding: 18px; background: #fcfcfd; }
+.editorSubsectionHeader { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
+.editorSubsectionTitle { margin: 0 0 6px; font-size: 17px; font-weight: 800; color: #111827; }
+.editorSubsectionDesc { margin: 0; color: #64748b; font-size: 13px; font-weight: 600; line-height: 1.5; }
+.utilityRailCard { padding: 16px; }
+.utilityRailCardTight { padding: 14px; }
+.editorUtilityTitle { font-size: 15px; font-weight: 800; color: #111827; margin-bottom: 6px; }
+.editorUtilityText { font-size: 12px; color: #64748b; font-weight: 600; line-height: 1.45; margin-bottom: 10px; }
+.compactMetaRow { gap: 8px; }
+.saveScheduleField .fieldLabel { margin-bottom: 5px; }
+.saveScheduleField .textInput { padding: 10px 12px; font-size: 13px; }
+.saveScheduleRow { align-items: center; }
+.compactPrimaryAction { width: 100%; padding: 11px 14px; }
+.editorSectionNav { display: grid; gap: 8px; }
+.editorSectionNavBtn { display: grid; gap: 4px; text-align: left; padding: 12px 14px; border-radius: 14px; border: 1px solid #e6e8ec; background: #fff; color: #111827; cursor: pointer; }
+.editorSectionNavBtn strong { font-size: 13px; font-weight: 800; }
+.editorSectionNavBtn span { font-size: 12px; color: #64748b; font-weight: 600; }
+.editorSectionNavBtn.active { background: #f8fafc; border-color: #cbd5e1; }
+.editorTextAction,
+.editorExternalLink { display: inline-flex; align-items: center; justify-content: center; padding: 8px 2px; border: 0; background: transparent; color: #2563eb; font-size: 12px; font-weight: 800; cursor: pointer; text-decoration: none; }
 .smokeResultRow { display: grid; grid-template-columns: minmax(180px, 220px) minmax(80px, 100px) minmax(80px, 100px) 1fr auto; gap: 10px; align-items: center; }
 .segmentedControl { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+.primaryBtn,
+.ghostBtn,
+.ghostBtnSmall { transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, color 0.16s ease; }
+.primaryBtn:hover,
+.ghostBtn:hover,
+.ghostBtnSmall:hover,
+.anchorChip:hover,
+.toolbarLinkPill:hover,
+.toolbarGhostBtn:hover,
+.previewToggleChip:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06); }
 .segmentedBtn { background: #fff; color: #444; border: 1px solid #e1e3e6; border-radius: 999px; padding: 10px 14px; font-size: 13px; font-weight: 800; cursor: pointer; }
 .segmentedBtn.active { background: #fff4f5; color: #b31631; border-color: #ffd6dc; }
 
@@ -186,7 +246,12 @@ textarea.textInput { resize: vertical; min-height: 112px; }
   .pageActions { width: 100%; }
   .pageActionBtn { width: 100%; }
   .stickySideColumn { position: static; top: auto; }
+  .compactSectionActions { justify-content: flex-start; }
   .smokeResultRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .previewToggleRow { gap: 6px; }
+  .editorTabRow,
+  .contentEditorLayout { grid-template-columns: 1fr; }
+  .editorSubsectionHeader { flex-direction: column; }
   .segmentedControl { width: 100%; }
   .segmentedBtn { flex: 1 1 calc(50% - 8px); text-align: center; }
   .buttonRow { flex-direction: column; align-items: stretch; }
@@ -233,5 +298,19 @@ textarea.textInput { resize: vertical; min-height: 112px; }
   .panelTitle { font-size: 16px; }
   .metaRow { gap: 8px; }
   .metaPill { font-size: 11px; }
+  .compactActionRow,
+  .compactJumpGrid,
+  .compactSectionActions,
+  .previewToggleRow,
+  .editorSubtabRow { display: grid; grid-template-columns: 1fr; }
+  .compactPrimaryBtn,
+  .compactGhostBtn,
+  .anchorChip,
+  .toolbarLinkPill,
+  .toolbarGhostBtn,
+  .previewToggleChip,
+  .editorSubtab,
+  .editorSectionTab,
+  .editorSectionNavBtn { width: 100%; }
   .smokeResultRow { grid-template-columns: 1fr; }
 }

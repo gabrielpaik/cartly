@@ -323,7 +323,7 @@ BRANDING_COPY_FIELD_MAP = {
     ('login', 'validation.codeRequired'): 'loginValidationCodeRequired',
     ('saveComplete', 'title'): 'saveCompleteTitle',
     ('saveComplete', 'subtitle'): 'saveCompleteSubtitle',
-    ('saveComplete', 'viewSavedAction'): 'homeRecentSavedAction',
+    ('saveComplete', 'viewSavedAction'): 'saveCompleteViewSavedAction',
     ('publicSite', 'eyebrow'): 'publicSiteEyebrow',
     ('publicSite', 'heroTitle'): 'publicSiteHeroTitle',
     ('publicSite', 'heroBody'): 'publicSiteHeroBody',

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import PageHeader from '../../components/PageHeader'
@@ -22,6 +22,13 @@ type UploadResponse = {
     code: string
     message: string
   }
+}
+
+type ContentSchedule = {
+  pending: boolean
+  publishAt: string | null
+  updatedAt: string | null
+  payload?: ContentSettings | null
 }
 
 type FieldConfig = {
@@ -222,14 +229,6 @@ function buildGroups(t: (key: string, fallback?: string) => string): Array<{ tit
   ]
 }
 
-function groupAnchorId(title: string, index: number) {
-  const slug = title
-    .toLowerCase()
-    .replace(/[^a-z0-9가-힣]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return `content-group-${index + 1}-${slug || 'section'}`
-}
-
 export default function ContentPage() {
   const router = useRouter()
   const { t } = useAdminCopy()
@@ -244,14 +243,117 @@ export default function ContentPage() {
   const [previewSrc, setPreviewSrc] = useState('')
   const [publicPreviewPath, setPublicPreviewPath] = useState<'/' | '/privacy'>('/')
   const [publicPreviewSrc, setPublicPreviewSrc] = useState('')
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(mockContentSettings))
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
+  const [publishAtDraft, setPublishAtDraft] = useState('')
+  const [scheduleMeta, setScheduleMeta] = useState<ContentSchedule>({ pending: false, publishAt: null, updatedAt: null, payload: null })
+  const [activeSection, setActiveSection] = useState<'brand' | 'app' | 'account' | 'public'>('brand')
+  const [appCopyTab, setAppCopyTab] = useState<'home' | 'help' | 'saved' | 'scan' | 'saveComplete'>('home')
+  const [accountTab, setAccountTab] = useState<'my' | 'login' | 'guest'>('my')
+  const [publicTab, setPublicTab] = useState<'landing' | 'privacy'>('landing')
+  const [previewSurface, setPreviewSurface] = useState<'app' | 'site'>('app')
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null)
   const groups = buildGroups(t)
-  const groupNav = groups.map((group, index) => ({ ...group, id: groupAnchorId(group.title, index) }))
-  const totalFields = groupNav.reduce((sum, group) => sum + group.fields.length, 0)
+  const groupMap = useMemo(() => ({
+    branding: groups[0],
+    home: groups[1],
+    help: groups[2],
+    saved: groups[3],
+    myLogin: groups[4],
+    publicSite: groups[5],
+    scan: groups[6],
+    saveComplete: groups[7],
+  }), [groups])
+  const totalFields = groups.reduce((sum, group) => sum + group.fields.length, 0)
+  const formSnapshot = useMemo(() => JSON.stringify(form), [form])
+  const isDirty = formSnapshot !== savedSnapshot
+  const contentActionState = usingFallback ? 'fallback blocked' : saving ? 'saving' : isDirty ? 'unsaved changes' : 'saved'
+  const lastSavedLabel = useMemo(() => (lastSavedAt ? new Date(lastSavedAt).toLocaleString('ko-KR') : null), [lastSavedAt])
+  const scheduleLabel = scheduleMeta.publishAt ?? null
+  const editorSections = useMemo(() => ([
+    { key: 'brand' as const, label: 'Brand' },
+    { key: 'app' as const, label: 'App copy' },
+    { key: 'account' as const, label: 'Account & login' },
+    { key: 'public' as const, label: 'Public site' },
+  ]), [])
+  const accountFieldGroups = useMemo(() => ({
+    my: groupMap.myLogin.fields.filter((field) => String(field.key).startsWith('my')),
+    login: groupMap.myLogin.fields.filter((field) => String(field.key).startsWith('login')),
+    guest: groupMap.myLogin.fields.filter((field) => String(field.key).startsWith('drawerGuest')),
+  }), [groupMap])
+  const publicSiteFieldGroups = useMemo(() => ({
+    landing: groupMap.publicSite.fields.filter((field) => !String(field.key).startsWith('publicSitePrivacy')),
+    privacy: groupMap.publicSite.fields.filter((field) => String(field.key).startsWith('publicSitePrivacy')),
+  }), [groupMap])
+
+  function refreshAppPreview() {
+    setPreviewSrc(`/app-preview/index.html?v=${Date.now()}`)
+  }
+
+  function formatPublishNow() {
+    const now = new Date()
+    const pad = (value: number) => String(value).padStart(2, '0')
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+  }
+
+  function parsePublishAt(value: string) {
+    const normalized = value.trim().replace(' ', 'T')
+    const parsed = new Date(normalized)
+    if (Number.isNaN(parsed.getTime())) return null
+    return parsed
+  }
+
+  function isFuturePublishAt(value: string) {
+    const parsed = parsePublishAt(value)
+    if (!parsed) return false
+    return parsed.getTime() > Date.now()
+  }
+
+  async function loadSchedule(liveContent?: ContentSettings) {
+    try {
+      const response = await fetchJsonSafe<{ ok: boolean; data: ContentSchedule }>('/admin/content/schedule', {
+        ok: true,
+        data: { pending: false, publishAt: null, updatedAt: null, payload: null },
+      })
+      const schedule = response.data.data
+      setScheduleMeta(schedule)
+      if (schedule.pending && schedule.publishAt) {
+        setPublishAtDraft(schedule.publishAt)
+        if (schedule.payload) {
+          setForm(schedule.payload)
+          setSavedSnapshot(JSON.stringify(schedule.payload))
+        } else if (liveContent) {
+          setForm(liveContent)
+          setSavedSnapshot(JSON.stringify(liveContent))
+        }
+      } else {
+        if (liveContent) {
+          setForm(liveContent)
+          setSavedSnapshot(JSON.stringify(liveContent))
+        }
+        setPublishAtDraft(formatPublishNow())
+      }
+      return schedule
+    } catch {
+      if (liveContent) {
+        setForm(liveContent)
+        setSavedSnapshot(JSON.stringify(liveContent))
+      }
+      const emptySchedule = { pending: false, publishAt: null, updatedAt: null, payload: null }
+      setScheduleMeta(emptySchedule)
+      setPublishAtDraft(formatPublishNow())
+      return emptySchedule
+    }
+  }
+
+  function refreshPublicPreview(path: '/' | '/privacy' = publicPreviewPath) {
+    setPublicPreviewPath(path)
+    setPublicPreviewSrc(`https://scan-api.seoa-nas.com${path}?previewTs=${Date.now()}`)
+  }
 
   useEffect(() => {
-    setPreviewSrc(`/app-preview/index.html?v=${Date.now()}`)
-    setPublicPreviewSrc(`https://scan-api.seoa-nas.com/?previewTs=${Date.now()}`)
+    refreshAppPreview()
+    refreshPublicPreview('/')
   }, [])
 
   useEffect(() => {
@@ -260,9 +362,9 @@ export default function ContentPage() {
       try {
         const res = await fetchJsonSafe<{ ok: boolean; data: ContentSettings }>('/admin/content', { ok: true, data: mockContentSettings })
         if (cancelled) return
-        setForm(res.data.data)
         setUsingFallback(res.usingFallback)
         setFallbackMessage(res.fallbackMessage)
+        await loadSchedule(res.data.data)
       } catch (err) {
         if (isUnauthorizedError(err)) {
           router.replace('/login?reason=expired')
@@ -318,12 +420,20 @@ export default function ContentPage() {
       return
     }
 
+    if (!parsePublishAt(publishAtDraft)) {
+      setMessage('저장 시각은 YYYY-MM-DD HH:MM:SS 형식으로 넣어줘')
+      return
+    }
+
     setSaving(true)
     setMessage(null)
     try {
-      await putJson<{ ok: boolean; data: ContentSettings }>('/admin/content', form)
-      setPublicPreviewSrc(`https://scan-api.seoa-nas.com${publicPreviewPath}?previewTs=${Date.now()}`)
-      setMessage(t('admin.content.saveDone', '콘텐츠 설정 저장 완료'))
+      await putJson<{ ok: boolean; data: ContentSettings }>('/admin/content', { ...form, _publishAt: publishAtDraft })
+      setSavedSnapshot(formSnapshot)
+      setLastSavedAt(new Date().toISOString())
+      const nextSchedule = await loadSchedule(form)
+      refreshPublicPreview(publicPreviewPath)
+      setMessage(nextSchedule.pending && nextSchedule.publishAt ? `콘텐츠 예약 저장 완료 (${nextSchedule.publishAt})` : t('admin.content.saveDone', '콘텐츠 설정 저장 완료'))
     } catch (err) {
       if (isUnauthorizedError(err)) {
         router.replace('/login?reason=expired')
@@ -359,7 +469,7 @@ export default function ContentPage() {
         if (kind === 'logo') update('logoImageUrl', res.data.url)
         else if (kind === 'splash') update('splashImageUrl', res.data.url)
         else update('loginHeroImageUrl', res.data.url)
-        setPublicPreviewSrc(`https://scan-api.seoa-nas.com${publicPreviewPath}?previewTs=${Date.now()}`)
+        refreshPublicPreview(publicPreviewPath)
         setMessage(
           kind === 'logo'
             ? t('admin.content.upload.logoDone', '로고 업로드 완료')
@@ -379,6 +489,28 @@ export default function ContentPage() {
     }
   }
 
+  const activeAppGroup = {
+    home: groupMap.home,
+    help: groupMap.help,
+    saved: groupMap.saved,
+    scan: groupMap.scan,
+    saveComplete: groupMap.saveComplete,
+  }[appCopyTab]
+
+  const currentSectionTitle = {
+    brand: groupMap.branding.title,
+    app: 'App copy',
+    account: 'Account & login',
+    public: 'Public site',
+  }[activeSection]
+
+  const currentSectionDescription = {
+    brand: groupMap.branding.description,
+    app: '앱 안에서 자주 보이는 문구를 흐름별로 정리한다.',
+    account: '계정, 로그인, 게스트 전환 문구를 묶어서 본다.',
+    public: 'Landing과 Privacy를 같은 공개면 단위로 관리한다.',
+  }[activeSection]
+
   return (
     <div>
       <PageHeader
@@ -396,269 +528,283 @@ export default function ContentPage() {
       ) : null}
 
       <div className="metaRow" style={{ marginBottom: 16 }}>
-        <span className="metaPill">{t('admin.content.meta.groups', 'groups')} {groupNav.length}</span>
-        <span className="metaPill">{t('admin.content.meta.fields', 'fields')} {totalFields}</span>
-        <span className="metaPill">{t('admin.content.meta.preview', 'preview')} {previewScreen} · {previewMemberMode ? 'member' : 'guest'}</span>
-        <span className="metaPill">public preview {publicPreviewPath === '/' ? 'landing' : 'privacy'}</span>
-        <span className="metaPill">{usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : t('admin.common.badge.live', 'Live data')}</span>
+        <span className="metaPill">state {contentActionState}</span>
+        {lastSavedLabel ? <span className="metaPill">saved {lastSavedLabel}</span> : null}
+        <span className="metaPill">preview {previewSurface === 'app' ? previewScreen : publicPreviewPath === '/' ? 'landing' : 'privacy'}</span>
       </div>
 
-      <div className="opsSignalGrid" style={{ marginBottom: 16 }}>
-        <div className="opsSignalCard">
-          <div className="opsSignalLabel">Editing scope</div>
-          <div className="opsSignalValue">{groupNav.length} groups</div>
-          <div className="opsSignalHint">총 {totalFields}개 필드를 한 번에 관리하는 긴 폼이라, 그룹 점프와 preview 동선을 먼저 보는 편이 좋아.</div>
-        </div>
-        <div className="opsSignalCard">
-          <div className="opsSignalLabel">App preview</div>
-          <div className="opsSignalValue">{previewScreen} / {previewMemberMode ? 'member' : 'guest'}</div>
-          <div className="opsSignalHint">Flutter preview는 편집 중 값이 즉시 반영돼서 저장 전 문구 확인용으로 쓰면 된다.</div>
-        </div>
-        <div className="opsSignalCard">
-          <div className="opsSignalLabel">Public preview</div>
-          <div className="opsSignalValue">{publicPreviewPath === '/' ? 'Landing' : 'Privacy'}</div>
-          <div className="opsSignalHint">공개면은 저장 후 `scan-api` 실서피스를 바로 다시 불러와 확인하는 흐름으로 유지한다.</div>
-        </div>
-      </div>
-
-      <div className="section sectionGrid twoCol">
+      <div className="section sectionGrid twoCol contentEditorLayout">
         <div className="sectionGrid">
-          <div className="card">
-            <h2 className="panelTitle">{t('admin.content.quickJump.title', '빠른 이동 & 저장')}</h2>
-            <p className="pageDesc" style={{ marginTop: 0, marginBottom: 16 }}>
-              {t('admin.content.quickJump.desc', '긴 폼이라서 필요한 그룹으로 바로 이동하고, 현재 preview/save 상태를 같이 보자.')}
-            </p>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-              {groupNav.map((group) => (
-                <a key={group.id} className="ghostBtn ghostBtnSmall" href={`#${group.id}`}>
-                  {group.title}
-                </a>
-              ))}
-              <a className="ghostBtn ghostBtnSmall" href="#content-preview-card">
-                {t('admin.content.quickJump.preview', '프리뷰로 이동')}
-              </a>
-            </div>
-            <div className="metaRow" style={{ marginTop: 0, marginBottom: 16 }}>
-              <span className="metaPill">{t('admin.content.quickJump.previewState', 'preview state')} {previewScreen} / {previewMemberMode ? 'member' : 'guest'}</span>
-              <span className="metaPill">{saving ? t('admin.content.saving', '저장 중...') : t('admin.content.quickJump.ready', '편집 가능')}</span>
-            </div>
-            <div className="buttonRow" style={{ marginTop: 0 }}>
-              <button className="primaryBtn" disabled={saving || usingFallback} onClick={() => void onSave()}>
-                {saving ? t('admin.content.saving', '저장 중...') : t('admin.content.save', '저장')}
-              </button>
-              {message ? <div className="saveMessage">{message}</div> : null}
-            </div>
-          </div>
-
-          <div className="card">
-            <h2 className="panelTitle">{t('admin.content.assets.title', '브랜드 자산')}</h2>
-            <div className="formGrid">
-              <label className="field">
-                <div className="fieldLabel">{t('admin.content.fields.logoType', '로고 타입')}</div>
-                <select className="textInput" value={form.logoType} onChange={(e) => update('logoType', e.target.value as ContentSettings['logoType'])}>
-                  {LOGO_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="field">
-                <div className="fieldLabel">{t('admin.content.fields.logoUpload', '로고 업로드')}</div>
-                <label className="uploadBox">
-                  <input type="file" accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml" className="hiddenInput" onChange={(e) => { const file = e.target.files?.[0]; if (file) void onAssetUpload('logo', file) }} />
-                  <div className="uploadTitle">{t('admin.content.fields.logoUploadSelect', '로고 파일 선택')}</div>
-                  <div className="uploadDesc">{uploading === 'logo' ? t('admin.content.uploading', '업로드 중...') : t('admin.content.fields.logoUploadDesc', '직접 업로드해서 바로 연결')}</div>
-                </label>
-                {form.logoImageUrl ? <div className="saveMessage">{t('admin.content.fields.connected', '연결됨:')} {form.logoImageUrl}</div> : null}
-              </label>
-
-              <label className="field">
-                <div className="fieldLabel">{t('admin.content.fields.splashUpload', '스플래시 이미지 업로드')}</div>
-                <label className="uploadBox">
-                  <input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" className="hiddenInput" onChange={(e) => { const file = e.target.files?.[0]; if (file) void onAssetUpload('splash', file) }} />
-                  <div className="uploadTitle">{t('admin.content.fields.splashUploadSelect', '스플래시 파일 선택')}</div>
-                  <div className="uploadDesc">{uploading === 'splash' ? t('admin.content.uploading', '업로드 중...') : t('admin.content.fields.splashUploadDesc', '앱 시작 화면용 이미지 등록')}</div>
-                </label>
-                {form.splashImageUrl ? <div className="saveMessage">{t('admin.content.fields.connected', '연결됨:')} {form.splashImageUrl}</div> : null}
-              </label>
-
-              <label className="field">
-                <div className="fieldLabel">{t('admin.content.fields.loginHeroUpload', '로그인 이미지 업로드')}</div>
-                <label className="uploadBox">
-                  <input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" className="hiddenInput" onChange={(e) => { const file = e.target.files?.[0]; if (file) void onAssetUpload('loginHero', file) }} />
-                  <div className="uploadTitle">{t('admin.content.fields.loginHeroUploadSelect', '로그인 이미지 파일 선택')}</div>
-                  <div className="uploadDesc">{uploading === 'loginHero' ? t('admin.content.uploading', '업로드 중...') : t('admin.content.fields.loginHeroUploadDesc', '로그인 화면 상단 이미지 등록')}</div>
-                </label>
-                {form.loginHeroImageUrl ? <div className="saveMessage">{t('admin.content.fields.connected', '연결됨:')} {form.loginHeroImageUrl}</div> : null}
-              </label>
-            </div>
-          </div>
-
-          {groupNav.map((group) => (
-            <div className="card formSectionCard" key={group.id} id={group.id}>
-              <div className="sectionHeader">
-                <div>
-                  <h2 className="panelTitle" style={{ marginBottom: 6 }}>{group.title}</h2>
-                  <p className="pageDesc" style={{ marginTop: 0, marginBottom: 0 }}>{group.description}</p>
-                </div>
-                <span className="metaPill">{t('admin.content.group.fieldCount', 'fields')} {group.fields.length}</span>
+          <div className="card contentEditorCard">
+            <div className="sectionHeader" style={{ marginBottom: 16 }}>
+              <div>
+                <h2 className="panelTitle" style={{ marginBottom: 6 }}>{currentSectionTitle}</h2>
+                <p className="pageDesc" style={{ marginTop: 0, marginBottom: 0 }}>{currentSectionDescription}</p>
               </div>
-              <div className="formGrid">{group.fields.map(renderField)}</div>
+              <span className="metaPill">fields {totalFields}</span>
             </div>
-          ))}
+
+            <div className="editorTabRow" style={{ marginBottom: 16 }}>
+              {editorSections.map((section) => (
+                <button
+                  key={section.key}
+                  type="button"
+                  className={`editorSectionTab ${activeSection === section.key ? 'active' : ''}`}
+                  onClick={() => setActiveSection(section.key)}
+                >
+                  <span>{section.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {activeSection === 'brand' ? (
+              <div className="sectionGrid">
+                <div className="editorSubsectionCard">
+                  <div className="editorSubsectionHeader">
+                    <div>
+                      <h3 className="editorSubsectionTitle">기본 브랜딩</h3>
+                      <p className="editorSubsectionDesc">앱 기본 로고/탭 라벨 문구를 먼저 정리한다.</p>
+                    </div>
+                  </div>
+                  <div className="formGrid">{groupMap.branding.fields.map(renderField)}</div>
+                </div>
+
+                <div className="editorSubsectionCard">
+                  <div className="editorSubsectionHeader">
+                    <div>
+                      <h3 className="editorSubsectionTitle">브랜드 자산</h3>
+                      <p className="editorSubsectionDesc">이미지 업로드는 문구 영역과 분리해서 관리한다.</p>
+                    </div>
+                  </div>
+                  <div className="formGrid">
+                    <label className="field">
+                      <div className="fieldLabel">{t('admin.content.fields.logoType', '로고 타입')}</div>
+                      <select className="textInput" value={form.logoType} onChange={(e) => update('logoType', e.target.value as ContentSettings['logoType'])}>
+                        {LOGO_TYPE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="field">
+                      <div className="fieldLabel">{t('admin.content.fields.logoUpload', '로고 업로드')}</div>
+                      <label className="uploadBox">
+                        <input type="file" accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml" className="hiddenInput" onChange={(e) => { const file = e.target.files?.[0]; if (file) void onAssetUpload('logo', file) }} />
+                        <div className="uploadTitle">{t('admin.content.fields.logoUploadSelect', '로고 파일 선택')}</div>
+                        <div className="uploadDesc">{uploading === 'logo' ? t('admin.content.uploading', '업로드 중...') : t('admin.content.fields.logoUploadDesc', '직접 업로드해서 바로 연결')}</div>
+                      </label>
+                      {form.logoImageUrl ? <div className="saveMessage">{t('admin.content.fields.connected', '연결됨:')} {form.logoImageUrl}</div> : null}
+                    </label>
+
+                    <label className="field">
+                      <div className="fieldLabel">{t('admin.content.fields.splashUpload', '스플래시 이미지 업로드')}</div>
+                      <label className="uploadBox">
+                        <input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" className="hiddenInput" onChange={(e) => { const file = e.target.files?.[0]; if (file) void onAssetUpload('splash', file) }} />
+                        <div className="uploadTitle">{t('admin.content.fields.splashUploadSelect', '스플래시 파일 선택')}</div>
+                        <div className="uploadDesc">{uploading === 'splash' ? t('admin.content.uploading', '업로드 중...') : t('admin.content.fields.splashUploadDesc', '앱 시작 화면용 이미지 등록')}</div>
+                      </label>
+                      {form.splashImageUrl ? <div className="saveMessage">{t('admin.content.fields.connected', '연결됨:')} {form.splashImageUrl}</div> : null}
+                    </label>
+
+                    <label className="field">
+                      <div className="fieldLabel">{t('admin.content.fields.loginHeroUpload', '로그인 이미지 업로드')}</div>
+                      <label className="uploadBox">
+                        <input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" className="hiddenInput" onChange={(e) => { const file = e.target.files?.[0]; if (file) void onAssetUpload('loginHero', file) }} />
+                        <div className="uploadTitle">{t('admin.content.fields.loginHeroUploadSelect', '로그인 이미지 파일 선택')}</div>
+                        <div className="uploadDesc">{uploading === 'loginHero' ? t('admin.content.uploading', '업로드 중...') : t('admin.content.fields.loginHeroUploadDesc', '로그인 화면 상단 이미지 등록')}</div>
+                      </label>
+                      {form.loginHeroImageUrl ? <div className="saveMessage">{t('admin.content.fields.connected', '연결됨:')} {form.loginHeroImageUrl}</div> : null}
+                    </label>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {activeSection === 'app' ? (
+              <div className="sectionGrid">
+                <div className="editorSubtabRow">
+                  {([
+                    ['home', groupMap.home.title],
+                    ['help', groupMap.help.title],
+                    ['saved', groupMap.saved.title],
+                    ['scan', groupMap.scan.title],
+                    ['saveComplete', groupMap.saveComplete.title],
+                  ] as const).map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`editorSubtab ${appCopyTab === key ? 'active' : ''}`}
+                      onClick={() => setAppCopyTab(key)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="editorSubsectionCard">
+                  <div className="editorSubsectionHeader">
+                    <div>
+                      <h3 className="editorSubsectionTitle">{activeAppGroup.title}</h3>
+                      <p className="editorSubsectionDesc">{activeAppGroup.description}</p>
+                    </div>
+                    <span className="metaPill">fields {activeAppGroup.fields.length}</span>
+                  </div>
+                  <div className="formGrid">{activeAppGroup.fields.map(renderField)}</div>
+                </div>
+              </div>
+            ) : null}
+
+            {activeSection === 'account' ? (
+              <div className="sectionGrid">
+                <div className="editorSubtabRow">
+                  {([
+                    ['my', 'My'],
+                    ['login', 'Login'],
+                    ['guest', 'Guest drawer'],
+                  ] as const).map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`editorSubtab ${accountTab === key ? 'active' : ''}`}
+                      onClick={() => setAccountTab(key)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="editorSubsectionCard">
+                  <div className="editorSubsectionHeader">
+                    <div>
+                      <h3 className="editorSubsectionTitle">{accountTab === 'my' ? 'My copy' : accountTab === 'login' ? 'Login copy' : 'Guest drawer copy'}</h3>
+                      <p className="editorSubsectionDesc">{accountTab === 'my' ? '계정 화면에서 직접 보이는 문구만 모아 본다.' : accountTab === 'login' ? '로그인, 회원가입, 재설정 흐름 문구를 묶어 관리한다.' : '게스트 안내와 전환 메시지를 분리해서 본다.'}</p>
+                    </div>
+                    <span className="metaPill">fields {accountFieldGroups[accountTab].length}</span>
+                  </div>
+                  <div className="formGrid">{accountFieldGroups[accountTab].map(renderField)}</div>
+                </div>
+              </div>
+            ) : null}
+
+            {activeSection === 'public' ? (
+              <div className="sectionGrid">
+                <div className="editorSubtabRow">
+                  {([
+                    ['landing', 'Landing'],
+                    ['privacy', 'Privacy'],
+                  ] as const).map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`editorSubtab ${publicTab === key ? 'active' : ''}`}
+                      onClick={() => setPublicTab(key)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="editorSubsectionCard">
+                  <div className="editorSubsectionHeader">
+                    <div>
+                      <h3 className="editorSubsectionTitle">{publicTab === 'landing' ? 'Landing copy' : 'Privacy copy'}</h3>
+                      <p className="editorSubsectionDesc">{publicTab === 'landing' ? '랜딩 구조, CTA, 운영 설명을 한 묶음으로 본다.' : 'Privacy 문구만 분리해서 집중 편집한다.'}</p>
+                    </div>
+                    <span className="metaPill">fields {publicSiteFieldGroups[publicTab].length}</span>
+                  </div>
+                  <div className="formGrid">{publicSiteFieldGroups[publicTab].map(renderField)}</div>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className="stickySideColumn">
-          <div className="card" id="content-preview-card">
-            <h2 className="panelTitle">{t('admin.content.preview.title', '프리뷰')}</h2>
-            <div className="previewCard" style={{ display: 'grid', gap: 12 }}>
-              <div className="previewSubtitle">
-                {t('admin.content.preview.realApp', '실제 Flutter UI 기반 preview야. 편집 중인 값이 바로 반영돼.')}
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {([
-                  ['home', 'Home'],
-                  ['help', '도움'],
-                  ['my', 'My'],
-                  ['login', 'Login'],
-                ] as const).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className="ghostBtn"
-                    onClick={() => setPreviewScreen(value)}
-                    style={{
-                      background: previewScreen === value ? '#111827' : '#fff',
-                      color: previewScreen === value ? '#fff' : '#111827',
-                      borderColor: previewScreen === value ? '#111827' : 'rgba(15,23,42,0.12)',
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className="ghostBtn"
-                  onClick={() => setPreviewMemberMode(false)}
-                  style={{
-                    background: !previewMemberMode ? '#e11d48' : '#fff',
-                    color: !previewMemberMode ? '#fff' : '#e11d48',
-                    borderColor: '#e11d48',
-                  }}
-                >
-                  Guest
-                </button>
-                <button
-                  type="button"
-                  className="ghostBtn"
-                  onClick={() => setPreviewMemberMode(true)}
-                  style={{
-                    background: previewMemberMode ? '#111827' : '#fff',
-                    color: previewMemberMode ? '#fff' : '#111827',
-                    borderColor: 'rgba(15,23,42,0.12)',
-                  }}
-                >
-                  Member
-                </button>
-              </div>
-              {previewSrc ? (
-                <iframe
-                  key={previewSrc}
-                  ref={previewFrameRef}
-                  title="Cartly app preview"
-                  src={previewSrc}
-                  onLoad={() => postPreviewPayload()}
-                  style={{
-                    width: '100%',
-                    minHeight: 980,
-                    border: '1px solid rgba(15,23,42,0.08)',
-                    borderRadius: 24,
-                    background: '#fff',
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: '100%',
-                    minHeight: 980,
-                    border: '1px solid rgba(15,23,42,0.08)',
-                    borderRadius: 24,
-                    background: '#fff',
-                    display: 'grid',
-                    placeItems: 'center',
-                    color: '#64748b',
-                    fontWeight: 700,
-                  }}
-                >
-                  preview 불러오는 중...
-                </div>
-              )}
+          <div className="card utilityRailCard utilityRailCardTight">
+            <div className="editorUtilityTitle">Save</div>
+            <div className="editorUtilityText">즉시 저장하거나 시각 지정 후 예약 저장.</div>
+            <div className="metaRow compactMetaRow" style={{ marginTop: 0, marginBottom: 10 }}>
+              <span className="metaPill">section {currentSectionTitle}</span>
+              <span className="metaPill">{contentActionState}</span>
+              {lastSavedLabel ? <span className="metaPill">saved {lastSavedLabel}</span> : null}
+              {scheduleLabel ? <span className="metaPill">scheduled {scheduleLabel}</span> : null}
             </div>
+            <label className="field saveScheduleField" style={{ marginBottom: 10 }}>
+              <div className="fieldLabel">적용 시각 (YYYY-MM-DD HH:MM:SS)</div>
+              <input className="textInput" value={publishAtDraft} onChange={(e) => setPublishAtDraft(e.target.value)} placeholder="2026-04-28 10:30:00" />
+            </label>
+            <div className="compactActionRow saveScheduleRow" style={{ marginBottom: 10 }}>
+              <button type="button" className="toolbarGhostBtn" onClick={() => setPublishAtDraft(formatPublishNow())}>Today</button>
+              <span className="saveMessage">{isFuturePublishAt(publishAtDraft) ? '미래 시각이면 예약 저장돼.' : '지금 또는 지난 시각이면 즉시 반영돼.'}</span>
+            </div>
+            <button className="primaryBtn compactPrimaryAction" disabled={saving || usingFallback || !isDirty} onClick={() => void onSave()}>
+              {saving ? t('admin.content.saving', '저장 중...') : isDirty ? t('admin.content.save', '저장') : '저장됨'}
+            </button>
+            {message ? <div className="saveMessage" style={{ marginTop: 10 }}>{message}</div> : null}
           </div>
 
-          <div className="card">
-            <h2 className="panelTitle">공개 랜딩 live preview</h2>
-            <div className="previewCard" style={{ display: 'grid', gap: 12 }}>
-              <div className="previewSubtitle">
-                저장된 admin content 기준으로 지금 공개 중인 `scan-api` surface를 보여줘. 저장 후 바로 새로고침해서 확인하면 돼.
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {([
-                  ['/', 'Landing'],
-                  ['/privacy', 'Privacy'],
-                ] as const).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className="ghostBtn"
-                    onClick={() => {
-                      setPublicPreviewPath(value)
-                      setPublicPreviewSrc(`https://scan-api.seoa-nas.com${value}?previewTs=${Date.now()}`)
-                    }}
-                    style={{
-                      background: publicPreviewPath === value ? '#111827' : '#fff',
-                      color: publicPreviewPath === value ? '#fff' : '#111827',
-                      borderColor: publicPreviewPath === value ? '#111827' : 'rgba(15,23,42,0.12)',
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-                <a className="ghostBtn ghostBtnSmall" href={publicPreviewSrc || 'https://scan-api.seoa-nas.com/'} target="_blank" rel="noreferrer">
-                  새 탭에서 열기
-                </a>
-              </div>
-              {publicPreviewSrc ? (
-                <iframe
-                  key={publicPreviewSrc}
-                  title="Cartly public landing preview"
-                  src={publicPreviewSrc}
-                  style={{
-                    width: '100%',
-                    minHeight: 980,
-                    border: '1px solid rgba(15,23,42,0.08)',
-                    borderRadius: 24,
-                    background: '#fff',
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: '100%',
-                    minHeight: 980,
-                    border: '1px solid rgba(15,23,42,0.08)',
-                    borderRadius: 24,
-                    background: '#fff',
-                    display: 'grid',
-                    placeItems: 'center',
-                    color: '#64748b',
-                    fontWeight: 700,
-                  }}
-                >
-                  public preview 불러오는 중...
-                </div>
-              )}
+          <div className="card utilityRailCard utilityRailCardTight" id="content-preview-card">
+            <div className="editorUtilityTitle">Preview</div>
+            <div className="editorSubtabRow" style={{ marginBottom: 12 }}>
+              <button type="button" className={`editorSubtab ${previewSurface === 'app' ? 'active' : ''}`} onClick={() => setPreviewSurface('app')}>App</button>
+              <button type="button" className={`editorSubtab ${previewSurface === 'site' ? 'active' : ''}`} onClick={() => setPreviewSurface('site')}>Site</button>
             </div>
+
+            {previewSurface === 'app' ? (
+              <>
+                <div className="editorSubtabRow" style={{ marginBottom: 8 }}>
+                  {([
+                    ['home', 'Home'],
+                    ['help', '도움'],
+                    ['my', 'My'],
+                    ['login', 'Login'],
+                  ] as const).map(([value, label]) => (
+                    <button key={value} type="button" className={`editorSubtab ${previewScreen === value ? 'active' : ''}`} onClick={() => setPreviewScreen(value)}>{label}</button>
+                  ))}
+                </div>
+                <div className="editorSubtabRow" style={{ marginBottom: 12 }}>
+                  <button type="button" className={`editorSubtab ${!previewMemberMode ? 'active' : ''}`} onClick={() => setPreviewMemberMode(false)}>Guest</button>
+                  <button type="button" className={`editorSubtab ${previewMemberMode ? 'active' : ''}`} onClick={() => setPreviewMemberMode(true)}>Member</button>
+                  <button type="button" className="editorTextAction" onClick={() => refreshAppPreview()}>새로고침</button>
+                </div>
+                {previewSrc ? (
+                  <iframe
+                    key={previewSrc}
+                    ref={previewFrameRef}
+                    title="Cartly app preview"
+                    src={previewSrc}
+                    onLoad={() => postPreviewPayload()}
+                    style={{ width: '100%', minHeight: 640, border: '1px solid rgba(15,23,42,0.08)', borderRadius: 20, background: '#fff' }}
+                  />
+                ) : (
+                  <div style={{ width: '100%', minHeight: 640, border: '1px solid rgba(15,23,42,0.08)', borderRadius: 20, background: '#fff', display: 'grid', placeItems: 'center', color: '#64748b', fontWeight: 700 }}>
+                    preview 불러오는 중...
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="editorSubtabRow" style={{ marginBottom: 12 }}>
+                  {([
+                    ['/', 'Landing'],
+                    ['/privacy', 'Privacy'],
+                  ] as const).map(([value, label]) => (
+                    <button key={value} type="button" className={`editorSubtab ${publicPreviewPath === value ? 'active' : ''}`} onClick={() => refreshPublicPreview(value)}>{label}</button>
+                  ))}
+                  <button type="button" className="editorTextAction" onClick={() => refreshPublicPreview(publicPreviewPath)}>새로고침</button>
+                  <a className="editorExternalLink" href={publicPreviewSrc || 'https://scan-api.seoa-nas.com/'} target="_blank" rel="noreferrer">새 탭</a>
+                </div>
+                {publicPreviewSrc ? (
+                  <iframe
+                    key={publicPreviewSrc}
+                    title="Cartly public landing preview"
+                    src={publicPreviewSrc}
+                    style={{ width: '100%', minHeight: 640, border: '1px solid rgba(15,23,42,0.08)', borderRadius: 20, background: '#fff' }}
+                  />
+                ) : (
+                  <div style={{ width: '100%', minHeight: 640, border: '1px solid rgba(15,23,42,0.08)', borderRadius: 20, background: '#fff', display: 'grid', placeItems: 'center', color: '#64748b', fontWeight: 700 }}>
+                    public preview 불러오는 중...
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>

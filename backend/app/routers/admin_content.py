@@ -1,6 +1,6 @@
 from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session as OrmSession
 
 from ..core.storage_paths import branding_assets_dir
@@ -9,7 +9,7 @@ from ..schemas.admin_ui_copy import AdminUiCopyUpdateRequest
 from ..schemas.branding import BrandingRequest
 from ..services.admin_ui_copy_service import get_admin_ui_copy, save_admin_ui_copy
 from ..services.branding_service import get_branding, project_branding, save_branding
-from ..services.content_settings_service import get_content_settings, save_content_settings
+from ..services.content_settings_service import get_content_schedule, get_content_settings, save_content_settings
 from .admin_common import ADMIN_ROUTE_DEP, save_asset
 
 router = APIRouter(dependencies=ADMIN_ROUTE_DEP)
@@ -40,9 +40,20 @@ def admin_content(db: OrmSession = Depends(db_dep)):
     return {'ok': True, 'data': get_content_settings(db)}
 
 
+@router.get('/content/schedule')
+def admin_content_schedule(db: OrmSession = Depends(db_dep)):
+    return {'ok': True, 'data': get_content_schedule(db)}
+
+
 @router.put('/content')
 def update_content(payload: Dict[str, Any], db: OrmSession = Depends(db_dep)):
-    return {'ok': True, 'data': save_content_settings(db, payload)}
+    request_payload = dict(payload)
+    publish_at = request_payload.pop('_publishAt', None)
+    try:
+        data = save_content_settings(db, request_payload, publish_at=publish_at)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {'ok': True, 'data': data}
 
 
 @router.post('/branding/logo')

@@ -113,6 +113,7 @@ export default function ConfigPage() {
   const adsAssetsDisplay = cfg.adsAssetsDirDisplay ?? cfg.adsAssetsDir
   const adsAssetsActual = cfg.adsAssetsDirActual ?? cfg.adsAssetsDir
   const storageErrorCount = cfg.storageErrors.length
+  const noteDirty = coupangNoteDraft !== (cfg.coupangPartners.operatorNote || '')
   const pathCompatibility = cfg.legacyPathCompatibilityActive ? t('admin.config.compat.on', '호환 경로 유지 중') : t('admin.config.compat.off', '호환 경로 없음')
   const startupModeNote =
     cfg.backendRunMode === 'terminal-login-session'
@@ -361,6 +362,11 @@ export default function ConfigPage() {
       <div className="sectionGrid twoCol section">
         <div className={`card ${cfg.coupangPartners.affiliateReady ? 'successCard' : 'warnCard'}`}>
           <h2 className="panelTitle">Coupang runtime</h2>
+          <div className="metaRow" style={{ marginTop: 0, marginBottom: 12 }}>
+            <span className="metaPill">state {cfg.coupangPartners.enabled ? 'enabled' : 'disabled'}</span>
+            <span className="metaPill">note {savingCoupang ? 'saving' : noteDirty ? 'unsaved' : 'saved'}</span>
+            <span className="metaPill">affiliate {cfg.coupangPartners.affiliateReady ? 'ready' : 'not ready'}</span>
+          </div>
           <ul className="inlineList">
             <li>effective enabled: {String(cfg.coupangPartners.enabled)}</li>
             <li>env enabled default: {String(cfg.coupangPartners.envEnabled)}</li>
@@ -387,10 +393,10 @@ export default function ConfigPage() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
              <button className="ghostBtn ghostBtnSmall" onClick={() => setCoupangNoteDraft(cfg.coupangPartners.operatorNote || '')} disabled={savingCoupang}>메모 되돌리기</button>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-            <button className="button" onClick={() => void saveCoupangOverride(true)} disabled={savingCoupang}>Force ON</button>
-            <button className="button secondary" onClick={() => void saveCoupangOverride(false)} disabled={savingCoupang}>Force OFF</button>
-            <button className="button secondary" onClick={() => void saveCoupangOverride(null)} disabled={savingCoupang}>Use env default</button>
+          <div className="buttonRow" style={{ marginTop: 12, flexWrap: 'wrap' }}>
+            <button className="primaryBtn" onClick={() => void saveCoupangOverride(true)} disabled={savingCoupang}>Force ON</button>
+            <button className="ghostBtn ghostBtnSmall" onClick={() => void saveCoupangOverride(false)} disabled={savingCoupang}>Force OFF</button>
+            <button className="ghostBtn ghostBtnSmall" onClick={() => void saveCoupangOverride(null)} disabled={savingCoupang}>Use env default</button>
           </div>
           {runtimeMessage ? <div className="loginError" style={{ marginTop: 12 }}>{runtimeMessage}</div> : null}
 

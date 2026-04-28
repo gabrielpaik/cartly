@@ -20,8 +20,13 @@ const _emailDomainOptions = <String>[
 
 class LoginPage extends StatefulWidget {
   final bool preferSignup;
+  final bool skipInitialConfigRefresh;
 
-  const LoginPage({super.key, this.preferSignup = false});
+  const LoginPage({
+    super.key,
+    this.preferSignup = false,
+    this.skipInitialConfigRefresh = false,
+  });
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -50,9 +55,11 @@ class _LoginPageState extends State<LoginPage> {
     if (widget.preferSignup) {
       _mode = AuthMode.signup;
     }
-    AppConfigStore.instance.refresh().then((_) {
-      if (mounted) setState(() {});
-    });
+    if (!widget.skipInitialConfigRefresh) {
+      AppConfigStore.instance.refresh().then((_) {
+        if (mounted) setState(() {});
+      });
+    }
   }
 
   @override

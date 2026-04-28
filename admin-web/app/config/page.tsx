@@ -209,6 +209,24 @@ export default function ConfigPage() {
         <span className="metaPill">smoke {smoke.ok ? 'ok' : 'check needed'}</span>
       </div>
 
+      <div className="opsSignalGrid section" style={{ marginTop: 16 }}>
+        <div className="opsSignalCard" style={{ borderColor: cfg.storageWritable ? 'rgba(34,197,94,0.18)' : 'rgba(225,29,72,0.22)', background: cfg.storageWritable ? 'rgba(240,253,244,0.7)' : 'rgba(255,241,242,0.82)' }}>
+          <div className="opsSignalLabel">Storage</div>
+          <div className="opsSignalValue">{cfg.storageWritable ? 'Writable' : 'Blocked'}</div>
+          <div className="opsSignalHint">{storageErrorCount === 0 ? storageRootDisplay : `${storageErrorCount}개 경고 · ${storageRootDisplay}`}</div>
+        </div>
+        <div className="opsSignalCard" style={{ borderColor: cfg.publicSite.dynamicLandingEnabled ? 'rgba(34,197,94,0.18)' : 'rgba(245,158,11,0.24)', background: cfg.publicSite.dynamicLandingEnabled ? 'rgba(240,253,244,0.7)' : 'rgba(255,247,237,0.9)' }}>
+          <div className="opsSignalLabel">Public landing</div>
+          <div className="opsSignalValue">{cfg.publicSite.dynamicLandingEnabled ? 'Dynamic' : 'Static'}</div>
+          <div className="opsSignalHint">landing {cfg.publicSite.landingRoutes.join(', ')} · privacy {cfg.publicSite.privacyRoutes.join(', ')}</div>
+        </div>
+        <div className="opsSignalCard" style={{ borderColor: cfg.coupangPartners.affiliateReady ? 'rgba(34,197,94,0.18)' : 'rgba(245,158,11,0.24)', background: cfg.coupangPartners.affiliateReady ? 'rgba(240,253,244,0.7)' : 'rgba(255,247,237,0.9)' }}>
+          <div className="opsSignalLabel">Coupang runtime</div>
+          <div className="opsSignalValue">{cfg.coupangPartners.enabled ? 'Enabled' : 'Disabled'}</div>
+          <div className="opsSignalHint">affiliate {cfg.coupangPartners.affiliateReady ? 'ready' : 'not ready'} · source {cfg.coupangPartners.configSource}</div>
+        </div>
+      </div>
+
       <div className="sectionGrid section">
         <div className={`card ${smoke.ok ? 'successCard' : 'warnCard'}`}>
           <div className="sectionHeader">
@@ -228,11 +246,8 @@ export default function ConfigPage() {
             {smoke.results.map((result) => (
               <div
                 key={result.key}
+                className="smokeResultRow"
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'minmax(180px, 220px) minmax(80px, 100px) minmax(80px, 100px) 1fr auto',
-                  gap: 10,
-                  alignItems: 'center',
                   padding: '10px 12px',
                   borderRadius: 14,
                   border: `1px solid ${result.ok ? 'rgba(34,197,94,0.2)' : 'rgba(225,29,72,0.2)'}`,

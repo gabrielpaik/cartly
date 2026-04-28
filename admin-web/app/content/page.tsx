@@ -399,7 +399,26 @@ export default function ContentPage() {
         <span className="metaPill">{t('admin.content.meta.groups', 'groups')} {groupNav.length}</span>
         <span className="metaPill">{t('admin.content.meta.fields', 'fields')} {totalFields}</span>
         <span className="metaPill">{t('admin.content.meta.preview', 'preview')} {previewScreen} · {previewMemberMode ? 'member' : 'guest'}</span>
+        <span className="metaPill">public preview {publicPreviewPath === '/' ? 'landing' : 'privacy'}</span>
         <span className="metaPill">{usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : t('admin.common.badge.live', 'Live data')}</span>
+      </div>
+
+      <div className="opsSignalGrid" style={{ marginBottom: 16 }}>
+        <div className="opsSignalCard">
+          <div className="opsSignalLabel">Editing scope</div>
+          <div className="opsSignalValue">{groupNav.length} groups</div>
+          <div className="opsSignalHint">총 {totalFields}개 필드를 한 번에 관리하는 긴 폼이라, 그룹 점프와 preview 동선을 먼저 보는 편이 좋아.</div>
+        </div>
+        <div className="opsSignalCard">
+          <div className="opsSignalLabel">App preview</div>
+          <div className="opsSignalValue">{previewScreen} / {previewMemberMode ? 'member' : 'guest'}</div>
+          <div className="opsSignalHint">Flutter preview는 편집 중 값이 즉시 반영돼서 저장 전 문구 확인용으로 쓰면 된다.</div>
+        </div>
+        <div className="opsSignalCard">
+          <div className="opsSignalLabel">Public preview</div>
+          <div className="opsSignalValue">{publicPreviewPath === '/' ? 'Landing' : 'Privacy'}</div>
+          <div className="opsSignalHint">공개면은 저장 후 `scan-api` 실서피스를 바로 다시 불러와 확인하는 흐름으로 유지한다.</div>
+        </div>
       </div>
 
       <div className="section sectionGrid twoCol">
@@ -476,7 +495,7 @@ export default function ContentPage() {
           </div>
 
           {groupNav.map((group) => (
-            <div className="card" key={group.id} id={group.id}>
+            <div className="card formSectionCard" key={group.id} id={group.id}>
               <div className="sectionHeader">
                 <div>
                   <h2 className="panelTitle" style={{ marginBottom: 6 }}>{group.title}</h2>
@@ -489,7 +508,7 @@ export default function ContentPage() {
           ))}
         </div>
 
-        <div className="sectionGrid twoCol">
+        <div className="stickySideColumn">
           <div className="card" id="content-preview-card">
             <h2 className="panelTitle">{t('admin.content.preview.title', '프리뷰')}</h2>
             <div className="previewCard" style={{ display: 'grid', gap: 12 }}>

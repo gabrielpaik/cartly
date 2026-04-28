@@ -3,17 +3,19 @@ html, body { margin: 0; padding: 0; font-family: Inter, Pretendard, sans-serif; 
 a { color: inherit; text-decoration: none; }
 
 .shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; min-width: 0; }
-.sidebar { background: #fff; border-right: 1px solid #e8e8e8; padding: 24px 18px; display: flex; flex-direction: column; gap: 16px; min-width: 0; width: 100%; }
+.sidebar { position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto; background: linear-gradient(180deg, #fff, #fcfcfd); border-right: 1px solid #e8e8e8; padding: 24px 18px; display: flex; flex-direction: column; gap: 16px; min-width: 0; width: 100%; }
 .sidebar nav { display: flex; flex-direction: column; gap: 8px; min-width: 0; width: 100%; max-width: 100%; }
 .brandWrap { margin-bottom: 8px; }
 .brand { font-size: 24px; font-weight: 800; color: #E31837; margin-bottom: 6px; }
 .brandMeta { color: #666; font-size: 12px; font-weight: 700; line-height: 1.45; }
+.sidebarSectionLabel { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #98a2b3; margin-bottom: 2px; }
 .navLink { display: block; padding: 12px 14px; border-radius: 14px; margin-bottom: 8px; color: #222; font-weight: 700; border: 1px solid transparent; white-space: nowrap; }
 .navLink:hover { background: #f2f3f5; }
-.navLink.active { background: #fff4f5; color: #b31631; border-color: #ffd6dc; }
+.navLink.active { background: #fff4f5; color: #b31631; border-color: #ffd6dc; box-shadow: 0 8px 22px rgba(227,24,55,0.08); }
 .navLogoutWrap { display: flex; justify-content: flex-end; width: 100%; margin-top: 4px; }
 .ghostBtnSmall { width: auto; padding: 8px 12px; font-size: 12px; border-radius: 999px; }
 .content { padding: 28px; min-width: 0; width: 100%; }
+.contentInner { width: 100%; max-width: 1480px; margin: 0 auto; }
 
 .pageHeader { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
 .pageActions { display: flex; align-items: center; gap: 10px; }
@@ -82,6 +84,14 @@ a { color: inherit; text-decoration: none; }
 .inlineList { margin: 0; padding-left: 18px; color: #444; line-height: 1.7; font-weight: 600; }
 .metaRow { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
 .metaPill { padding: 8px 10px; border-radius: 999px; background: #f5f6f8; font-size: 12px; font-weight: 700; color: #555; }
+.opsSignalGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.opsSignalCard { padding: 14px; border-radius: 16px; border: 1px solid #eceff3; background: rgba(255,255,255,0.96); }
+.opsSignalLabel { font-size: 11px; color: #64748b; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
+.opsSignalValue { font-size: 18px; color: #0f172a; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 4px; }
+.opsSignalHint { font-size: 13px; color: #475569; font-weight: 600; line-height: 1.5; }
+.stickySideColumn { position: sticky; top: 28px; align-self: start; display: grid; gap: 16px; }
+.formSectionCard { scroll-margin-top: 24px; }
+.smokeResultRow { display: grid; grid-template-columns: minmax(180px, 220px) minmax(80px, 100px) minmax(80px, 100px) 1fr auto; gap: 10px; align-items: center; }
 .segmentedControl { display: inline-flex; flex-wrap: wrap; gap: 8px; }
 .segmentedBtn { background: #fff; color: #444; border: 1px solid #e1e3e6; border-radius: 999px; padding: 10px 14px; font-size: 13px; font-weight: 800; cursor: pointer; }
 .segmentedBtn.active { background: #fff4f5; color: #b31631; border-color: #ffd6dc; }
@@ -164,7 +174,7 @@ textarea.textInput { resize: vertical; min-height: 112px; }
 
 @media (max-width: 900px) {
   .shell { grid-template-columns: 1fr; }
-  .sidebar { border-right: 0; border-bottom: 1px solid #e8e8e8; padding: 16px 14px; gap: 12px; }
+  .sidebar { position: static; height: auto; overflow: visible; border-right: 0; border-bottom: 1px solid #e8e8e8; padding: 16px 14px; gap: 12px; }
   .sidebar nav { flex-direction: row; overflow-x: auto; gap: 10px; padding-bottom: 2px; width: 100%; max-width: 100%; align-items: center; }
   .sidebar nav::-webkit-scrollbar { display: none; }
   .navLink { margin-bottom: 0; padding: 10px 12px; flex: 0 0 auto; }
@@ -175,6 +185,8 @@ textarea.textInput { resize: vertical; min-height: 112px; }
   .pageTitle { font-size: 26px; }
   .pageActions { width: 100%; }
   .pageActionBtn { width: 100%; }
+  .stickySideColumn { position: static; top: auto; }
+  .smokeResultRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .segmentedControl { width: 100%; }
   .segmentedBtn { flex: 1 1 calc(50% - 8px); text-align: center; }
   .buttonRow { flex-direction: column; align-items: stretch; }
@@ -192,7 +204,7 @@ textarea.textInput { resize: vertical; min-height: 112px; }
   .summaryComparisonValue { text-align: left; }
   .summaryComparisonDelta { grid-column: 1 / -1; min-width: 0; text-align: left; padding-left: 0; }
   .cumulativeAdRow { grid-template-columns: 84px repeat(3, minmax(0, 1fr)); gap: 10px; }
-  .threeCol, .twoCol { grid-template-columns: 1fr; }
+  .threeCol, .twoCol, .opsSignalGrid { grid-template-columns: 1fr; }
   .card { padding: 16px; border-radius: 16px; }
   .statCard { min-height: 120px; }
   .kpiValue { font-size: 24px; }
@@ -221,4 +233,5 @@ textarea.textInput { resize: vertical; min-height: 112px; }
   .panelTitle { font-size: 16px; }
   .metaRow { gap: 8px; }
   .metaPill { font-size: 11px; }
+  .smokeResultRow { grid-template-columns: 1fr; }
 }

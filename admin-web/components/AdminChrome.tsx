@@ -24,7 +24,9 @@ function AdminChromeInner({ children }: { children: ReactNode }) {
       <aside className="sidebar">
         <div className="brandWrap">
           <div className="brand">{t('admin.nav.brand', 'Cartly Admin')}</div>
+          <div className="brandMeta">runtime, landing, smoke, content를 한 화면에서 보는 운영면</div>
         </div>
+        <div className="sidebarSectionLabel">Control room</div>
         <nav>
           {nav.map(([label, href, fallback]) => (
             <NavLink key={href} href={href} label={t(label, fallback)} />
@@ -34,7 +36,9 @@ function AdminChromeInner({ children }: { children: ReactNode }) {
           </div>
         </nav>
       </aside>
-      <main className="content">{children}</main>
+      <main className="content">
+        <div className="contentInner">{children}</div>
+      </main>
     </div>
   )
 }

@@ -309,6 +309,8 @@ export default function OverviewPage() {
       lastCheckedAt: string
       lastFailureAt: string | null
       lastError: string
+      recentFailureSummary: string
+      reasonCounts: Map<string, number>
     }>()
 
     for (const entry of smokeHistory) {
@@ -322,6 +324,8 @@ export default function OverviewPage() {
           lastCheckedAt: '',
           lastFailureAt: null,
           lastError: '',
+          recentFailureSummary: '',
+          reasonCounts: new Map<string, number>(),
         }
 
         current.totalChecks += 1
@@ -330,10 +334,13 @@ export default function OverviewPage() {
           current.lastStatus = result.status
         }
         if (!result.ok) {
+          const failureSummary = `${result.status ?? 'ERR'}${result.error ? ` · ${result.error}` : ''}`
           current.failCount += 1
+          current.reasonCounts.set(failureSummary, (current.reasonCounts.get(failureSummary) ?? 0) + 1)
           if (!current.lastFailureAt) {
             current.lastFailureAt = entry.checkedAt
             current.lastError = result.error ?? ''
+            current.recentFailureSummary = failureSummary
           }
         }
 
@@ -341,10 +348,27 @@ export default function OverviewPage() {
       }
     }
 
-    return Array.from(stats.values()).sort((a, b) => {
-      if (b.failCount !== a.failCount) return b.failCount - a.failCount
-      return a.label.localeCompare(b.label)
-    })
+    return Array.from(stats.values())
+      .map((item) => {
+        const topReasonEntry = Array.from(item.reasonCounts.entries()).sort((a, b) => b[1] - a[1])[0]
+        return {
+          key: item.key,
+          label: item.label,
+          failCount: item.failCount,
+          totalChecks: item.totalChecks,
+          lastStatus: item.lastStatus,
+          lastCheckedAt: item.lastCheckedAt,
+          lastFailureAt: item.lastFailureAt,
+          lastError: item.lastError,
+          recentFailureSummary: item.recentFailureSummary,
+          topFailureReason: topReasonEntry?.[0] ?? '',
+          topFailureReasonCount: topReasonEntry?.[1] ?? 0,
+        }
+      })
+      .sort((a, b) => {
+        if (b.failCount !== a.failCount) return b.failCount - a.failCount
+        return a.label.localeCompare(b.label)
+      })
   }, [smokeHistory])
   const failingSmokeTargets = useMemo(() => smokeTargetStats.filter((item) => item.failCount > 0), [smokeTargetStats])
   const smokeHotSpotTargets = useMemo(() => failingSmokeTargets.slice(0, 3), [failingSmokeTargets])
@@ -603,13 +627,23 @@ export default function OverviewPage() {
           </div>
         </div>
 
-        <div className="metaRow" style={{ marginTop: 0, marginBottom: 12 }}>
-          <span className="metaPill">hot spots</span>
+        <div className="opsSignalGrid">
           {smokeHotSpotTargets.length === 0 ? (
-            <span className="metaPill">none</span>
+            <div className="opsSignalCard" style={{ borderColor: 'rgba(34,197,94,0.18)', background: 'rgba(240,253,244,0.7)' }}>
+              <div className="opsSignalLabel">Hot spot summary</div>
+              <div className="opsSignalValue">반복 실패 없음</div>
+              <div className="opsSignalHint">아직 누적된 smoke failure target이 없어. 지금은 운영면이 안정 상태야.</div>
+            </div>
           ) : (
             smokeHotSpotTargets.map((target) => (
-              <span key={target.key} className="metaPill">{target.key} {target.failCount}회</span>
+              <div key={target.key} className="opsSignalCard" style={{ borderColor: 'rgba(245,158,11,0.24)', background: 'rgba(255,247,237,0.9)' }}>
+                <div className="opsSignalLabel">Hot spot</div>
+                <div className="opsSignalValue">{target.label}</div>
+                <div className="opsSignalHint">
+                  {target.failCount}회 실패 / {target.totalChecks}회 점검
+                  {target.topFailureReason ? ` · 대표 원인 ${target.topFailureReason}` : ''}
+                </div>
+              </div>
             ))
           )}
         </div>
@@ -722,7 +756,8 @@ export default function OverviewPage() {
                   <div style={{ fontSize: 13, color: '#475569', fontWeight: 600, lineHeight: 1.5 }}>
                     {target.lastFailureAt ? `마지막 실패 ${formatDate(target.lastFailureAt)}` : '마지막 실패 기록 없음'}
                     {target.lastStatus != null ? ` · 최근 status ${target.lastStatus}` : ''}
-                    {target.lastError ? ` · ${target.lastError}` : ''}
+                    {target.topFailureReason ? ` · 대표 원인 ${target.topFailureReason}${target.topFailureReasonCount > 1 ? ` (${target.topFailureReasonCount}회)` : ''}` : ''}
+                    {target.recentFailureSummary && target.recentFailureSummary !== target.topFailureReason ? ` · 최근 실패 ${target.recentFailureSummary}` : ''}
                   </div>
                 </div>
               ))}

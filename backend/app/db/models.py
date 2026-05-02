@@ -253,6 +253,46 @@ class AppSetting(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class PushDevice(Base):
+    __tablename__ = 'push_devices'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'), nullable=True)
+    install_id: Mapped[str] = mapped_column(String(120), index=True)
+    platform: Mapped[str] = mapped_column(String(40), default='unknown')
+    push_provider: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    push_token: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(String(20), default='active')
+    app_version: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    locale: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    push_debug_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    last_registered_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PushCampaign(Base):
+    __tablename__ = 'push_campaigns'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    kind: Mapped[str] = mapped_column(String(40), default='notice')
+    audience: Mapped[str] = mapped_column(String(40), default='all')
+    status: Mapped[str] = mapped_column(String(20), default='draft')
+    title: Mapped[str] = mapped_column(String(255), default='')
+    message: Mapped[str] = mapped_column(Text, default='')
+    target_tab: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    target_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    requested_by: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    requested_by_source: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    delivery_provider: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class EmailAuthCode(Base):
     __tablename__ = 'email_auth_codes'
 

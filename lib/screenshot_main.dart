@@ -85,7 +85,7 @@ void _seedScreenshotState() {
       'subtitle': '지금 살 상품 결정과 지난 장보기 회고를 한 곳에서 이어가요',
     },
     'my': {
-      'pageTitle': 'My account',
+      'pageTitle': '마이',
       'subtitle': '내 계정과 저장한 카트를 확인해.',
       'subtitleMember': '내 계정과 저장한 카트를 확인해.',
       'logoutAction': '로그아웃',

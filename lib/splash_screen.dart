@@ -35,24 +35,33 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        await precacheImage(_currentImage(), context);
-      } catch (_) {}
-
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       _timer = Timer(widget.duration, () {
         if (!mounted) return;
 
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => widget.next,
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                widget.next,
             transitionDuration: const Duration(milliseconds: 250),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) =>
-                FadeTransition(opacity: animation, child: child),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    FadeTransition(opacity: animation, child: child),
           ),
         );
       });
+
+      unawaited(_precacheSplashImage());
     });
+  }
+
+  Future<void> _precacheSplashImage() async {
+    try {
+      await precacheImage(
+        _currentImage(),
+        context,
+      ).timeout(const Duration(seconds: 2));
+    } catch (_) {}
   }
 
   @override

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "156597534193",
+    "project_id": "cartly-e36ee",
+    "storage_bucket": "cartly-e36ee.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:156597534193:android:5da7027d0ef2d7d50b9850",
+        "android_client_info": {
+          "package_name": "com.seungdae.cartly"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBdFg7cMX3c2FIYWkNHxoYf5k-gsAxbf1k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

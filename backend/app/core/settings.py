@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     smtp_from_email: str = ''
     smtp_use_ssl: bool = False
     smtp_use_starttls: bool = True
+    push_enabled: bool = False
+    push_provider: str = 'fcm'
+    firebase_project_id: str = ''
+    firebase_service_account_json: str = ''
+    firebase_service_account_path: str = ''
 
 
 settings = Settings()

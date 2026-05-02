@@ -3,7 +3,7 @@ description: "Cartly shopping assistant."
 
 publish_to: 'none'
 
-version: 1.0.3+40
+version: 1.0.3+71
 
 environment:
   sdk: ^3.10.7
@@ -22,6 +22,12 @@ dependencies:
   google_mobile_ads: ^5.1.0
   geolocator: ^13.0.2
   geocoding: ^3.0.0
+  flutter_slidable: ^3.1.2
+  flutter_local_notifications: ^17.2.2
+  timezone: ^0.9.4
+  firebase_core: ^3.13.0
+  firebase_messaging: ^15.2.5
+  package_info_plus: ^8.0.2
 
 dev_dependencies:
   flutter_test:

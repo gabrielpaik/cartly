@@ -9,6 +9,7 @@ from ..core.storage_paths import ads_assets_dir, branding_assets_dir, runtime_as
 from ..deps import db_dep
 from ..services.branding_service import get_branding
 from ..services.coupang_runtime_service import get_coupang_runtime_status, save_coupang_runtime
+from ..services.push_service import get_push_runtime_status
 from ..services.smoke_history_service import get_smoke_history, record_smoke_result
 from ..services.storage_health import storage_health_check
 from .admin_common import ADMIN_ROUTE_DEP
@@ -54,6 +55,7 @@ def admin_config(db: OrmSession = Depends(db_dep)):
                 'assetsRoutePrefix': '/assets/branding',
             },
             'coupangPartners': coupang_runtime,
+            'push': get_push_runtime_status(db),
             'smokeHistory': smoke_history.get('history') or [],
         },
     }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
@@ -7,13 +9,17 @@ import '../config/cartly_runtime_config.dart';
 import '../pages/home_page_cart_controller.dart';
 import '../pages/home_page_cart_save_controller.dart';
 import '../pages/home_tab_view.dart';
+import '../pages/saved_tab_view.dart';
 import '../services/cart_title_suggester.dart';
 import '../pages/my_page.dart';
 import '../pages/shopping_help_page.dart';
+import '../services/app_attention_service.dart';
 import '../services/app_config_store.dart';
 import '../services/auth_store.dart';
+import '../services/push_navigation_service.dart';
 import '../services/remote_scan_repository.dart';
 import '../services/scan_repository.dart';
+import '../services/shopping_nudge_service.dart';
 import '../widgets/total_bar.dart';
 
 class HomePage extends StatefulWidget {
@@ -30,6 +36,8 @@ class _HomePageState extends State<HomePage> {
   final List<RecentScanEntry> recentScans = [];
   int _tabIndex = 0;
   bool _savingCurrentCart = false;
+  bool _showHomeDot = false;
+  bool _showExploreDot = false;
 
   late final ScanRepository _scanRepository = RemoteScanRepository(
     baseUrl: CartlyRuntimeConfig.current.normalizedRemoteBaseUrl,
@@ -48,6 +56,166 @@ class _HomePageState extends State<HomePage> {
   );
 
   int get totalPrice => items.fold(0, (sum, item) => sum + item.totalPrice);
+
+  @override
+  void initState() {
+    super.initState();
+    AppAttentionService.instance.home.addListener(_syncAttentionDots);
+    AppAttentionService.instance.explore.addListener(_syncAttentionDots);
+    PushNavigationService.instance.pendingTargetTab.addListener(
+      _handlePendingTargetTab,
+    );
+    _syncAttentionDots();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handlePendingTargetTab();
+    });
+  }
+
+  @override
+  void dispose() {
+    AppAttentionService.instance.home.removeListener(_syncAttentionDots);
+    AppAttentionService.instance.explore.removeListener(_syncAttentionDots);
+    PushNavigationService.instance.pendingTargetTab.removeListener(
+      _handlePendingTargetTab,
+    );
+    super.dispose();
+  }
+
+  void _syncAttentionDots() {
+    if (!mounted) return;
+    final nextHomeDot =
+        AppAttentionService.instance.home.value && _tabIndex != 0;
+    final nextExploreDot =
+        AppAttentionService.instance.explore.value && _tabIndex != 1;
+    if (_showHomeDot == nextHomeDot && _showExploreDot == nextExploreDot) {
+      return;
+    }
+    setState(() {
+      _showHomeDot = nextHomeDot;
+      _showExploreDot = nextExploreDot;
+    });
+  }
+
+  void _handlePendingTargetTab() {
+    final targetTab = PushNavigationService.instance.consumePendingTargetTab();
+    if (targetTab == null) return;
+    switch (targetTab) {
+      case 'home':
+        _selectTab(0);
+        return;
+      case 'explore':
+        _selectTab(1);
+        return;
+      case 'my':
+        _selectTab(2);
+        return;
+    }
+  }
+
+  void _markHomeAttention() {
+    if (_tabIndex == 0) return;
+    unawaited(AppAttentionService.instance.markHome());
+  }
+
+  void _markExploreAttention() {
+    if (_tabIndex == 1) return;
+    unawaited(AppAttentionService.instance.markExplore());
+  }
+
+  void _selectTab(int index) {
+    setState(() {
+      _tabIndex = index;
+      if (index == 0) {
+        _showHomeDot = false;
+      }
+      if (index == 1) {
+        _showExploreDot = false;
+      }
+    });
+    if (index == 0) {
+      unawaited(AppAttentionService.instance.clearHome());
+      unawaited(ShoppingNudgeService.instance.acknowledgeReceiptReminder());
+      unawaited(
+        PushNavigationService.instance.clearSystemAttentionForTab('home'),
+      );
+    }
+    if (index == 1) {
+      unawaited(AppAttentionService.instance.clearExplore());
+      unawaited(
+        PushNavigationService.instance.clearSystemAttentionForTab('explore'),
+      );
+    }
+    if (index == 2) {
+      unawaited(
+        PushNavigationService.instance.clearSystemAttentionForTab('my'),
+      );
+    }
+  }
+
+  void _refreshShoppingNudge() {
+    unawaited(
+      ShoppingNudgeService.instance.refreshReceiptReminder(
+        hasPendingShoppingContext: items.isNotEmpty || recentScans.isNotEmpty,
+      ),
+    );
+  }
+
+  void _handleRecognized(RecognizedItem item) {
+    _cartController.recordRecentScan(item);
+    _markHomeAttention();
+    _markExploreAttention();
+    _refreshShoppingNudge();
+  }
+
+  void _handleDismissRecognized(RecognizedItem item) {
+    _cartController.dismissRecognizedItem(item);
+    _markExploreAttention();
+    _refreshShoppingNudge();
+  }
+
+  void _handleDismissRecentScan(RecentScanEntry entry) {
+    _cartController.dismissRecentScan(entry);
+    _markExploreAttention();
+    _refreshShoppingNudge();
+  }
+
+  void _handleRemoveCartItem(CartItem item) {
+    _cartController.removeCartItem(item);
+    _markExploreAttention();
+    _refreshShoppingNudge();
+  }
+
+  Widget _navIcon(IconData icon, {required bool showDot}) {
+    return SizedBox(
+      width: 28,
+      height: 28,
+      child: Stack(
+        children: [
+          Center(child: Icon(icon)),
+          if (showDot)
+            Positioned(
+              right: 2,
+              top: 3,
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE31837),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openSavedCartsList() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const _SavedCartsPage()));
+  }
 
   Future<void> _saveCurrentCart() async {
     if (_savingCurrentCart) return;
@@ -74,11 +242,13 @@ class _HomePageState extends State<HomePage> {
       if (!mounted) return;
 
       _cartController.clearItems();
+      _markExploreAttention();
+      _refreshShoppingNudge();
 
       await HomePageCartSaveController.showSaveCompleteSheet(
         context: context,
         savedCart: savedCart,
-        onViewSaved: () => setState(() => _tabIndex = 2),
+        onViewSaved: _openSavedCartsList,
       );
     } catch (error) {
       if (!mounted) return;
@@ -133,9 +303,9 @@ class _HomePageState extends State<HomePage> {
                     ),
                     onSubmitted: (_) {
                       final title = controller.text.trim();
-                      Navigator.of(sheetContext).pop(
-                        title.isEmpty ? suggestion.suggestedTitle : title,
-                      );
+                      Navigator.of(
+                        sheetContext,
+                      ).pop(title.isEmpty ? suggestion.suggestedTitle : title);
                     },
                   ),
                   const SizedBox(height: 14),
@@ -181,7 +351,12 @@ class _HomePageState extends State<HomePage> {
   }) async {
     final duplicate = _cartController.findDuplicateCartItem(item);
     if (duplicate == null) {
-      _cartController.addRecognizedItem(item, recentScanEntryId: recentScanEntryId);
+      _cartController.addRecognizedItem(
+        item,
+        recentScanEntryId: recentScanEntryId,
+      );
+      _markExploreAttention();
+      _refreshShoppingNudge();
       return true;
     }
 
@@ -231,9 +406,8 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton(
-                  onPressed: () => Navigator.of(
-                    context,
-                  ).pop(_DuplicateAddChoice.addAsNew),
+                  onPressed: () =>
+                      Navigator.of(context).pop(_DuplicateAddChoice.addAsNew),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(52),
                   ),
@@ -260,9 +434,16 @@ class _HomePageState extends State<HomePage> {
           item,
           recentScanEntryId: recentScanEntryId,
         );
+        _markExploreAttention();
+        _refreshShoppingNudge();
         return true;
       case _DuplicateAddChoice.addAsNew:
-        _cartController.addRecognizedItem(item, recentScanEntryId: recentScanEntryId);
+        _cartController.addRecognizedItem(
+          item,
+          recentScanEntryId: recentScanEntryId,
+        );
+        _markExploreAttention();
+        _refreshShoppingNudge();
         return true;
     }
   }
@@ -276,21 +457,22 @@ class _HomePageState extends State<HomePage> {
           scanRepository: _scanRepository,
           items: items,
           recentScans: recentScans,
-          onRecognized: _cartController.recordRecentScan,
+          onRecognized: _handleRecognized,
           onAdd: _addRecognizedItemWithChoice,
-          onDismissRecognized: _cartController.dismissRecognizedItem,
+          onDismissRecognized: _handleDismissRecognized,
           onAddRecentScan: (entry) => _addRecognizedItemWithChoice(
             entry.item,
             recentScanEntryId: entry.id,
           ),
-          onDismissRecentScan: _cartController.dismissRecentScan,
-          onRemove: _cartController.removeCartItem,
+          onDismissRecentScan: _handleDismissRecentScan,
+          onRemove: _handleRemoveCartItem,
+          onGoExplore: () => _selectTab(1),
         ),
         ShoppingHelpPage(
           items: items,
           recentScans: recentScans,
-          onGoHome: () => setState(() => _tabIndex = 0),
-          onGoSaved: () => setState(() => _tabIndex = 2),
+          onGoHome: () => _selectTab(0),
+          onGoSaved: _openSavedCartsList,
         ),
         const MyPage(),
       ],
@@ -315,16 +497,19 @@ class _HomePageState extends State<HomePage> {
             ),
           NavigationBar(
             selectedIndex: _tabIndex,
-            onDestinationSelected: (index) => setState(() => _tabIndex = index),
+            onDestinationSelected: _selectTab,
             destinations: [
               NavigationDestination(
-                icon: const Icon(Icons.home_outlined),
-                selectedIcon: const Icon(Icons.home),
+                icon: _navIcon(Icons.home_outlined, showDot: _showHomeDot),
+                selectedIcon: _navIcon(Icons.home, showDot: _showHomeDot),
                 label: branding.homeTabLabel,
               ),
               NavigationDestination(
-                icon: const Icon(Icons.explore_outlined),
-                selectedIcon: const Icon(Icons.explore),
+                icon: _navIcon(
+                  Icons.explore_outlined,
+                  showDot: _showExploreDot,
+                ),
+                selectedIcon: _navIcon(Icons.explore, showDot: _showExploreDot),
                 label: branding.helpTabLabel,
               ),
               NavigationDestination(
@@ -336,6 +521,19 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SavedCartsPage extends StatelessWidget {
+  const _SavedCartsPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(title: const Text('지난 카트')),
+      body: const SafeArea(child: SavedTabView()),
     );
   }
 }

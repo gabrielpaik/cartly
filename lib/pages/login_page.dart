@@ -310,6 +310,27 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final branding = AppConfigStore.instance.branding.value;
+    final headerTitle = _isSignup
+        ? _text(['login', 'signup', 'title'], '회원가입')
+        : _isReset
+        ? _text(['login', 'reset', 'title'], '비밀번호 재설정')
+        : _text(['login', 'pageTitle'], '로그인');
+    final headerSubtitle = _isSignup
+        ? _text([
+            'login',
+            'signup',
+            'subtitle',
+          ], '저장한 카트와 장보기 기록을 계속 보시려면 계정을 만들어 주세요')
+        : _isReset
+        ? _text([
+            'login',
+            'reset',
+            'subtitle',
+          ], '가입한 이메일을 확인한 뒤 새 비밀번호를 설정해 주세요')
+        : _text([
+            'login',
+            'subtitle',
+          ], '저장한 카트와 스캔 기록을 이어서 보시려면 로그인해 주세요');
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -321,11 +342,8 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               LoginPageHeaderSection(
                 loginHeroImageUrl: branding.loginHeroImageUrl,
-                title: _text(['login', 'pageTitle'], '계정 시작'),
-                subtitle: _text([
-                  'login',
-                  'subtitle',
-                ], '저장과 기록을 이어가려면 로그인'),
+                title: headerTitle,
+                subtitle: headerSubtitle,
               ),
               const SizedBox(height: 18),
               LoginPageAuthFormSection(

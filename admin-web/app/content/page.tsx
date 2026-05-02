@@ -94,6 +94,10 @@ function buildGroups(t: (key: string, fallback?: string) => string): Array<{ tit
         { key: 'savedEmptyBody', label: t('admin.content.fields.savedEmptyBody', '지난 카트 empty 설명'), kind: 'textarea' },
         { key: 'recentSavedTitle', label: t('admin.content.fields.recentSavedTitle', '최근 저장 카트 제목') },
         { key: 'recentSavedEmptyBody', label: t('admin.content.fields.recentSavedEmptyBody', '최근 저장 카트 empty 설명'), kind: 'textarea' },
+        { key: 'savedAdFallbackTitle', label: t('admin.content.fields.savedAdFallbackTitle', '지난 카트 혜택 제목') },
+        { key: 'savedAdFallbackMessage', label: t('admin.content.fields.savedAdFallbackMessage', '지난 카트 혜택 설명'), kind: 'textarea' },
+        { key: 'savedAdSecondaryFallbackTitle', label: t('admin.content.fields.savedAdSecondaryFallbackTitle', '보조 혜택 제목') },
+        { key: 'savedAdSecondaryFallbackMessage', label: t('admin.content.fields.savedAdSecondaryFallbackMessage', '보조 혜택 설명'), kind: 'textarea' },
       ],
     },
     {
@@ -104,11 +108,18 @@ function buildGroups(t: (key: string, fallback?: string) => string): Array<{ tit
         { key: 'mySubtitle', label: t('admin.content.fields.mySubtitle', 'My subtitle') },
         { key: 'myBenefitsTitle', label: t('admin.content.fields.myBenefitsTitle', 'My benefits 제목') },
         { key: 'myBenefitsBody', label: t('admin.content.fields.myBenefitsBody', 'My benefits 설명'), kind: 'textarea' },
+        { key: 'myMemberBody', label: t('admin.content.fields.myMemberBody', '회원 상태 안내 문구'), kind: 'textarea' },
         { key: 'myGuestModeLabel', label: t('admin.content.fields.myGuestModeLabel', '게스트 모드 라벨') },
+        { key: 'myGuestSignupAction', label: t('admin.content.fields.myGuestSignupAction', '게스트 회원가입 버튼') },
         { key: 'myLoginAction', label: t('admin.content.fields.myLoginAction', '로그인 버튼') },
         { key: 'myLogoutAction', label: t('admin.content.fields.myLogoutAction', '로그아웃 버튼') },
         { key: 'myLinkedDoneMessage', label: t('admin.content.fields.myLinkedDoneMessage', '계정 연결 완료 문구') },
         { key: 'myLogoutDoneMessage', label: t('admin.content.fields.myLogoutDoneMessage', '로그아웃 완료 문구') },
+        { key: 'mySavedSectionTitle', label: t('admin.content.fields.mySavedSectionTitle', 'My 지난 카트 섹션 제목') },
+        { key: 'mySavedSectionMemberSubtitle', label: t('admin.content.fields.mySavedSectionMemberSubtitle', '회원 지난 카트 설명'), kind: 'textarea' },
+        { key: 'mySavedSectionGuestSubtitle', label: t('admin.content.fields.mySavedSectionGuestSubtitle', '게스트 지난 카트 설명'), kind: 'textarea' },
+        { key: 'myAdFallbackTitle', label: t('admin.content.fields.myAdFallbackTitle', 'My 혜택 제목') },
+        { key: 'myAdFallbackMessage', label: t('admin.content.fields.myAdFallbackMessage', 'My 혜택 설명'), kind: 'textarea' },
         { key: 'loginPageTitle', label: t('admin.content.fields.loginPageTitle', '로그인 페이지 제목') },
         { key: 'loginSubtitle', label: t('admin.content.fields.loginSubtitle', 'Login subtitle') },
         { key: 'loginBenefitsTitle', label: t('admin.content.fields.loginBenefitsTitle', '로그인 benefits 제목') },
@@ -161,6 +172,38 @@ function buildGroups(t: (key: string, fallback?: string) => string): Array<{ tit
         { key: 'loginValidationCodeRequired', label: t('admin.content.fields.loginValidationCodeRequired', '코드 필수 문구') },
         { key: 'drawerGuestTitle', label: t('admin.content.fields.drawerGuestTitle', 'Drawer guest 제목') },
         { key: 'drawerGuestBody', label: t('admin.content.fields.drawerGuestBody', 'Drawer guest 설명'), kind: 'textarea' },
+      ],
+    },
+    {
+      title: t('admin.content.groups.detail.title', '상세 / 비교 카피'),
+      description: t('admin.content.groups.detail.desc', '카트 상세, 영수증 비교, 공통 액션 문구'),
+      fields: [
+        { key: 'commonCancel', label: t('admin.content.fields.commonCancel', '공통 취소 버튼') },
+        { key: 'commonConfirm', label: t('admin.content.fields.commonConfirm', '공통 확인 버튼') },
+        { key: 'commonEdit', label: t('admin.content.fields.commonEdit', '공통 수정 버튼') },
+        { key: 'commonLoading', label: t('admin.content.fields.commonLoading', '공통 로딩 문구') },
+        { key: 'cartDetailTitleSuffix', label: t('admin.content.fields.cartDetailTitleSuffix', '카트 상세 제목 접미사') },
+        { key: 'cartDetailEdit', label: t('admin.content.fields.cartDetailEdit', '카트 상세 수정 버튼') },
+        { key: 'cartDetailDone', label: t('admin.content.fields.cartDetailDone', '카트 상세 완료 버튼') },
+        { key: 'cartDetailDeleteDialogTitle', label: t('admin.content.fields.cartDetailDeleteDialogTitle', '카트 삭제 팝업 제목') },
+        { key: 'cartDetailDeleteDialogBody', label: t('admin.content.fields.cartDetailDeleteDialogBody', '카트 삭제 팝업 설명'), kind: 'textarea' },
+        { key: 'cartDetailDeleteConfirm', label: t('admin.content.fields.cartDetailDeleteConfirm', '카트 삭제 확인 버튼') },
+        { key: 'cartDetailDeleteCancel', label: t('admin.content.fields.cartDetailDeleteCancel', '카트 삭제 취소 버튼') },
+        { key: 'cartDetailEmpty', label: t('admin.content.fields.cartDetailEmpty', '카트 상세 empty 문구') },
+        { key: 'cartDetailItemAdded', label: t('admin.content.fields.cartDetailItemAdded', '상품 추가 완료 문구') },
+        { key: 'cartDetailSavedSnapshotDone', label: t('admin.content.fields.cartDetailSavedSnapshotDone', '저장본 기록 완료 문구') },
+        { key: 'cartDetailNameLabel', label: t('admin.content.fields.cartDetailNameLabel', '상품명 라벨') },
+        { key: 'cartDetailPriceLabel', label: t('admin.content.fields.cartDetailPriceLabel', '가격 라벨') },
+        { key: 'cartDetailApply', label: t('admin.content.fields.cartDetailApply', '적용 버튼') },
+        { key: 'cartDetailTotalLabel', label: t('admin.content.fields.cartDetailTotalLabel', '총합 라벨') },
+        { key: 'cartDetailSaveButton', label: t('admin.content.fields.cartDetailSaveButton', '저장 버튼') },
+        { key: 'cartDetailSaving', label: t('admin.content.fields.cartDetailSaving', '저장 중 문구') },
+        { key: 'cartDetailValidationNamePriceRequired', label: t('admin.content.fields.cartDetailValidationNamePriceRequired', '상품명/가격 확인 문구'), kind: 'textarea' },
+        { key: 'cartDetailValidationNameRequired', label: t('admin.content.fields.cartDetailValidationNameRequired', '상품명 필수 문구') },
+        { key: 'cartDetailValidationPriceQuantityRequired', label: t('admin.content.fields.cartDetailValidationPriceQuantityRequired', '가격/수량 확인 문구'), kind: 'textarea' },
+        { key: 'receiptCompareContextBody', label: t('admin.content.fields.receiptCompareContextBody', '영수증 비교 안내 문구'), kind: 'textarea' },
+        { key: 'receiptCompareEntryAction', label: t('admin.content.fields.receiptCompareEntryAction', '영수증 비교 진입 버튼') },
+        { key: 'receiptCompareSavedCartOnlyBadge', label: t('admin.content.fields.receiptCompareSavedCartOnlyBadge', '영수증 비교 저장 카트 전용 배지') },
       ],
     },
     {
@@ -223,6 +266,8 @@ function buildGroups(t: (key: string, fallback?: string) => string): Array<{ tit
       fields: [
         { key: 'saveCompleteTitle', label: t('admin.content.fields.saveCompleteTitle', '저장 완료 제목') },
         { key: 'saveCompleteSubtitle', label: t('admin.content.fields.saveCompleteSubtitle', '저장 완료 부제'), kind: 'textarea' },
+        { key: 'saveCompleteAdFallbackTitle', label: t('admin.content.fields.saveCompleteAdFallbackTitle', '저장 완료 혜택 제목') },
+        { key: 'saveCompleteAdFallbackMessage', label: t('admin.content.fields.saveCompleteAdFallbackMessage', '저장 완료 혜택 설명'), kind: 'textarea' },
         { key: 'saveCompleteViewSavedAction', label: t('admin.content.fields.saveCompleteViewSavedAction', '지난 카트 보기 버튼') },
       ],
     },
@@ -248,7 +293,7 @@ export default function ContentPage() {
   const [publishAtDraft, setPublishAtDraft] = useState('')
   const [scheduleMeta, setScheduleMeta] = useState<ContentSchedule>({ pending: false, publishAt: null, updatedAt: null, payload: null })
   const [activeSection, setActiveSection] = useState<'brand' | 'app' | 'account' | 'public'>('brand')
-  const [appCopyTab, setAppCopyTab] = useState<'home' | 'help' | 'saved' | 'scan' | 'saveComplete'>('home')
+  const [appCopyTab, setAppCopyTab] = useState<'home' | 'help' | 'saved' | 'scan' | 'detail' | 'saveComplete'>('home')
   const [accountTab, setAccountTab] = useState<'my' | 'login' | 'guest'>('my')
   const [publicTab, setPublicTab] = useState<'landing' | 'privacy'>('landing')
   const [previewSurface, setPreviewSurface] = useState<'app' | 'site'>('app')
@@ -260,9 +305,10 @@ export default function ContentPage() {
     help: groups[2],
     saved: groups[3],
     myLogin: groups[4],
-    publicSite: groups[5],
-    scan: groups[6],
-    saveComplete: groups[7],
+    detail: groups[5],
+    publicSite: groups[6],
+    scan: groups[7],
+    saveComplete: groups[8],
   }), [groups])
   const totalFields = groups.reduce((sum, group) => sum + group.fields.length, 0)
   const formSnapshot = useMemo(() => JSON.stringify(form), [form])
@@ -494,6 +540,7 @@ export default function ContentPage() {
     help: groupMap.help,
     saved: groupMap.saved,
     scan: groupMap.scan,
+    detail: groupMap.detail,
     saveComplete: groupMap.saveComplete,
   }[appCopyTab]
 
@@ -628,6 +675,7 @@ export default function ContentPage() {
                     ['help', groupMap.help.title],
                     ['saved', groupMap.saved.title],
                     ['scan', groupMap.scan.title],
+                    ['detail', groupMap.detail.title],
                     ['saveComplete', groupMap.saveComplete.title],
                   ] as const).map(([key, label]) => (
                     <button

@@ -4,7 +4,11 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
 import '../pages/home_page.dart';
+import '../services/app_attention_service.dart';
 import '../services/app_config_store.dart';
+import '../services/push_navigation_service.dart';
+import '../services/push_registration_service.dart';
+import '../services/shopping_nudge_service.dart';
 import '../splash_screen.dart';
 
 class CartlyApp extends StatefulWidget {
@@ -28,6 +32,15 @@ class _CartlyAppState extends State<CartlyApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     unawaited(AppConfigStore.instance.load());
+    unawaited(AppAttentionService.instance.load());
+    unawaited(PushNavigationService.instance.initialize());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(ShoppingNudgeService.instance.initialize());
+      unawaited(
+        ShoppingNudgeService.instance.syncHomeAttentionFromReminderStatus(),
+      );
+      unawaited(PushRegistrationService.instance.initialize());
+    });
   }
 
   @override
@@ -40,6 +53,13 @@ class _CartlyAppState extends State<CartlyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(AppConfigStore.instance.refresh());
+      unawaited(
+        PushNavigationService.instance.syncAttentionFromSystemNotifications(),
+      );
+      unawaited(
+        ShoppingNudgeService.instance.syncHomeAttentionFromReminderStatus(),
+      );
+      unawaited(PushRegistrationService.instance.refreshRegistration());
     }
   }
 
@@ -52,7 +72,9 @@ class _CartlyAppState extends State<CartlyApp> with WidgetsBindingObserver {
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             fontFamily: 'Pretendard',
-            colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE31837)),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFFE31837),
+            ),
           ),
           home: SplashScreen(next: HomePage(cameras: widget.cameras)),
         );

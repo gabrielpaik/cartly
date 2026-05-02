@@ -11,6 +11,8 @@ const nav = [
   ['admin.nav.users', '/users', 'Users'],
   ['admin.nav.scanOps', '/scan-ops', 'Scan Ops'],
   ['admin.nav.carts', '/carts', 'Carts'],
+  ['admin.nav.explore', '/explore', 'Explore'],
+  ['admin.nav.push', '/push', 'Push'],
   ['admin.nav.ads', '/ads', 'Ads'],
   ['admin.nav.content', '/content', 'Content'],
   ['admin.nav.config', '/config', 'Config'],

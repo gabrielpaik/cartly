@@ -30,7 +30,7 @@ class _SavedTabTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
-      AppRuntimeCopy.text(['saved', 'pageTitle'], 'Saved carts'),
+      AppRuntimeCopy.text(['saved', 'pageTitle'], '지난 카트'),
       style: const TextStyle(
         fontFamily: 'SpaceGrotesk',
         fontSize: 30,
@@ -49,7 +49,7 @@ class _SavedTabSubtitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
-      AppRuntimeCopy.text(['saved', 'subtitle'], '저장한 카트를 다시 봐'),
+      AppRuntimeCopy.text(['saved', 'subtitle'], '저장한 장보기 기록을 다시 확인해보세요'),
       style: const TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w600,

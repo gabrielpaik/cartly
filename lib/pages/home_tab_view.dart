@@ -6,12 +6,12 @@ import 'package:flutter/material.dart';
 import '../app_support.dart';
 import '../models/recognized_item.dart';
 import '../models/saved_cart.dart';
+import '../services/app_config_store.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/cart_store.dart';
 import '../services/scan_repository.dart';
 import '../widgets/current_cart_section.dart';
 import '../widgets/item_add_section.dart';
-import '../widgets/recent_saved_preview_card.dart';
 import '../widgets/recent_scan_card.dart';
 import '../widgets/section_header.dart';
 
@@ -26,6 +26,7 @@ class HomeTabView extends StatelessWidget {
   final Future<bool> Function(RecentScanEntry entry) onAddRecentScan;
   final void Function(RecentScanEntry entry) onDismissRecentScan;
   final void Function(CartItem item) onRemove;
+  final VoidCallback onGoExplore;
 
   const HomeTabView({
     super.key,
@@ -39,6 +40,7 @@ class HomeTabView extends StatelessWidget {
     required this.onAddRecentScan,
     required this.onDismissRecentScan,
     required this.onRemove,
+    required this.onGoExplore,
   });
 
   @override
@@ -59,7 +61,7 @@ class HomeTabView extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          AppRuntimeCopy.text(['home', 'subtitle'], '지금 카트 총액을 확인해'),
+          AppRuntimeCopy.text(['home', 'subtitle'], '지금 담은 상품과 합계를 한눈에 확인해보세요'),
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -73,7 +75,7 @@ class HomeTabView extends StatelessWidget {
           subtitle: AppRuntimeCopy.text([
             'home',
             'addSectionSubtitle',
-          ], '스캔하거나 바로 담기'),
+          ], '스캔하거나 직접 담아보세요'),
         ),
         const SizedBox(height: 10),
         ItemAddSection(
@@ -139,7 +141,7 @@ class HomeTabView extends StatelessWidget {
           subtitle: AppRuntimeCopy.text([
             'home',
             'currentCartSubtitle',
-          ], '결제 전 합계를 확인해'),
+          ], '지금 담은 상품과 합계를 확인해보세요'),
         ),
         const SizedBox(height: 10),
         CurrentCartSection(items: items, onRemove: onRemove),
@@ -147,12 +149,106 @@ class HomeTabView extends StatelessWidget {
         ValueListenableBuilder<List<SavedCart>>(
           valueListenable: CartStore.instance.carts,
           builder: (context, carts, _) {
-            return RecentSavedPreviewCard(
+            return _HomeExploreShortcutCard(
               cart: carts.isEmpty ? null : carts.first,
+              onTap: onGoExplore,
             );
           },
         ),
       ],
+    );
+  }
+}
+
+class _HomeExploreShortcutCard extends StatelessWidget {
+  final SavedCart? cart;
+  final VoidCallback onTap;
+
+  const _HomeExploreShortcutCard({
+    required this.cart,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final latest = cart;
+    final title = latest?.title?.trim() ?? '';
+    final hasSavedContext = latest != null;
+
+    return ValueListenableBuilder(
+      valueListenable: AppConfigStore.instance.branding,
+      builder: (context, branding, _) {
+        final exploreLabel = branding.helpTabLabel.trim().isEmpty
+            ? '탐색'
+            : branding.helpTabLabel.trim();
+
+        return InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '다음 장보기 준비',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  hasSavedContext
+                      ? '${title.isEmpty ? '최근 저장 카트' : title} 같은 지난 장보기와 반복 구매 후보는 $exploreLabel에서 이어보세요.'
+                      : '지난 장보기 맥락과 반복 구매 후보는 $exploreLabel에서 보실 수 있어요.',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black54,
+                    height: 1.45,
+                  ),
+                ),
+                if (latest != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    '${latest.totalCount}개 · ₩${formatPrice(latest.totalPrice)}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Text(
+                      '$exploreLabel에서 이어보기',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFFE31837),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 16,
+                      color: Color(0xFFE31837),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

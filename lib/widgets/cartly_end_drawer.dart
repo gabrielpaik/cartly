@@ -104,7 +104,7 @@ class _CartlyEndDrawerState extends State<CartlyEndDrawer> {
                                             : '${session.email} · ${session.providerBadge}')
                                       : AppRuntimeCopy.text(
                                           ['my', 'guestBody'],
-                                          '저장한 카트와 스캔 기록을 이어가려면 로그인해.',
+                                          '저장한 카트와 스캔 기록을 이어서 보시려면 로그인해 주세요.',
                                         ),
                                   style: const TextStyle(
                                     fontSize: 12,
@@ -141,7 +141,7 @@ class _CartlyEndDrawerState extends State<CartlyEndDrawer> {
                                       AppRuntimeCopy.text([
                                         'my',
                                         'linkedDoneMessage',
-                                      ], '계정을 연결했어요'),
+                                      ], '계정이 연결되었어요'),
                                     );
                                   }
                                   return;
@@ -155,7 +155,7 @@ class _CartlyEndDrawerState extends State<CartlyEndDrawer> {
                                   AppRuntimeCopy.text([
                                     'my',
                                     'logoutDoneMessage',
-                                  ], '로그아웃했어요'),
+                                  ], '로그아웃되었어요'),
                                 );
                               },
                               child: Text(

@@ -33,6 +33,8 @@ class AppBranding {
   factory AppBranding.fromJson(Map<String, dynamic>? json) {
     final data = json ?? const {};
     final fallback = AppBranding.fallback;
+    final tabs = data['tabs'];
+    final tabsMap = tabs is Map ? Map<String, dynamic>.from(tabs) : const <String, dynamic>{};
 
     String stringValue(String key, String fallbackValue) {
       final value = data[key];
@@ -40,6 +42,14 @@ class AppBranding {
         return value.trim();
       }
       return fallbackValue;
+    }
+
+    String nestedTabValue(String key, String legacyKey, String fallbackValue) {
+      final nested = tabsMap[key];
+      if (nested is String && nested.trim().isNotEmpty) {
+        return nested.trim();
+      }
+      return stringValue(legacyKey, fallbackValue);
     }
 
     String? nullableString(String key) {
@@ -56,9 +66,9 @@ class AppBranding {
       logoImageUrl: nullableString('logoImageUrl'),
       splashImageUrl: nullableString('splashImageUrl'),
       loginHeroImageUrl: nullableString('loginHeroImageUrl'),
-      homeTabLabel: stringValue('homeTabLabel', fallback.homeTabLabel),
-      helpTabLabel: stringValue('helpTabLabel', fallback.helpTabLabel),
-      myTabLabel: stringValue('myTabLabel', fallback.myTabLabel),
+      homeTabLabel: nestedTabValue('home', 'homeTabLabel', fallback.homeTabLabel),
+      helpTabLabel: nestedTabValue('help', 'helpTabLabel', fallback.helpTabLabel),
+      myTabLabel: nestedTabValue('my', 'myTabLabel', fallback.myTabLabel),
     );
   }
 }

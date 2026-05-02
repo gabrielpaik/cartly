@@ -50,8 +50,9 @@ class CartlyPreviewApp extends StatefulWidget {
 }
 
 class _CartlyPreviewAppState extends State<CartlyPreviewApp> {
-  String _previewScreen = 'home';
+  String _previewScreen = Uri.base.queryParameters['screen'] ?? 'home';
   bool _memberMode = false;
+  String _explorePreviewState = 'activeShopping';
 
   @override
   void initState() {
@@ -66,8 +67,13 @@ class _CartlyPreviewAppState extends State<CartlyPreviewApp> {
       _projectPreviewBranding(payload),
     );
     AppConfigStore.instance.copy.value = _buildPreviewCopy(payload);
+    AppConfigStore.instance.explore.value = _buildPreviewExploreConfig(payload);
     AppConfigStore.instance.adSlots.value = const [];
     _previewScreen = (payload['__previewScreen'] as String?) ?? _previewScreen;
+    _explorePreviewState = _normalizePreviewExploreState(
+      payload['__previewExploreState'] as String?,
+      _explorePreviewState,
+    );
     _applySessionState(
       memberMode: (payload['__previewMemberMode'] as bool?) ?? _memberMode,
     );
@@ -77,7 +83,10 @@ class _CartlyPreviewAppState extends State<CartlyPreviewApp> {
   void _applySessionState({required bool memberMode}) {
     _memberMode = memberMode;
     final session = memberMode ? _memberSession() : _guestSession();
-    final carts = memberMode ? _memberCarts() : _guestCarts();
+    final carts = _resolvePreviewCarts(
+      memberMode: memberMode,
+      explorePreviewState: _explorePreviewState,
+    );
     PreviewState.session.value = session;
     PreviewState.carts.value = carts;
     AuthStore.instance.session.value = session;
@@ -98,32 +107,66 @@ class _CartlyPreviewAppState extends State<CartlyPreviewApp> {
         body: Center(
           child: Container(
             width: 430,
+            height: 860,
             margin: const EdgeInsets.all(16),
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(34),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: const Color(0xFFE2E8F0),
+              ),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x1F0F172A),
-                  blurRadius: 28,
-                  offset: Offset(0, 16),
+                  color: Color(0x140F172A),
+                  blurRadius: 24,
+                  offset: Offset(0, 12),
                 ),
               ],
             ),
-            child: Container(
-              margin: const EdgeInsets.all(10),
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(26),
-              ),
-              child: _buildPreviewBody(),
+            child: Column(
+              children: [
+                Container(
+                  height: 28,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  alignment: Alignment.centerLeft,
+                  color: const Color(0xFFF8FAFC),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFCBD5E1),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Preview',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(child: _buildPreviewBody()),
+              ],
             ),
           ),
         ),
       ),
     );
   }
+
+  List<CartItem> get _previewExploreItems =>
+      _explorePreviewState == 'activeShopping' ? _previewCartItems : const [];
+
+  List<RecentScanEntry> get _previewExploreRecentScans =>
+      _explorePreviewState == 'activeShopping' ? _previewRecentScans : const [];
 
   Widget _buildPreviewBody() {
     switch (_previewScreen) {
@@ -141,6 +184,7 @@ class _CartlyPreviewAppState extends State<CartlyPreviewApp> {
             onAddRecentScan: (_) async => true,
             onDismissRecentScan: (_) {},
             onRemove: (_) {},
+            onGoExplore: () {},
           ),
           bottomNavigationBar: TotalBar(
             totalPrice: _previewCartItems.fold(0, (sum, item) => sum + item.totalPrice),
@@ -150,8 +194,8 @@ class _CartlyPreviewAppState extends State<CartlyPreviewApp> {
         );
       case 'help':
         return ShoppingHelpPage(
-          items: _previewCartItems,
-          recentScans: _previewRecentScans,
+          items: _previewExploreItems,
+          recentScans: _previewExploreRecentScans,
           onGoHome: () {},
           onGoSaved: () {},
         );
@@ -193,20 +237,20 @@ Map<String, dynamic> _defaultContentSettings() => {
   'homePageTitle': 'Cartly',
   'homeSubtitle': '결제 전에 더 똑똑하게 비교해보세요',
   'helpPageTitle': 'Explore',
-  'helpSubtitle': '지금 살 상품 결정과 지난 장보기 회고를 한 곳에서 이어가요',
-  'homeTabLabel': 'Home',
-  'helpTabLabel': '도움',
-  'myTabLabel': 'My',
-  'savedPageTitle': '저장한 카트',
-  'savedSubtitle': '다음 쇼핑 전에 다시 꺼내 비교할 수 있어요.',
+  'helpSubtitle': '지금 필요한 비교만 모아 보여드릴게요',
+  'homeTabLabel': '홈',
+  'helpTabLabel': '탐색',
+  'myTabLabel': '마이',
+  'savedPageTitle': '지난 카트',
+  'savedSubtitle': '저장한 장보기 기록을 다시 확인해보세요',
   'savedEmptyTitle': '아직 저장된 카트가 없어요',
   'savedEmptyBody': '현재 카트를 저장하면 다음 쇼핑 전에 다시 꺼내볼 수 있어요.',
-  'recentSavedTitle': '최근 저장 카트',
-  'recentSavedEmptyBody': '아직 저장된 카트가 없어요. 현재 카트를 저장하면 다음 쇼핑 전에 다시 꺼내볼 수 있어요.',
-  'homeRecentScanTitle': '스캔 보관함',
-  'homeRecentScanSubtitle': '검토 대기 결과를 한 번에 정리해',
+  'recentSavedTitle': '최근 저장한 카트',
+  'recentSavedEmptyBody': '아직 저장한 카트가 없어요. 카트를 저장하면 다음 장보기 전에 다시 꺼내보실 수 있어요.',
+  'homeRecentScanTitle': '최근 스캔',
+  'homeRecentScanSubtitle': '방금 읽은 상품이에요',
   'homeCurrentCartTitle': '현재 카트',
-  'homeCurrentCartSubtitle': '결제 전 합계를 확인해',
+  'homeCurrentCartSubtitle': '지금 담은 상품과 합계를 확인해보세요',
   'homeCurrentCartEmpty': '아직 담은 상품이 없어요',
   'homeAddToCurrentCartDone': '현재 카트에 담았어요',
   'homeAddToCurrentCartButton': '현재 카트에 담기',
@@ -215,12 +259,12 @@ Map<String, dynamic> _defaultContentSettings() => {
   'homeContinueScanAction': '계속 스캔하기',
   'myGuestModeLabel': '게스트로 사용 중이에요',
   'drawerGuestTitle': '게스트로 사용 중이에요',
-  'drawerGuestBody': '저장과 기록을 이어가려면 로그인',
-  'myBenefitsTitle': '계정이 있으면 좋은 점',
-  'myBenefitsBody': '• 저장한 카트를 계속 보기\n• 최근 스캔 결과 이어보기\n• 다음 쇼핑 전에 다시 꺼내 비교하기',
-  'loginPageTitle': 'Cartly',
-  'loginBenefitsTitle': '회원이 되면 더 편리해요',
-  'loginBenefitsBody': '저장한 카트와 스캔 기록을 안전하게 이어갈 수 있어요.',
+  'drawerGuestBody': '저장한 카트와 스캔 기록을 이어서 보시려면 로그인해 주세요.',
+  'myBenefitsTitle': '계정을 연결하면 이런 점이 좋아요',
+  'myBenefitsBody': '• 지난 카트를 계속 보실 수 있어요\n• 최근 스캔 결과를 이어서 확인하실 수 있어요\n• 다음 장보기 전에 다시 비교하실 수 있어요',
+  'loginPageTitle': '로그인',
+  'loginBenefitsTitle': '로그인하면 더 편해져요',
+  'loginBenefitsBody': '저장한 카트와 스캔 기록을 이어서 관리하실 수 있어요.',
   'loginModeLogin': '로그인',
   'loginModeSignup': '회원가입',
   'loginModeReset': '비밀번호 찾기',
@@ -239,9 +283,203 @@ Map<String, dynamic> _defaultContentSettings() => {
   'loginSignupSubmit': '회원가입 완료',
   'loginContinueAsGuest': '게스트로 계속하기',
   'saveCompleteTitle': '카트를 저장했어요',
-  'saveCompleteSubtitle': '다음 쇼핑 전에 다시 꺼내볼 수 있어요.',
+  'saveCompleteSubtitle': '다음 장보기 때 다시 꺼내보실 수 있어요',
   'saveCompleteViewSavedAction': '지난 카트 보기',
 };
+
+Map<String, dynamic> _defaultExploreConfig() => {
+  'enabledSections': 'heroSummary,decisionInbox,revisitItems,repeatCandidates,offerSlots,savedContext,storeContextPromo',
+  'sectionOrder': 'heroSummary,decisionInbox,revisitItems,repeatCandidates,offerSlots,savedContext,storeContextPromo',
+  'stateMode': 'auto',
+  'activeShoppingSectionOrder': 'offerSlots,heroSummary,decisionInbox,revisitItems',
+  'postSaveSectionOrder': 'savedContext,decisionInbox,repeatCandidates,offerSlots',
+  'idlePlanningSectionOrder': 'savedContext,repeatCandidates,offerSlots',
+  'storeContextSectionOrder': 'storeContextPromo,savedContext,repeatCandidates,offerSlots',
+  'stateRules': {
+    'activeShopping': {
+      'revisitRecentScanLimit': 3,
+      'revisitCartItemLimit': 3,
+      'revisitMaxItems': 4,
+      'repeatMinCount': 2,
+      'repeatMaxItems': 2,
+      'offerMaxSlots': 3,
+      'storeContextMaxPromos': 0,
+    },
+    'postSave': {
+      'revisitRecentScanLimit': 2,
+      'revisitCartItemLimit': 2,
+      'revisitMaxItems': 3,
+      'repeatMinCount': 2,
+      'repeatMaxItems': 4,
+      'offerMaxSlots': 3,
+      'storeContextMaxPromos': 1,
+    },
+    'idlePlanning': {
+      'revisitRecentScanLimit': 0,
+      'revisitCartItemLimit': 0,
+      'revisitMaxItems': 0,
+      'repeatMinCount': 2,
+      'repeatMaxItems': 4,
+      'offerMaxSlots': 2,
+      'storeContextMaxPromos': 0,
+    },
+    'storeContext': {
+      'revisitRecentScanLimit': 0,
+      'revisitCartItemLimit': 0,
+      'revisitMaxItems': 0,
+      'repeatMinCount': 2,
+      'repeatMaxItems': 3,
+      'offerMaxSlots': 2,
+      'storeContextMaxPromos': 3,
+    },
+  },
+  'statePromoPolicies': {
+    'activeShopping': {
+      'allowSponsoredPromos': false,
+      'maxSponsoredPromos': 0,
+      'organicFirst': true,
+    },
+    'postSave': {
+      'allowSponsoredPromos': true,
+      'maxSponsoredPromos': 1,
+      'organicFirst': true,
+    },
+    'idlePlanning': {
+      'allowSponsoredPromos': true,
+      'maxSponsoredPromos': 1,
+      'organicFirst': true,
+    },
+    'storeContext': {
+      'allowSponsoredPromos': true,
+      'maxSponsoredPromos': 2,
+      'organicFirst': false,
+    },
+  },
+  'decisionCopy': {
+    'recentScanPendingReasonLabel': '아직 담기 전이에요',
+    'recentScanPendingBody': '방금 스캔했지만 아직 카트에 담지 않았어요. 지금 확인해 두시면 놓치지 않아요.',
+    'recentScanInCartReasonLabel': '담은 뒤 한 번 더 보기',
+    'recentScanInCartBody': '이미 카트에 담았어요. 결제 전에 다른 선택지가 있는지만 가볍게 확인해보세요.',
+    'currentCartHighImpactReasonLabel': '합계 영향이 커요',
+    'currentCartHighImpactBody': '수량이나 가격 영향이 큰 상품이에요. 비슷한 대안과 비교하면 체감 차이가 날 수 있어요.',
+    'currentCartDefaultReasonLabel': '결제 전에 확인해보세요',
+    'currentCartDefaultBody': '지금 카트에 담아둔 상품이에요. 결제 전에 한 번만 더 비교해보세요.',
+    'offerReasonLabelActiveShopping': '지금 비교해보세요',
+    'offerReasonLabelPostSave': '저장한 뒤 다시 보기',
+    'offerReasonLabelIdlePlanning': '다음 장보기 준비',
+    'offerReasonLabelStoreContext': '지금 매장 할인 보기',
+    'offerBody': '같은 용도의 다른 선택지를 바로 비교하실 수 있어요. 가격이나 구성만 가볍게 확인해보세요.',
+  },
+  'stateDecisionPriorities': {
+    'activeShopping': {
+      'offerPendingReview': 300,
+      'offerCurrentCart': 280,
+      'offerRepeatPurchase': 180,
+      'currentCartHighImpact': 240,
+      'recentScanPending': 220,
+      'recentScanInCart': 180,
+      'currentCartDefault': 160,
+    },
+    'postSave': {
+      'offerPendingReview': 220,
+      'offerCurrentCart': 250,
+      'offerRepeatPurchase': 280,
+      'recentScanInCart': 240,
+      'currentCartDefault': 210,
+      'currentCartHighImpact': 180,
+      'recentScanPending': 160,
+    },
+    'idlePlanning': {
+      'offerPendingReview': 150,
+      'offerCurrentCart': 140,
+      'offerRepeatPurchase': 220,
+      'recentScanPending': 210,
+      'currentCartDefault': 180,
+      'recentScanInCart': 150,
+      'currentCartHighImpact': 140,
+    },
+    'storeContext': {
+      'offerPendingReview': 300,
+      'offerCurrentCart': 320,
+      'offerRepeatPurchase': 200,
+      'currentCartHighImpact': 230,
+      'recentScanInCart': 210,
+      'currentCartDefault': 180,
+      'recentScanPending': 150,
+    },
+  },
+  'stateDecisionMaxCounts': {
+    'activeShopping': {
+      'offerPendingReview': 1,
+      'offerCurrentCart': 1,
+      'offerRepeatPurchase': 1,
+      'recentScanPending': 1,
+      'recentScanInCart': 1,
+      'currentCartHighImpact': 1,
+      'currentCartDefault': 1,
+    },
+    'postSave': {
+      'offerPendingReview': 1,
+      'offerCurrentCart': 1,
+      'offerRepeatPurchase': 2,
+      'recentScanPending': 1,
+      'recentScanInCart': 2,
+      'currentCartHighImpact': 1,
+      'currentCartDefault': 2,
+    },
+    'idlePlanning': {
+      'offerPendingReview': 1,
+      'offerCurrentCart': 1,
+      'offerRepeatPurchase': 2,
+      'recentScanPending': 2,
+      'recentScanInCart': 1,
+      'currentCartHighImpact': 1,
+      'currentCartDefault': 1,
+    },
+    'storeContext': {
+      'offerPendingReview': 1,
+      'offerCurrentCart': 2,
+      'offerRepeatPurchase': 1,
+      'recentScanPending': 1,
+      'recentScanInCart': 1,
+      'currentCartHighImpact': 1,
+      'currentCartDefault': 1,
+    },
+  },
+  'revisitRecentScanLimit': 3,
+  'revisitCartItemLimit': 3,
+  'revisitMaxItems': 4,
+  'repeatMinCount': 2,
+  'repeatMaxItems': 4,
+  'offerMaxSlots': 3,
+  'storeContextEnabled': false,
+  'storeContextStoreName': '이마트 양재점',
+  'storeContextPromoTitle': '지금 이 마트 세일',
+  'storeContextPromoBody': '자주 사는 상품군과 겹치는 할인 행사부터 먼저 보여줘요.',
+  'storeContextPromoCtaLabel': '행사 보기',
+  'storeContextPromoSeedLabels': '유제품 세일,음료 행사,오늘의 마트 추천',
+  'storeContextPromoSourceType': 'storeSale',
+  'storeContextPromoSponsored': false,
+  'storeContextPromoSponsorLabel': '',
+  'storeContextPromoPriorityStart': 100,
+  'storeContextMaxPromos': 3,
+};
+
+Map<String, dynamic> _buildPreviewExploreConfig(Map<String, dynamic> form) {
+  final base = _defaultExploreConfig();
+  final raw = form['__previewExploreConfig'];
+  if (raw is Map) {
+    base.addAll(Map<String, dynamic>.from(raw));
+  }
+  final previewState = form['__previewExploreState'];
+  if (previewState is String && previewState.trim().isNotEmpty) {
+    base['__previewState'] = _normalizePreviewExploreState(
+      previewState,
+      'activeShopping',
+    );
+  }
+  return base;
+}
 
 Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
   String text(String key, String fallback) {
@@ -259,7 +497,7 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
       'addSectionTitle': text('homeAddSectionTitle', '새 상품 추가'),
       'addSectionSubtitle': text('homeAddSectionSubtitle', '스캔하거나 바로 담기'),
       'currentCartTitle': text('homeCurrentCartTitle', '현재 카트'),
-      'currentCartSubtitle': text('homeCurrentCartSubtitle', '결제 전 합계를 확인해'),
+      'currentCartSubtitle': text('homeCurrentCartSubtitle', '지금 담은 상품과 합계를 확인해보세요'),
       'currentCartEmpty': text('homeCurrentCartEmpty', '아직 담은 상품이 없어요'),
       'addToCurrentCartDone': text('homeAddToCurrentCartDone', '현재 카트에 담았어요'),
       'addToCurrentCartButton': text('homeAddToCurrentCartButton', '현재 카트에 담기'),
@@ -279,19 +517,30 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
       'emptyTitle': text('savedEmptyTitle', '아직 저장된 카트가 없어요'),
       'emptyBody': text('savedEmptyBody', '현재 카트를 저장하면 다음 쇼핑 전에 다시 꺼내볼 수 있어요.'),
       'recentEmptyBody': text('recentSavedEmptyBody', '아직 저장된 카트가 없어요. 현재 카트를 저장하면 다음 쇼핑 전에 다시 꺼내볼 수 있어요.'),
+      'adFallbackTitle': text('savedAdFallbackTitle', '함께 보면 좋은 혜택'),
+      'adFallbackMessage': text('savedAdFallbackMessage', '지난 카트를 다시 보는 흐름을 해치지 않는 선에서 꼭 맞는 혜택만 보여드릴게요.'),
+      'adSecondaryFallbackTitle': text('savedAdSecondaryFallbackTitle', '비슷한 상품 혜택'),
+      'adSecondaryFallbackMessage': text('savedAdSecondaryFallbackMessage', '기록을 보는 흐름은 그대로 두고, 필요한 혜택만 가볍게 보여드릴게요.'),
     },
     'my': {
-      'pageTitle': text('myPageTitle', 'My account'),
-      'subtitle': text('mySubtitle', '기록을 남기려면 로그인이 필요합니다'),
+      'pageTitle': text('myPageTitle', '마이'),
+      'subtitle': text('mySubtitle', '계정과 지난 카트를 한곳에서 관리해보세요'),
       'guestModeLabel': text('myGuestModeLabel', '게스트로 사용 중이에요'),
       'guestTitle': text('drawerGuestTitle', '게스트로 사용 중이에요'),
       'guestBody': text('drawerGuestBody', '저장과 기록을 이어가려면 로그인'),
-      'benefitsTitle': text('myBenefitsTitle', '계정이 있으면 좋은 점'),
+      'benefitsTitle': text('myBenefitsTitle', '계정을 연결하면 이런 점이 좋아요'),
       'benefitsBody': text('myBenefitsBody', '• 저장한 카트를 계속 보기\n• 최근 스캔 결과 이어보기\n• 다음 쇼핑 전에 다시 꺼내 비교하기'),
+      'memberBody': text('myMemberBody', '계정 정보와 지난 장보기 기록을 여기서 함께 관리하실 수 있어요.'),
+      'guestSignupAction': text('myGuestSignupAction', '회원가입하기'),
       'loginAction': text('myLoginAction', '로그인 / 회원가입'),
       'logoutAction': text('myLogoutAction', '로그아웃'),
-      'linkedDoneMessage': text('myLinkedDoneMessage', '계정을 연결했어요'),
-      'logoutDoneMessage': text('myLogoutDoneMessage', '로그아웃했어요'),
+      'linkedDoneMessage': text('myLinkedDoneMessage', '계정이 연결되었어요'),
+      'logoutDoneMessage': text('myLogoutDoneMessage', '로그아웃되었어요'),
+      'savedSectionTitle': text('mySavedSectionTitle', '지난 카트'),
+      'savedSectionMemberSubtitle': text('mySavedSectionMemberSubtitle', '저장해둔 지난 카트를 여기서 다시 확인해보세요'),
+      'savedSectionGuestSubtitle': text('mySavedSectionGuestSubtitle', '게스트로 저장한 카트도 여기서 함께 확인하실 수 있어요'),
+      'adFallbackTitle': text('myAdFallbackTitle', '회원 전용 혜택 준비 중'),
+      'adFallbackMessage': text('myAdFallbackMessage', '마이에서는 계정과 잘 맞는 혜택만 보여드릴 예정이에요.'),
     },
     'login': {
       'pageTitle': text('loginPageTitle', 'Cartly'),
@@ -358,6 +607,8 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
     'saveComplete': {
       'title': text('saveCompleteTitle', '카트를 저장했어요'),
       'subtitle': text('saveCompleteSubtitle', '다음 쇼핑 전에 다시 꺼내볼 수 있어요.'),
+      'adFallbackTitle': text('saveCompleteAdFallbackTitle', '더 나은 대안 보기'),
+      'adFallbackMessage': text('saveCompleteAdFallbackMessage', '결제 전에 가볍게 비교해보실 수 있는 선택지를 보여드릴게요.'),
       'viewSavedAction': text('saveCompleteViewSavedAction', '지난 카트 보기'),
     },
   };
@@ -385,6 +636,86 @@ UserSession _memberSession() => UserSession(
   authToken: 'preview',
   sessionExpiresAt: DateTime.now().add(const Duration(days: 7)),
 );
+
+List<SavedCart> _resolvePreviewCarts({
+  required bool memberMode,
+  required String explorePreviewState,
+}) {
+  if (explorePreviewState == 'idlePlanning' ||
+      explorePreviewState == 'storeContext') {
+    return _idleExploreCarts();
+  }
+  if (explorePreviewState == 'postSave') {
+    return _postSaveExploreCarts();
+  }
+  if (memberMode) return _memberCarts();
+  return _guestCarts();
+}
+
+String _normalizePreviewExploreState(String? value, String fallback) {
+  switch (value?.trim()) {
+    case 'active':
+    case 'activeShopping':
+      return 'activeShopping';
+    case 'postSave':
+      return 'postSave';
+    case 'idle':
+    case 'idlePlanning':
+      return 'idlePlanning';
+    case 'store':
+    case 'storeContext':
+      return 'storeContext';
+    default:
+      return fallback;
+  }
+}
+
+List<SavedCart> _idleExploreCarts() => [
+  SavedCart(
+    id: 'preview-idle-1',
+    title: '지난 주 장보기',
+    createdAt: DateTime.now().subtract(const Duration(days: 7)),
+    expiresAt: null,
+    isExpired: false,
+    retentionExtensionCount: 0,
+    canExtendRetention: false,
+    items: [
+      SavedCartItem(name: '서울우유 1L', price: 2980, quantity: 2),
+      SavedCartItem(name: '코카콜라 제로 355ml 24캔', price: 18900, quantity: 1),
+    ],
+  ),
+  SavedCart(
+    id: 'preview-idle-2',
+    title: '이번 주 평일 장보기',
+    createdAt: DateTime.now().subtract(const Duration(days: 2)),
+    expiresAt: null,
+    isExpired: false,
+    retentionExtensionCount: 0,
+    canExtendRetention: false,
+    items: [
+      SavedCartItem(name: '서울우유 1L', price: 3050, quantity: 1),
+      SavedCartItem(name: '커클랜드 키친타월 12롤', price: 17990, quantity: 1),
+    ],
+  ),
+];
+
+List<SavedCart> _postSaveExploreCarts() => [
+  SavedCart(
+    id: 'preview-post-save-1',
+    title: '방금 저장한 장보기',
+    createdAt: DateTime.now().subtract(const Duration(minutes: 18)),
+    expiresAt: null,
+    isExpired: false,
+    retentionExtensionCount: 0,
+    canExtendRetention: false,
+    items: [
+      SavedCartItem(name: '서울우유 1L', price: 2980, quantity: 2),
+      SavedCartItem(name: '코카콜라 제로 355ml 24캔', price: 18900, quantity: 1),
+      SavedCartItem(name: '삼다수 2L 6입', price: 6480, quantity: 1),
+    ],
+  ),
+  ..._idleExploreCarts(),
+];
 
 List<SavedCart> _guestCarts() => [
   SavedCart(

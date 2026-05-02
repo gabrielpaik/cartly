@@ -94,7 +94,7 @@ class _SaveCompleteBottomSheet extends StatelessWidget {
               AppRuntimeCopy.text([
                 'saveComplete',
                 'subtitle',
-              ], '다음 결제 전에 다시 볼 수 있어.'),
+              ], '다음 장보기 때 다시 꺼내보실 수 있어요'),
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -108,11 +108,11 @@ class _SaveCompleteBottomSheet extends StatelessWidget {
               title: AppRuntimeCopy.text([
                 'saveComplete',
                 'adFallbackTitle',
-              ], '더 저렴한 대안 보기'),
+              ], '더 나은 대안 보기'),
               message: AppRuntimeCopy.text([
                 'saveComplete',
                 'adFallbackMessage',
-              ], '결제 전에 더 나은 선택을 추천해.'),
+              ], '결제 전에 가볍게 비교해보실 수 있는 선택지를 보여드릴게요.'),
               height: 88,
             ),
             const SizedBox(height: 16),

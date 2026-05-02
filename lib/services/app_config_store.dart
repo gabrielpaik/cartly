@@ -15,6 +15,7 @@ class AppConfigStore {
   );
   final ValueNotifier<List<AppAdSlot>> adSlots = ValueNotifier(const []);
   final ValueNotifier<Map<String, dynamic>> copy = ValueNotifier(const {});
+  final ValueNotifier<Map<String, dynamic>> explore = ValueNotifier(const {});
 
   String get _baseUrl {
     const env = String.fromEnvironment(
@@ -61,6 +62,7 @@ class AppConfigStore {
           (data?['adSlots'] as List?) ??
           const []);
       final copyJson = data?['copy'] as Map<String, dynamic>?;
+      final exploreJson = data?['explore'] as Map<String, dynamic>?;
 
       branding.value = AppBranding.fromJson(brandingJson);
       adSlots.value = slotList
@@ -70,6 +72,9 @@ class AppConfigStore {
       copy.value = copyJson == null
           ? const {}
           : Map<String, dynamic>.from(copyJson);
+      explore.value = exploreJson == null
+          ? const {}
+          : Map<String, dynamic>.from(exploreJson);
     } catch (_) {
       // keep fallback; no throw on runtime config fetch failure
     }

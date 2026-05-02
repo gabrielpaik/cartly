@@ -157,7 +157,7 @@ class PreviewHelpScreen extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       children: [
         Text(
-          AppRuntimeCopy.text(['help', 'pageTitle'], 'Shopping help'),
+          AppRuntimeCopy.text(['help', 'pageTitle'], '탐색'),
           style: const TextStyle(
             fontFamily: 'SpaceGrotesk',
             fontSize: 30,
@@ -172,7 +172,7 @@ class PreviewHelpScreen extends StatelessWidget {
           AppRuntimeCopy.text([
             'help',
             'subtitle',
-          ], '운영 부담이 큰 피드형 쇼핑 탭 대신, 정말 도움이 되는 기능부터 붙일 예정이야'),
+          ], '지금 필요한 비교만 모아 보여드릴게요'),
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -256,7 +256,7 @@ class PreviewSavedScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              AppRuntimeCopy.text(['saved', 'subtitle'], '저장한 카트를 다시 봐'),
+              AppRuntimeCopy.text(['saved', 'subtitle'], '저장한 장보기 기록을 다시 확인해보세요'),
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -276,7 +276,7 @@ class PreviewSavedScreen extends StatelessWidget {
                 child: Center(
                   child: _PreviewEmptyCard(
                     title: '아직 저장된 카트가 없어요',
-                    body: 'Home에서 저장하면 여기서 다시 볼 수 있어.',
+                    body: '홈에서 카트를 저장하면 여기서 다시 볼 수 있어요.',
                   ),
                 ),
               )
@@ -380,7 +380,7 @@ class _PreviewMyHeader extends StatelessWidget {
                               AppRuntimeCopy.text([
                                 'my',
                                 'pageTitle',
-                              ], 'My account'),
+                              ], '마이'),
                               style: const TextStyle(
                                 fontFamily: 'SpaceGrotesk',
                                 fontSize: 30,
@@ -608,11 +608,11 @@ class _PreviewMyAccountSummaryCard extends StatelessWidget {
                         ? AppRuntimeCopy.text([
                             'my',
                             'memberBody',
-                          ], '계정 정보와 쇼핑 기록을 여기서 같이 관리할 수 있어.')
+                          ], '계정 정보와 지난 장보기 기록을 여기서 함께 관리하실 수 있어요.')
                         : AppRuntimeCopy.text([
                             'my',
                             'guestBody',
-                          ], '지금 저장한 카트는 여기서 보고, 계정을 만들면 계속 이어갈 수 있어.'),
+                          ], '지금 저장한 카트는 여기서 보실 수 있고, 로그인하시면 계속 이어서 관리하실 수 있어요.'),
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -689,11 +689,11 @@ class _PreviewMySavedSection extends StatelessWidget {
             ? AppRuntimeCopy.text([
                 'my',
                 'savedSectionMemberSubtitle',
-              ], '내 계정에 저장된 지난 카트를 다시 확인해')
+              ], '저장해둔 지난 카트를 여기서 다시 확인해보세요')
             : AppRuntimeCopy.text([
                 'my',
                 'savedSectionGuestSubtitle',
-              ], '게스트 저장 카트도 여기서 함께 관리해');
+              ], '게스트로 저장한 카트도 여기서 함께 확인하실 수 있어요');
         return ValueListenableBuilder<List<SavedCart>>(
           valueListenable: PreviewState.carts,
           builder: (context, carts, _) {
@@ -778,7 +778,7 @@ class _PreviewMySavedSection extends StatelessWidget {
                     child: Center(
                       child: _PreviewEmptyCard(
                         title: '아직 저장된 카트가 없어요',
-                        body: 'Home에서 저장하면 여기서 다시 볼 수 있어.',
+                        body: '홈에서 카트를 저장하면 여기서 다시 볼 수 있어요.',
                       ),
                     ),
                   )
@@ -821,7 +821,7 @@ class _PreviewMySecondarySection extends StatelessWidget {
             AppRuntimeCopy.text([
                   'my',
                   'benefitsBody',
-                ], '• 저장한 카트를 계속 보기\n• 최근 스캔 결과 이어보기\n• 다음 쇼핑 전에 다시 꺼내 비교하기')
+                ], '• 지난 카트를 계속 보실 수 있어요\n• 최근 스캔 결과를 이어서 확인하실 수 있어요\n• 다음 장보기 전에 다시 비교하실 수 있어요')
                 .split('\n')
                 .map((line) => line.replaceFirst('•', '').trim())
                 .where((line) => line.isNotEmpty)
@@ -848,7 +848,7 @@ class _PreviewMySecondarySection extends StatelessWidget {
                     AppRuntimeCopy.text([
                       'my',
                       'benefitsTitle',
-                    ], '계정이 있으면 좋은 점'),
+                    ], '계정을 연결하면 이런 점이 좋아요'),
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w900,

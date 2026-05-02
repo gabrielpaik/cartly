@@ -33,7 +33,7 @@ class SavedTabEmptyState extends StatelessWidget {
           AppRuntimeCopy.text([
             'saved',
             'emptyBody',
-          ], 'Home에서 저장하면 여기서 다시 볼 수 있어.'),
+          ], '홈에서 카트를 저장하면 여기서 다시 볼 수 있어요.'),
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 13,

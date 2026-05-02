@@ -73,6 +73,70 @@ class ExploreOfferSlot {
   });
 }
 
+class ExploreStorePromo {
+  final String id;
+  final String title;
+  final String body;
+  final String badgeLabel;
+  final String storeName;
+  final String ctaLabel;
+  final String placementLabel;
+  final String intentHint;
+  final String source;
+  final String sourceType;
+  final int priority;
+  final bool isSponsored;
+  final String? sponsorLabel;
+
+  const ExploreStorePromo({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.badgeLabel,
+    required this.storeName,
+    required this.ctaLabel,
+    required this.placementLabel,
+    required this.intentHint,
+    required this.source,
+    required this.sourceType,
+    required this.priority,
+    required this.isSponsored,
+    this.sponsorLabel,
+  });
+
+  factory ExploreStorePromo.fromJson(Map<String, dynamic> json) {
+    String text(String key, String fallback) {
+      final value = (json[key] as String?)?.trim();
+      return value == null || value.isEmpty ? fallback : value;
+    }
+
+    final rawPriority = json['priority'];
+    final priority = rawPriority is int
+        ? rawPriority
+        : int.tryParse('${json['priority'] ?? ''}') ?? 100;
+    final isSponsored = json['isSponsored'] == true || '${json['isSponsored']}'.trim().toLowerCase() == 'true';
+    final sponsorLabelValue = (json['sponsorLabel'] as String?)?.trim();
+
+    return ExploreStorePromo(
+      id: text('id', 'store-promo'),
+      title: text('title', '지금 이 마트 세일'),
+      body: text('body', '자주 사는 상품군과 겹치는 할인 행사부터 먼저 보여줘요.'),
+      badgeLabel: text('badgeLabel', '행사'),
+      storeName: text('storeName', '이마트 양재점'),
+      ctaLabel: text('ctaLabel', '행사 보기'),
+      placementLabel: text('placementLabel', '매장 프로모션'),
+      intentHint: text('intentHint', '같은 구매 의도 기준'),
+      source: text('source', 'store-context-preview'),
+      sourceType: text('sourceType', 'storeSale'),
+      priority: priority,
+      isSponsored: isSponsored,
+      sponsorLabel: sponsorLabelValue == null || sponsorLabelValue.isEmpty
+          ? null
+          : sponsorLabelValue,
+    );
+  }
+}
+
 class ExploreAlternativeOffer {
   final String provider;
   final String title;

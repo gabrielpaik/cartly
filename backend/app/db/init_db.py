@@ -10,6 +10,8 @@ from .models import (  # noqa: F401
     AdminSession,
     AppEvent,
     AppSetting,
+    PushCampaign,
+    PushDevice,
     EmailAuthCode,
     Cart,
     CartItem,
@@ -48,6 +50,9 @@ def _run_runtime_migrations() -> None:
         "UPDATE carts SET saved_date = COALESCE(saved_date, DATE(created_at))",
         "ALTER TABLE carts ALTER COLUMN saved_date SET DEFAULT CURRENT_DATE",
         "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_guest_code ON users (guest_code) WHERE guest_code IS NOT NULL",
+        "ALTER TABLE push_devices ADD COLUMN IF NOT EXISTS push_debug_json TEXT NULL",
+        "CREATE INDEX IF NOT EXISTS ix_push_devices_install_id ON push_devices (install_id)",
+        "CREATE INDEX IF NOT EXISTS ix_push_devices_user_id ON push_devices (user_id)",
     ]
     with engine.begin() as conn:
         for statement in statements:

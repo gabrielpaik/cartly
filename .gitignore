@@ -52,6 +52,7 @@ admin-web/node_modules/
 admin-web/*.tsbuildinfo
 backend/.venv/
 backend/storage/
+/backend/cartly.db
 build/admin-preview-web/
 **/xcuserdata/
 **/*.xcuserstate

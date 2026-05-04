@@ -7,12 +7,15 @@ class HomePageCartController {
   final List<CartItem> items;
   final List<RecentScanEntry> recentScans;
   final void Function(VoidCallback fn) _setState;
+  final VoidCallback? _onStateChanged;
 
   HomePageCartController({
     required this.items,
     required this.recentScans,
     required void Function(VoidCallback fn) setState,
-  }) : _setState = setState;
+    VoidCallback? onStateChanged,
+  }) : _setState = setState,
+       _onStateChanged = onStateChanged;
 
   void addRecognizedItem(RecognizedItem item, {String? recentScanEntryId}) {
     _setState(() {
@@ -27,6 +30,7 @@ class HomePageCartController {
       );
       _removeRecentScanEntry(item, recentScanEntryId: recentScanEntryId);
     });
+    _onStateChanged?.call();
   }
 
   void increaseMatchingCartItem(
@@ -38,6 +42,7 @@ class HomePageCartController {
       existing.quantity++;
       _removeRecentScanEntry(item, recentScanEntryId: recentScanEntryId);
     });
+    _onStateChanged?.call();
   }
 
   CartItem? findDuplicateCartItem(RecognizedItem item) {
@@ -54,6 +59,7 @@ class HomePageCartController {
     _setState(() {
       recentScans.removeWhere((item) => item.id == entry.id);
     });
+    _onStateChanged?.call();
   }
 
   void dismissRecognizedItem(RecognizedItem item) {
@@ -62,6 +68,7 @@ class HomePageCartController {
     _setState(() {
       recentScans.removeWhere((entry) => entry.id == entryId);
     });
+    _onStateChanged?.call();
   }
 
   void addRecentScanToCart(RecentScanEntry entry) {
@@ -72,10 +79,12 @@ class HomePageCartController {
     _setState(() {
       items.remove(item);
     });
+    _onStateChanged?.call();
   }
 
   void clearItems() {
     _setState(items.clear);
+    _onStateChanged?.call();
   }
 
   void recordRecentScan(RecognizedItem item) {
@@ -93,13 +102,15 @@ class HomePageCartController {
         recentScans.removeRange(10, recentScans.length);
       }
     });
+    _onStateChanged?.call();
   }
 
   void _removeRecentScanEntry(
     RecognizedItem item, {
     String? recentScanEntryId,
   }) {
-    final resolvedEntryId = recentScanEntryId ?? _recentScanEntryIdForItem(item);
+    final resolvedEntryId =
+        recentScanEntryId ?? _recentScanEntryIdForItem(item);
     if (resolvedEntryId != null) {
       recentScans.removeWhere((entry) => entry.id == resolvedEntryId);
     }

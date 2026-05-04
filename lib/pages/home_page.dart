@@ -11,6 +11,7 @@ import '../pages/home_page_cart_save_controller.dart';
 import '../pages/home_tab_view.dart';
 import '../pages/saved_tab_view.dart';
 import '../services/cart_title_suggester.dart';
+import '../services/current_cart_store.dart';
 import '../pages/my_page.dart';
 import '../pages/shopping_help_page.dart';
 import '../services/app_attention_service.dart';
@@ -38,6 +39,7 @@ class _HomePageState extends State<HomePage> {
   bool _savingCurrentCart = false;
   bool _showHomeDot = false;
   bool _showExploreDot = false;
+  String? _loadedCurrentCartOwnerId;
 
   late final ScanRepository _scanRepository = RemoteScanRepository(
     baseUrl: CartlyRuntimeConfig.current.normalizedRemoteBaseUrl,
@@ -53,6 +55,7 @@ class _HomePageState extends State<HomePage> {
     items: items,
     recentScans: recentScans,
     setState: setState,
+    onStateChanged: _persistCurrentCartState,
   );
 
   int get totalPrice => items.fold(0, (sum, item) => sum + item.totalPrice);
@@ -65,6 +68,8 @@ class _HomePageState extends State<HomePage> {
     PushNavigationService.instance.pendingTargetTab.addListener(
       _handlePendingTargetTab,
     );
+    AuthStore.instance.session.addListener(_handleSessionChanged);
+    unawaited(_restoreCurrentCartState());
     _syncAttentionDots();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _handlePendingTargetTab();
@@ -78,7 +83,40 @@ class _HomePageState extends State<HomePage> {
     PushNavigationService.instance.pendingTargetTab.removeListener(
       _handlePendingTargetTab,
     );
+    AuthStore.instance.session.removeListener(_handleSessionChanged);
     super.dispose();
+  }
+
+  String get _currentCartOwnerId => AuthStore.instance.session.value?.id ?? '';
+
+  Future<void> _restoreCurrentCartState() async {
+    final ownerId = _currentCartOwnerId;
+    final snapshot = await CurrentCartStore.instance.load();
+    if (!mounted) return;
+    setState(() {
+      items
+        ..clear()
+        ..addAll(snapshot.items);
+      recentScans
+        ..clear()
+        ..addAll(snapshot.recentScans);
+      _loadedCurrentCartOwnerId = ownerId;
+    });
+    _refreshShoppingNudge();
+  }
+
+  void _persistCurrentCartState() {
+    unawaited(
+      CurrentCartStore.instance.save(items: items, recentScans: recentScans),
+    );
+  }
+
+  void _handleSessionChanged() {
+    final nextOwnerId = _currentCartOwnerId;
+    if (_loadedCurrentCartOwnerId == nextOwnerId) {
+      return;
+    }
+    unawaited(_restoreCurrentCartState());
   }
 
   void _syncAttentionDots() {

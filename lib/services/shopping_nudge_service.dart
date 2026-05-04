@@ -18,6 +18,7 @@ class ShoppingNudgeService {
 
   static final ShoppingNudgeService instance = ShoppingNudgeService._();
 
+  static const Duration _receiptReminderDelay = Duration(hours: 1);
   static const int _receiptReminderId = 42001;
   static const String _receiptReminderScheduledAtKey =
       'shopping_nudge_receipt_scheduled_at_v1';
@@ -63,9 +64,7 @@ class ShoppingNudgeService {
 
     await _requestPermissionsIfNeeded();
 
-    final scheduledAt = tz.TZDateTime.now(
-      tz.local,
-    ).add(const Duration(hours: 1));
+    final scheduledAt = tz.TZDateTime.now(tz.local).add(_receiptReminderDelay);
 
     await _notifications.zonedSchedule(
       _receiptReminderId,

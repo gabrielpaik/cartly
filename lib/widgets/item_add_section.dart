@@ -69,6 +69,14 @@ class _ItemAddSectionState extends State<ItemAddSection> {
       .where((entry) => !_isActiveReviewEntry(entry))
       .toList(growable: false);
 
+  List<_ScanQueueEntry> get _captureWaitingEntries => _visibleScanInboxEntries
+      .where((entry) => entry.status == _ScanQueueStatus.captured)
+      .toList(growable: false);
+
+  List<_ScanQueueEntry> get _processingEntries => _visibleScanInboxEntries
+      .where((entry) => entry.status != _ScanQueueStatus.captured)
+      .toList(growable: false);
+
   int get _readyCount => _scanInbox
       .where(
         (entry) =>
@@ -85,27 +93,30 @@ class _ItemAddSectionState extends State<ItemAddSection> {
 
   String? get _queueStatusMessage {
     if (isOcrRunning && _queuedImagePaths.isNotEmpty) {
-      return '분석 중 1건, 대기 ${_queuedImagePaths.length}건';
+      return '분석 중 1건, 촬영 완료 ${_queuedImagePaths.length}건이 순서 대기 중이에요';
     }
     if (isOcrRunning) {
-      return '분석 중... 다른 가격표를 계속 찍을 수 있어요';
+      return '가격표 1건을 분석 중이에요. 다른 가격표를 계속 찍을 수 있어요';
     }
     if (_queuedImagePaths.isNotEmpty) {
-      return '대기 ${_queuedImagePaths.length}건';
+      return '촬영 완료 ${_queuedImagePaths.length}건이 분석 대기 중이에요';
     }
     return null;
   }
 
-  String get _queueSummaryText {
+  String get _captureQueueSummaryText {
+    final count = _captureWaitingEntries.length;
+    if (count == 0) return '촬영해 둔 가격표가 없어요';
+    return '촬영 완료 $count건이 아직 분석 전이에요';
+  }
+
+  String get _processingQueueSummaryText {
     final parts = <String>[];
     if (isOcrRunning) parts.add('분석 중 1건');
-    if (_queuedImagePaths.isNotEmpty) {
-      parts.add('촬영 대기 ${_queuedImagePaths.length}건');
-    }
     if (_readyCount > 0) parts.add('검토 대기 $_readyCount건');
     if (_failedCount > 0) parts.add('실패 $_failedCount건');
     if (_completedCount > 0) parts.add('담기 완료 $_completedCount건');
-    return parts.isEmpty ? '새 가격표를 찍어보세요' : parts.join(' · ');
+    return parts.isEmpty ? '분석/검토 중인 항목이 없어요' : parts.join(' · ');
   }
 
   void _openScanner() {
@@ -141,7 +152,6 @@ class _ItemAddSectionState extends State<ItemAddSection> {
       recognized = RecognizedItem(name: '', price: 0);
       _originalCandidate = null;
       _recognizedJobId = null;
-      _pendingJobId = null;
       _capturedPath = null;
     });
   }
@@ -182,7 +192,6 @@ class _ItemAddSectionState extends State<ItemAddSection> {
       recognized = null;
       _originalCandidate = null;
       _recognizedJobId = null;
-      _pendingJobId = null;
       _statusMessage = null;
       manualEntryOpen = false;
       _activeQueueEntryId = null;
@@ -630,10 +639,23 @@ class _ItemAddSectionState extends State<ItemAddSection> {
           const SizedBox(height: 12),
         ],
 
-        if (_visibleScanInboxEntries.isNotEmpty) ...[
+        if (_captureWaitingEntries.isNotEmpty) ...[
           _ScanInboxCard(
-            summaryText: _queueSummaryText,
-            entries: _visibleScanInboxEntries,
+            title: '촬영 대기열',
+            summaryText: _captureQueueSummaryText,
+            entries: _captureWaitingEntries,
+            activeEntryId: _activeQueueEntryId,
+            onActivate: (_) {},
+            onDismiss: _removeQueueEntry,
+          ),
+          const SizedBox(height: 12),
+        ],
+
+        if (_processingEntries.isNotEmpty) ...[
+          _ScanInboxCard(
+            title: '분석/검토 처리함',
+            summaryText: _processingQueueSummaryText,
+            entries: _processingEntries,
             activeEntryId: _activeQueueEntryId,
             onActivate: (entry) {
               if (entry.status != _ScanQueueStatus.ready ||
@@ -763,6 +785,7 @@ class _ScanQueueEntry {
 }
 
 class _ScanInboxCard extends StatelessWidget {
+  final String title;
   final String summaryText;
   final List<_ScanQueueEntry> entries;
   final String? activeEntryId;
@@ -770,6 +793,7 @@ class _ScanInboxCard extends StatelessWidget {
   final ValueChanged<_ScanQueueEntry> onDismiss;
 
   const _ScanInboxCard({
+    required this.title,
     required this.summaryText,
     required this.entries,
     required this.activeEntryId,
@@ -790,7 +814,7 @@ class _ScanInboxCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _scanText('queueTitle', '스캔 처리함'),
+            title,
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 4),
@@ -865,9 +889,9 @@ class _ScanInboxRow extends StatelessWidget {
         label: '업로드 중',
       ),
       _ScanQueueStatus.captured => (
-        bg: const Color(0xFFF3F4F6),
-        fg: Colors.black87,
-        label: '대기 중',
+        bg: const Color(0xFFEEF2FF),
+        fg: const Color(0xFF344054),
+        label: '촬영 완료',
       ),
     };
     final title =
@@ -882,7 +906,7 @@ class _ScanInboxRow extends StatelessWidget {
         entry.item == null ? '결과를 확인해 주세요' : '₩${_fmt(entry.item!.price)}',
       _ScanQueueStatus.processing => '결과를 읽는 중',
       _ScanQueueStatus.uploading => '이미지를 올리는 중',
-      _ScanQueueStatus.captured => '촬영 완료, 순서 대기 중',
+      _ScanQueueStatus.captured => '아직 분석 전, 순서대로 처리될 예정',
     };
 
     return Material(

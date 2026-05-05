@@ -12,6 +12,7 @@ from ..services.content_settings_service import apply_due_content_schedule
 from ..services.coupang_runtime_service import get_coupang_runtime_status
 from ..services.explore_admin_service import get_explore_settings
 from ..services.push_service import get_push_runtime_status
+from ..services.runtime_settings_service import get_runtime_settings
 
 router = APIRouter()
 
@@ -26,6 +27,7 @@ def app_config(db: OrmSession = Depends(db_dep)):
     coupang_runtime = get_coupang_runtime_status(db)
     push_runtime = get_push_runtime_status(db)
     explore_settings = get_explore_settings(db)
+    runtime_settings = get_runtime_settings(db)
     return {
         'ok': True,
         'data': {
@@ -65,5 +67,6 @@ def app_config(db: OrmSession = Depends(db_dep)):
             'adSlots': ad_slots,
             'push': push_runtime,
             'explore': explore_settings,
+            'runtime': runtime_settings,
         },
     }

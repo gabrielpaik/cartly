@@ -476,6 +476,7 @@ export const mockContentSettings = {
   receiptCompareContextBody: '영수증과 저장한 카트를 나란히 확인해보세요.',
   receiptCompareEntryAction: '영수증 비교하기',
   receiptCompareSavedCartOnlyBadge: '저장 카트 전용',
+  receiptReminderDelayMinutes: 60,
   publicSiteEyebrow: 'Cartly · private beta',
   publicSiteHeroTitle: '장보기를 기록하고, 같은 구매 의도 안에서 더 나은 선택을 찾는 앱',
   publicSiteHeroBody: 'Cartly는 스캔, 현재 카트, 저장된 장보기 기록을 바탕으로 사용자가 이미 사려던 상품과 같은 의도의 대체안을 다시 검토할 수 있게 도와줍니다.',

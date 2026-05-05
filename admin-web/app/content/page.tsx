@@ -34,7 +34,7 @@ type ContentSchedule = {
 type FieldConfig = {
   key: keyof ContentSettings
   label: string
-  kind?: 'text' | 'textarea'
+  kind?: 'text' | 'textarea' | 'number'
 }
 
 const LOGO_TYPE_OPTIONS = [
@@ -204,6 +204,7 @@ function buildGroups(t: (key: string, fallback?: string) => string): Array<{ tit
         { key: 'receiptCompareContextBody', label: t('admin.content.fields.receiptCompareContextBody', '영수증 비교 안내 문구'), kind: 'textarea' },
         { key: 'receiptCompareEntryAction', label: t('admin.content.fields.receiptCompareEntryAction', '영수증 비교 진입 버튼') },
         { key: 'receiptCompareSavedCartOnlyBadge', label: t('admin.content.fields.receiptCompareSavedCartOnlyBadge', '영수증 비교 저장 카트 전용 배지') },
+        { key: 'receiptReminderDelayMinutes', label: t('admin.content.fields.receiptReminderDelayMinutes', '영수증 리마인더 지연(분)'), kind: 'number' },
       ],
     },
     {
@@ -429,12 +430,22 @@ export default function ContentPage() {
   }
 
   function renderField(field: FieldConfig) {
-    const value = String(form[field.key] ?? '')
+    const rawValue = form[field.key]
+    const value = String(rawValue ?? '')
     return (
       <label className="field" key={String(field.key)}>
         <div className="fieldLabel">{field.label}</div>
         {field.kind === 'textarea' ? (
           <textarea className="textInput" rows={3} value={value} onChange={(e) => update(field.key, e.target.value as ContentSettings[typeof field.key])} />
+        ) : field.kind === 'number' ? (
+          <input
+            className="textInput"
+            type="number"
+            min={1}
+            step={1}
+            value={value}
+            onChange={(e) => update(field.key, Number.parseInt(e.target.value || '0', 10) as ContentSettings[typeof field.key])}
+          />
         ) : (
           <input className="textInput" value={value} onChange={(e) => update(field.key, e.target.value as ContentSettings[typeof field.key])} />
         )}

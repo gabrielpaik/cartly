@@ -3,7 +3,7 @@ description: "Cartly shopping assistant."
 
 publish_to: 'none'
 
-version: 1.0.3+75
+version: 1.0.3+76
 
 environment:
   sdk: ^3.10.7

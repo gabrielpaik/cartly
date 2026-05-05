@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session as OrmSession
 from ..db.models import AppSetting
 from .app_copy_service import COPY_FIELD_KEYS, flatten_app_copy, get_app_copy, save_flat_app_copy
 from .branding_service import BRANDING_FIELD_KEYS, get_branding, project_branding, save_branding
+from .runtime_settings_service import RUNTIME_SETTINGS_FIELD_KEYS, get_runtime_settings, save_runtime_settings
 
 CONTENT_SCHEDULE_KEY = 'content_publish_schedule'
 CONTENT_SCHEDULE_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
@@ -49,6 +50,14 @@ def _save_content_settings_now(db: OrmSession, payload: Dict[str, Any]) -> None:
     }
     if copy_payload:
         save_flat_app_copy(db, copy_payload, branding=branding)
+
+    runtime_payload = {
+        key: value
+        for key, value in payload.items()
+        if key in RUNTIME_SETTINGS_FIELD_KEYS
+    }
+    if runtime_payload:
+        save_runtime_settings(db, runtime_payload)
 
 
 def _get_content_schedule_setting(db: OrmSession) -> Optional[AppSetting]:
@@ -133,8 +142,10 @@ def get_content_settings(db: OrmSession) -> Dict[str, Any]:
     apply_due_content_schedule(db)
     branding = get_branding(db)
     app_copy = get_app_copy(db, branding)
+    runtime_settings = get_runtime_settings(db)
     content = project_branding(branding)
     content.update(flatten_app_copy(app_copy))
+    content.update(runtime_settings)
     return content
 
 

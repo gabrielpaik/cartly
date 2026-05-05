@@ -16,6 +16,7 @@ class AppConfigStore {
   final ValueNotifier<List<AppAdSlot>> adSlots = ValueNotifier(const []);
   final ValueNotifier<Map<String, dynamic>> copy = ValueNotifier(const {});
   final ValueNotifier<Map<String, dynamic>> explore = ValueNotifier(const {});
+  final ValueNotifier<Map<String, dynamic>> runtime = ValueNotifier(const {});
 
   String get _baseUrl {
     const env = String.fromEnvironment(
@@ -32,6 +33,14 @@ class AppConfigStore {
   }
 
   Future<void> load() async => refresh();
+
+  int get receiptReminderDelayMinutes {
+    final dynamic value = runtime.value['receiptReminderDelayMinutes'];
+    if (value is num) {
+      return value < 1 ? 60 : value.toInt();
+    }
+    return 60;
+  }
 
   AppAdSlot? slotByKey(String slotKey) {
     try {
@@ -63,6 +72,7 @@ class AppConfigStore {
           const []);
       final copyJson = data?['copy'] as Map<String, dynamic>?;
       final exploreJson = data?['explore'] as Map<String, dynamic>?;
+      final runtimeJson = data?['runtime'] as Map<String, dynamic>?;
 
       branding.value = AppBranding.fromJson(brandingJson);
       adSlots.value = slotList
@@ -75,6 +85,9 @@ class AppConfigStore {
       explore.value = exploreJson == null
           ? const {}
           : Map<String, dynamic>.from(exploreJson);
+      runtime.value = runtimeJson == null
+          ? const {}
+          : Map<String, dynamic>.from(runtimeJson);
     } catch (_) {
       // keep fallback; no throw on runtime config fetch failure
     }

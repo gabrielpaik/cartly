@@ -4,6 +4,7 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 import 'app_attention_service.dart';
+import 'app_config_store.dart';
 import 'push_navigation_service.dart';
 
 @pragma('vm:entry-point')
@@ -18,7 +19,6 @@ class ShoppingNudgeService {
 
   static final ShoppingNudgeService instance = ShoppingNudgeService._();
 
-  static const Duration _receiptReminderDelay = Duration(hours: 1);
   static const int _receiptReminderId = 42001;
   static const String _receiptReminderScheduledAtKey =
       'shopping_nudge_receipt_scheduled_at_v1';
@@ -51,6 +51,9 @@ class ShoppingNudgeService {
 
     _initialized = true;
   }
+
+  Duration get _receiptReminderDelay =>
+      Duration(minutes: AppConfigStore.instance.receiptReminderDelayMinutes);
 
   Future<void> refreshReceiptReminder({
     required bool hasPendingShoppingContext,

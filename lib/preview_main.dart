@@ -183,6 +183,11 @@ class _CartlyPreviewAppState extends State<CartlyPreviewApp> {
             onDismissRecentScan: (_) {},
             onRemove: (_) {},
             onChangeCurrentCartItem: (_) {},
+            onGoExplore: () {
+              setState(() {
+                _previewScreen = 'help';
+              });
+            },
           ),
           bottomNavigationBar: TotalBar(
             totalPrice: _previewCartItems.fold(
@@ -255,6 +260,8 @@ Map<String, dynamic> _defaultContentSettings() => {
   'homeSaveCartButton': '카트 저장',
   'homeCartTotalLabel': '현재 카트 합계',
   'homeContinueScanAction': '계속 스캔하기',
+  'homeExploreEntryTitle': '탐색에서 다음 판단 이어가기',
+  'homeExploreEntryBody': '비교 후보와 대안을 한 번에 보고 결정해보세요',
   'myGuestModeLabel': '게스트로 사용 중이에요',
   'drawerGuestTitle': '게스트로 사용 중이에요',
   'drawerGuestBody': '저장한 카트와 스캔 기록을 이어서 보시려면 로그인해 주세요.',
@@ -516,6 +523,11 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
       'cartTotalLabel': text('homeCartTotalLabel', '현재 카트 합계'),
       'continueScanAction': text('homeContinueScanAction', '계속 스캔하기'),
       'recentSavedAction': text('homeRecentSavedAction', '지난 카트 보기'),
+      'exploreEntryTitle': text('homeExploreEntryTitle', '탐색에서 다음 판단 이어가기'),
+      'exploreEntryBody': text(
+        'homeExploreEntryBody',
+        '비교 후보와 대안을 한 번에 보고 결정해보세요',
+      ),
     },
     'help': {
       'pageTitle': text('helpPageTitle', 'Explore'),

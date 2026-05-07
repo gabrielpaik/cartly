@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app/cartly_ui.dart';
 import '../services/app_runtime_copy.dart';
 
 class CartDetailBottomBar extends StatelessWidget {
@@ -16,10 +17,12 @@ class CartDetailBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+      padding: EdgeInsets.fromLTRB(18, 12, 18, 12 + bottomInset),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: CartlyColors.surface0,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
@@ -35,12 +38,9 @@ class CartDetailBottomBar extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  AppRuntimeCopy.text([
-                    'cartDetail',
-                    'totalLabel',
-                  ], '총 합계'),
+                  AppRuntimeCopy.text(['cartDetail', 'totalLabel'], '총 합계'),
                   style: const TextStyle(
-                    color: Colors.black54,
+                    color: CartlyColors.textSecondary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -59,24 +59,18 @@ class CartDetailBottomBar extends StatelessWidget {
             height: 48,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE31837),
-                foregroundColor: Colors.white,
+                backgroundColor: CartlyColors.brand,
+                foregroundColor: CartlyColors.onBrandPrimary,
                 padding: const EdgeInsets.symmetric(horizontal: 22),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(CartlyRadii.control),
                 ),
               ),
               onPressed: isSaving ? null : onSave,
               child: Text(
                 isSaving
-                    ? AppRuntimeCopy.text([
-                        'cartDetail',
-                        'saving',
-                      ], '저장 중…')
-                    : AppRuntimeCopy.text([
-                        'cartDetail',
-                        'saveButton',
-                      ], '저장하기'),
+                    ? AppRuntimeCopy.text(['cartDetail', 'saving'], '저장 중…')
+                    : AppRuntimeCopy.text(['cartDetail', 'saveButton'], '저장하기'),
                 style: const TextStyle(fontWeight: FontWeight.w900),
               ),
             ),

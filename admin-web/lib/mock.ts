@@ -369,6 +369,8 @@ export const mockContentSettings = {
   homeCartTotalLabel: '현재 카트 합계',
   homeContinueScanAction: '계속 스캔하기',
   homeRecentSavedAction: '지난 카트 보기',
+  homeExploreEntryTitle: '탐색에서 다음 판단 이어가기',
+  homeExploreEntryBody: '비교 후보와 대안을 한 번에 보고 결정해보세요',
   savedSubtitle: '저장한 장보기 기록을 다시 확인해보세요',
   mySubtitle: '계정과 지난 카트를 한곳에서 관리해보세요',
   loginPageTitle: '로그인',

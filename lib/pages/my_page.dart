@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../app/cartly_ui.dart';
 import '../models/saved_cart.dart';
 import '../pages/cart_detail_page.dart';
 import '../pages/login_page.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
+import '../widgets/cartly_info_card.dart';
+import '../widgets/cartly_surface_card.dart';
 import '../widgets/inline_promo_slot.dart';
 import '../widgets/saved_tab_cart_list.dart';
 import '../widgets/saved_tab_empty_state.dart';
@@ -19,9 +22,9 @@ class MyPage extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: const [
         _AccountHubCard(),
-        SizedBox(height: 20),
+        SizedBox(height: CartlySpacing.section),
         _SavedCartsSection(),
-        SizedBox(height: 18),
+        SizedBox(height: CartlySpacing.lg),
         _MySecondarySections(),
       ],
     );
@@ -59,8 +62,7 @@ class _AccountHubCard extends StatelessWidget {
 
         return ValueListenableBuilder<List<SavedCart>>(
           valueListenable: CartStore.instance.carts,
-          builder: (context, carts, _) {
-            final latestCart = _latestCartFrom(carts);
+          builder: (context, carts, child) {
             final displayName = memberSignedIn
                 ? (session.displayName.trim().isNotEmpty
                       ? session.displayName.trim()
@@ -70,20 +72,12 @@ class _AccountHubCard extends StatelessWidget {
                       ? session?.displayName.trim() ?? 'Guest'
                       : 'Guest')
                 : AppRuntimeCopy.text(['my', 'guestModeLabel'], '게스트로 사용 중이에요');
-            final accountLabel = memberSignedIn
-                ? '회원 계정'
-                : isGuestMode
-                ? '게스트 모드'
-                : '비로그인';
 
-            return Container(
-              width: double.infinity,
+            return CartlySurfaceCard(
               padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFFBFC),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFF6D0D8)),
-              ),
+              backgroundColor: CartlyColors.surface1,
+              radius: CartlyRadii.hero,
+              border: Border.all(color: CartlyColors.line, width: 0.5),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -94,16 +88,14 @@ class _AccountHubCard extends StatelessWidget {
                         width: 52,
                         height: 52,
                         decoration: BoxDecoration(
-                          color: const Color(
-                            0xFFE31837,
-                          ).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(18),
+                          color: CartlyColors.surfaceNeutral,
+                          borderRadius: BorderRadius.circular(CartlyRadii.hero),
                         ),
                         child: Icon(
                           memberSignedIn
                               ? Icons.history_toggle_off_rounded
                               : Icons.shopping_bag_outlined,
-                          color: const Color(0xFFE31837),
+                          color: CartlyColors.brand,
                           size: 28,
                         ),
                       ),
@@ -114,23 +106,16 @@ class _AccountHubCard extends StatelessWidget {
                           children: [
                             Text(
                               AppRuntimeCopy.text(['my', 'pageTitle'], '마이'),
-                              style: const TextStyle(
-                                fontFamily: 'SpaceGrotesk',
-                                fontSize: 30,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -1.2,
-                                height: 0.95,
-                                color: Color(0xFFE31837),
-                              ),
+                              style: CartlyText.pageHeroCompact,
                             ),
                             const SizedBox(height: 8),
                             Text(
                               displayName,
                               style: const TextStyle(
                                 fontSize: 21,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w800,
                                 letterSpacing: -0.4,
-                                color: Colors.black,
+                                color: CartlyColors.textPrimary,
                               ),
                             ),
                             if (memberSignedIn && session.email.isNotEmpty) ...[
@@ -139,8 +124,8 @@ class _AccountHubCard extends StatelessWidget {
                                 session.email,
                                 style: const TextStyle(
                                   fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black54,
+                                  fontWeight: FontWeight.w500,
+                                  color: CartlyColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -151,151 +136,32 @@ class _AccountHubCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    latestCart == null
-                        ? (memberSignedIn
-                              ? AppRuntimeCopy.text([
-                                  'my',
-                                  'memberBody',
-                                ], '지난 장보기 기록을 모아보고, 다음 장보기를 바로 다시 시작해보세요.')
-                              : AppRuntimeCopy.text(
-                                  ['my', 'guestBody'],
-                                  '지금 저장한 카트를 여기서 다시 열어보고, 필요하면 계정 연결 후 계속 이어서 관리해보세요.',
-                                ))
-                        : '최근 저장한 장보기를 바로 다시 열 수 있어요.',
+                    memberSignedIn
+                        ? AppRuntimeCopy.text([
+                            'my',
+                            'memberBody',
+                          ], '지난 장보기 기록을 모아보고, 다음 장보기를 바로 다시 시작해보세요.')
+                        : AppRuntimeCopy.text(
+                            ['my', 'guestBody'],
+                            '지금 저장한 카트를 여기서 다시 열어보고, 필요하면 계정 연결 후 계속 이어서 관리해보세요.',
+                          ),
                     style: const TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black54,
+                      fontWeight: FontWeight.w500,
+                      color: CartlyColors.textSecondary,
                       height: 1.5,
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: const Color(0xFFF1D5DB)),
-                    ),
-                    child: latestCart == null
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                accountLabel,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFFE31837),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                '아직 저장한 장보기가 없어요',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                memberSignedIn
-                                    ? '카트를 저장하면 여기서 가장 최근 기록을 가장 먼저 다시 열 수 있어요.'
-                                    : '저장한 카트가 생기면 이 영역이 다음 장보기의 시작점이 돼요.',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black54,
-                                  height: 1.45,
-                                ),
-                              ),
-                            ],
-                          )
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '최근 저장한 장보기',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: memberSignedIn
-                                      ? Colors.black54
-                                      : const Color(0xFFE31837),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _cartHeadline(latestCart),
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.black,
-                                  letterSpacing: -0.2,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                '${_formatShortDate(latestCart.createdAt)} · 상품 ${latestCart.totalCount}개 · ${_formatCurrency(latestCart.totalPrice)}',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                child: OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: const Color(0xFF111827),
-                                    side: const BorderSide(
-                                      color: Color(0xFFE6E8EC),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 14,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                  ),
-                                  onPressed: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            CartDetailPage(cart: latestCart),
-                                      ),
-                                    );
-                                  },
-                                  child: const Text(
-                                    '최근 저장 카트 다시 열기',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
                   ),
                   const SizedBox(height: 14),
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
+                      style: CartlyButtonStyles.primary(
                         backgroundColor: memberSignedIn
-                            ? const Color(0xFF111827)
-                            : const Color(0xFFE31837),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
+                            ? CartlyColors.contrast
+                            : CartlyColors.brand,
+                      ).copyWith(elevation: const WidgetStatePropertyAll(0)),
                       onPressed: () async {
                         if (memberSignedIn) {
                           await AuthStore.instance.signOut();
@@ -350,7 +216,7 @@ class _AccountHubCard extends StatelessWidget {
                                 'loginAction',
                               ], '로그인 / 회원가입'),
                         style: const TextStyle(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                           fontSize: 15,
                         ),
                       ),
@@ -396,10 +262,10 @@ class _SavedCartsSection extends StatelessWidget {
                 Text(
                   AppRuntimeCopy.text(['my', 'savedSectionTitle'], '지난 카트'),
                   style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
                     letterSpacing: -0.6,
-                    color: Colors.black,
+                    color: CartlyColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -407,8 +273,8 @@ class _SavedCartsSection extends StatelessWidget {
                   subtitle,
                   style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black54,
+                    fontWeight: FontWeight.w500,
+                    color: CartlyColors.textSecondary,
                     height: 1.45,
                   ),
                 ),
@@ -422,8 +288,8 @@ class _SavedCartsSection extends StatelessWidget {
                         '전체 기록',
                         style: TextStyle(
                           fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.black,
+                          fontWeight: FontWeight.w800,
+                          color: CartlyColors.textPrimary,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -468,13 +334,10 @@ class _RecentSavedCartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return CartlySurfaceCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111827),
-        borderRadius: BorderRadius.circular(22),
-      ),
+      backgroundColor: CartlyColors.contrast,
+      radius: CartlyRadii.hero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -482,8 +345,8 @@ class _RecentSavedCartCard extends StatelessWidget {
             '가장 최근에 저장했어요',
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFFFCA5A5),
+              fontWeight: FontWeight.w700,
+              color: CartlyColors.onBrandMuted,
             ),
           ),
           const SizedBox(height: 10),
@@ -491,8 +354,8 @@ class _RecentSavedCartCard extends StatelessWidget {
             _cartHeadline(cart),
             style: const TextStyle(
               fontSize: 21,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              color: CartlyColors.onBrandPrimary,
               letterSpacing: -0.3,
             ),
           ),
@@ -501,8 +364,8 @@ class _RecentSavedCartCard extends StatelessWidget {
             '${_formatShortDate(cart.createdAt)} · 상품 ${cart.totalCount}개 · ${_formatCurrency(cart.totalPrice)}',
             style: const TextStyle(
               fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFFD1D5DB),
+              fontWeight: FontWeight.w500,
+              color: CartlyColors.onBrandMuted,
               height: 1.45,
             ),
           ),
@@ -510,15 +373,11 @@ class _RecentSavedCartCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF111827),
-                elevation: 0,
+              style: CartlyButtonStyles.primary(
+                backgroundColor: CartlyColors.surface1,
+                foregroundColor: CartlyColors.contrast,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
+              ).copyWith(elevation: const WidgetStatePropertyAll(0)),
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => CartDetailPage(cart: cart)),
@@ -526,7 +385,7 @@ class _RecentSavedCartCard extends StatelessWidget {
               },
               child: const Text(
                 '이 장보기 다시 열기',
-                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
               ),
             ),
           ),
@@ -579,25 +438,17 @@ class _GuestBenefitsSection extends StatelessWidget {
                 .where((line) => line.isNotEmpty)
                 .toList();
 
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF8F8),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFF4E1E5)),
-          ),
-          child: Column(
+        return CartlyInfoCard(
+          backgroundColor: CartlyColors.surface1,
+          border: Border.all(color: CartlyColors.line, width: 0.5),
+          title: AppRuntimeCopy.text([
+            'my',
+            'benefitsTitle',
+          ], '계정을 연결하면 더 편해져요'),
+          titleColor: CartlyColors.textPrimary,
+          footer: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                AppRuntimeCopy.text(['my', 'benefitsTitle'], '계정을 연결하면 더 편해져요'),
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 10),
               for (final line in benefitLines.take(2)) ...[
                 _BenefitRow(label: line),
                 if (line != benefitLines.take(2).last)
@@ -625,13 +476,13 @@ class _BenefitRow extends StatelessWidget {
           width: 18,
           height: 18,
           decoration: BoxDecoration(
-            color: const Color(0xFFE31837).withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(999),
+            color: CartlyColors.surfaceNeutral,
+            borderRadius: BorderRadius.circular(CartlyRadii.pill),
           ),
           child: const Icon(
             Icons.check_rounded,
             size: 12,
-            color: Color(0xFFE31837),
+            color: CartlyColors.brand,
           ),
         ),
         const SizedBox(width: 8),
@@ -640,8 +491,8 @@ class _BenefitRow extends StatelessWidget {
             label,
             style: const TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
+              fontWeight: FontWeight.w500,
+              color: CartlyColors.textSecondary,
               height: 1.45,
             ),
           ),

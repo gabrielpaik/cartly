@@ -22,6 +22,7 @@ import '../services/remote_scan_repository.dart';
 import '../services/scan_repository.dart';
 import '../services/shopping_nudge_service.dart';
 import '../widgets/total_bar.dart';
+import '../app/cartly_ui.dart';
 
 class HomePage extends StatefulWidget {
   final List<CameraDescription> cameras;
@@ -232,22 +233,22 @@ class _HomePageState extends State<HomePage> {
 
   Widget _navIcon(IconData icon, {required bool showDot}) {
     return SizedBox(
-      width: 28,
-      height: 28,
+      width: 34,
+      height: 34,
       child: Stack(
         children: [
-          Center(child: Icon(icon)),
+          Center(child: Icon(icon, size: 28)),
           if (showDot)
             Positioned(
-              right: 2,
-              top: 3,
+              right: 1,
+              top: 2,
               child: Container(
                 width: 10,
                 height: 10,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE31837),
+                  color: CartlyColors.brand,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1.5),
+                  border: Border.all(color: CartlyColors.surface0, width: 1.5),
                 ),
               ),
             ),
@@ -512,6 +513,7 @@ class _HomePageState extends State<HomePage> {
           onDismissRecentScan: _handleDismissRecentScan,
           onRemove: _handleRemoveCartItem,
           onChangeCurrentCartItem: _handleChangeCartItem,
+          onGoExplore: () => _selectTab(1),
         ),
         ShoppingHelpPage(
           items: items,
@@ -529,7 +531,7 @@ class _HomePageState extends State<HomePage> {
     final branding = AppConfigStore.instance.branding.value;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: CartlyColors.surface0,
       body: SafeArea(child: _buildBody()),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
@@ -543,6 +545,23 @@ class _HomePageState extends State<HomePage> {
           NavigationBar(
             selectedIndex: _tabIndex,
             onDestinationSelected: _selectTab,
+            backgroundColor: CartlyColors.surface0,
+            indicatorColor: CartlyColors.surfaceNeutral,
+            height: 78,
+            labelTextStyle: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: CartlyColors.textPrimary,
+                );
+              }
+              return const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: CartlyColors.textSecondary,
+              );
+            }),
             destinations: [
               NavigationDestination(
                 icon: _navIcon(Icons.home_outlined, showDot: _showHomeDot),
@@ -558,8 +577,8 @@ class _HomePageState extends State<HomePage> {
                 label: branding.helpTabLabel,
               ),
               NavigationDestination(
-                icon: const Icon(Icons.person_outline),
-                selectedIcon: const Icon(Icons.person),
+                icon: _navIcon(Icons.person_outline, showDot: false),
+                selectedIcon: _navIcon(Icons.person, showDot: false),
                 label: branding.myTabLabel,
               ),
             ],

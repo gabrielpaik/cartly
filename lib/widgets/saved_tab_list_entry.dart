@@ -50,15 +50,15 @@ class SavedTabListEntry extends StatelessWidget {
     try {
       await CartStore.instance.deleteCart(cart.id);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('지난 카트를 삭제했어요')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('지난 카트를 삭제했어요')));
       }
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
       }
     }
   }
@@ -77,7 +77,10 @@ class SavedTabListEntry extends StatelessWidget {
                 onPressed: (_) => _deleteCart(context),
                 backgroundColor: const Color(0xFFE31837),
                 foregroundColor: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                ),
                 icon: Icons.delete_outline_rounded,
                 label: '삭제',
               ),
@@ -85,6 +88,7 @@ class SavedTabListEntry extends StatelessWidget {
           ),
           child: SavedCartListCard(cart: cart, onTap: onTap),
         ),
+        const SizedBox(height: 12),
         if (index == 0)
           InlinePromoSlot(
             slotKey: 'saved_inline_1',

@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../app/cartly_ui.dart';
+import 'cartly_surface_card.dart';
+
 enum AuthMode { login, signup, reset }
 
-typedef LoginPageTextResolver = String Function(List<String> path, String fallback);
+typedef LoginPageTextResolver =
+    String Function(List<String> path, String fallback);
 
 class LoginPageAuthFormSection extends StatelessWidget {
   final AuthMode mode;
@@ -68,25 +72,28 @@ class LoginPageAuthFormSection extends StatelessWidget {
         if (!_isReset) ...[
           Row(
             children: [
-              _modeChip(mode: AuthMode.login, label: text(['login', 'mode', 'login'], '로그인')),
+              _modeChip(
+                mode: AuthMode.login,
+                label: text(['login', 'mode', 'login'], '로그인'),
+              ),
               const SizedBox(width: 8),
-              _modeChip(mode: AuthMode.signup, label: text(['login', 'mode', 'signup'], '회원가입')),
+              _modeChip(
+                mode: AuthMode.signup,
+                label: text(['login', 'mode', 'signup'], '회원가입'),
+              ),
             ],
           ),
           const SizedBox(height: 16),
         ],
-        Container(
+        CartlySurfaceCard(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(20),
-          ),
+          backgroundColor: CartlyColors.surface1,
           child: _isReset
               ? _resetForm()
               : _isSignup
-                  ? _signupForm()
-                  : _loginForm(),
+              ? _signupForm()
+              : _loginForm(),
         ),
       ],
     );
@@ -100,19 +107,43 @@ class LoginPageAuthFormSection extends StatelessWidget {
         child: Container(
           height: 42,
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFFE31837) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: selected ? const Color(0xFFE31837) : Colors.black12),
+            color: selected ? CartlyColors.brand : CartlyColors.surface1,
+            borderRadius: BorderRadius.circular(CartlyRadii.control),
+            border: Border.all(
+              color: selected ? CartlyColors.brand : CartlyColors.line,
+              width: 0.5,
+            ),
           ),
           alignment: Alignment.center,
           child: Text(
             label,
             style: TextStyle(
-              fontWeight: FontWeight.w800,
-              color: selected ? Colors.white : Colors.black87,
+              fontWeight: FontWeight.w700,
+              color: selected
+                  ? CartlyColors.onBrandPrimary
+                  : CartlyColors.textPrimary,
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: CartlyColors.surface1,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(CartlyRadii.control),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(CartlyRadii.control),
+        borderSide: const BorderSide(color: CartlyColors.line, width: 0.5),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(CartlyRadii.control),
+        borderSide: const BorderSide(color: CartlyColors.brand),
       ),
     );
   }
@@ -130,10 +161,7 @@ class LoginPageAuthFormSection extends StatelessWidget {
       keyboardType: keyboardType,
       obscureText: obscureText,
       enabled: enabled,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-      ),
+      decoration: _inputDecoration(label),
       onChanged: onChanged,
     );
   }
@@ -153,15 +181,17 @@ class LoginPageAuthFormSection extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Text('@', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            const Text(
+              '@',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
             const SizedBox(width: 8),
             Expanded(
               flex: 7,
               child: DropdownButtonFormField<String>(
                 initialValue: selectedEmailDomain,
-                decoration: InputDecoration(
-                  labelText: text(['login', 'emailDomainFieldLabel'], '도메인'),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                decoration: _inputDecoration(
+                  text(['login', 'emailDomainFieldLabel'], '도메인'),
                 ),
                 items: emailDomainOptions.map((domain) {
                   final label = domain == '__custom__'
@@ -205,29 +235,52 @@ class LoginPageAuthFormSection extends StatelessWidget {
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
-            onPressed: isSubmitting ? null : () => onModeChanged(AuthMode.reset),
-            child: Text(text(['login', 'forgotPasswordAction'], '비밀번호를 잊으셨나요?')),
+            style: CartlyButtonStyles.quiet(
+              foregroundColor: CartlyColors.textSecondary,
+            ),
+            onPressed: isSubmitting
+                ? null
+                : () => onModeChanged(AuthMode.reset),
+            child: Text(
+              text(['login', 'forgotPasswordAction'], '비밀번호를 잊으셨나요?'),
+            ),
           ),
         ),
         SizedBox(
           width: double.infinity,
           height: 50,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE31837),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
+          child: FilledButton(
+            style: CartlyButtonStyles.primary(),
             onPressed: isSubmitting ? null : onSubmit,
             child: Text(
               isSubmitting
                   ? text(['login', 'submitting'], '처리 중입니다...')
                   : text(['login', 'login', 'submit'], '로그인'),
-              style: const TextStyle(fontWeight: FontWeight.w900),
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _sendCodeButton() {
+    return SizedBox(
+      height: 56,
+      child: OutlinedButton(
+        style: CartlyButtonStyles.secondaryOutline(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+        ),
+        onPressed: (isSubmitting || isSendingCode) ? null : onRequestCode,
+        child: Text(
+          isSendingCode
+              ? text(['login', 'sendingCode'], '전송 중입니다...')
+              : (codeRequested
+                    ? text(['login', 'resendCode'], '재전송')
+                    : text(['login', 'sendCode'], '코드 전송')),
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
     );
   }
 
@@ -252,25 +305,7 @@ class LoginPageAuthFormSection extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            SizedBox(
-              height: 56,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                onPressed: (isSubmitting || isSendingCode) ? null : onRequestCode,
-                child: Text(
-                  isSendingCode
-                      ? text(['login', 'sendingCode'], '전송 중입니다...')
-                      : (codeRequested
-                          ? text(['login', 'resendCode'], '재전송')
-                          : text(['login', 'sendCode'], '코드 전송')),
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-            ),
+            _sendCodeButton(),
           ],
         ),
         const SizedBox(height: 10),
@@ -278,13 +313,20 @@ class LoginPageAuthFormSection extends StatelessWidget {
           width: double.infinity,
           height: 48,
           child: OutlinedButton(
-            onPressed: (isSubmitting || isVerifyingCode) ? null : onVerifySignupCode,
+            style: CartlyButtonStyles.secondaryOutline(),
+            onPressed: (isSubmitting || isVerifyingCode)
+                ? null
+                : onVerifySignupCode,
             child: Text(
               isVerifyingCode
                   ? text(['login', 'signup', 'verifyingCode'], '인증 확인 중입니다...')
                   : (signupCodeVerified
-                      ? text(['login', 'signup', 'verifiedBadge'], '인증 완료')
-                      : text(['login', 'signup', 'verifyCodeAction'], '인증 코드 확인')),
+                        ? text(['login', 'signup', 'verifiedBadge'], '인증 완료')
+                        : text([
+                            'login',
+                            'signup',
+                            'verifyCodeAction',
+                          ], '인증 코드 확인')),
             ),
           ),
         ),
@@ -305,18 +347,14 @@ class LoginPageAuthFormSection extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             height: 50,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE31837),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
+            child: FilledButton(
+              style: CartlyButtonStyles.primary(),
               onPressed: isSubmitting ? null : onSubmit,
               child: Text(
                 isSubmitting
                     ? text(['login', 'submitting'], '처리 중입니다...')
                     : text(['login', 'signup', 'submit'], '회원가입 완료'),
-                style: const TextStyle(fontWeight: FontWeight.w900),
+                style: const TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
           ),
@@ -330,6 +368,9 @@ class LoginPageAuthFormSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TextButton(
+          style: CartlyButtonStyles.quiet(
+            foregroundColor: CartlyColors.textSecondary,
+          ),
           onPressed: isSubmitting ? null : () => onModeChanged(AuthMode.login),
           child: Text(text(['login', 'reset', 'backToLogin'], '로그인으로 돌아가기')),
         ),
@@ -345,25 +386,7 @@ class LoginPageAuthFormSection extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            SizedBox(
-              height: 56,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                onPressed: (isSubmitting || isSendingCode) ? null : onRequestCode,
-                child: Text(
-                  isSendingCode
-                      ? text(['login', 'sendingCode'], '전송 중입니다...')
-                      : (codeRequested
-                          ? text(['login', 'resendCode'], '재전송')
-                          : text(['login', 'sendCode'], '코드 전송')),
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-            ),
+            _sendCodeButton(),
           ],
         ),
         const SizedBox(height: 12),
@@ -376,18 +399,14 @@ class LoginPageAuthFormSection extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           height: 50,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE31837),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
+          child: FilledButton(
+            style: CartlyButtonStyles.primary(),
             onPressed: isSubmitting ? null : onSubmit,
             child: Text(
               isSubmitting
                   ? text(['login', 'submitting'], '처리 중입니다...')
                   : text(['login', 'reset', 'submit'], '비밀번호 재설정'),
-              style: const TextStyle(fontWeight: FontWeight.w900),
+              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
         ),

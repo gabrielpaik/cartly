@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+import '../app/cartly_ui.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
@@ -13,6 +15,9 @@ import '../models/saved_cart.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/remote_receipt_repository.dart';
+import '../widgets/cartly_badge.dart';
+import '../widgets/cartly_info_card.dart';
+import '../widgets/cartly_surface_card.dart';
 
 final _receiptMoneyFormatter = NumberFormat('#,###');
 String _receiptFmt(int value) => _receiptMoneyFormatter.format(value);
@@ -263,12 +268,12 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
         : _ReceiptSimpleViewData.fromResult(_result!, widget.cart);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: CartlyColors.surface1,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: CartlyColors.surface1,
         elevation: 0,
-        surfaceTintColor: Colors.white,
-        foregroundColor: Colors.black,
+        surfaceTintColor: CartlyColors.surface1,
+        foregroundColor: CartlyColors.textPrimary,
         title: const Text('영수증 확인'),
       ),
       body: SafeArea(
@@ -332,48 +337,33 @@ class _ReceiptCompareContextCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateText = DateFormat('M월 d일 HH:mm').format(cart.createdAt);
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
-      ),
+    return CartlySurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              AppRuntimeCopy.text([
-                'receiptCompare',
-                'savedCartOnlyBadge',
-              ], '저장된 카트 기준 확인'),
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: Colors.black87,
-              ),
-            ),
+          CartlyBadge(
+            label: AppRuntimeCopy.text([
+              'receiptCompare',
+              'savedCartOnlyBadge',
+            ], '저장된 카트 기준 확인'),
+            backgroundColor: CartlyColors.surface1,
+            foregroundColor: CartlyColors.textPrimary,
+            fontWeight: FontWeight.w700,
           ),
           const SizedBox(height: 12),
           Text(
             cart.title?.trim().isNotEmpty == true
                 ? cart.title!.trim()
                 : '$dateText 카트',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           Text(
             '$dateText · ${cart.totalCount}개 항목 · 예상 ₩${_receiptFmt(cart.totalPrice)}',
             style: const TextStyle(
               fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
+              fontWeight: FontWeight.w500,
+              color: CartlyColors.textSecondary,
               height: 1.45,
             ),
           ),
@@ -385,8 +375,8 @@ class _ReceiptCompareContextCard extends StatelessWidget {
             ], '이 저장본을 기준으로 영수증 요약과 상세 내역을 확인해요.'),
             style: const TextStyle(
               fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
+              fontWeight: FontWeight.w500,
+              color: CartlyColors.textSecondary,
               height: 1.45,
             ),
           ),
@@ -403,27 +393,22 @@ class _ReceiptCompareCaptureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF7ED),
-        borderRadius: BorderRadius.circular(16),
-      ),
+    return CartlySurfaceCard(
+      backgroundColor: const Color(0xFFFFF7ED),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             '실제 영수증을 찍어서 비교해요',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
           const Text(
             '영수증 전체가 한 장에 들어오게 맞추고, 총액과 상품 목록이 잘 보이도록 촬영해 주세요.',
             style: TextStyle(
               fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
+              fontWeight: FontWeight.w500,
+              color: CartlyColors.textSecondary,
               height: 1.45,
             ),
           ),
@@ -433,16 +418,11 @@ class _ReceiptCompareCaptureCard extends StatelessWidget {
             height: 52,
             child: FilledButton.icon(
               onPressed: onOpenUploadFlow,
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFE31837),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
+              style: CartlyButtonStyles.primary(),
               icon: const Icon(Icons.receipt_long_outlined),
               label: const Text(
                 '영수증 올리기',
-                style: TextStyle(fontWeight: FontWeight.w800),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -466,11 +446,11 @@ class _ReceiptCapturedPreviewCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
+        color: CartlyColors.surface2,
+        borderRadius: BorderRadius.circular(CartlyRadii.card),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(CartlyRadii.card),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -482,7 +462,7 @@ class _ReceiptCapturedPreviewCard extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: Text(
                 '방금 올린 영수증',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
               ),
             ),
           ],
@@ -503,54 +483,28 @@ class _ReceiptCompareProcessingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return CartlyInfoCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      header: const Row(
         children: [
-          const Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2.4),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  '영수증 정리 진행 중',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-                ),
-              ),
-            ],
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2.4),
           ),
-          const SizedBox(height: 12),
-          Text(
-            message,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
-            ),
-          ),
-          if (receipt != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              'receipt id ${receipt!.id}',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.black45,
-              ),
-            ),
-          ],
+          SizedBox(width: 12),
+          Expanded(child: SizedBox.shrink()),
         ],
       ),
+      title: '영수증 정리 진행 중',
+      body: message,
+      bodyColor: CartlyColors.textPrimary,
+      footer: receipt == null
+          ? null
+          : Text(
+              'receipt id ${receipt!.id}',
+              style: CartlyText.cardMeta.copyWith(color: Colors.black45),
+            ),
     );
   }
 }
@@ -568,59 +522,38 @@ class _ReceiptCompareErrorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF1F2),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return CartlyInfoCard(
+      backgroundColor: const Color(0xFFFFF1F2),
+      title: '영수증 정리를 끝내지 못했어요',
+      body: message,
+      footer: Row(
         children: [
-          const Text(
-            '영수증 정리를 끝내지 못했어요',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
-              height: 1.45,
+          Expanded(
+            child: FilledButton(
+              onPressed: onRetryCapture,
+              style: CartlyButtonStyles.primary(),
+              child: const Text(
+                '다시 촬영',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton(
-                  onPressed: onRetryCapture,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFE31837),
-                  ),
-                  child: const Text(
-                    '다시 촬영',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
+          if (onRetryLoad != null) ...[
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: onRetryLoad,
+                style: CartlyButtonStyles.secondaryOutline(
+                  foregroundColor: CartlyColors.textPrimary,
+                  borderColor: CartlyColors.lineStrong,
+                ),
+                child: const Text(
+                  '다시 불러오기',
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
-              if (onRetryLoad != null) ...[
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onRetryLoad,
-                    child: const Text(
-                      '다시 불러오기',
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
+            ),
+          ],
         ],
       ),
     );
@@ -702,25 +635,26 @@ class _ReceiptSimpleSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return CartlySurfaceCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(20),
-      ),
+      backgroundColor: CartlyColors.subBrand,
+      radius: CartlyRadii.hero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(999),
+              color: CartlyColors.surface1,
+              borderRadius: BorderRadius.circular(CartlyRadii.pill),
             ),
             child: Text(
               data.merchantName,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: CartlyColors.subBrand,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -729,26 +663,26 @@ class _ReceiptSimpleSummaryCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 22,
               height: 1.35,
-              fontWeight: FontWeight.w800,
-              color: Colors.black,
+              fontWeight: FontWeight.w700,
+              color: CartlyColors.onBrandPrimary,
             ),
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             '상세내역을 확인하여 비교해보세요',
             style: TextStyle(
               fontSize: 14,
               height: 1.5,
-              color: Colors.grey.shade700,
+              color: CartlyColors.onBrandMuted,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 12),
           Text(
             data.purchasedAtText,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 13,
-              color: Colors.grey.shade600,
+              color: CartlyColors.onBrandMuted,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -775,16 +709,16 @@ class _ReceiptFinalPriceCompareCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        color: CartlyColors.onBrandPrimary,
+        borderRadius: BorderRadius.circular(CartlyRadii.card),
+        border: Border.all(color: CartlyColors.line, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             '최종 가격 비교',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 12),
           Row(
@@ -806,17 +740,20 @@ class _ReceiptFinalPriceCompareCard extends StatelessWidget {
             deltaText,
             style: TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               color: delta == 0
-                  ? const Color(0xFF2E7D32)
-                  : const Color(0xFFB26A00),
+                  ? CartlyColors.semanticSuccess
+                  : CartlyColors.semanticWarning,
             ),
           ),
           if (data.totalDiscount > 0) ...[
             const SizedBox(height: 6),
             Text(
               '할인/조정 합계 ${_receiptFmt(data.totalDiscount)}원',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              style: const TextStyle(
+                fontSize: 13,
+                color: CartlyColors.textSecondary,
+              ),
             ),
           ],
         ],
@@ -836,8 +773,8 @@ class _ReceiptAmountBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
+        color: CartlyColors.surface2,
+        borderRadius: BorderRadius.circular(CartlyRadii.control),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -846,14 +783,14 @@ class _ReceiptAmountBox extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w600,
+              color: CartlyColors.textSecondary,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             '${_receiptFmt(amount)}원',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -861,51 +798,67 @@ class _ReceiptAmountBox extends StatelessWidget {
   }
 }
 
-class _ReceiptStoredDetailsCard extends StatelessWidget {
+class _ReceiptStoredDetailsCard extends StatefulWidget {
   final _ReceiptSimpleViewData data;
 
   const _ReceiptStoredDetailsCard({required this.data});
 
   @override
+  State<_ReceiptStoredDetailsCard> createState() =>
+      _ReceiptStoredDetailsCardState();
+}
+
+class _ReceiptStoredDetailsCardState extends State<_ReceiptStoredDetailsCard> {
+  bool _showRawText = false;
+
+  @override
   Widget build(BuildContext context) {
+    final data = widget.data;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        color: CartlyColors.onBrandPrimary,
+        borderRadius: BorderRadius.circular(CartlyRadii.card),
+        border: Border.all(color: CartlyColors.line, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             '상세 내역',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
           Text(
             data.hasStoredImage
                 ? '영수증 이미지와 텍스트를 저장해 두었어요.'
                 : '영수증 텍스트를 저장해 두었어요.',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            style: const TextStyle(
+              fontSize: 13,
+              color: CartlyColors.textSecondary,
+            ),
           ),
           const SizedBox(height: 16),
           const Text(
             '텍스트로 정리한 상품 목록',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 10),
           if (data.purchasedLineItems.isEmpty)
             Text(
               '정리된 상품 목록이 아직 없어요.',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              style: const TextStyle(
+                fontSize: 13,
+                color: CartlyColors.textSecondary,
+              ),
             )
           else
             Container(
               constraints: const BoxConstraints(maxHeight: 260),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(14),
+                color: CartlyColors.surface2,
+                borderRadius: BorderRadius.circular(CartlyRadii.control),
               ),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(12),
@@ -924,7 +877,7 @@ class _ReceiptStoredDetailsCard extends StatelessWidget {
                                     : item.rawName.trim(),
                                 style: const TextStyle(
                                   fontSize: 14,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ),
@@ -932,10 +885,10 @@ class _ReceiptStoredDetailsCard extends StatelessWidget {
                               const SizedBox(width: 8),
                               Text(
                                 'x${item.quantity}',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w600,
+                                  color: CartlyColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -958,13 +911,13 @@ class _ReceiptStoredDetailsCard extends StatelessWidget {
             const SizedBox(height: 16),
             const Text(
               '할인/세금/결제 참고 내역',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 10),
             Container(
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(14),
+                color: CartlyColors.surface2,
+                borderRadius: BorderRadius.circular(CartlyRadii.control),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -992,10 +945,10 @@ class _ReceiptStoredDetailsCard extends StatelessWidget {
                                   const SizedBox(height: 2),
                                   Text(
                                     _receiptSupportingLineItemLabel(item),
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w500,
+                                      color: CartlyColors.textSecondary,
                                     ),
                                   ),
                                 ],
@@ -1021,24 +974,57 @@ class _ReceiptStoredDetailsCard extends StatelessWidget {
             const SizedBox(height: 16),
             const Text(
               '추출된 원문 텍스트',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              '원문 텍스트는 기본으로 가려 두었어요.',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: CartlyColors.textSecondary,
+              ),
             ),
             const SizedBox(height: 10),
-            Container(
+            SizedBox(
               width: double.infinity,
-              constraints: const BoxConstraints(maxHeight: 220),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: SingleChildScrollView(
-                child: Text(
-                  data.rawText!,
-                  style: const TextStyle(fontSize: 13, height: 1.5),
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _showRawText = !_showRawText;
+                  });
+                },
+                style: CartlyButtonStyles.secondaryOutline(
+                  foregroundColor: CartlyColors.textPrimary,
+                  borderColor: CartlyColors.lineStrong,
                 ),
+                icon: Icon(
+                  _showRawText
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  size: 18,
+                ),
+                label: Text(_showRawText ? '원문 텍스트 숨기기' : '원문 텍스트 보기'),
               ),
             ),
+            if (_showRawText) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(maxHeight: 220),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: CartlyColors.surface2,
+                  borderRadius: BorderRadius.circular(CartlyRadii.control),
+                ),
+                child: SingleChildScrollView(
+                  child: Text(
+                    data.rawText!,
+                    style: const TextStyle(fontSize: 13, height: 1.5),
+                  ),
+                ),
+              ),
+            ],
           ],
         ],
       ),
@@ -1062,14 +1048,25 @@ class _ReceiptResultActionsCard extends StatelessWidget {
         Expanded(
           child: OutlinedButton(
             onPressed: onRefresh,
-            child: const Text('다시 불러오기'),
+            style: CartlyButtonStyles.secondaryOutline(
+              foregroundColor: CartlyColors.textPrimary,
+              borderColor: CartlyColors.lineStrong,
+            ),
+            child: const Text(
+              '다시 불러오기',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: FilledButton(
             onPressed: onRetake,
-            child: const Text('영수증 다시 올리기'),
+            style: CartlyButtonStyles.primary(),
+            child: const Text(
+              '영수증 다시 올리기',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ),
       ],
@@ -1270,10 +1267,10 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: CartlyColors.contrast,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
+        backgroundColor: CartlyColors.contrast,
+        foregroundColor: CartlyColors.onBrandPrimary,
         title: const Text('영수증 촬영'),
       ),
       body: SafeArea(
@@ -1304,7 +1301,7 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
             children: [
               const Icon(
                 Icons.camera_alt_outlined,
-                color: Colors.white54,
+                color: CartlyColors.onBrandMuted,
                 size: 44,
               ),
               const SizedBox(height: 12),
@@ -1312,7 +1309,7 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
                 _errorMessage!,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: CartlyColors.onBrandPrimary,
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   height: 1.4,
@@ -1372,13 +1369,13 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(999),
+                color: const Color(0xFF232323),
+                borderRadius: BorderRadius.circular(CartlyRadii.pill),
               ),
               child: Text(
                 'x${_currentZoom.toStringAsFixed(1)}',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: CartlyColors.onBrandPrimary,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1401,12 +1398,14 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             color: selected ? const Color(0xFF3B3B3B) : Colors.transparent,
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: BorderRadius.circular(CartlyRadii.pill),
           ),
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? const Color(0xFFFFD54F) : Colors.white70,
+              color: selected
+                  ? const Color(0xFFFFD54F)
+                  : CartlyColors.onBrandMuted,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -1416,7 +1415,7 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
     }).toList();
 
     return Container(
-      color: Colors.black,
+      color: CartlyColors.textPrimary,
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1437,8 +1436,11 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
                 child: OutlinedButton(
                   onPressed: isBusy ? null : _pickFromGallery,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white38),
+                    foregroundColor: CartlyColors.onBrandPrimary,
+                    side: const BorderSide(
+                      color: CartlyColors.onBrandMuted,
+                      width: 0.5,
+                    ),
                     shape: const CircleBorder(),
                     padding: EdgeInsets.zero,
                   ),
@@ -1448,7 +1450,7 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
                           height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.2,
-                            color: Colors.white,
+                            color: CartlyColors.onBrandPrimary,
                           ),
                         )
                       : const Icon(Icons.photo_library_outlined),
@@ -1460,8 +1462,8 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
                 child: FilledButton(
                   onPressed: isBusy ? null : _capture,
                   style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
+                    backgroundColor: CartlyColors.surface1,
+                    foregroundColor: CartlyColors.textPrimary,
                     shape: const CircleBorder(),
                     padding: EdgeInsets.zero,
                   ),
@@ -1471,7 +1473,10 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
                           height: 24,
                           child: CircularProgressIndicator(strokeWidth: 2.4),
                         )
-                      : const Icon(Icons.camera_alt, size: 32),
+                      : const Icon(
+                          Icons.camera_alt,
+                          size: CartlyIconSizes.hero,
+                        ),
                 ),
               ),
               const SizedBox(width: 56, height: 56),

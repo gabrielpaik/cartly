@@ -74,6 +74,8 @@ function buildGroups(t: (key: string, fallback?: string) => string): Array<{ tit
         { key: 'homeCartTotalLabel', label: t('admin.content.fields.homeCartTotalLabel', '카트 합계 라벨') },
         { key: 'homeContinueScanAction', label: t('admin.content.fields.homeContinueScanAction', '계속 스캔 버튼') },
         { key: 'homeRecentSavedAction', label: t('admin.content.fields.homeRecentSavedAction', '지난 카트 보기 버튼') },
+        { key: 'homeExploreEntryTitle', label: t('admin.content.fields.homeExploreEntryTitle', '탐색 유도 타이틀') },
+        { key: 'homeExploreEntryBody', label: t('admin.content.fields.homeExploreEntryBody', '탐색 유도 설명'), kind: 'textarea' },
       ],
     },
     {

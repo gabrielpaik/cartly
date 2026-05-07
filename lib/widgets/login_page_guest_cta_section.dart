@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../app/cartly_ui.dart';
+import 'cartly_surface_card.dart';
+
 class LoginPageGuestCtaSection extends StatelessWidget {
   final String benefitsTitle;
   final String benefitsBody;
@@ -19,27 +22,30 @@ class LoginPageGuestCtaSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
+        const SizedBox(height: 0),
+        CartlySurfaceCard(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF4F5),
-            borderRadius: BorderRadius.circular(16),
-          ),
+          backgroundColor: CartlyColors.surface1,
+          border: Border.all(color: CartlyColors.lineWarm, width: 0.5),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 benefitsTitle,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: CartlyColors.textPrimary,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 benefitsBody,
                 style: const TextStyle(
                   fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  fontWeight: FontWeight.w500,
+                  color: CartlyColors.textSecondary,
                   height: 1.5,
                 ),
               ),
@@ -51,9 +57,8 @@ class LoginPageGuestCtaSection extends StatelessWidget {
           width: double.infinity,
           height: 52,
           child: TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.black87,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            style: CartlyButtonStyles.quiet(
+              foregroundColor: CartlyColors.textPrimary,
             ),
             onPressed: onContinueAsGuest,
             child: Text(

@@ -6,6 +6,7 @@ import '../services/admob_service.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
+import '../app/cartly_ui.dart';
 import 'cart_detail_page_helpers.dart';
 import 'receipt_comparison_page.dart';
 import '../widgets/cart_detail_app_bar_actions.dart';
@@ -160,9 +161,9 @@ class _CartDetailPageState extends State<CartDetailPage> {
 
     final session = AuthStore.instance.session.value;
     if (session == null || !session.isGuest) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('게스트 카트만 저장 기간을 연장할 수 있어요')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('게스트 카트만 저장 기간을 연장할 수 있어요')));
       return;
     }
 
@@ -173,9 +174,9 @@ class _CartDetailPageState extends State<CartDetailPage> {
       if (result != RewardedAdResult.rewarded) {
         final message = cartDetailRetentionResultMessage(result);
         if (message != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
         }
         return;
       }
@@ -189,9 +190,9 @@ class _CartDetailPageState extends State<CartDetailPage> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       if (mounted) {
         setState(() => _isExtendingRetention = false);
@@ -221,12 +222,7 @@ class _CartDetailPageState extends State<CartDetailPage> {
 
     setState(() {
       _cart.items.add(
-        SavedCartItem(
-          name: name,
-          price: price,
-          quantity: 1,
-          source: 'manual',
-        ),
+        SavedCartItem(name: name, price: price, quantity: 1, source: 'manual'),
       );
     });
     ScaffoldMessenger.of(context).showSnackBar(
@@ -249,11 +245,9 @@ class _CartDetailPageState extends State<CartDetailPage> {
   Future<void> _openReceiptCompare() async {
     if (_isEditing || _isSaving || _isExpiredGuestLocked) return;
 
-    final result = await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ReceiptCheckPage(cart: _cart),
-      ),
-    );
+    final result = await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => ReceiptCheckPage(cart: _cart)));
 
     if (!mounted) return;
     if (result is SavedCart) {
@@ -271,11 +265,12 @@ class _CartDetailPageState extends State<CartDetailPage> {
     final dateText = DateFormat('M월 d일').format(_cart.createdAt);
 
     return Scaffold(
+      backgroundColor: CartlyColors.surface0,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: CartlyColors.surface0,
         elevation: 0,
-        surfaceTintColor: Colors.white,
-        foregroundColor: Colors.black,
+        surfaceTintColor: CartlyColors.surface0,
+        foregroundColor: CartlyColors.textPrimary,
         centerTitle: false,
         title: Text(
           '$dateText ${AppRuntimeCopy.text(['cartDetail', 'titleSuffix'], '카트')}',
@@ -292,6 +287,7 @@ class _CartDetailPageState extends State<CartDetailPage> {
         ],
       ),
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             CartDetailGuestRetentionSection(
@@ -360,16 +356,16 @@ class _CartDetailPageState extends State<CartDetailPage> {
                 ],
               ),
             ),
-            CartDetailEditActionsSection(
-              isVisible: !_isExpiredGuestLocked,
-              isEditing: _isEditing,
-              onAddItem: _addItem,
-              totalPriceText: '₩${_fmt(_cart.totalPrice)}',
-              isSaving: _isSaving,
-              onSave: _save,
-            ),
           ],
         ),
+      ),
+      bottomNavigationBar: CartDetailEditActionsSection(
+        isVisible: !_isExpiredGuestLocked,
+        isEditing: _isEditing,
+        onAddItem: _addItem,
+        totalPriceText: '₩${_fmt(_cart.totalPrice)}',
+        isSaving: _isSaving,
+        onSave: _save,
       ),
     );
   }
@@ -379,14 +375,16 @@ class _CartReceiptStatusCard extends StatelessWidget {
   final SavedCartReceiptStatus status;
   final VoidCallback onTap;
 
-  const _CartReceiptStatusCard({
-    required this.status,
-    required this.onTap,
-  });
+  const _CartReceiptStatusCard({required this.status, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final (badgeText, badgeColor, badgeForeground, bodyText) = switch (status.receiptStatus) {
+    final (
+      badgeText,
+      badgeColor,
+      badgeForeground,
+      bodyText,
+    ) = switch (status.receiptStatus) {
       'processing' => (
         '처리 중',
         const Color(0xFFE0F2FE),
@@ -414,7 +412,7 @@ class _CartReceiptStatusCard extends StatelessWidget {
     };
 
     return Material(
-      color: const Color(0xFFF8FAFC),
+      color: CartlyColors.surface1,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -428,7 +426,10 @@ class _CartReceiptStatusCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: badgeColor,
                         borderRadius: BorderRadius.circular(999),

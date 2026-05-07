@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../app/cartly_ui.dart';
+
 class LoginPageHeaderSection extends StatelessWidget {
   final String? loginHeroImageUrl;
   final String title;
@@ -21,7 +23,7 @@ class LoginPageHeaderSection extends StatelessWidget {
       children: [
         if (heroUrl != null && heroUrl.isNotEmpty) ...[
           ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(CartlyRadii.card),
             child: AspectRatio(
               aspectRatio: 16 / 9,
               child: Image.network(
@@ -32,29 +34,17 @@ class LoginPageHeaderSection extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: CartlySpacing.section),
         ],
         Text(
           title,
-          style: const TextStyle(
-            fontFamily: 'SpaceGrotesk',
+          style: CartlyText.pageHeroCompact.copyWith(
             fontSize: 28,
-            fontWeight: FontWeight.w700,
             letterSpacing: -1.1,
-            height: 0.95,
-            color: Color(0xFFE31837),
           ),
         ),
         const SizedBox(height: 8),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.black54,
-            height: 1.5,
-          ),
-        ),
+        Text(subtitle, style: CartlyText.pageSubtitle),
       ],
     );
   }

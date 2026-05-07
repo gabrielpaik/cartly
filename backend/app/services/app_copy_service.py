@@ -36,6 +36,8 @@ DEFAULT_APP_COPY: Dict[str, Any] = {
         'cartTotalLabel': '현재 카트 합계',
         'continueScanAction': '계속 스캔하기',
         'recentSavedAction': '지난 카트 보기',
+        'exploreEntryTitle': '탐색에서 다음 판단 이어가기',
+        'exploreEntryBody': '비교 후보와 대안을 한 번에 보고 결정해보세요',
     },
     'help': {
         'tabLabel': '탐색',
@@ -261,6 +263,8 @@ BRANDING_COPY_FIELD_MAP = {
     ('home', 'cartTotalLabel'): 'homeCartTotalLabel',
     ('home', 'continueScanAction'): 'homeContinueScanAction',
     ('home', 'recentSavedAction'): 'homeRecentSavedAction',
+    ('home', 'exploreEntryTitle'): 'homeExploreEntryTitle',
+    ('home', 'exploreEntryBody'): 'homeExploreEntryBody',
     ('help', 'tabLabel'): 'helpTabLabel',
     ('help', 'pageTitle'): 'helpPageTitle',
     ('help', 'subtitle'): 'helpSubtitle',

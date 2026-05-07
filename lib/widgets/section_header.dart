@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../app/cartly_ui.dart';
+
 class SectionHeader extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -11,20 +13,9 @@ class SectionHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Colors.black54,
-            height: 1.45,
-          ),
-        ),
+        Text(title, style: CartlyText.sectionTitle),
+        const SizedBox(height: 5),
+        Text(subtitle, style: CartlyText.sectionSubtitle),
       ],
     );
   }

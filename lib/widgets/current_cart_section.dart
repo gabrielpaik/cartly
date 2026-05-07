@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../app/cartly_ui.dart';
 import '../app_support.dart';
 import '../services/app_runtime_copy.dart';
+import 'cartly_empty_state.dart';
 
 class CurrentCartSection extends StatelessWidget {
   final List<CartItem> items;
@@ -21,30 +23,13 @@ class CurrentCartSection extends StatelessWidget {
       return SizedBox(
         height: MediaQuery.of(context).size.height * 0.28,
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Opacity(
-                opacity: 0.14,
-                child: Icon(
-                  Icons.shopping_cart_outlined,
-                  size: 72,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                AppRuntimeCopy.text([
-                  'home',
-                  'currentCartEmpty',
-                ], '아직 담은 상품이 없어요'),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black45,
-                ),
-              ),
-            ],
+          child: CartlyEmptyState(
+            icon: Icons.shopping_cart_outlined,
+            iconSize: 48,
+            title: AppRuntimeCopy.text([
+              'home',
+              'currentCartEmpty',
+            ], '아직 담은 상품이 없어요'),
           ),
         ),
       );
@@ -60,10 +45,14 @@ class CurrentCartSection extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 padding: const EdgeInsets.only(right: 20),
                 decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(12),
+                  color: CartlyColors.semanticDanger,
+                  borderRadius: BorderRadius.circular(CartlyRadii.card),
                 ),
-                child: const Icon(Icons.delete, color: Colors.white),
+                child: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: CartlyColors.onBrandPrimary,
+                  size: CartlyIconSizes.row,
+                ),
               ),
               onDismissed: (_) => onRemove(item),
               child: CurrentCartItemCard(
@@ -165,76 +154,166 @@ class _CurrentCartItemCardState extends State<CurrentCartItemCard> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(CartlyRadii.card),
+        color: _expanded ? CartlyColors.surface2 : CartlyColors.surface1,
+        border: Border.all(
+          color: _expanded ? CartlyColors.lineWarm : CartlyColors.line,
+          width: 0.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(8),
-                  onTap: _toggleExpanded,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Row(
+          InkWell(
+            borderRadius: BorderRadius.circular(CartlyRadii.control),
+            onTap: _toggleExpanded,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            item.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: _expanded ? null : 1,
-                            overflow: _expanded
-                                ? TextOverflow.visible
-                                : TextOverflow.ellipsis,
+                        Text(
+                          item.name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: CartlyColors.textPrimary,
+                            height: 1.25,
                           ),
+                          maxLines: _expanded ? null : 2,
+                          overflow: _expanded
+                              ? TextOverflow.visible
+                              : TextOverflow.ellipsis,
                         ),
-                        const SizedBox(width: 6),
-                        Icon(
-                          _expanded
-                              ? Icons.keyboard_arrow_up_rounded
-                              : Icons.keyboard_arrow_down_rounded,
-                          size: 18,
-                          color: Colors.black45,
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _expanded
+                                    ? CartlyColors.softPink
+                                    : CartlyColors.surface1,
+                                borderRadius: BorderRadius.circular(
+                                  CartlyRadii.pill,
+                                ),
+                                border: Border.all(
+                                  color: _expanded
+                                      ? CartlyColors.lineWarm
+                                      : CartlyColors.line,
+                                  width: 0.5,
+                                ),
+                              ),
+                              child: Text(
+                                _expanded ? '이름 수정 중' : '이름 수정',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: _expanded
+                                      ? CartlyColors.brand
+                                      : CartlyColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              _expanded
+                                  ? Icons.keyboard_arrow_up_rounded
+                                  : Icons.keyboard_arrow_down_rounded,
+                              size: CartlyIconSizes.inline,
+                              color: CartlyColors.textTertiary,
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.remove),
-                    onPressed: decrease,
-                  ),
-                  Text('${item.quantity}'),
-                  IconButton(icon: const Icon(Icons.add), onPressed: increase),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   Text(
                     '₩${formatPrice(item.totalPrice)}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: CartlyColors.textPrimary,
+                    ),
                   ),
                 ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: CartlyColors.surface1,
+                  borderRadius: BorderRadius.circular(CartlyRadii.control),
+                  border: Border.all(color: CartlyColors.line, width: 0.5),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.remove_rounded,
+                        size: CartlyIconSizes.inline,
+                      ),
+                      onPressed: decrease,
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
+                      ),
+                    ),
+                    Text(
+                      '${item.quantity}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: CartlyColors.textPrimary,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.add_rounded,
+                        size: CartlyIconSizes.inline,
+                      ),
+                      onPressed: increase,
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                '수량 조정',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: CartlyColors.textSecondary,
+                ),
               ),
             ],
           ),
           if (_expanded) ...[
-            const SizedBox(height: 12),
-            Text(
+            const SizedBox(height: 14),
+            const Text(
               '표시되는 상품명',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: Colors.grey.shade600,
+                color: CartlyColors.textSecondary,
               ),
             ),
             const SizedBox(height: 8),
@@ -247,27 +326,43 @@ class _CurrentCartItemCardState extends State<CurrentCartItemCard> {
               decoration: InputDecoration(
                 isDense: true,
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: CartlyColors.surface1,
                 hintText: '상품명을 수정해보세요',
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                  borderRadius: BorderRadius.circular(CartlyRadii.control),
+                  borderSide: const BorderSide(color: CartlyColors.lineStrong),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                  borderRadius: BorderRadius.circular(CartlyRadii.control),
+                  borderSide: const BorderSide(color: CartlyColors.lineStrong),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(CartlyRadii.control),
+                  borderSide: const BorderSide(color: CartlyColors.brand),
                 ),
               ),
             ),
             if (showOriginalName) ...[
               const SizedBox(height: 10),
-              Text(
-                '인식 원본명: $originalName',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade600,
-                  height: 1.4,
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: CartlyColors.surface1,
+                  borderRadius: BorderRadius.circular(CartlyRadii.control),
+                  border: Border.all(color: CartlyColors.lineWarm, width: 0.5),
+                ),
+                child: Text(
+                  '인식 원본명: $originalName',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: CartlyColors.textSecondary,
+                    height: 1.4,
+                  ),
                 ),
               ),
             ],
@@ -279,11 +374,15 @@ class _CurrentCartItemCardState extends State<CurrentCartItemCard> {
                     _nameController.text = item.name;
                     _toggleExpanded();
                   },
+                  style: CartlyButtonStyles.quiet(
+                    foregroundColor: CartlyColors.textSecondary,
+                  ),
                   child: const Text('접기'),
                 ),
                 const Spacer(),
                 FilledButton(
                   onPressed: _applyDisplayName,
+                  style: CartlyButtonStyles.primary(),
                   child: const Text('상품명 적용'),
                 ),
               ],

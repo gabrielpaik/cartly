@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../app/cartly_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../app_support.dart';
@@ -10,6 +12,9 @@ import '../services/app_runtime_copy.dart';
 import '../services/cart_store.dart';
 import '../services/explore_intent_normalizer.dart';
 import '../services/explore_offer_service.dart';
+import '../widgets/cartly_action_tile.dart';
+import '../widgets/cartly_badge.dart';
+import '../widgets/cartly_surface_card.dart';
 import '../widgets/section_header.dart';
 
 const ExploreOfferProvider _offerProvider =
@@ -461,7 +466,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                     );
                   }
                   sectionWidgets.add(
-                    _ActionTile(
+                    CartlyActionTile(
                       icon: Icons.shopping_cart_checkout_rounded,
                       title: widget.items.isEmpty
                           ? '홈에서 장보기 시작하기'
@@ -471,6 +476,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                           : '수량 수정이나 저장 같은 실행은 홈에서, 비교와 판단은 Explore에서 이어가시면 돼요.',
                       actionLabel: widget.items.isEmpty ? '홈으로 가기' : '홈에서 실행하기',
                       onTap: widget.onGoHome,
+                      backgroundColor: CartlyColors.surface1,
                     ),
                   );
                   sectionWidgets.add(const SizedBox(height: 20));
@@ -554,17 +560,23 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: TextButton.icon(
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 0,
-                              vertical: 0,
-                            ),
-                            foregroundColor: const Color(0xFF6B2B35),
-                            textStyle: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
+                          style:
+                              CartlyButtonStyles.quiet(
+                                foregroundColor: const Color(0xFF6B2B35),
+                              ).copyWith(
+                                padding: const WidgetStatePropertyAll(
+                                  EdgeInsets.symmetric(
+                                    horizontal: 0,
+                                    vertical: 0,
+                                  ),
+                                ),
+                                textStyle: const WidgetStatePropertyAll(
+                                  TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
                           onPressed: () {
                             setState(() {
                               _dismissedOfferIntentKeys.clear();
@@ -666,13 +678,8 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
               children: [
                 Text(
                   AppRuntimeCopy.text(['help', 'pageTitle'], 'Explore'),
-                  style: const TextStyle(
-                    fontFamily: 'SpaceGrotesk',
-                    fontSize: 30,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -1.2,
-                    height: 0.95,
-                    color: Color(0xFFE31837),
+                  style: CartlyText.pageHero.copyWith(
+                    color: CartlyColors.subBrand,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -681,14 +688,9 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                     'help',
                     'subtitle',
                   ], '지금 필요한 비교를 한곳에서 이어서 보실 수 있어요'),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black54,
-                    height: 1.5,
-                  ),
+                  style: CartlyText.pageSubtitle,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: CartlySpacing.sectionLoose),
                 ...sectionWidgets,
               ],
             );
@@ -1096,6 +1098,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     return showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      backgroundColor: CartlyColors.surface0,
       builder: (context) {
         return SafeArea(
           child: SingleChildScrollView(
@@ -1111,12 +1114,15 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                         detail.name,
                         style: const TextStyle(
                           fontSize: 20,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w800,
                           height: 1.2,
                         ),
                       ),
                     ),
-                    _Badge(label: detail.badge),
+                    CartlyBadge(
+                      label: detail.badge,
+                      backgroundColor: CartlyColors.surfaceNeutral,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -1124,7 +1130,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                   '₩${formatPrice(detail.price)}',
                   style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1133,14 +1139,14 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black54,
+                    color: CartlyColors.textSecondary,
                     height: 1.45,
                   ),
                 ),
                 const SizedBox(height: 16),
                 const Text(
                   '앞으로 여기서 볼 것',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 10),
                 ...detail.comparePoints.map(
@@ -1154,7 +1160,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                           child: Icon(
                             Icons.check_circle_outline_rounded,
                             size: 18,
-                            color: Color(0xFFE31837),
+                            color: CartlyColors.subBrand,
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -1164,7 +1170,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Colors.black87,
+                              color: CartlyColors.textPrimary,
                               height: 1.4,
                             ),
                           ),
@@ -1178,15 +1184,15 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF4F4),
-                    borderRadius: BorderRadius.circular(14),
+                    color: CartlyColors.surfaceNeutral,
+                    borderRadius: BorderRadius.circular(CartlyRadii.control),
                   ),
                   child: Text(
                     detail.futureNote,
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFFE31837),
+                      color: CartlyColors.subBrand,
                       height: 1.45,
                     ),
                   ),
@@ -1215,7 +1221,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                             '함께 볼 수 있는 상품',
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -1260,21 +1266,19 @@ class _ExploreHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return CartlySurfaceCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE31837),
-        borderRadius: BorderRadius.circular(20),
-      ),
+      backgroundColor: CartlyColors.brand,
+      radius: CartlyRadii.hero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             '지금 확인할 것만 모아봤어요',
             style: TextStyle(
-              color: Colors.white,
+              color: CartlyColors.onBrandPrimary,
               fontSize: 22,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w800,
               height: 1.1,
             ),
           ),
@@ -1282,7 +1286,7 @@ class _ExploreHeroCard extends StatelessWidget {
           Text(
             '$itemCount개 상품 · ₩${formatPrice(totalPrice)}',
             style: const TextStyle(
-              color: Colors.white,
+              color: CartlyColors.onBrandPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
               height: 1.45,
@@ -1301,9 +1305,9 @@ class _ExploreHeroCard extends StatelessWidget {
           const SizedBox(height: 14),
           FilledButton(
             onPressed: onGoHome,
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFFE31837),
+            style: CartlyButtonStyles.primary(
+              backgroundColor: CartlyColors.surface1,
+              foregroundColor: CartlyColors.brand,
             ),
             child: const Text('현재 카트 이어서 보기'),
           ),
@@ -1324,15 +1328,15 @@ class _HeroStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(12),
+        color: CartlyColors.contrast,
+        borderRadius: BorderRadius.circular(CartlyRadii.control),
       ),
       child: Text(
         '$label $value',
         style: const TextStyle(
-          color: Colors.white,
+          color: CartlyColors.onBrandPrimary,
           fontSize: 12,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -1348,11 +1352,11 @@ class _DecisionItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.grey.shade100,
-      borderRadius: BorderRadius.circular(16),
+      color: CartlyColors.surface1,
+      borderRadius: BorderRadius.circular(CartlyRadii.card),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(CartlyRadii.card),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1365,11 +1369,11 @@ class _DecisionItemCard extends StatelessWidget {
                       item.name,
                       style: const TextStyle(
                         fontSize: 15,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                  _Badge(label: item.badge),
+                  CartlyBadge(label: item.badge),
                 ],
               ),
               const SizedBox(height: 8),
@@ -1377,7 +1381,7 @@ class _DecisionItemCard extends StatelessWidget {
                 '₩${formatPrice(item.price)}',
                 style: const TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 6),
@@ -1385,8 +1389,8 @@ class _DecisionItemCard extends StatelessWidget {
                 item.reason,
                 style: const TextStyle(
                   fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black54,
+                  fontWeight: FontWeight.w500,
+                  color: CartlyColors.textSecondary,
                   height: 1.45,
                 ),
               ),
@@ -1395,8 +1399,8 @@ class _DecisionItemCard extends StatelessWidget {
                 '비교 준비 보기',
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFFE31837),
+                  fontWeight: FontWeight.w700,
+                  color: CartlyColors.subBrand,
                 ),
               ),
             ],
@@ -1416,11 +1420,11 @@ class _DecisionInboxCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.grey.shade100,
-      borderRadius: BorderRadius.circular(16),
+      color: CartlyColors.surface1,
+      borderRadius: BorderRadius.circular(CartlyRadii.card),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(CartlyRadii.card),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1433,25 +1437,25 @@ class _DecisionInboxCard extends StatelessWidget {
                       entry.title,
                       style: const TextStyle(
                         fontSize: 15,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                  _Badge(label: entry.badge),
+                  CartlyBadge(label: entry.badge),
                 ],
               ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: [_Badge(label: entry.reasonLabel)],
+                children: [CartlyBadge(label: entry.reasonLabel)],
               ),
               const SizedBox(height: 8),
               Text(
                 '₩${formatPrice(entry.detail.price)}',
                 style: const TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 6),
@@ -1459,8 +1463,8 @@ class _DecisionInboxCard extends StatelessWidget {
                 entry.body,
                 style: const TextStyle(
                   fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black54,
+                  fontWeight: FontWeight.w500,
+                  color: CartlyColors.textSecondary,
                   height: 1.45,
                 ),
               ),
@@ -1469,8 +1473,8 @@ class _DecisionInboxCard extends StatelessWidget {
                 '결정 이유 보기',
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFFE31837),
+                  fontWeight: FontWeight.w700,
+                  color: CartlyColors.subBrand,
                 ),
               ),
             ],
@@ -1490,16 +1494,20 @@ class _RepeatCandidateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.grey.shade100,
-      borderRadius: BorderRadius.circular(16),
+      color: CartlyColors.surface1,
+      borderRadius: BorderRadius.circular(CartlyRadii.card),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(CartlyRadii.card),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              const Icon(Icons.history_rounded, color: Color(0xFFE31837)),
+              const Icon(
+                Icons.history_rounded,
+                color: CartlyColors.subBrand,
+                size: CartlyIconSizes.control,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -1509,7 +1517,7 @@ class _RepeatCandidateCard extends StatelessWidget {
                       candidate.name,
                       style: const TextStyle(
                         fontSize: 15,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -1517,8 +1525,8 @@ class _RepeatCandidateCard extends StatelessWidget {
                       '저장 카트 ${candidate.repeatCount}번 등장 · 최근 확인 가격 ₩${formatPrice(candidate.price)}',
                       style: const TextStyle(
                         fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black54,
+                        fontWeight: FontWeight.w500,
+                        color: CartlyColors.textSecondary,
                         height: 1.45,
                       ),
                     ),
@@ -1527,8 +1535,8 @@ class _RepeatCandidateCard extends StatelessWidget {
                       '비슷한 상품 보기',
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFFE31837),
+                        fontWeight: FontWeight.w700,
+                        color: CartlyColors.subBrand,
                       ),
                     ),
                   ],
@@ -1556,11 +1564,11 @@ class _OfferSlotCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFF111111),
-      borderRadius: BorderRadius.circular(16),
+      color: CartlyColors.contrast,
+      borderRadius: BorderRadius.circular(CartlyRadii.card),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(CartlyRadii.card),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1568,26 +1576,26 @@ class _OfferSlotCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const _Badge(label: '비슷한 상품', dark: true),
+                  const CartlyBadge(label: '비슷한 상품', dark: true),
                   const SizedBox(width: 8),
-                  _Badge(label: slot.sourceLabel, dark: true),
+                  CartlyBadge(label: slot.sourceLabel, dark: true),
                   const Spacer(),
                   if (onDismiss != null)
                     Tooltip(
                       message: '이번 화면에서만 가리기',
                       child: InkWell(
                         onTap: onDismiss,
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius: BorderRadius.circular(CartlyRadii.pill),
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.08),
+                            color: const Color(0xFF232323),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
                             Icons.visibility_off_rounded,
                             size: 16,
-                            color: Colors.white,
+                            color: CartlyColors.onBrandPrimary,
                           ),
                         ),
                       ),
@@ -1598,18 +1606,18 @@ class _OfferSlotCard extends StatelessWidget {
               Text(
                 '${slot.anchorName} 대체안',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: CartlyColors.onBrandPrimary,
                   fontSize: 16,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 '${slot.context} 함께 살펴볼 만한 비슷한 상품이에요. 가격이나 구성 차이를 가볍게 비교해보세요.',
                 style: const TextStyle(
-                  color: Colors.white70,
+                  color: CartlyColors.onBrandMuted,
                   fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                   height: 1.45,
                 ),
               ),
@@ -1621,18 +1629,16 @@ class _OfferSlotCard extends StatelessWidget {
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.14),
-                  ),
+                  color: const Color(0xFF232323),
+                  borderRadius: BorderRadius.circular(CartlyRadii.control),
+                  border: Border.all(color: const Color(0xFF363636)),
                 ),
                 child: Text(
                   slot.ctaLabel,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: CartlyColors.onBrandPrimary,
                     fontSize: 13,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -1661,18 +1667,14 @@ class _StoreContextPromoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final storeName = promos.isEmpty ? '이마트 양재점' : promos.first.storeName;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFEF2F2), Color(0xFFFFFBEB)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(color: const Color(0xFFFECACA)),
+    return CartlySurfaceCard(
+      radius: CartlyRadii.hero,
+      gradient: const LinearGradient(
+        colors: [Color(0xFFFEF2F2), Color(0xFFFFFBEB)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ),
+      border: Border.all(color: const Color(0xFFFECACA)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1680,10 +1682,10 @@ class _StoreContextPromoCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              const _Badge(label: 'store context'),
-              _Badge(label: enabled ? 'lane on' : 'lane off'),
-              _Badge(label: storeName),
-              _Badge(label: 'promo ${promos.length}개'),
+              const CartlyBadge(label: 'store context'),
+              CartlyBadge(label: enabled ? 'lane on' : 'lane off'),
+              CartlyBadge(label: storeName),
+              CartlyBadge(label: 'promo ${promos.length}개'),
             ],
           ),
           const SizedBox(height: 12),
@@ -1691,7 +1693,7 @@ class _StoreContextPromoCard extends StatelessWidget {
             title,
             style: const TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w800,
               height: 1.2,
             ),
           ),
@@ -1700,8 +1702,8 @@ class _StoreContextPromoCard extends StatelessWidget {
             body,
             style: const TextStyle(
               fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
+              fontWeight: FontWeight.w500,
+              color: CartlyColors.textSecondary,
               height: 1.45,
             ),
           ),
@@ -1713,8 +1715,8 @@ class _StoreContextPromoCard extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.82),
-                  borderRadius: BorderRadius.circular(14),
+                  color: CartlyColors.surface1,
+                  borderRadius: BorderRadius.circular(CartlyRadii.control),
                   border: Border.all(color: const Color(0xFFFDE68A)),
                 ),
                 child: Column(
@@ -1724,16 +1726,16 @@ class _StoreContextPromoCard extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _Badge(label: promo.badgeLabel),
-                        _Badge(label: promo.placementLabel),
-                        _Badge(label: promo.intentHint),
-                        _Badge(label: promo.sourceType),
-                        _Badge(label: 'priority ${promo.priority}'),
-                        _Badge(
+                        CartlyBadge(label: promo.badgeLabel),
+                        CartlyBadge(label: promo.placementLabel),
+                        CartlyBadge(label: promo.intentHint),
+                        CartlyBadge(label: promo.sourceType),
+                        CartlyBadge(label: 'priority ${promo.priority}'),
+                        CartlyBadge(
                           label: promo.isSponsored ? 'sponsored' : 'organic',
                         ),
                         if (promo.sponsorLabel != null)
-                          _Badge(label: promo.sponsorLabel!),
+                          CartlyBadge(label: promo.sponsorLabel!),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -1741,7 +1743,7 @@ class _StoreContextPromoCard extends StatelessWidget {
                       promo.title,
                       style: const TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w800,
                         height: 1.3,
                       ),
                     ),
@@ -1751,7 +1753,7 @@ class _StoreContextPromoCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black54,
+                        color: CartlyColors.textSecondary,
                         height: 1.45,
                       ),
                     ),
@@ -1760,8 +1762,8 @@ class _StoreContextPromoCard extends StatelessWidget {
                       promo.ctaLabel,
                       style: const TextStyle(
                         fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFFE31837),
+                        fontWeight: FontWeight.w800,
+                        color: CartlyColors.subBrand,
                       ),
                     ),
                   ],
@@ -1792,23 +1794,18 @@ class _SavedContextHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final latest = cart;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(18),
-      ),
+    return CartlySurfaceCard(
+      radius: CartlyRadii.hero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _Badge(label: '다음 장보기 시작점'),
+          const CartlyBadge(label: '다음 장보기 시작점'),
           const SizedBox(height: 10),
           Text(
             latest == null ? '지난 장보기부터 다시 시작해보세요' : '최근 저장한 장보기에서 바로 이어보세요',
             style: const TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w800,
               height: 1.2,
             ),
           ),
@@ -1820,7 +1817,7 @@ class _SavedContextHeroCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Colors.black54,
+              color: CartlyColors.textSecondary,
               height: 1.45,
             ),
           ),
@@ -1852,74 +1849,6 @@ class _SavedContextHeroCard extends StatelessWidget {
   }
 }
 
-class _ActionTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String body;
-  final String actionLabel;
-  final VoidCallback onTap;
-
-  const _ActionTile({
-    required this.icon,
-    required this.title,
-    required this.body,
-    required this.actionLabel,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: const Color(0xFFE31837)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  body,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black54,
-                    height: 1.45,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextButton(onPressed: onTap, child: Text(actionLabel)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _AlternativeOfferPreviewCard extends StatelessWidget {
   final ExploreAlternativeOffer offer;
 
@@ -1938,14 +1867,11 @@ class _AlternativeOfferPreviewCard extends StatelessWidget {
               await launchUrl(uri, mode: LaunchMode.externalApplication);
             }
           : null,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        width: double.infinity,
+      borderRadius: BorderRadius.circular(CartlyRadii.control),
+      child: CartlySurfaceCard(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(14),
-        ),
+        backgroundColor: CartlyColors.surface1,
+        radius: CartlyRadii.control,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1956,17 +1882,17 @@ class _AlternativeOfferPreviewCard extends StatelessWidget {
                     offer.title,
                     style: const TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-                _Badge(label: offer.provider),
+                CartlyBadge(label: offer.provider),
                 if (canOpen) ...[
                   const SizedBox(width: 8),
                   const Icon(
                     Icons.open_in_new_rounded,
-                    size: 18,
-                    color: Color(0xFFE31837),
+                    size: CartlyIconSizes.inline,
+                    color: CartlyColors.subBrand,
                   ),
                 ],
               ],
@@ -1979,7 +1905,7 @@ class _AlternativeOfferPreviewCard extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black54,
+                  color: CartlyColors.textSecondary,
                   height: 1.45,
                 ),
               ),
@@ -1990,7 +1916,7 @@ class _AlternativeOfferPreviewCard extends StatelessWidget {
                 '₩${formatPrice(offer.price!)}',
                 style: const TextStyle(
                   fontSize: 13,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -2004,7 +1930,7 @@ class _AlternativeOfferPreviewCard extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                      color: CartlyColors.textPrimary,
                       height: 1.4,
                     ),
                   ),
@@ -2020,7 +1946,7 @@ class _AlternativeOfferPreviewCard extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFFE31837),
+                  color: CartlyColors.subBrand,
                 ),
               ),
             ],
@@ -2039,62 +1965,25 @@ class _EmptyInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(16),
-      ),
+    return CartlySurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
           Text(
             body,
             style: const TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
+              fontWeight: FontWeight.w500,
+              color: CartlyColors.textSecondary,
               height: 1.45,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _Badge extends StatelessWidget {
-  final String label;
-  final bool dark;
-
-  const _Badge({required this.label, this.dark = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final backgroundColor = dark
-        ? Colors.white.withValues(alpha: 0.14)
-        : const Color(0xFFFFE5E8);
-    final foregroundColor = dark ? Colors.white : const Color(0xFFE31837);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          color: foregroundColor,
-        ),
       ),
     );
   }

@@ -9,11 +9,7 @@ class SavedCartListCard extends StatelessWidget {
   final SavedCart cart;
   final VoidCallback onTap;
 
-  const SavedCartListCard({
-    super.key,
-    required this.cart,
-    required this.onTap,
-  });
+  const SavedCartListCard({super.key, required this.cart, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +26,6 @@ class SavedCartListCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.grey.shade100,

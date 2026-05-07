@@ -86,6 +86,7 @@ class CurrentCartStore {
     'quantity': item.quantity,
     'source': item.source,
     'scanJobId': item.scanJobId,
+    'originalRecognizedName': item.originalRecognizedName,
   };
 
   CartItem _cartItemFromJson(Map<String, dynamic> json) {
@@ -95,6 +96,8 @@ class CurrentCartStore {
       quantity: (json['quantity'] ?? 1) as int,
       source: json['source'] as String?,
       scanJobId: json['scanJobId'] as String?,
+      originalRecognizedName:
+          (json['originalRecognizedName'] ?? json['name']) as String?,
     );
   }
 
@@ -109,6 +112,7 @@ class CurrentCartStore {
       'source': entry.item.source,
       'rawText': entry.item.rawText,
       'scanJobId': entry.item.scanJobId,
+      'originalRecognizedName': entry.item.originalRecognizedName,
     },
   };
 
@@ -130,6 +134,8 @@ class CurrentCartStore {
         source: itemMap['source'] as String?,
         rawText: itemMap['rawText'] as String?,
         scanJobId: itemMap['scanJobId'] as String?,
+        originalRecognizedName:
+            (itemMap['originalRecognizedName'] ?? itemMap['name']) as String?,
       ),
     );
   }

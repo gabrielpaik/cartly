@@ -31,6 +31,7 @@ SavedCart cloneSavedCartSnapshot(SavedCart source) {
             quantity: item.quantity,
             source: item.source,
             scanResultId: item.scanResultId,
+            originalName: item.originalName,
           ),
         )
         .toList(),

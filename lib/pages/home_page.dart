@@ -223,6 +223,13 @@ class _HomePageState extends State<HomePage> {
     _refreshShoppingNudge();
   }
 
+  void _handleChangeCartItem(CartItem item) {
+    setState(() {});
+    _persistCurrentCartState();
+    _markExploreAttention();
+    _refreshShoppingNudge();
+  }
+
   Widget _navIcon(IconData icon, {required bool showDot}) {
     return SizedBox(
       width: 28,
@@ -504,7 +511,7 @@ class _HomePageState extends State<HomePage> {
           ),
           onDismissRecentScan: _handleDismissRecentScan,
           onRemove: _handleRemoveCartItem,
-          onGoExplore: () => _selectTab(1),
+          onChangeCurrentCartItem: _handleChangeCartItem,
         ),
         ShoppingHelpPage(
           items: items,

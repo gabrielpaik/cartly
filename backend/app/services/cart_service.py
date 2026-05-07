@@ -85,6 +85,7 @@ def _serialize_cart_item(item: CartItem) -> dict:
         'id': item.id,
         'scanResultId': item.scan_job_id,
         'name': item.name,
+        'originalName': item.original_name,
         'price': item.price,
         'quantity': item.quantity,
         'source': item.source,
@@ -211,9 +212,11 @@ def _apply_cart_items(cart: Cart, items: Iterable[dict]) -> None:
     for item in items:
         quantity = max(int(item.get('quantity') or 1), 1)
         price = int(item['price'])
+        original_name = str(item.get('originalName') or '').strip() or None
         cart_item = CartItem(
             scan_job_id=item.get('scanResultId'),
             name=str(item['name']).strip(),
+            original_name=original_name,
             price=price,
             quantity=quantity,
             source='scan' if item.get('scanResultId') else 'manual',
@@ -293,6 +296,7 @@ def update_cart(db: OrmSession, cart: Cart, payload: dict) -> Cart:
             {
                 'scanResultId': item.scan_job_id,
                 'name': item.name,
+                'originalName': item.original_name,
                 'price': item.price,
                 'quantity': item.quantity,
             }

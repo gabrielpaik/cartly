@@ -26,14 +26,15 @@ class SavedCartReceiptStatus {
     'completedAt': completedAt?.toIso8601String(),
   };
 
-  static SavedCartReceiptStatus fromJson(Map<String, dynamic> json) => SavedCartReceiptStatus(
-    receiptId: (json['receiptId'] ?? '') as String,
-    receiptStatus: (json['receiptStatus'] ?? 'processing') as String,
-    merchantName: json['merchantName'] as String?,
-    hasReceipt: json['hasReceipt'] != false,
-    updatedAt: DateTime.tryParse((json['updatedAt'] ?? '') as String),
-    completedAt: DateTime.tryParse((json['completedAt'] ?? '') as String),
-  );
+  static SavedCartReceiptStatus fromJson(Map<String, dynamic> json) =>
+      SavedCartReceiptStatus(
+        receiptId: (json['receiptId'] ?? '') as String,
+        receiptStatus: (json['receiptStatus'] ?? 'processing') as String,
+        merchantName: json['merchantName'] as String?,
+        hasReceipt: json['hasReceipt'] != false,
+        updatedAt: DateTime.tryParse((json['updatedAt'] ?? '') as String),
+        completedAt: DateTime.tryParse((json['completedAt'] ?? '') as String),
+      );
 }
 
 class SavedCartItem {
@@ -42,6 +43,7 @@ class SavedCartItem {
   int quantity;
   String? source;
   String? scanResultId;
+  String? originalName;
 
   SavedCartItem({
     required this.name,
@@ -49,6 +51,7 @@ class SavedCartItem {
     required this.quantity,
     this.source,
     this.scanResultId,
+    this.originalName,
   });
 
   int get total => price * quantity;
@@ -59,6 +62,7 @@ class SavedCartItem {
     'quantity': quantity,
     'source': source,
     'scanResultId': scanResultId,
+    'originalName': originalName,
   };
 
   static SavedCartItem fromJson(Map<String, dynamic> json) => SavedCartItem(
@@ -67,6 +71,7 @@ class SavedCartItem {
     quantity: (json['quantity'] ?? 1) as int,
     source: json['source'] as String?,
     scanResultId: json['scanResultId'] as String?,
+    originalName: (json['originalName'] ?? json['name']) as String?,
   );
 }
 
@@ -112,19 +117,23 @@ class SavedCart {
     id: json['id'] as String,
     title: json['title'] as String?,
     createdAt: DateTime.parse(json['createdAt'] as String),
-    expiresAt: json['expiresAt'] != null ? DateTime.tryParse(json['expiresAt'] as String) : null,
+    expiresAt: json['expiresAt'] != null
+        ? DateTime.tryParse(json['expiresAt'] as String)
+        : null,
     isExpired: json['isExpired'] == true,
     retentionExtensionCount: (json['retentionExtensionCount'] ?? 0) as int,
     canExtendRetention: json['canExtendRetention'] == true,
     receiptStatus: json['receiptStatus'] is Map<String, dynamic>
-        ? SavedCartReceiptStatus.fromJson(json['receiptStatus'] as Map<String, dynamic>)
+        ? SavedCartReceiptStatus.fromJson(
+            json['receiptStatus'] as Map<String, dynamic>,
+          )
         : json['receiptStatus'] is Map
-        ? SavedCartReceiptStatus.fromJson(Map<String, dynamic>.from(json['receiptStatus'] as Map))
+        ? SavedCartReceiptStatus.fromJson(
+            Map<String, dynamic>.from(json['receiptStatus'] as Map),
+          )
         : null,
-    items:
-        (json['items'] as List<dynamic>? ?? const [])
-            .map((e) => SavedCartItem.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList(),
+    items: (json['items'] as List<dynamic>? ?? const [])
+        .map((e) => SavedCartItem.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList(),
   );
 }
-

@@ -124,6 +124,7 @@ class CartItem(Base):
     cart_id: Mapped[str] = mapped_column(ForeignKey('carts.id'))
     scan_job_id: Mapped[Optional[str]] = mapped_column(ForeignKey('scan_jobs.id'), nullable=True)
     name: Mapped[str] = mapped_column(String(255))
+    original_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     price: Mapped[int] = mapped_column(Integer)
     quantity: Mapped[int] = mapped_column(Integer, default=1)
     source: Mapped[str] = mapped_column(String(20), default='manual')

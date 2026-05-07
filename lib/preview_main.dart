@@ -113,9 +113,7 @@ class _CartlyPreviewAppState extends State<CartlyPreviewApp> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: const Color(0xFFE2E8F0),
-              ),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x140F172A),
@@ -184,10 +182,13 @@ class _CartlyPreviewAppState extends State<CartlyPreviewApp> {
             onAddRecentScan: (_) async => true,
             onDismissRecentScan: (_) {},
             onRemove: (_) {},
-            onGoExplore: () {},
+            onChangeCurrentCartItem: (_) {},
           ),
           bottomNavigationBar: TotalBar(
-            totalPrice: _previewCartItems.fold(0, (sum, item) => sum + item.totalPrice),
+            totalPrice: _previewCartItems.fold(
+              0,
+              (sum, item) => sum + item.totalPrice,
+            ),
             onSave: () async {},
             isSaving: false,
           ),
@@ -200,10 +201,7 @@ class _CartlyPreviewAppState extends State<CartlyPreviewApp> {
           onGoSaved: () {},
         );
       case 'my':
-        return const Scaffold(
-          backgroundColor: Colors.white,
-          body: MyPage(),
-        );
+        return const Scaffold(backgroundColor: Colors.white, body: MyPage());
       case 'login':
         return const LoginPage(skipInitialConfigRefresh: true);
       default:
@@ -261,7 +259,8 @@ Map<String, dynamic> _defaultContentSettings() => {
   'drawerGuestTitle': '게스트로 사용 중이에요',
   'drawerGuestBody': '저장한 카트와 스캔 기록을 이어서 보시려면 로그인해 주세요.',
   'myBenefitsTitle': '계정을 연결하면 이런 점이 좋아요',
-  'myBenefitsBody': '• 지난 카트를 계속 보실 수 있어요\n• 최근 스캔 결과를 이어서 확인하실 수 있어요\n• 다음 장보기 전에 다시 비교하실 수 있어요',
+  'myBenefitsBody':
+      '• 지난 카트를 계속 보실 수 있어요\n• 최근 스캔 결과를 이어서 확인하실 수 있어요\n• 다음 장보기 전에 다시 비교하실 수 있어요',
   'loginPageTitle': '로그인',
   'loginBenefitsTitle': '로그인하면 더 편해져요',
   'loginBenefitsBody': '저장한 카트와 스캔 기록을 이어서 관리하실 수 있어요.',
@@ -288,13 +287,18 @@ Map<String, dynamic> _defaultContentSettings() => {
 };
 
 Map<String, dynamic> _defaultExploreConfig() => {
-  'enabledSections': 'heroSummary,decisionInbox,revisitItems,repeatCandidates,offerSlots,savedContext,storeContextPromo',
-  'sectionOrder': 'heroSummary,decisionInbox,revisitItems,repeatCandidates,offerSlots,savedContext,storeContextPromo',
+  'enabledSections':
+      'heroSummary,decisionInbox,revisitItems,repeatCandidates,offerSlots,savedContext,storeContextPromo',
+  'sectionOrder':
+      'heroSummary,decisionInbox,revisitItems,repeatCandidates,offerSlots,savedContext,storeContextPromo',
   'stateMode': 'auto',
-  'activeShoppingSectionOrder': 'offerSlots,heroSummary,decisionInbox,revisitItems',
-  'postSaveSectionOrder': 'savedContext,decisionInbox,repeatCandidates,offerSlots',
+  'activeShoppingSectionOrder':
+      'offerSlots,heroSummary,decisionInbox,revisitItems',
+  'postSaveSectionOrder':
+      'savedContext,decisionInbox,repeatCandidates,offerSlots',
   'idlePlanningSectionOrder': 'savedContext,repeatCandidates,offerSlots',
-  'storeContextSectionOrder': 'storeContextPromo,savedContext,repeatCandidates,offerSlots',
+  'storeContextSectionOrder':
+      'storeContextPromo,savedContext,repeatCandidates,offerSlots',
   'stateRules': {
     'activeShopping': {
       'revisitRecentScanLimit': 3,
@@ -361,7 +365,8 @@ Map<String, dynamic> _defaultExploreConfig() => {
     'recentScanInCartReasonLabel': '담은 뒤 한 번 더 보기',
     'recentScanInCartBody': '이미 카트에 담았어요. 결제 전에 다른 선택지가 있는지만 가볍게 확인해보세요.',
     'currentCartHighImpactReasonLabel': '합계 영향이 커요',
-    'currentCartHighImpactBody': '수량이나 가격 영향이 큰 상품이에요. 비슷한 대안과 비교하면 체감 차이가 날 수 있어요.',
+    'currentCartHighImpactBody':
+        '수량이나 가격 영향이 큰 상품이에요. 비슷한 대안과 비교하면 체감 차이가 날 수 있어요.',
     'currentCartDefaultReasonLabel': '결제 전에 확인해보세요',
     'currentCartDefaultBody': '지금 카트에 담아둔 상품이에요. 결제 전에 한 번만 더 비교해보세요.',
     'offerReasonLabelActiveShopping': '지금 비교해보세요',
@@ -493,11 +498,17 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
       'subtitle': text('homeSubtitle', '결제 전에 더 똑똑하게 비교해보세요'),
       'tabLabel': text('homeTabLabel', 'Home'),
       'recentScanTitle': text('homeRecentScanTitle', '스캔 보관함'),
-      'recentScanSubtitle': text('homeRecentScanSubtitle', '검토 대기 결과를 한 번에 정리해'),
+      'recentScanSubtitle': text(
+        'homeRecentScanSubtitle',
+        '검토 대기 결과를 한 번에 정리해',
+      ),
       'addSectionTitle': text('homeAddSectionTitle', '새 상품 추가'),
       'addSectionSubtitle': text('homeAddSectionSubtitle', '스캔하거나 바로 담기'),
       'currentCartTitle': text('homeCurrentCartTitle', '현재 카트'),
-      'currentCartSubtitle': text('homeCurrentCartSubtitle', '지금 담은 상품과 합계를 확인해보세요'),
+      'currentCartSubtitle': text(
+        'homeCurrentCartSubtitle',
+        '지금 담은 상품과 합계를 확인해보세요',
+      ),
       'currentCartEmpty': text('homeCurrentCartEmpty', '아직 담은 상품이 없어요'),
       'addToCurrentCartDone': text('homeAddToCurrentCartDone', '현재 카트에 담았어요'),
       'addToCurrentCartButton': text('homeAddToCurrentCartButton', '현재 카트에 담기'),
@@ -516,11 +527,23 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
       'recentTitle': text('recentSavedTitle', '최근 저장 카트'),
       'emptyTitle': text('savedEmptyTitle', '아직 저장된 카트가 없어요'),
       'emptyBody': text('savedEmptyBody', '현재 카트를 저장하면 다음 쇼핑 전에 다시 꺼내볼 수 있어요.'),
-      'recentEmptyBody': text('recentSavedEmptyBody', '아직 저장된 카트가 없어요. 현재 카트를 저장하면 다음 쇼핑 전에 다시 꺼내볼 수 있어요.'),
+      'recentEmptyBody': text(
+        'recentSavedEmptyBody',
+        '아직 저장된 카트가 없어요. 현재 카트를 저장하면 다음 쇼핑 전에 다시 꺼내볼 수 있어요.',
+      ),
       'adFallbackTitle': text('savedAdFallbackTitle', '함께 보면 좋은 혜택'),
-      'adFallbackMessage': text('savedAdFallbackMessage', '지난 카트를 다시 보는 흐름을 해치지 않는 선에서 꼭 맞는 혜택만 보여드릴게요.'),
-      'adSecondaryFallbackTitle': text('savedAdSecondaryFallbackTitle', '비슷한 상품 혜택'),
-      'adSecondaryFallbackMessage': text('savedAdSecondaryFallbackMessage', '기록을 보는 흐름은 그대로 두고, 필요한 혜택만 가볍게 보여드릴게요.'),
+      'adFallbackMessage': text(
+        'savedAdFallbackMessage',
+        '지난 카트를 다시 보는 흐름을 해치지 않는 선에서 꼭 맞는 혜택만 보여드릴게요.',
+      ),
+      'adSecondaryFallbackTitle': text(
+        'savedAdSecondaryFallbackTitle',
+        '비슷한 상품 혜택',
+      ),
+      'adSecondaryFallbackMessage': text(
+        'savedAdSecondaryFallbackMessage',
+        '기록을 보는 흐름은 그대로 두고, 필요한 혜택만 가볍게 보여드릴게요.',
+      ),
     },
     'my': {
       'pageTitle': text('myPageTitle', '마이'),
@@ -529,43 +552,91 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
       'guestTitle': text('drawerGuestTitle', '게스트로 사용 중이에요'),
       'guestBody': text('drawerGuestBody', '저장과 기록을 이어가려면 로그인'),
       'benefitsTitle': text('myBenefitsTitle', '계정을 연결하면 이런 점이 좋아요'),
-      'benefitsBody': text('myBenefitsBody', '• 저장한 카트를 계속 보기\n• 최근 스캔 결과 이어보기\n• 다음 쇼핑 전에 다시 꺼내 비교하기'),
-      'memberBody': text('myMemberBody', '계정 정보와 지난 장보기 기록을 여기서 함께 관리하실 수 있어요.'),
+      'benefitsBody': text(
+        'myBenefitsBody',
+        '• 저장한 카트를 계속 보기\n• 최근 스캔 결과 이어보기\n• 다음 쇼핑 전에 다시 꺼내 비교하기',
+      ),
+      'memberBody': text(
+        'myMemberBody',
+        '계정 정보와 지난 장보기 기록을 여기서 함께 관리하실 수 있어요.',
+      ),
       'guestSignupAction': text('myGuestSignupAction', '회원가입하기'),
       'loginAction': text('myLoginAction', '로그인 / 회원가입'),
       'logoutAction': text('myLogoutAction', '로그아웃'),
       'linkedDoneMessage': text('myLinkedDoneMessage', '계정이 연결되었어요'),
       'logoutDoneMessage': text('myLogoutDoneMessage', '로그아웃되었어요'),
       'savedSectionTitle': text('mySavedSectionTitle', '지난 카트'),
-      'savedSectionMemberSubtitle': text('mySavedSectionMemberSubtitle', '저장해둔 지난 카트를 여기서 다시 확인해보세요'),
-      'savedSectionGuestSubtitle': text('mySavedSectionGuestSubtitle', '게스트로 저장한 카트도 여기서 함께 확인하실 수 있어요'),
+      'savedSectionMemberSubtitle': text(
+        'mySavedSectionMemberSubtitle',
+        '저장해둔 지난 카트를 여기서 다시 확인해보세요',
+      ),
+      'savedSectionGuestSubtitle': text(
+        'mySavedSectionGuestSubtitle',
+        '게스트로 저장한 카트도 여기서 함께 확인하실 수 있어요',
+      ),
       'adFallbackTitle': text('myAdFallbackTitle', '회원 전용 혜택 준비 중'),
-      'adFallbackMessage': text('myAdFallbackMessage', '마이에서는 계정과 잘 맞는 혜택만 보여드릴 예정이에요.'),
+      'adFallbackMessage': text(
+        'myAdFallbackMessage',
+        '마이에서는 계정과 잘 맞는 혜택만 보여드릴 예정이에요.',
+      ),
     },
     'login': {
       'pageTitle': text('loginPageTitle', 'Cartly'),
       'subtitle': text('loginSubtitle', '저장과 기록을 이어가려면 로그인'),
       'benefitsTitle': text('loginBenefitsTitle', '회원이 되면 더 편리해요'),
-      'benefitsBody': text('loginBenefitsBody', '저장한 카트와 스캔 기록을 안전하게 이어갈 수 있어요.'),
+      'benefitsBody': text(
+        'loginBenefitsBody',
+        '저장한 카트와 스캔 기록을 안전하게 이어갈 수 있어요.',
+      ),
       'nameFieldLabel': text('loginNameFieldLabel', '이름'),
       'emailFieldLabel': text('loginEmailFieldLabel', '이메일'),
       'emailLocalFieldLabel': text('loginEmailLocalFieldLabel', '이메일 아이디'),
       'emailDomainFieldLabel': text('loginEmailDomainFieldLabel', '도메인'),
       'emailCustomDomainOption': text('loginEmailCustomDomainOption', '직접입력'),
-      'emailCustomDomainFieldLabel': text('loginEmailCustomDomainFieldLabel', '직접 입력 도메인'),
+      'emailCustomDomainFieldLabel': text(
+        'loginEmailCustomDomainFieldLabel',
+        '직접 입력 도메인',
+      ),
       'passwordFieldLabel': text('loginPasswordFieldLabel', '비밀번호'),
-      'passwordConfirmFieldLabel': text('loginPasswordConfirmFieldLabel', '비밀번호 확인'),
+      'passwordConfirmFieldLabel': text(
+        'loginPasswordConfirmFieldLabel',
+        '비밀번호 확인',
+      ),
       'codeFieldLabel': text('loginCodeFieldLabel', '인증 코드'),
       'forgotPasswordAction': text('loginForgotPasswordAction', '비밀번호를 잊으셨나요?'),
-      'invalidPasswordMessage': text('loginInvalidPasswordMessage', '비밀번호를 확인해 주세요'),
+      'invalidPasswordMessage': text(
+        'loginInvalidPasswordMessage',
+        '비밀번호를 확인해 주세요',
+      ),
       'existingEmailTitle': text('loginExistingEmailTitle', '이미 가입된 이메일입니다'),
-      'existingEmailBody': text('loginExistingEmailBody', '이미 가입된 이메일입니다. 로그인하시거나 비밀번호를 재설정해 주세요.'),
-      'existingEmailLoginAction': text('loginExistingEmailLoginAction', '로그인하기'),
-      'existingEmailResetAction': text('loginExistingEmailResetAction', '비밀번호 재설정'),
-      'forgotPasswordPromptTitle': text('loginForgotPasswordPromptTitle', '비밀번호를 잊으셨나요?'),
-      'forgotPasswordPromptBody': text('loginForgotPasswordPromptBody', '비밀번호 입력을 여러 번 실패했습니다. 비밀번호 재설정으로 이동하시겠어요?'),
-      'forgotPasswordPromptStay': text('loginForgotPasswordPromptStay', '다시 입력하기'),
-      'forgotPasswordPromptReset': text('loginForgotPasswordPromptReset', '비밀번호 재설정'),
+      'existingEmailBody': text(
+        'loginExistingEmailBody',
+        '이미 가입된 이메일입니다. 로그인하시거나 비밀번호를 재설정해 주세요.',
+      ),
+      'existingEmailLoginAction': text(
+        'loginExistingEmailLoginAction',
+        '로그인하기',
+      ),
+      'existingEmailResetAction': text(
+        'loginExistingEmailResetAction',
+        '비밀번호 재설정',
+      ),
+      'forgotPasswordPromptTitle': text(
+        'loginForgotPasswordPromptTitle',
+        '비밀번호를 잊으셨나요?',
+      ),
+      'forgotPasswordPromptBody': text(
+        'loginForgotPasswordPromptBody',
+        '비밀번호 입력을 여러 번 실패했습니다. 비밀번호 재설정으로 이동하시겠어요?',
+      ),
+      'forgotPasswordPromptStay': text(
+        'loginForgotPasswordPromptStay',
+        '다시 입력하기',
+      ),
+      'forgotPasswordPromptReset': text(
+        'loginForgotPasswordPromptReset',
+        '비밀번호 재설정',
+      ),
       'sendingCode': text('loginSendingCode', '전송 중입니다...'),
       'resendCode': text('loginResendCode', '재전송'),
       'sendCode': text('loginSendCode', '코드 전송'),
@@ -576,9 +647,7 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
         'signup': text('loginModeSignup', '회원가입'),
         'reset': text('loginModeReset', '비밀번호 찾기'),
       },
-      'login': {
-        'submit': text('loginLoginSubmit', '로그인'),
-      },
+      'login': {'submit': text('loginLoginSubmit', '로그인')},
       'signup': {
         'submit': text('loginSignupSubmit', '회원가입 완료'),
         'codeSent': text('loginSignupCodeSent', '이메일 인증 코드를 보내드렸습니다'),
@@ -595,12 +664,27 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
       },
       'validation': {
         'emailRequired': text('loginValidationEmailRequired', '이메일을 입력해 주세요'),
-        'emailPasswordRequired': text('loginValidationEmailPasswordRequired', '이메일과 비밀번호를 입력해 주세요'),
-        'signupFieldsRequired': text('loginValidationSignupFieldsRequired', '이름과 인증 코드를 모두 입력해 주세요'),
+        'emailPasswordRequired': text(
+          'loginValidationEmailPasswordRequired',
+          '이메일과 비밀번호를 입력해 주세요',
+        ),
+        'signupFieldsRequired': text(
+          'loginValidationSignupFieldsRequired',
+          '이름과 인증 코드를 모두 입력해 주세요',
+        ),
         'nameRequired': text('loginValidationNameRequired', '이름을 입력해 주세요'),
-        'signupCodeVerifyRequired': text('loginValidationSignupCodeVerifyRequired', '이메일 인증을 먼저 완료해 주세요'),
-        'passwordTooShort': text('loginValidationPasswordTooShort', '비밀번호는 8자 이상이어야 합니다'),
-        'passwordMismatch': text('loginValidationPasswordMismatch', '비밀번호 확인이 일치하지 않습니다'),
+        'signupCodeVerifyRequired': text(
+          'loginValidationSignupCodeVerifyRequired',
+          '이메일 인증을 먼저 완료해 주세요',
+        ),
+        'passwordTooShort': text(
+          'loginValidationPasswordTooShort',
+          '비밀번호는 8자 이상이어야 합니다',
+        ),
+        'passwordMismatch': text(
+          'loginValidationPasswordMismatch',
+          '비밀번호 확인이 일치하지 않습니다',
+        ),
         'codeRequired': text('loginValidationCodeRequired', '인증 코드를 입력해 주세요'),
       },
     },
@@ -608,7 +692,10 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
       'title': text('saveCompleteTitle', '카트를 저장했어요'),
       'subtitle': text('saveCompleteSubtitle', '다음 쇼핑 전에 다시 꺼내볼 수 있어요.'),
       'adFallbackTitle': text('saveCompleteAdFallbackTitle', '더 나은 대안 보기'),
-      'adFallbackMessage': text('saveCompleteAdFallbackMessage', '결제 전에 가볍게 비교해보실 수 있는 선택지를 보여드릴게요.'),
+      'adFallbackMessage': text(
+        'saveCompleteAdFallbackMessage',
+        '결제 전에 가볍게 비교해보실 수 있는 선택지를 보여드릴게요.',
+      ),
       'viewSavedAction': text('saveCompleteViewSavedAction', '지난 카트 보기'),
     },
   };

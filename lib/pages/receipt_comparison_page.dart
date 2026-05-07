@@ -17,6 +17,34 @@ import '../services/remote_receipt_repository.dart';
 final _receiptMoneyFormatter = NumberFormat('#,###');
 String _receiptFmt(int value) => _receiptMoneyFormatter.format(value);
 
+bool _isReceiptPurchasableLineItem(ReceiptLineItemModel item) {
+  final amount = item.finalAmount ?? item.lineAmount;
+  if (item.category != 'item') {
+    return false;
+  }
+  if (amount <= 0) {
+    return false;
+  }
+  return item.rawName.trim().isNotEmpty;
+}
+
+String _receiptSupportingLineItemLabel(ReceiptLineItemModel item) {
+  switch (item.category) {
+    case 'discount':
+      return '할인';
+    case 'coupon':
+      return '쿠폰';
+    case 'tax':
+      return '세금';
+    case 'subtotal':
+      return '소계';
+    case 'payment':
+      return '결제';
+    default:
+      return '참고';
+  }
+}
+
 class ReceiptCheckPage extends StatefulWidget {
   final SavedCart cart;
 
@@ -253,7 +281,9 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
               _ReceiptCapturedPreviewCard(imagePath: _capturedImagePath!),
               const SizedBox(height: 12),
             ],
-            if (viewData == null && !_isBusy && _state != _ReceiptCompareUiState.error)
+            if (viewData == null &&
+                !_isBusy &&
+                _state != _ReceiptCompareUiState.error)
               _ReceiptCompareCaptureCard(
                 onOpenUploadFlow: _startCameraCaptureFlow,
               ),
@@ -266,7 +296,9 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
               _ReceiptCompareErrorCard(
                 message: _errorMessage ?? '영수증 결과를 불러오지 못했어요',
                 onRetryCapture: _startCameraCaptureFlow,
-                onRetryLoad: _receiptId == null ? null : () => _loadResult(_receiptId!),
+                onRetryLoad: _receiptId == null
+                    ? null
+                    : () => _loadResult(_receiptId!),
               ),
             if (viewData != null) ...[
               _ReceiptSimpleSummaryCard(data: viewData),
@@ -277,7 +309,9 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
               const SizedBox(height: 16),
               _ReceiptResultActionsCard(
                 onRetake: _startCameraCaptureFlow,
-                onRefresh: _receiptId == null ? null : () => _loadResult(_receiptId!),
+                onRefresh: _receiptId == null
+                    ? null
+                    : () => _loadResult(_receiptId!),
               ),
             ],
           ],
@@ -365,9 +399,7 @@ class _ReceiptCompareContextCard extends StatelessWidget {
 class _ReceiptCompareCaptureCard extends StatelessWidget {
   final Future<void> Function() onOpenUploadFlow;
 
-  const _ReceiptCompareCaptureCard({
-    required this.onOpenUploadFlow,
-  });
+  const _ReceiptCompareCaptureCard({required this.onOpenUploadFlow});
 
   @override
   Widget build(BuildContext context) {
@@ -605,7 +637,8 @@ class _ReceiptSimpleViewData {
   final int totalDiscount;
   final bool hasStoredImage;
   final String? rawText;
-  final List<ReceiptLineItemModel> lineItems;
+  final List<ReceiptLineItemModel> purchasedLineItems;
+  final List<ReceiptLineItemModel> supportingLineItems;
 
   const _ReceiptSimpleViewData({
     required this.merchantName,
@@ -617,7 +650,8 @@ class _ReceiptSimpleViewData {
     required this.totalDiscount,
     required this.hasStoredImage,
     required this.rawText,
-    required this.lineItems,
+    required this.purchasedLineItems,
+    required this.supportingLineItems,
   });
 
   factory _ReceiptSimpleViewData.fromResult(
@@ -625,31 +659,38 @@ class _ReceiptSimpleViewData {
     SavedCart cart,
   ) {
     final receipt = result.receipt;
-    final purchasedItemCount = result.lineItems.fold<int>(
+    final purchasedLineItems = result.lineItems
+        .where(_isReceiptPurchasableLineItem)
+        .toList(growable: false);
+    final supportingLineItems = result.lineItems
+        .where((item) => !_isReceiptPurchasableLineItem(item))
+        .toList(growable: false);
+    final purchasedItemCount = purchasedLineItems.fold<int>(
       0,
-      (sum, item) => sum + ((item.quantity ?? 1) > 0 ? (item.quantity ?? 1) : 1),
+      (sum, item) =>
+          sum + ((item.quantity ?? 1) > 0 ? (item.quantity ?? 1) : 1),
     );
     final actualTotal = receipt.totalAmount ?? 0;
     final cartTotal = cart.totalPrice;
 
     return _ReceiptSimpleViewData(
-      merchantName:
-          receipt.merchantName?.trim().isNotEmpty == true
-              ? receipt.merchantName!.trim()
-              : '영수증 확인 결과',
+      merchantName: receipt.merchantName?.trim().isNotEmpty == true
+          ? receipt.merchantName!.trim()
+          : '영수증 확인 결과',
       purchasedAtText: receipt.purchasedAt == null
           ? '결제 시각 미상'
           : DateFormat('M월 d일 HH:mm').format(receipt.purchasedAt!.toLocal()),
       purchasedItemCount: purchasedItemCount > 0
           ? purchasedItemCount
-          : result.lineItems.length,
+          : purchasedLineItems.length,
       actualTotal: actualTotal,
       cartTotal: cartTotal,
       totalDelta: actualTotal - cartTotal,
       totalDiscount: receipt.totalDiscountAmount ?? 0,
       hasStoredImage: receipt.imageUrl?.trim().isNotEmpty == true,
       rawText: receipt.rawText?.trim(),
-      lineItems: result.lineItems,
+      purchasedLineItems: purchasedLineItems,
+      supportingLineItems: supportingLineItems,
     );
   }
 }
@@ -749,10 +790,7 @@ class _ReceiptFinalPriceCompareCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _ReceiptAmountBox(
-                  label: '내 카트',
-                  amount: data.cartTotal,
-                ),
+                child: _ReceiptAmountBox(label: '내 카트', amount: data.cartTotal),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -769,7 +807,9 @@ class _ReceiptFinalPriceCompareCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: delta == 0 ? const Color(0xFF2E7D32) : const Color(0xFFB26A00),
+              color: delta == 0
+                  ? const Color(0xFF2E7D32)
+                  : const Color(0xFFB26A00),
             ),
           ),
           if (data.totalDiscount > 0) ...[
@@ -855,7 +895,7 @@ class _ReceiptStoredDetailsCard extends StatelessWidget {
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 10),
-          if (data.lineItems.isEmpty)
+          if (data.purchasedLineItems.isEmpty)
             Text(
               '정리된 상품 목록이 아직 없어요.',
               style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
@@ -871,7 +911,7 @@ class _ReceiptStoredDetailsCard extends StatelessWidget {
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   children: [
-                    for (final item in data.lineItems)
+                    for (final item in data.purchasedLineItems)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: Row(
@@ -879,14 +919,33 @@ class _ReceiptStoredDetailsCard extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                item.rawName.trim().isEmpty ? '이름 미상 상품' : item.rawName.trim(),
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                                item.rawName.trim().isEmpty
+                                    ? '이름 미상 상품'
+                                    : item.rawName.trim(),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
+                            if ((item.quantity ?? 1) > 1) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                'x${item.quantity}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
                             const SizedBox(width: 12),
                             Text(
                               '${_receiptFmt(item.finalAmount ?? item.lineAmount)}원',
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ],
                         ),
@@ -895,6 +954,69 @@ class _ReceiptStoredDetailsCard extends StatelessWidget {
                 ),
               ),
             ),
+          if (data.supportingLineItems.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Text(
+              '할인/세금/결제 참고 내역',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    for (final item in data.supportingLineItems)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.rawName.trim().isEmpty
+                                        ? '이름 미상 항목'
+                                        : item.rawName.trim(),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _receiptSupportingLineItemLabel(item),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              '${_receiptFmt(item.finalAmount ?? item.lineAmount)}원',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           if (data.rawText != null && data.rawText!.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Text(
@@ -928,7 +1050,10 @@ class _ReceiptResultActionsCard extends StatelessWidget {
   final VoidCallback onRetake;
   final VoidCallback? onRefresh;
 
-  const _ReceiptResultActionsCard({required this.onRetake, required this.onRefresh});
+  const _ReceiptResultActionsCard({
+    required this.onRetake,
+    required this.onRefresh,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -956,7 +1081,8 @@ class _ReceiptCameraCapturePage extends StatefulWidget {
   const _ReceiptCameraCapturePage();
 
   @override
-  State<_ReceiptCameraCapturePage> createState() => _ReceiptCameraCapturePageState();
+  State<_ReceiptCameraCapturePage> createState() =>
+      _ReceiptCameraCapturePageState();
 }
 
 class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
@@ -1091,7 +1217,9 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
   }
 
   Future<void> _capture() async {
-    if (_isCapturing || _controller == null || !_controller!.value.isInitialized) {
+    if (_isCapturing ||
+        _controller == null ||
+        !_controller!.value.isInitialized) {
       return;
     }
 
@@ -1174,7 +1302,11 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.camera_alt_outlined, color: Colors.white54, size: 44),
+              const Icon(
+                Icons.camera_alt_outlined,
+                color: Colors.white54,
+                size: 44,
+              ),
               const SizedBox(height: 12),
               Text(
                 _errorMessage!,
@@ -1205,7 +1337,9 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
       );
     }
 
-    if (_isInitializing || _controller == null || !_controller!.value.isInitialized) {
+    if (_isInitializing ||
+        _controller == null ||
+        !_controller!.value.isInitialized) {
       return const Center(
         child: CircularProgressIndicator(color: Colors.white),
       );
@@ -1219,7 +1353,10 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
         _baseZoom = _currentZoom;
       },
       onScaleUpdate: (details) {
-        final targetZoom = (_baseZoom * details.scale).clamp(_minZoom, _maxZoom);
+        final targetZoom = (_baseZoom * details.scale).clamp(
+          _minZoom,
+          _maxZoom,
+        );
         if ((targetZoom - _currentZoom).abs() < 0.02) return;
         _setZoomLevel(targetZoom);
       },

@@ -47,6 +47,7 @@ def _run_runtime_migrations() -> None:
         "ALTER TABLE carts ADD COLUMN IF NOT EXISTS source_cart_id VARCHAR(36) NULL",
         "ALTER TABLE carts ADD COLUMN IF NOT EXISTS saved_date DATE NULL",
         "ALTER TABLE carts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL",
+        "ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS original_name VARCHAR(255) NULL",
         "UPDATE carts SET saved_date = COALESCE(saved_date, DATE(created_at))",
         "ALTER TABLE carts ALTER COLUMN saved_date SET DEFAULT CURRENT_DATE",
         "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_guest_code ON users (guest_code) WHERE guest_code IS NOT NULL",

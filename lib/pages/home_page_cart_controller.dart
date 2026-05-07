@@ -26,6 +26,10 @@ class HomePageCartController {
           price: item.price,
           source: item.source,
           scanJobId: item.scanJobId,
+          originalRecognizedName:
+              item.originalRecognizedName?.trim().isNotEmpty == true
+              ? item.originalRecognizedName!.trim()
+              : item.name.trim(),
         ),
       );
       _removeRecentScanEntry(item, recentScanEntryId: recentScanEntryId);
@@ -46,9 +50,14 @@ class HomePageCartController {
   }
 
   CartItem? findDuplicateCartItem(RecognizedItem item) {
-    final normalizedName = _normalizeItemName(item.name);
+    final normalizedName = _normalizeItemName(
+      item.originalRecognizedName ?? item.name,
+    );
     for (final existing in items) {
-      if (_normalizeItemName(existing.name) != normalizedName) continue;
+      final matchName = _normalizeItemName(
+        existing.originalRecognizedName ?? existing.name,
+      );
+      if (matchName != normalizedName) continue;
       if (existing.price != item.price) continue;
       return existing;
     }

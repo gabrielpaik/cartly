@@ -46,8 +46,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     super.didUpdateWidget(oldWidget);
     final oldActive =
         oldWidget.items.isNotEmpty || oldWidget.recentScans.isNotEmpty;
-    final nextActive =
-        widget.items.isNotEmpty || widget.recentScans.isNotEmpty;
+    final nextActive = widget.items.isNotEmpty || widget.recentScans.isNotEmpty;
     if (oldActive != nextActive) {
       _dismissedOfferIntentKeys.clear();
     }
@@ -60,22 +59,14 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
   bool get _hasActiveShoppingContext =>
       widget.items.isNotEmpty || widget.recentScans.isNotEmpty;
 
-  int _configInt(
-    Map<String, dynamic> config,
-    String key,
-    int fallback,
-  ) {
+  int _configInt(Map<String, dynamic> config, String key, int fallback) {
     final value = config[key];
     if (value is int) return value;
     if (value is num) return value.toInt();
     return int.tryParse('$value') ?? fallback;
   }
 
-  bool _configBool(
-    Map<String, dynamic> config,
-    String key,
-    bool fallback,
-  ) {
+  bool _configBool(Map<String, dynamic> config, String key, bool fallback) {
     final value = config[key];
     if (value is bool) return value;
     if (value is String) {
@@ -90,11 +81,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     return fallback;
   }
 
-  String _configText(
-    Map<String, dynamic> config,
-    String key,
-    String fallback,
-  ) {
+  String _configText(Map<String, dynamic> config, String key, String fallback) {
     final value = config[key];
     if (value is String && value.trim().isNotEmpty) {
       return value.trim();
@@ -138,10 +125,14 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
         if (value is bool) return value;
         if (value is String) {
           final normalized = value.trim().toLowerCase();
-          if (normalized == 'true' || normalized == '1' || normalized == 'yes') {
+          if (normalized == 'true' ||
+              normalized == '1' ||
+              normalized == 'yes') {
             return true;
           }
-          if (normalized == 'false' || normalized == '0' || normalized == 'no') {
+          if (normalized == 'false' ||
+              normalized == '0' ||
+              normalized == 'no') {
             return false;
           }
         }
@@ -208,13 +199,15 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
       });
 
     var sponsoredCount = 0;
-    return sorted.where((promo) {
-      if (!promo.isSponsored) return true;
-      if (!allowSponsored) return false;
-      if (sponsoredCount >= policyMaxSponsored) return false;
-      sponsoredCount += 1;
-      return true;
-    }).toList(growable: false);
+    return sorted
+        .where((promo) {
+          if (!promo.isSponsored) return true;
+          if (!allowSponsored) return false;
+          if (sponsoredCount >= policyMaxSponsored) return false;
+          sponsoredCount += 1;
+          return true;
+        })
+        .toList(growable: false);
   }
 
   List<ExploreStorePromo> _buildStoreContextPromos(
@@ -223,7 +216,9 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
   ) {
     final promos = (config['storeContextPromos'] as List?)
         ?.whereType<Map>()
-        .map((item) => ExploreStorePromo.fromJson(Map<String, dynamic>.from(item)))
+        .map(
+          (item) => ExploreStorePromo.fromJson(Map<String, dynamic>.from(item)),
+        )
         .toList();
     if (promos != null && promos.isNotEmpty) {
       return _applyPromoPolicy(promos, config, state);
@@ -234,31 +229,19 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
       'storeContextPromoBody',
       '자주 사는 상품군과 겹치는 할인 행사부터 먼저 보여줘요.',
     );
-    final storeName = _configText(
-      config,
-      'storeContextStoreName',
-      '이마트 양재점',
-    );
-    final ctaLabel = _configText(
-      config,
-      'storeContextPromoCtaLabel',
-      '행사 보기',
-    );
-    final seeds = _configText(
-      config,
-      'storeContextPromoSeedLabels',
-      '유제품 세일,음료 행사,오늘의 마트 추천',
-    )
-        .split(',')
-        .map((item) => item.trim())
-        .where((item) => item.isNotEmpty)
-        .toList(growable: false);
-    final maxPromos = _stateRuleInt(
-      config,
-      state,
-      'storeContextMaxPromos',
-      3,
-    );
+    final storeName = _configText(config, 'storeContextStoreName', '이마트 양재점');
+    final ctaLabel = _configText(config, 'storeContextPromoCtaLabel', '행사 보기');
+    final seeds =
+        _configText(
+              config,
+              'storeContextPromoSeedLabels',
+              '유제품 세일,음료 행사,오늘의 마트 추천',
+            )
+            .split(',')
+            .map((item) => item.trim())
+            .where((item) => item.isNotEmpty)
+            .toList(growable: false);
+    final maxPromos = _stateRuleInt(config, state, 'storeContextMaxPromos', 3);
     final sourceType = _configText(
       config,
       'storeContextPromoSourceType',
@@ -292,7 +275,9 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
         placementLabel: '매장 프로모션',
         intentHint: '같은 구매 의도 기준',
         source: 'store-context-preview',
-        sourceType: isSponsored && index == 0 ? 'sponsoredPlacement' : sourceType,
+        sourceType: isSponsored && index == 0
+            ? 'sponsoredPlacement'
+            : sourceType,
         priority: (priorityStart - (index * 10)) < 0
             ? 0
             : (priorityStart - (index * 10)),
@@ -349,11 +334,10 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     return DateTime.now().difference(latest.createdAt).inHours <= 18;
   }
 
-  String _resolveExploreState(
-    Map<String, dynamic> config,
-    SavedCart? latest,
-  ) {
-    final previewState = _normalizeExploreState(config['__previewState'] as String?);
+  String _resolveExploreState(Map<String, dynamic> config, SavedCart? latest) {
+    final previewState = _normalizeExploreState(
+      config['__previewState'] as String?,
+    );
     if (previewState != 'auto') {
       return previewState;
     }
@@ -372,43 +356,17 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     return _exploreStateIdlePlanning;
   }
 
-  String _sectionOrderKeyForState(String state) {
-    switch (state) {
-      case _exploreStateActiveShopping:
-        return 'activeShoppingSectionOrder';
-      case _exploreStatePostSave:
-        return 'postSaveSectionOrder';
-      case _exploreStateStoreContext:
-        return 'storeContextSectionOrder';
-      case _exploreStateIdlePlanning:
-      default:
-        return 'idlePlanningSectionOrder';
-    }
-  }
-
   List<String> _dynamicSectionOrder(
     Map<String, dynamic> config, {
     required bool hasOfferSlots,
     required String state,
   }) {
-    final enabled = _enabledSections(config);
-    final base = (config[_sectionOrderKeyForState(state)] as String?) ??
-        (config['sectionOrder'] as String?) ??
-        '';
-    final order = base
-        .split(',')
-        .map((part) => part.trim())
-        .where((part) => part.isNotEmpty)
-        .where(enabled.contains)
-        .where((part) => hasOfferSlots || part != 'offerSlots')
-        .toList(growable: false);
-    if (order.isNotEmpty) {
-      return order;
+    if (state == _exploreStateActiveShopping) {
+      return const ['heroSummary', 'decisionInbox'];
     }
-    return (config['sectionOrder'] as String? ?? '')
-        .split(',')
-        .map((part) => part.trim())
-        .where((part) => part.isNotEmpty)
+
+    final enabled = _enabledSections(config);
+    return const ['repeatCandidates', 'offerSlots']
         .where(enabled.contains)
         .where((part) => hasOfferSlots || part != 'offerSlots')
         .toList(growable: false);
@@ -441,10 +399,11 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
               state: currentState,
             );
             final offerSlots = baseOfferSlots
-                .where((slot) => !_dismissedOfferIntentKeys.contains(slot.intentKey))
+                .where(
+                  (slot) => !_dismissedOfferIntentKeys.contains(slot.intentKey),
+                )
                 .toList(growable: false);
-            final hiddenOfferCount =
-                baseOfferSlots.length - offerSlots.length;
+            final hiddenOfferCount = baseOfferSlots.length - offerSlots.length;
             final decisionInboxEntries = _buildDecisionInboxEntries(
               revisitItems: revisitItems,
               offerSlots: offerSlots,
@@ -466,8 +425,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                       itemCount: _totalCount,
                       totalPrice: _totalPrice,
                       recentScanCount: widget.recentScans.length,
-                      revisitCount: decisionInboxEntries.length,
-                      repeatCandidateCount: repeatCandidates.length,
+                      compareCandidateCount: offerSlots.length,
                       onGoHome: widget.onGoHome,
                     ),
                   );
@@ -477,18 +435,10 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                   sectionWidgets.add(
                     SectionHeader(
                       title: '결정 인박스',
-                      subtitle: '지금 다시 볼 것만 먼저 모아드릴게요',
+                      subtitle: '최근 스캔과 비교 후보만 먼저 모아드릴게요',
                     ),
                   );
                   sectionWidgets.add(const SizedBox(height: 10));
-                  sectionWidgets.add(
-                    _DecisionSummaryCard(
-                      currentCartCount: _totalCount,
-                      recentScanCount: decisionInboxEntries.length,
-                      revisitCount: offerSlots.length,
-                    ),
-                  );
-                  sectionWidgets.add(const SizedBox(height: 12));
                   if (decisionInboxEntries.isEmpty) {
                     sectionWidgets.add(
                       const _EmptyInfoCard(
@@ -503,7 +453,8 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                           padding: const EdgeInsets.only(bottom: 12),
                           child: _DecisionInboxCard(
                             entry: entry,
-                            onTap: () => _showIntentDetailSheet(context, entry.detail),
+                            onTap: () =>
+                                _showIntentDetailSheet(context, entry.detail),
                           ),
                         ),
                       ),
@@ -512,7 +463,9 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                   sectionWidgets.add(
                     _ActionTile(
                       icon: Icons.shopping_cart_checkout_rounded,
-                      title: widget.items.isEmpty ? '홈에서 장보기 시작하기' : '홈에서 실행 이어가기',
+                      title: widget.items.isEmpty
+                          ? '홈에서 장보기 시작하기'
+                          : '홈에서 실행 이어가기',
                       body: widget.items.isEmpty
                           ? '촬영하고 담고 저장하는 흐름은 홈에서 바로 이어가실 수 있어요.'
                           : '수량 수정이나 저장 같은 실행은 홈에서, 비교와 판단은 Explore에서 이어가시면 돼요.',
@@ -558,8 +511,8 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                 case 'repeatCandidates':
                   sectionWidgets.add(
                     SectionHeader(
-                      title: '반복 구매 후보',
-                      subtitle: '지난 장보기에서 자주 샀던 상품을 먼저 보여드려요',
+                      title: '반복 구매',
+                      subtitle: '지난 장보기에서 자주 담은 상품부터 다시 볼 수 있어요',
                     ),
                   );
                   sectionWidgets.add(const SizedBox(height: 10));
@@ -590,15 +543,9 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                   break;
                 case 'offerSlots':
                   sectionWidgets.add(
-                    SectionHeader(
-                      title: '비슷한 상품 비교',
-                      subtitle: currentState == _exploreStateActiveShopping
-                          ? '지금 담은 상품과 비슷한 대안을 함께 볼 수 있어요'
-                          : currentState == _exploreStateStoreContext
-                              ? '매장에서 함께 볼 만한 비슷한 상품을 먼저 보여드려요'
-                              : currentState == _exploreStatePostSave
-                                  ? '방금 저장한 장보기를 바탕으로 비슷한 대안을 보여드려요'
-                                  : '자주 사는 상품을 기준으로 비슷한 대안을 보여드려요',
+                    const SectionHeader(
+                      title: '비교 후보',
+                      subtitle: '비슷한 대안을 함께 확인해보세요',
                     ),
                   );
                   sectionWidgets.add(const SizedBox(height: 10));
@@ -608,7 +555,10 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                         alignment: Alignment.centerLeft,
                         child: TextButton.icon(
                           style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 0,
+                              vertical: 0,
+                            ),
                             foregroundColor: const Color(0xFF6B2B35),
                             textStyle: const TextStyle(
                               fontSize: 13,
@@ -727,10 +677,10 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  AppRuntimeCopy.text(
-                    ['help', 'subtitle'],
-                    '지금 필요한 비교를 한곳에서 이어서 보실 수 있어요',
-                  ),
+                  AppRuntimeCopy.text([
+                    'help',
+                    'subtitle',
+                  ], '지금 필요한 비교를 한곳에서 이어서 보실 수 있어요'),
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -841,7 +791,9 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     Map<String, dynamic> exploreConfig,
     String state,
   ) {
-    final currentNames = widget.items.map((item) => _normalize(item.name)).toSet();
+    final currentNames = widget.items
+        .map((item) => _normalize(item.name))
+        .toSet();
     final results = <_RevisitItem>[];
     final recentScanLimit = _stateRuleInt(
       exploreConfig,
@@ -855,12 +807,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
       'revisitCartItemLimit',
       3,
     );
-    final maxItems = _stateRuleInt(
-      exploreConfig,
-      state,
-      'revisitMaxItems',
-      4,
-    );
+    final maxItems = _stateRuleInt(exploreConfig, state, 'revisitMaxItems', 4);
 
     for (final entry in widget.recentScans.take(recentScanLimit)) {
       final normalizedName = _normalize(entry.item.name);
@@ -991,8 +938,8 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
           title: item.badge == '미결정'
               ? '${item.name} 아직 담기 전이에요'
               : item.badge == '재확인'
-                  ? '${item.name} 다시 확인 권장'
-                  : '${item.name} 비교 후보',
+              ? '${item.name} 다시 확인 권장'
+              : '${item.name} 비교 후보',
           body: item.reason,
           badge: item.badge,
           decisionKey: item.decisionKey,
@@ -1036,7 +983,9 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     Map<String, dynamic> exploreConfig,
     String state,
   ) {
-    final currentNames = widget.items.map((item) => _normalize(item.name)).toSet();
+    final currentNames = widget.items
+        .map((item) => _normalize(item.name))
+        .toSet();
     final Map<String, _RepeatAccumulator> map = {};
 
     for (final cart in carts) {
@@ -1066,17 +1015,22 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
       4,
     );
 
-    final candidates = map.entries
-        .where((entry) => entry.value.count >= repeatMinCount && !currentNames.contains(entry.key))
-        .map(
-          (entry) => _RepeatCandidate(
-            name: entry.value.name,
-            price: entry.value.lastPrice,
-            repeatCount: entry.value.count,
-          ),
-        )
-        .toList()
-      ..sort((a, b) => b.repeatCount.compareTo(a.repeatCount));
+    final candidates =
+        map.entries
+            .where(
+              (entry) =>
+                  entry.value.count >= repeatMinCount &&
+                  !currentNames.contains(entry.key),
+            )
+            .map(
+              (entry) => _RepeatCandidate(
+                name: entry.value.name,
+                price: entry.value.lastPrice,
+                repeatCount: entry.value.count,
+              ),
+            )
+            .toList()
+          ..sort((a, b) => b.repeatCount.compareTo(a.repeatCount));
 
     return candidates.take(repeatMaxItems).toList();
   }
@@ -1090,34 +1044,40 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
   }) {
     final signals = <ExploreOfferSignal>[
       if (!repeatOnly)
-        ...revisitItems.take(2).map(
-        (item) => ExploreOfferSignal(
-          intentKey: _normalize(item.name),
-          anchorName: item.name,
-          anchorPrice: item.price,
-          sourceType: item.badge == '현재 카트'
-              ? ExploreOfferSourceType.currentCart
-              : ExploreOfferSourceType.pendingReview,
-          sourceLabel: item.badge,
-          context: item.badge == '현재 카트' ? '현재 담은 상품 기준' : '검토 중인 상품 기준',
-          ctaLabel: '비슷한 상품 보기',
-          comparePoints: const ['가격', '용량', '묶음 구성'],
-        ),
-      ),
-      ...repeatCandidates.take(repeatOnly
-              ? _stateRuleInt(exploreConfig, state, 'offerMaxSlots', 3)
-              : 1).map(
-        (candidate) => ExploreOfferSignal(
-          intentKey: _normalize(candidate.name),
-          anchorName: candidate.name,
-          anchorPrice: candidate.price,
-          sourceType: ExploreOfferSourceType.repeatPurchase,
-          sourceLabel: '반복 구매',
-          context: '반복 구매 후보 기준',
-          ctaLabel: '비슷한 상품 보기',
-          comparePoints: const ['재구매 가격', '단가', '후기 품질'],
-        ),
-      ),
+        ...revisitItems
+            .take(2)
+            .map(
+              (item) => ExploreOfferSignal(
+                intentKey: _normalize(item.name),
+                anchorName: item.name,
+                anchorPrice: item.price,
+                sourceType: item.badge == '현재 카트'
+                    ? ExploreOfferSourceType.currentCart
+                    : ExploreOfferSourceType.pendingReview,
+                sourceLabel: item.badge,
+                context: item.badge == '현재 카트' ? '현재 담은 상품 기준' : '검토 중인 상품 기준',
+                ctaLabel: '비슷한 상품 보기',
+                comparePoints: const ['가격', '용량', '묶음 구성'],
+              ),
+            ),
+      ...repeatCandidates
+          .take(
+            repeatOnly
+                ? _stateRuleInt(exploreConfig, state, 'offerMaxSlots', 3)
+                : 1,
+          )
+          .map(
+            (candidate) => ExploreOfferSignal(
+              intentKey: _normalize(candidate.name),
+              anchorName: candidate.name,
+              anchorPrice: candidate.price,
+              sourceType: ExploreOfferSourceType.repeatPurchase,
+              sourceLabel: '반복 구매',
+              context: '반복 구매 후보 기준',
+              ctaLabel: '비슷한 상품 보기',
+              comparePoints: const ['재구매 가격', '단가', '후기 품질'],
+            ),
+          ),
     ];
 
     final offerMaxSlots = _stateRuleInt(
@@ -1253,7 +1213,10 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                         children: [
                           const Text(
                             '함께 볼 수 있는 상품',
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                           const SizedBox(height: 10),
                           ...offers.map(
@@ -1284,16 +1247,14 @@ class _ExploreHeroCard extends StatelessWidget {
   final int itemCount;
   final int totalPrice;
   final int recentScanCount;
-  final int revisitCount;
-  final int repeatCandidateCount;
+  final int compareCandidateCount;
   final VoidCallback onGoHome;
 
   const _ExploreHeroCard({
     required this.itemCount,
     required this.totalPrice,
     required this.recentScanCount,
-    required this.revisitCount,
-    required this.repeatCandidateCount,
+    required this.compareCandidateCount,
     required this.onGoHome,
   });
 
@@ -1308,9 +1269,9 @@ class _ExploreHeroCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            itemCount == 0 ? '오늘 살 것부터 정리해요' : '같은 구매 의도 안에서 결정 이어가기',
-            style: const TextStyle(
+          const Text(
+            '지금 확인할 것만 모아봤어요',
+            style: TextStyle(
               color: Colors.white,
               fontSize: 22,
               fontWeight: FontWeight.w900,
@@ -1319,9 +1280,7 @@ class _ExploreHeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            itemCount == 0
-                ? 'Explore는 추천 피드가 아니라, 장보기 결정을 밀어주는 인박스로 갈 거예요.'
-                : '$itemCount개 상품 · ₩${formatPrice(totalPrice)} · 재검토 $revisitCount건 · 반복 후보 $repeatCandidateCount건',
+            '$itemCount개 상품 · ₩${formatPrice(totalPrice)}',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 14,
@@ -1334,9 +1293,9 @@ class _ExploreHeroCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
+              _HeroStat(label: '현재 카트', value: '$itemCount개'),
               _HeroStat(label: '최근 스캔', value: '$recentScanCount개'),
-              _HeroStat(label: '다시 볼 상품', value: '$revisitCount개'),
-              _HeroStat(label: '비교 후보', value: '${revisitCount == 0 && repeatCandidateCount == 0 ? 0 : (revisitCount >= 2 ? 2 : revisitCount) + (repeatCandidateCount > 0 ? 1 : 0)}개'),
+              _HeroStat(label: '비교 후보', value: '$compareCandidateCount개'),
             ],
           ),
           const SizedBox(height: 14),
@@ -1346,7 +1305,7 @@ class _ExploreHeroCard extends StatelessWidget {
               backgroundColor: Colors.white,
               foregroundColor: const Color(0xFFE31837),
             ),
-            child: Text(itemCount == 0 ? '상품 담으러 가기' : '현재 카트 이어서 보기'),
+            child: const Text('현재 카트 이어서 보기'),
           ),
         ],
       ),
@@ -1380,71 +1339,6 @@ class _HeroStat extends StatelessWidget {
   }
 }
 
-class _DecisionSummaryCard extends StatelessWidget {
-  final int currentCartCount;
-  final int recentScanCount;
-  final int revisitCount;
-
-  const _DecisionSummaryCard({
-    required this.currentCartCount,
-    required this.recentScanCount,
-    required this.revisitCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF4F4),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _SummaryMetric(label: '현재 카트', value: '$currentCartCount개'),
-          ),
-          Expanded(
-            child: _SummaryMetric(label: '결정 카드', value: '$recentScanCount건'),
-          ),
-          Expanded(
-            child: _SummaryMetric(label: '비교 후보', value: '$revisitCount건'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryMetric extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _SummaryMetric({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: Colors.black54,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-        ),
-      ],
-    );
-  }
-}
-
 class _DecisionItemCard extends StatelessWidget {
   final _RevisitItem item;
   final VoidCallback onTap;
@@ -1469,7 +1363,10 @@ class _DecisionItemCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       item.name,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                   _Badge(label: item.badge),
@@ -1478,7 +1375,10 @@ class _DecisionItemCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 '₩${formatPrice(item.price)}',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: 6),
               Text(
@@ -1531,7 +1431,10 @@ class _DecisionInboxCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       entry.title,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                   _Badge(label: entry.badge),
@@ -1541,14 +1444,15 @@ class _DecisionInboxCard extends StatelessWidget {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: [
-                  _Badge(label: entry.reasonLabel),
-                ],
+                children: [_Badge(label: entry.reasonLabel)],
               ),
               const SizedBox(height: 8),
               Text(
                 '₩${formatPrice(entry.detail.price)}',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: 6),
               Text(
@@ -1603,7 +1507,10 @@ class _RepeatCandidateCard extends StatelessWidget {
                   children: [
                     Text(
                       candidate.name,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -1709,11 +1616,16 @@ class _OfferSlotCard extends StatelessWidget {
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.14),
+                  ),
                 ),
                 child: Text(
                   slot.ctaLabel,
@@ -1724,7 +1636,6 @@ class _OfferSlotCard extends StatelessWidget {
                   ),
                 ),
               ),
-
             ],
           ),
         ),
@@ -1818,7 +1729,9 @@ class _StoreContextPromoCard extends StatelessWidget {
                         _Badge(label: promo.intentHint),
                         _Badge(label: promo.sourceType),
                         _Badge(label: 'priority ${promo.priority}'),
-                        _Badge(label: promo.isSponsored ? 'sponsored' : 'organic'),
+                        _Badge(
+                          label: promo.isSponsored ? 'sponsored' : 'organic',
+                        ),
                         if (promo.sponsorLabel != null)
                           _Badge(label: promo.sponsorLabel!),
                       ],
@@ -1919,11 +1832,11 @@ class _SavedContextHeroCard extends StatelessWidget {
               FilledButton.tonalIcon(
                 onPressed: latest == null ? onStartShopping : onOpenLatest,
                 icon: Icon(
-                  latest == null ? Icons.home_rounded : Icons.shopping_bag_rounded,
+                  latest == null
+                      ? Icons.home_rounded
+                      : Icons.shopping_bag_rounded,
                 ),
-                label: Text(
-                  latest == null ? '홈에서 시작하기' : '이 장보기 이어보기',
-                ),
+                label: Text(latest == null ? '홈에서 시작하기' : '이 장보기 이어보기'),
               ),
               if (latest != null)
                 TextButton.icon(
@@ -1981,7 +1894,10 @@ class _ActionTile extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -2055,7 +1971,8 @@ class _AlternativeOfferPreviewCard extends StatelessWidget {
                 ],
               ],
             ),
-            if (offer.subtitle != null && offer.subtitle!.trim().isNotEmpty) ...[
+            if (offer.subtitle != null &&
+                offer.subtitle!.trim().isNotEmpty) ...[
               const SizedBox(height: 6),
               Text(
                 offer.subtitle!,
@@ -2160,7 +2077,9 @@ class _Badge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = dark ? Colors.white.withValues(alpha: 0.14) : const Color(0xFFFFE5E8);
+    final backgroundColor = dark
+        ? Colors.white.withValues(alpha: 0.14)
+        : const Color(0xFFFFE5E8);
     final foregroundColor = dark ? Colors.white : const Color(0xFFE31837);
 
     return Container(
@@ -2264,9 +2183,9 @@ class _IntentDetail {
       futureNote: '여기에 같은 구매 의도를 유지하는 Coupang Partners 대안 CTA가 연결될 예정이에요.',
       offerQuery: ExploreOfferQuery(
         intentKey: ExploreIntentNormalizer.normalize(item.name).intentKey,
-        queryText: ExploreIntentNormalizer
-            .normalize(item.name)
-            .normalizedQueryText,
+        queryText: ExploreIntentNormalizer.normalize(
+          item.name,
+        ).normalizedQueryText,
         sourceType: item.badge == '현재 카트'
             ? ExploreOfferSourceType.currentCart
             : ExploreOfferSourceType.pendingReview,
@@ -2289,9 +2208,9 @@ class _IntentDetail {
       futureNote: '자주 사는 상품일수록 비슷한 대안을 함께 보는 게 더 자연스러워요.',
       offerQuery: ExploreOfferQuery(
         intentKey: ExploreIntentNormalizer.normalize(candidate.name).intentKey,
-        queryText: ExploreIntentNormalizer
-            .normalize(candidate.name)
-            .normalizedQueryText,
+        queryText: ExploreIntentNormalizer.normalize(
+          candidate.name,
+        ).normalizedQueryText,
         sourceType: ExploreOfferSourceType.repeatPurchase,
         referencePrice: candidate.price,
       ),

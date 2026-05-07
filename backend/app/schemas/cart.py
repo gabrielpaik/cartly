@@ -8,6 +8,7 @@ class CartItemRequest(BaseModel):
     price: int
     quantity: int = 1
     scanResultId: Optional[str] = None
+    originalName: Optional[str] = None
 
 
 class CreateCartRequest(BaseModel):

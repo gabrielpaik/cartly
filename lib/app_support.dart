@@ -11,6 +11,7 @@ class CartItem {
   int quantity;
   String? source;
   String? scanJobId;
+  String? originalRecognizedName;
 
   CartItem({
     required this.name,
@@ -18,6 +19,7 @@ class CartItem {
     this.quantity = 1,
     this.source,
     this.scanJobId,
+    this.originalRecognizedName,
   });
   int get totalPrice => price * quantity;
 }

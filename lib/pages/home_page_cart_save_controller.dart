@@ -49,6 +49,9 @@ class HomePageCartSaveController {
             quantity: item.quantity,
             source: item.source,
             scanResultId: item.scanJobId,
+            originalName: item.originalRecognizedName?.trim().isNotEmpty == true
+                ? item.originalRecognizedName!.trim()
+                : item.name.trim(),
           ),
         )
         .toList();

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../app/cartly_ui.dart';
 
 class CartlyEmptyState extends StatelessWidget {
-  final IconData icon;
+  final Widget icon;
   final String title;
   final String? body;
   final double iconSize;
@@ -21,7 +21,11 @@ class CartlyEmptyState extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: iconSize, color: CartlyColors.textTertiary),
+        SizedBox(
+          width: iconSize,
+          height: iconSize,
+          child: Center(child: icon),
+        ),
         const SizedBox(height: 12),
         Text(title, style: CartlyText.cardTitle),
         if (body != null) ...[

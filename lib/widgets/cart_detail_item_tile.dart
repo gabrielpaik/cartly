@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/saved_cart.dart';
 import '../services/app_runtime_copy.dart';
+import 'cartly_symbol_icon.dart';
 
 class CartDetailItemTile extends StatelessWidget {
   final SavedCartItem item;
@@ -70,11 +71,11 @@ class CartDetailItemTile extends StatelessWidget {
               if (isEditingMode) ...[
                 IconButton(
                   onPressed: onEdit,
-                  icon: const Icon(Icons.edit_outlined),
+                  icon: const CartlySymbolIcon.sf('pencil.tip'),
                 ),
                 IconButton(
                   onPressed: onDelete,
-                  icon: const Icon(Icons.close),
+                  icon: const CartlySymbolIcon.sf('xmark'),
                 ),
               ],
             ],
@@ -86,7 +87,7 @@ class CartDetailItemTile extends StatelessWidget {
               children: [
                 IconButton(
                   onPressed: onDecrease,
-                  icon: const Icon(Icons.remove_circle_outline),
+                  icon: const CartlySymbolIcon.sf('minus.circle'),
                 ),
                 Text(
                   '${item.quantity}',
@@ -94,7 +95,7 @@ class CartDetailItemTile extends StatelessWidget {
                 ),
                 IconButton(
                   onPressed: onIncrease,
-                  icon: const Icon(Icons.add_circle_outline),
+                  icon: const CartlySymbolIcon.sf('plus.circle'),
                 ),
               ],
             ),
@@ -131,9 +132,7 @@ class CartDetailItemTile extends StatelessWidget {
               children: [
                 TextButton(
                   onPressed: onCancelInlineEdit,
-                  child: Text(
-                    AppRuntimeCopy.text(['common', 'cancel'], '취소'),
-                  ),
+                  child: Text(AppRuntimeCopy.text(['common', 'cancel'], '취소')),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(

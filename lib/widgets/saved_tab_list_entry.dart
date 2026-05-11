@@ -4,10 +4,11 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import '../models/saved_cart.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/cart_store.dart';
+import 'cartly_symbol_icon.dart';
 import 'inline_promo_slot.dart';
 import 'saved_cart_list_card.dart';
 
-class SavedTabListEntry extends StatelessWidget {
+class SavedTabListEntry extends StatefulWidget {
   final SavedCart cart;
   final int index;
   final VoidCallback onTap;
@@ -19,8 +20,50 @@ class SavedTabListEntry extends StatelessWidget {
     required this.onTap,
   });
 
+  @override
+  State<SavedTabListEntry> createState() => _SavedTabListEntryState();
+}
+
+class _SavedTabListEntryState extends State<SavedTabListEntry>
+    with SingleTickerProviderStateMixin {
+  late final SlidableController _slidableController;
+
+  static const _cardRadius = 16.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _slidableController = SlidableController(this)
+      ..animation.addListener(_handleSlideChanged);
+  }
+
+  @override
+  void dispose() {
+    _slidableController.animation.removeListener(_handleSlideChanged);
+    _slidableController.dispose();
+    super.dispose();
+  }
+
+  void _handleSlideChanged() {
+    if (mounted) setState(() {});
+  }
+
+  BorderRadius get _cardBorderRadius {
+    final revealDeleteAction = _slidableController.ratio < -0.02;
+    if (!revealDeleteAction) {
+      return BorderRadius.circular(_cardRadius);
+    }
+
+    return const BorderRadius.only(
+      topLeft: Radius.circular(_cardRadius),
+      bottomLeft: Radius.circular(_cardRadius),
+      topRight: Radius.zero,
+      bottomRight: Radius.zero,
+    );
+  }
+
   Future<void> _deleteCart(BuildContext context) async {
-    final title = (cart.title ?? '').trim();
+    final title = (widget.cart.title ?? '').trim();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -48,7 +91,7 @@ class SavedTabListEntry extends StatelessWidget {
     if (confirmed != true) return;
 
     try {
-      await CartStore.instance.deleteCart(cart.id);
+      await CartStore.instance.deleteCart(widget.cart.id);
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
@@ -68,28 +111,39 @@ class SavedTabListEntry extends StatelessWidget {
     return Column(
       children: [
         Slidable(
-          key: ValueKey('saved-cart-${cart.id}'),
+          key: ValueKey('saved-cart-${widget.cart.id}'),
+          controller: _slidableController,
           endActionPane: ActionPane(
             motion: const DrawerMotion(),
             extentRatio: 0.26,
             children: [
-              SlidableAction(
+              CustomSlidableAction(
                 onPressed: (_) => _deleteCart(context),
                 backgroundColor: const Color(0xFFE31837),
                 foregroundColor: Colors.white,
                 borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
+                  topRight: Radius.circular(_cardRadius),
+                  bottomRight: Radius.circular(_cardRadius),
                 ),
-                icon: Icons.delete_outline_rounded,
-                label: '삭제',
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CartlySymbolIcon.sf('trash.fill', color: Colors.white),
+                    SizedBox(height: 4),
+                    Text('삭제'),
+                  ],
+                ),
               ),
             ],
           ),
-          child: SavedCartListCard(cart: cart, onTap: onTap),
+          child: SavedCartListCard(
+            cart: widget.cart,
+            onTap: widget.onTap,
+            borderRadius: _cardBorderRadius,
+          ),
         ),
         const SizedBox(height: 12),
-        if (index == 0)
+        if (widget.index == 0)
           InlinePromoSlot(
             slotKey: 'saved_inline_1',
             title: AppRuntimeCopy.text([
@@ -102,7 +156,7 @@ class SavedTabListEntry extends StatelessWidget {
             ], '저장 카트 확인을 방해하지 않는 위치에 작고 자연스러운 혜택 슬롯을 둬요.'),
             height: 104,
           ),
-        if (index == 2)
+        if (widget.index == 2)
           InlinePromoSlot(
             slotKey: 'saved_inline_2',
             title: AppRuntimeCopy.text([

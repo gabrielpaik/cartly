@@ -41,6 +41,22 @@ type CoupangRuntimeChange = {
   operatorNote: string
 }
 
+type RuntimeCategoryGroup = {
+  id: string
+  label: string
+  keywords: string[]
+}
+
+type RuntimeSettingsDto = {
+  receiptReminderDelayMinutes: number
+  myPageInsightsEnabled: boolean
+  myPageSummaryMonths: number
+  myPageTopCategoriesCount: number
+  myPageTopItemsCount: number
+  myPageSectionOrder: string[]
+  myPageCategoryGroups: RuntimeCategoryGroup[]
+}
+
 type ConfigDto = {
   remoteScan: boolean
   adsEnabled: boolean
@@ -87,6 +103,7 @@ type ConfigDto = {
     recentChanges: CoupangRuntimeChange[]
     updatedAt: string | null
   }
+  runtimeSettings: RuntimeSettingsDto
   smoke: SmokeDto
   smokeHistory?: SmokeHistoryEntry[]
 }
@@ -94,8 +111,12 @@ type ConfigDto = {
 export default function ConfigPage() {
   const { t } = useAdminCopy()
   const [savingCoupang, setSavingCoupang] = useState(false)
+  const [savingRuntime, setSavingRuntime] = useState(false)
   const [runtimeMessage, setRuntimeMessage] = useState<string | null>(null)
   const [coupangNoteDraft, setCoupangNoteDraft] = useState('')
+  const [runtimeDraft, setRuntimeDraft] = useState<RuntimeSettingsDto>(mockConfig.runtimeSettings)
+  const [sectionOrderDraft, setSectionOrderDraft] = useState('')
+  const [categoryGroupsDraft, setCategoryGroupsDraft] = useState('')
   const [smoke, setSmoke] = useState<SmokeDto>(mockConfig.smoke)
   const [smokeLoading, setSmokeLoading] = useState(false)
   const [smokeMessage, setSmokeMessage] = useState<string | null>(null)
@@ -123,6 +144,12 @@ export default function ConfigPage() {
   useEffect(() => {
     setCoupangNoteDraft(cfg.coupangPartners.operatorNote || '')
   }, [cfg.coupangPartners.operatorNote])
+
+  useEffect(() => {
+    setRuntimeDraft(cfg.runtimeSettings)
+    setSectionOrderDraft(cfg.runtimeSettings.myPageSectionOrder.join(', '))
+    setCategoryGroupsDraft(JSON.stringify(cfg.runtimeSettings.myPageCategoryGroups, null, 2))
+  }, [cfg.runtimeSettings])
 
   async function loadSmoke() {
     setSmokeLoading(true)
@@ -152,6 +179,29 @@ export default function ConfigPage() {
       setSmoke((current) => ({ ...current, history: cfg.smokeHistory }))
     }
   }, [cfg.smokeHistory, smoke.history])
+
+  async function saveRuntimeSettings() {
+    setSavingRuntime(true)
+    setRuntimeMessage(null)
+    try {
+      const parsedGroups = JSON.parse(categoryGroupsDraft) as RuntimeCategoryGroup[]
+      const parsedSectionOrder = sectionOrderDraft
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+      await putJson<{ ok: boolean; data: RuntimeSettingsDto }>('/admin/config/runtime-settings', {
+        ...runtimeDraft,
+        myPageSectionOrder: parsedSectionOrder,
+        myPageCategoryGroups: parsedGroups,
+      })
+      setRuntimeMessage('My 요약 runtime 설정을 저장했어')
+      await res.reload()
+    } catch (error) {
+      setRuntimeMessage(error instanceof Error ? error.message : 'My 요약 runtime 설정 저장에 실패했어')
+    } finally {
+      setSavingRuntime(false)
+    }
+  }
 
   async function saveCoupangOverride(enabledOverride: boolean | null) {
     setSavingCoupang(true)
@@ -334,6 +384,56 @@ export default function ConfigPage() {
       </div>
 
       <div className="sectionGrid twoCol section">
+        <div className="card">
+          <h2 className="panelTitle">My page monthly summary</h2>
+          <div className="metaRow" style={{ marginTop: 0, marginBottom: 12 }}>
+            <span className="metaPill">state {runtimeDraft.myPageInsightsEnabled ? 'enabled' : 'disabled'}</span>
+            <span className="metaPill">months {runtimeDraft.myPageSummaryMonths}</span>
+            <span className="metaPill">top categories {runtimeDraft.myPageTopCategoriesCount}</span>
+            <span className="metaPill">top items {runtimeDraft.myPageTopItemsCount}</span>
+            <span className="metaPill">order {runtimeDraft.myPageSectionOrder.join(' > ')}</span>
+          </div>
+          <label className="field">
+            <div className="fieldLabel">활성화</div>
+            <input type="checkbox" checked={runtimeDraft.myPageInsightsEnabled} onChange={(e) => setRuntimeDraft((current) => ({ ...current, myPageInsightsEnabled: e.target.checked }))} />
+          </label>
+          <label className="field">
+            <div className="fieldLabel">리마인더 지연(분)</div>
+            <input className="textInput" type="number" min={1} value={runtimeDraft.receiptReminderDelayMinutes} onChange={(e) => setRuntimeDraft((current) => ({ ...current, receiptReminderDelayMinutes: Number(e.target.value || 60) }))} />
+          </label>
+          <label className="field">
+            <div className="fieldLabel">월 수</div>
+            <input className="textInput" type="number" min={1} max={12} value={runtimeDraft.myPageSummaryMonths} onChange={(e) => setRuntimeDraft((current) => ({ ...current, myPageSummaryMonths: Number(e.target.value || 3) }))} />
+          </label>
+          <label className="field">
+            <div className="fieldLabel">상위 카테고리 수</div>
+            <input className="textInput" type="number" min={1} max={8} value={runtimeDraft.myPageTopCategoriesCount} onChange={(e) => setRuntimeDraft((current) => ({ ...current, myPageTopCategoriesCount: Number(e.target.value || 3) }))} />
+          </label>
+          <label className="field">
+            <div className="fieldLabel">자주 담은 상품 수</div>
+            <input className="textInput" type="number" min={1} max={8} value={runtimeDraft.myPageTopItemsCount} onChange={(e) => setRuntimeDraft((current) => ({ ...current, myPageTopItemsCount: Number(e.target.value || 3) }))} />
+          </label>
+          <label className="field">
+            <div className="fieldLabel">섹션 노출 순서 (comma)</div>
+            <input className="textInput" value={sectionOrderDraft} onChange={(e) => setSectionOrderDraft(e.target.value)} placeholder="recentSaved, monthlySummary, allSavedHistory" />
+            <div className="previewSubtitle" style={{ marginTop: 8 }}>available: recentSaved, monthlySummary, allSavedHistory</div>
+          </label>
+          <label className="field">
+            <div className="fieldLabel">카테고리 그룹(JSON 배열)</div>
+            <textarea className="textInput" rows={12} value={categoryGroupsDraft} onChange={(e) => setCategoryGroupsDraft(e.target.value)} />
+          </label>
+          <div className="buttonRow" style={{ marginTop: 12, flexWrap: 'wrap' }}>
+            <button className="primaryBtn" onClick={() => void saveRuntimeSettings()} disabled={savingRuntime}>Save runtime</button>
+            <button className="ghostBtn ghostBtnSmall" onClick={() => {
+              setRuntimeDraft(cfg.runtimeSettings)
+              setSectionOrderDraft(cfg.runtimeSettings.myPageSectionOrder.join(', '))
+              setCategoryGroupsDraft(JSON.stringify(cfg.runtimeSettings.myPageCategoryGroups, null, 2))
+            }} disabled={savingRuntime}>Reset</button>
+          </div>
+          <div className="previewSubtitle" style={{ marginTop: 12 }}>Saved groups {cfg.runtimeSettings.myPageCategoryGroups.length}개 · section order {cfg.runtimeSettings.myPageSectionOrder.join(' > ')} · app side local cart data 기준으로 계산돼</div>
+          {runtimeMessage ? <div className="loginError" style={{ marginTop: 12 }}>{runtimeMessage}</div> : null}
+        </div>
+
         <div className="card">
           <h2 className="panelTitle">{t('admin.config.branding.title', '브랜딩')}</h2>
           <ul className="inlineList">

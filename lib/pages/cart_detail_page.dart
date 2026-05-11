@@ -14,6 +14,7 @@ import '../widgets/cart_detail_body.dart';
 import '../widgets/cart_detail_delete_confirmation_sheet.dart';
 import '../widgets/cart_detail_edit_actions_section.dart';
 import '../widgets/cart_detail_guest_retention_section.dart';
+import '../widgets/cartly_symbol_icon.dart';
 
 final _cartPriceFormatter = NumberFormat('#,###');
 String _fmt(int v) => _cartPriceFormatter.format(v);
@@ -467,7 +468,7 @@ class _CartReceiptStatusCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              const Icon(Icons.chevron_right),
+              const CartlySymbolIcon.sf('chevron.right'),
             ],
           ),
         ),

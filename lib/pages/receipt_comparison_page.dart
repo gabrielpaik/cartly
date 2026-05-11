@@ -18,6 +18,7 @@ import '../services/remote_receipt_repository.dart';
 import '../widgets/cartly_badge.dart';
 import '../widgets/cartly_info_card.dart';
 import '../widgets/cartly_surface_card.dart';
+import '../widgets/cartly_symbol_icon.dart';
 
 final _receiptMoneyFormatter = NumberFormat('#,###');
 String _receiptFmt(int value) => _receiptMoneyFormatter.format(value);
@@ -48,6 +49,24 @@ String _receiptSupportingLineItemLabel(ReceiptLineItemModel item) {
     default:
       return '참고';
   }
+}
+
+bool _isReceiptItemLinkedAdjustment(ReceiptLineItemModel item) {
+  if (item.category != 'discount' && item.category != 'coupon') {
+    return false;
+  }
+  final amount = item.finalAmount ?? item.lineAmount;
+  return amount < 0;
+}
+
+class _ReceiptPurchasedEntry {
+  final ReceiptLineItemModel item;
+  final List<ReceiptLineItemModel> linkedAdjustments;
+
+  const _ReceiptPurchasedEntry({
+    required this.item,
+    required this.linkedAdjustments,
+  });
 }
 
 class ReceiptCheckPage extends StatefulWidget {
@@ -419,7 +438,7 @@ class _ReceiptCompareCaptureCard extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: onOpenUploadFlow,
               style: CartlyButtonStyles.primary(),
-              icon: const Icon(Icons.receipt_long_outlined),
+              icon: const CartlySymbolIcon.sf('receipt'),
               label: const Text(
                 '영수증 올리기',
                 style: TextStyle(fontWeight: FontWeight.w700),
@@ -570,7 +589,7 @@ class _ReceiptSimpleViewData {
   final int totalDiscount;
   final bool hasStoredImage;
   final String? rawText;
-  final List<ReceiptLineItemModel> purchasedLineItems;
+  final List<_ReceiptPurchasedEntry> purchasedEntries;
   final List<ReceiptLineItemModel> supportingLineItems;
 
   const _ReceiptSimpleViewData({
@@ -583,7 +602,7 @@ class _ReceiptSimpleViewData {
     required this.totalDiscount,
     required this.hasStoredImage,
     required this.rawText,
-    required this.purchasedLineItems,
+    required this.purchasedEntries,
     required this.supportingLineItems,
   });
 
@@ -592,16 +611,35 @@ class _ReceiptSimpleViewData {
     SavedCart cart,
   ) {
     final receipt = result.receipt;
-    final purchasedLineItems = result.lineItems
-        .where(_isReceiptPurchasableLineItem)
-        .toList(growable: false);
-    final supportingLineItems = result.lineItems
-        .where((item) => !_isReceiptPurchasableLineItem(item))
-        .toList(growable: false);
-    final purchasedItemCount = purchasedLineItems.fold<int>(
+    final purchasedEntries = <_ReceiptPurchasedEntry>[];
+    final supportingLineItems = <ReceiptLineItemModel>[];
+    var canLinkAdjustmentToLastItem = false;
+
+    for (final lineItem in result.lineItems) {
+      if (_isReceiptPurchasableLineItem(lineItem)) {
+        purchasedEntries.add(
+          _ReceiptPurchasedEntry(item: lineItem, linkedAdjustments: []),
+        );
+        canLinkAdjustmentToLastItem = true;
+        continue;
+      }
+
+      if (_isReceiptItemLinkedAdjustment(lineItem) &&
+          canLinkAdjustmentToLastItem &&
+          purchasedEntries.isNotEmpty) {
+        purchasedEntries.last.linkedAdjustments.add(lineItem);
+        continue;
+      }
+
+      supportingLineItems.add(lineItem);
+      canLinkAdjustmentToLastItem = false;
+    }
+
+    final purchasedItemCount = purchasedEntries.fold<int>(
       0,
-      (sum, item) =>
-          sum + ((item.quantity ?? 1) > 0 ? (item.quantity ?? 1) : 1),
+      (sum, entry) =>
+          sum +
+          ((entry.item.quantity ?? 1) > 0 ? (entry.item.quantity ?? 1) : 1),
     );
     final actualTotal = receipt.totalAmount ?? 0;
     final cartTotal = cart.totalPrice;
@@ -615,14 +653,14 @@ class _ReceiptSimpleViewData {
           : DateFormat('M월 d일 HH:mm').format(receipt.purchasedAt!.toLocal()),
       purchasedItemCount: purchasedItemCount > 0
           ? purchasedItemCount
-          : purchasedLineItems.length,
+          : purchasedEntries.length,
       actualTotal: actualTotal,
       cartTotal: cartTotal,
       totalDelta: actualTotal - cartTotal,
       totalDiscount: receipt.totalDiscountAmount ?? 0,
       hasStoredImage: receipt.imageUrl?.trim().isNotEmpty == true,
       rawText: receipt.rawText?.trim(),
-      purchasedLineItems: purchasedLineItems,
+      purchasedEntries: purchasedEntries,
       supportingLineItems: supportingLineItems,
     );
   }
@@ -845,7 +883,7 @@ class _ReceiptStoredDetailsCardState extends State<_ReceiptStoredDetailsCard> {
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 10),
-          if (data.purchasedLineItems.isEmpty)
+          if (data.purchasedEntries.isEmpty)
             Text(
               '정리된 상품 목록이 아직 없어요.',
               style: const TextStyle(
@@ -864,42 +902,101 @@ class _ReceiptStoredDetailsCardState extends State<_ReceiptStoredDetailsCard> {
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   children: [
-                    for (final item in data.purchasedLineItems)
+                    for (final entry in data.purchasedEntries)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Row(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Text(
-                                item.rawName.trim().isEmpty
-                                    ? '이름 미상 상품'
-                                    : item.rawName.trim(),
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    entry.item.rawName.trim().isEmpty
+                                        ? '이름 미상 상품'
+                                        : entry.item.rawName.trim(),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                if ((entry.item.quantity ?? 1) > 1) ...[
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'x${entry.item.quantity}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: CartlyColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(width: 12),
+                                Text(
+                                  '${_receiptFmt(entry.item.finalAmount ?? entry.item.lineAmount)}원',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
                             ),
-                            if ((item.quantity ?? 1) > 1) ...[
-                              const SizedBox(width: 8),
-                              Text(
-                                'x${item.quantity}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: CartlyColors.textSecondary,
+                            if (entry.linkedAdjustments.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              for (final adjustment in entry.linkedAdjustments)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 8,
+                                    top: 4,
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              adjustment.rawName.trim().isEmpty
+                                                  ? '연결된 할인'
+                                                  : adjustment.rawName.trim(),
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color:
+                                                    CartlyColors.textSecondary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '${_receiptSupportingLineItemLabel(adjustment)} 항목',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                                color:
+                                                    CartlyColors.textTertiary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        '${_receiptFmt(adjustment.finalAmount ?? adjustment.lineAmount)}원',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: CartlyColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
                             ],
-                            const SizedBox(width: 12),
-                            Text(
-                              '${_receiptFmt(item.finalAmount ?? item.lineAmount)}원',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
                           ],
                         ),
                       ),
@@ -998,10 +1095,8 @@ class _ReceiptStoredDetailsCardState extends State<_ReceiptStoredDetailsCard> {
                   foregroundColor: CartlyColors.textPrimary,
                   borderColor: CartlyColors.lineStrong,
                 ),
-                icon: Icon(
-                  _showRawText
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
+                icon: CartlySymbolIcon.sf(
+                  _showRawText ? 'eyeglasses.slash' : 'eyeglasses',
                   size: 18,
                 ),
                 label: Text(_showRawText ? '원문 텍스트 숨기기' : '원문 텍스트 보기'),
@@ -1046,13 +1141,14 @@ class _ReceiptResultActionsCard extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: OutlinedButton(
+          child: OutlinedButton.icon(
             onPressed: onRefresh,
             style: CartlyButtonStyles.secondaryOutline(
               foregroundColor: CartlyColors.textPrimary,
               borderColor: CartlyColors.lineStrong,
             ),
-            child: const Text(
+            icon: const CartlySymbolIcon.sf('arrow.clockwise', size: 18),
+            label: const Text(
               '다시 불러오기',
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
@@ -1060,10 +1156,11 @@ class _ReceiptResultActionsCard extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: FilledButton(
+          child: FilledButton.icon(
             onPressed: onRetake,
             style: CartlyButtonStyles.primary(),
-            child: const Text(
+            icon: const CartlySymbolIcon.sf('camera.fill', size: 18),
+            label: const Text(
               '영수증 다시 올리기',
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
@@ -1299,8 +1396,8 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.camera_alt_outlined,
+              const CartlySymbolIcon.sf(
+                'camera',
                 color: CartlyColors.onBrandMuted,
                 size: 44,
               ),
@@ -1453,7 +1550,7 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
                             color: CartlyColors.onBrandPrimary,
                           ),
                         )
-                      : const Icon(Icons.photo_library_outlined),
+                      : const CartlySymbolIcon.sf('photo.on.rectangle.angled'),
                 ),
               ),
               SizedBox(
@@ -1473,8 +1570,8 @@ class _ReceiptCameraCapturePageState extends State<_ReceiptCameraCapturePage> {
                           height: 24,
                           child: CircularProgressIndicator(strokeWidth: 2.4),
                         )
-                      : const Icon(
-                          Icons.camera_alt,
+                      : const CartlySymbolIcon.sf(
+                          'camera.fill',
                           size: CartlyIconSizes.hero,
                         ),
                 ),

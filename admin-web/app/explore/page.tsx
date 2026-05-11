@@ -27,6 +27,16 @@ type StoreContextPromoPreview = {
   sponsorLabel: string
 }
 
+type EditorialRecommendationPreview = {
+  id: string
+  title: string
+  price?: number
+  thumbnailUrl?: string
+  url?: string
+  deeplinkUrl?: string
+  provider: string
+}
+
 type ExploreStateRuleSet = {
   revisitRecentScanLimit: number
   revisitCartItemLimit: number
@@ -98,6 +108,13 @@ type ExploreSettings = {
   repeatMinCount: number
   repeatMaxItems: number
   offerMaxSlots: number
+  editorialRecommendationsEnabled: boolean
+  editorialRecommendationsTitle: string
+  editorialRecommendationsSubtitle: string
+  editorialRecommendationsCount: number
+  editorialRecommendationsPoolRaw: string
+  editorialRecommendationsDisclaimer: string
+  editorialRecommendationsItems?: EditorialRecommendationPreview[]
   storeContextEnabled: boolean
   storeContextStoreName: string
   storeContextPromoTitle: string
@@ -143,6 +160,7 @@ type ExploreStateOption = {
 }
 
 const PREVIEW_SRC = '/app-preview/index.html?screen=help'
+const EDITORIAL_VISIBLE_COUNT = 5
 const EXPLORE_STATE_OPTIONS: ExploreStateOption[] = [
   {
     id: 'activeShopping',
@@ -188,6 +206,11 @@ const EXPLORE_SECTION_OPTIONS: ExploreSectionOption[] = [
     description: '저장된 카트에서 자주 등장한 상품 후보를 보여줘.',
   },
   {
+    id: 'editorialPicks',
+    label: '운영자 추천 제품',
+    description: '운영자가 넣은 쿠팡 파트너스 URL 풀에서 랜덤 추천을 보여줘.',
+  },
+  {
     id: 'offerSlots',
     label: '대체 상품 오퍼 슬롯',
     description: 'same-intent 대체안이나 파트너 오퍼가 붙을 자리를 보여줘.',
@@ -213,6 +236,30 @@ function parseSectionList(value: string) {
 
 function stringifySectionList(items: string[]) {
   return items.join(',')
+}
+
+function providerLabelFromUrl(value?: string) {
+  const host = (() => {
+    try {
+      return value ? new URL(value).hostname.toLowerCase() : ''
+    } catch {
+      return ''
+    }
+  })()
+
+  if (!host) return '추천'
+  if (host.includes('coupang') || host.includes('coupa.ng')) return '쿠팡'
+  if (host.includes('11st')) return '11번가'
+  if (host.includes('naver')) return '네이버'
+  if (host.includes('gmarket')) return 'G마켓'
+  if (host.includes('auction')) return '옥션'
+  if (host.includes('ssg')) return 'SSG'
+  if (host.includes('kurly')) return '컬리'
+  if (host.includes('lotteon')) return '롯데온'
+  if (host.includes('emart')) return '이마트'
+  const parts = host.split('.')
+  const label = parts.length >= 2 ? parts[parts.length - 2] ?? host : host
+  return label.length <= 4 ? label.toUpperCase() : `${label.charAt(0).toUpperCase()}${label.slice(1)}`
 }
 
 function decisionReasonVocabulary(settings: ExploreSettings, state: ExploreStateId) {
@@ -270,6 +317,120 @@ function decisionMaxCountPreview(settings: ExploreSettings, state: ExploreStateI
   const labels = decisionTypeLabels(settings, state)
   return (Object.entries(maxCounts) as Array<[keyof ExploreDecisionMaxCountSet, number]>)
     .map(([key, value]) => ({ key, value, label: labels[key] }))
+}
+
+function parseEditorialRecommendations(raw: string): EditorialRecommendationPreview[] {
+  const results: EditorialRecommendationPreview[] = []
+  const seen = new Set<string>()
+
+  function parsePrice(value: string) {
+    const digits = value.replace(/[^0-9]/g, '')
+    if (!digits) return undefined
+    const parsed = Number(digits)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+
+  function extractIframeSrc(value: string) {
+    const matched = value.match(/<iframe[^>]+src=["']([^"']+)["']/i)
+    return matched?.[1]?.trim() ?? ''
+  }
+
+  function extractAnchorImageMetadata(value: string) {
+    const href = value.match(/<a[^>]+href=["']([^"']+)["']/i)?.[1]?.trim() ?? ''
+    const src = value.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1]?.trim() ?? ''
+    const alt = value.match(/<img[^>]+alt=["']([^"']+)["']/i)?.[1]?.trim() ?? ''
+    return { href, src, alt }
+  }
+
+  function metadataFromUrl(candidate: string) {
+    try {
+      const url = new URL(candidate)
+      const title = url.searchParams.get('title')?.trim() || url.searchParams.get('productDescription')?.trim() || ''
+      const thumbnailUrl = url.searchParams.get('productImage')?.trim() || url.searchParams.get('image')?.trim() || ''
+      const deeplinkUrl =
+        url.searchParams.get('link')?.trim() ||
+        url.searchParams.get('linkUrl')?.trim() ||
+        candidate
+      return { title, thumbnailUrl, deeplinkUrl }
+    } catch {
+      return { title: '', thumbnailUrl: '', deeplinkUrl: candidate }
+    }
+  }
+
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+
+    const iframeSrc = extractIframeSrc(trimmed)
+    const anchorImage = extractAnchorImageMetadata(trimmed)
+    const normalizedLine = iframeSrc || trimmed
+    const parts = normalizedLine.split('|').map((item) => item.trim()).filter(Boolean)
+    let title = anchorImage.alt || ''
+    let url = ''
+    let deeplinkUrl = /^https?:\/\//i.test(anchorImage.href) ? anchorImage.href : ''
+    let thumbnailUrl = /^https?:\/\//i.test(anchorImage.src) ? anchorImage.src : ''
+    let price: number | undefined
+
+    if (deeplinkUrl) {
+      url = deeplinkUrl
+    } else if (parts.length === 1 && /^https?:\/\//i.test(normalizedLine)) {
+      deeplinkUrl = normalizedLine
+      url = normalizedLine
+    } else {
+      title = title || (parts[0] ?? '')
+      const urlParts = parts.slice(1).filter((part) => /^https?:\/\//i.test(part))
+      const nonUrlParts = parts.slice(1).filter((part) => !/^https?:\/\//i.test(part))
+      for (const part of nonUrlParts) {
+        if (price == null) {
+          price = parsePrice(part)
+        }
+      }
+      if (urlParts.length >= 2) {
+        thumbnailUrl = urlParts[0] ?? ''
+        deeplinkUrl = urlParts[urlParts.length - 1] ?? ''
+        url = deeplinkUrl
+      } else if (urlParts.length === 1) {
+        const candidateUrl = urlParts[0] ?? ''
+        const looksLikeImage = /\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(candidateUrl) || /image|thumb/i.test(candidateUrl)
+        if (price != null && looksLikeImage) {
+          thumbnailUrl = candidateUrl
+        } else {
+          deeplinkUrl = candidateUrl
+          url = deeplinkUrl
+        }
+      }
+    }
+
+    const urlMetadata = deeplinkUrl ? metadataFromUrl(deeplinkUrl) : { title: '', thumbnailUrl: '', deeplinkUrl }
+    if (!title) {
+      title = urlMetadata.title
+    }
+    if (!thumbnailUrl) {
+      thumbnailUrl = urlMetadata.thumbnailUrl
+    }
+    if (!deeplinkUrl && urlMetadata.deeplinkUrl) {
+      deeplinkUrl = urlMetadata.deeplinkUrl
+      url = deeplinkUrl
+    }
+
+    const dedupeKey = deeplinkUrl || thumbnailUrl || title
+    if (!dedupeKey || seen.has(dedupeKey)) continue
+    seen.add(dedupeKey)
+
+    const index = results.length + 1
+    const providerUrl = deeplinkUrl || url
+    results.push({
+      id: `editorial-pick-${index}`,
+      title: title || `추천 상품 ${index}`,
+      price,
+      thumbnailUrl: thumbnailUrl || undefined,
+      url: url || undefined,
+      deeplinkUrl: deeplinkUrl || undefined,
+      provider: providerLabelFromUrl(providerUrl),
+    })
+  }
+
+  return results
 }
 
 function buildStorePromoPreview(settings: ExploreSettings): StoreContextPromoPreview[] {
@@ -368,6 +529,12 @@ export default function ExploreAdminPage() {
   const currentDecisionMaxCount = form.stateDecisionMaxCounts[layoutState]
   const isDirty = JSON.stringify(form) !== JSON.stringify(res.data.data)
   const storePromoPreview = useMemo(() => buildStorePromoPreview(form), [form])
+  const editorialPoolPreview = useMemo(() => {
+    if ((form.editorialRecommendationsItems?.length ?? 0) > 0) {
+      return form.editorialRecommendationsItems ?? []
+    }
+    return parseEditorialRecommendations(form.editorialRecommendationsPoolRaw)
+  }, [form.editorialRecommendationsItems, form.editorialRecommendationsPoolRaw])
   const liveTitle = appConfigRes.data.data.copy?.help?.pageTitle ?? 'Explore'
   const liveSubtitle = appConfigRes.data.data.copy?.help?.subtitle ?? '지금 살 상품 결정과 지난 장보기 회고를 한 곳에서 이어가요'
   const features = appConfigRes.data.data.features
@@ -560,11 +727,12 @@ export default function ExploreAdminPage() {
         <StatCard label="Revisit cap" value={`${currentStateRules.revisitMaxItems}`} note={`recent ${currentStateRules.revisitRecentScanLimit} · cart ${currentStateRules.revisitCartItemLimit}`} />
         <StatCard label="Repeat rule" value={`≥ ${currentStateRules.repeatMinCount}`} note={`max ${currentStateRules.repeatMaxItems}`} />
         <StatCard label="Offer slots" value={`${currentStateRules.offerMaxSlots}`} note={features?.coupangPartnersAffiliateReady ? 'affiliate ready' : 'fallback/search mode'} />
+        <StatCard label="Manual picks" value={form.editorialRecommendationsEnabled ? `${Math.min(EDITORIAL_VISIBLE_COUNT, editorialPoolPreview.length)} / ${editorialPoolPreview.length}` : 'OFF'} note="show 5 fixed" />
         <StatCard label="Store promo" value={form.storeContextEnabled ? 'ON' : 'OFF'} note={`${form.storeContextStoreName} · ${storePromoPreview.length}개 preview`} />
       </div>
 
       <div className="metaRow section" style={{ marginTop: 16 }}>
-        <span className="metaPill">same-intent only</span>
+        <span className="metaPill">same-intent + manual picks</span>
         <span className="metaPill">bridge {features?.exploreOfferBridgeEnabled ? 'on' : 'off'}</span>
         <span className="metaPill">coupang {features?.coupangPartnersEnabled ? 'enabled' : 'disabled'}</span>
         <span className="metaPill">title/subtitle in Content</span>
@@ -688,6 +856,50 @@ export default function ExploreAdminPage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="sectionHeader" style={{ marginBottom: 12 }}>
+              <div>
+                <h2 className="panelTitle" style={{ marginBottom: 6 }}>추천 제품</h2>
+                <p className="pageDesc">앱에는 상품명, 가격, 썸네일만 보이게 하고 링크는 카드 탭 동작에만 써. 하단 단서조항도 여기서 같이 관리해.</p>
+              </div>
+            </div>
+            <div className="metaRow compactMetaRow" style={{ marginBottom: 12 }}>
+              <span className="metaPill">pool {editorialPoolPreview.length}개</span>
+              <span className="metaPill">show {Math.min(EDITORIAL_VISIBLE_COUNT, editorialPoolPreview.length || EDITORIAL_VISIBLE_COUNT)}개</span>
+              <span className="metaPill">fixed 5</span>
+            </div>
+            <div className="sectionGrid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+              <label className="field">
+                <div className="fieldLabel">
+                  <input type="checkbox" checked={form.editorialRecommendationsEnabled} onChange={(e) => update('editorialRecommendationsEnabled', e.target.checked)} style={{ marginRight: 8 }} />
+                  추천 제품 섹션 활성화
+                </div>
+              </label>
+              <label className="field">
+                <div className="fieldLabel">노출 개수</div>
+                <input className="textInput" value="5" disabled />
+              </label>
+              <label className="field">
+                <div className="fieldLabel">섹션 제목</div>
+                <input className="textInput" value={form.editorialRecommendationsTitle} onChange={(e) => update('editorialRecommendationsTitle', e.target.value)} />
+              </label>
+              <label className="field">
+                <div className="fieldLabel">섹션 설명</div>
+                <input className="textInput" value={form.editorialRecommendationsSubtitle} onChange={(e) => update('editorialRecommendationsSubtitle', e.target.value)} />
+              </label>
+            </div>
+            <label className="field" style={{ marginTop: 12 }}>
+              <div className="fieldLabel">추천 상품 풀</div>
+              <textarea className="textInput" rows={10} value={form.editorialRecommendationsPoolRaw} onChange={(e) => update('editorialRecommendationsPoolRaw', e.target.value)} placeholder={'상품명 | 12900 | https://image.example.com/item.jpg | https://partners.coupang.com/...\n상품명 | 5980 | https://image.example.com/item.jpg'} />
+              <div className="previewSubtitle" style={{ marginTop: 8 }}>한 줄에 하나씩 넣어. 권장 형식은 `상품명 | 가격 | 썸네일URL | 링크URL` 이고, 링크는 선택이야.</div>
+            </label>
+            <label className="field" style={{ marginTop: 12 }}>
+              <div className="fieldLabel">하단 단서조항</div>
+              <textarea className="textInput" rows={3} value={form.editorialRecommendationsDisclaimer} onChange={(e) => update('editorialRecommendationsDisclaimer', e.target.value)} placeholder="이 섹션에는 제휴 링크가 포함될 수 있으며, 이에 따라 일정 수수료를 제공받을 수 있어요." />
+              <div className="previewSubtitle" style={{ marginTop: 8 }}>추천 상품 카드 5개 아래에 작은 안내문으로 노출돼.</div>
+            </label>
           </div>
 
           <div className="card" style={{ marginBottom: 16 }}>

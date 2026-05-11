@@ -99,16 +99,59 @@ def _load_latest_receipts_for_carts(db: OrmSession, carts: list[Cart]) -> dict[s
     if not cart_ids:
         return {}
 
+    source_by_cart_id: dict[str, Optional[str]] = {
+        cart.id: cart.source_cart_id for cart in carts if cart.id
+    }
+    pending_parent_ids = {
+        source_cart_id
+        for source_cart_id in source_by_cart_id.values()
+        if source_cart_id and source_cart_id not in source_by_cart_id
+    }
+
+    while pending_parent_ids:
+        parent_rows = db.execute(
+            select(Cart.id, Cart.source_cart_id).where(Cart.id.in_(pending_parent_ids))
+        ).all()
+        if not parent_rows:
+            break
+
+        next_pending_parent_ids: set[str] = set()
+        for parent_id, source_cart_id in parent_rows:
+            source_by_cart_id[parent_id] = source_cart_id
+            if source_cart_id and source_cart_id not in source_by_cart_id:
+                next_pending_parent_ids.add(source_cart_id)
+        pending_parent_ids = next_pending_parent_ids
+
+    descendants_by_lineage_cart_id: dict[str, list[str]] = {}
+    all_lineage_cart_ids: set[str] = set()
+
+    for cart_id in cart_ids:
+        lineage: list[str] = []
+        visited: set[str] = set()
+        current_id: Optional[str] = cart_id
+        while current_id and current_id not in visited:
+            visited.add(current_id)
+            lineage.append(current_id)
+            current_id = source_by_cart_id.get(current_id)
+
+        for lineage_cart_id in lineage:
+            descendants_by_lineage_cart_id.setdefault(lineage_cart_id, []).append(cart_id)
+        all_lineage_cart_ids.update(lineage)
+
+    if not all_lineage_cart_ids:
+        return {}
+
     receipts = db.scalars(
         select(Receipt)
-        .where(Receipt.saved_cart_id.in_(cart_ids))
-        .order_by(Receipt.saved_cart_id.asc(), Receipt.created_at.desc())
+        .where(Receipt.saved_cart_id.in_(all_lineage_cart_ids))
+        .order_by(Receipt.created_at.desc())
     ).all()
 
     latest_by_cart_id: dict[str, Receipt] = {}
     for receipt in receipts:
-        if receipt.saved_cart_id not in latest_by_cart_id:
-            latest_by_cart_id[receipt.saved_cart_id] = receipt
+        for cart_id in descendants_by_lineage_cart_id.get(receipt.saved_cart_id, []):
+            if cart_id not in latest_by_cart_id:
+                latest_by_cart_id[cart_id] = receipt
     return latest_by_cart_id
 
 

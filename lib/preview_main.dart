@@ -295,17 +295,18 @@ Map<String, dynamic> _defaultContentSettings() => {
 
 Map<String, dynamic> _defaultExploreConfig() => {
   'enabledSections':
-      'heroSummary,decisionInbox,revisitItems,repeatCandidates,offerSlots,savedContext,storeContextPromo',
+      'heroSummary,decisionInbox,revisitItems,repeatCandidates,editorialPicks,offerSlots,savedContext,storeContextPromo',
   'sectionOrder':
-      'heroSummary,decisionInbox,revisitItems,repeatCandidates,offerSlots,savedContext,storeContextPromo',
+      'heroSummary,decisionInbox,revisitItems,repeatCandidates,editorialPicks,offerSlots,savedContext,storeContextPromo',
   'stateMode': 'auto',
   'activeShoppingSectionOrder':
       'offerSlots,heroSummary,decisionInbox,revisitItems',
   'postSaveSectionOrder':
-      'savedContext,decisionInbox,repeatCandidates,offerSlots',
-  'idlePlanningSectionOrder': 'savedContext,repeatCandidates,offerSlots',
+      'savedContext,decisionInbox,repeatCandidates,editorialPicks,offerSlots',
+  'idlePlanningSectionOrder':
+      'savedContext,repeatCandidates,editorialPicks,offerSlots',
   'storeContextSectionOrder':
-      'storeContextPromo,savedContext,repeatCandidates,offerSlots',
+      'storeContextPromo,savedContext,editorialPicks,repeatCandidates,offerSlots',
   'stateRules': {
     'activeShopping': {
       'revisitRecentScanLimit': 3,
@@ -464,6 +465,20 @@ Map<String, dynamic> _defaultExploreConfig() => {
   'repeatMinCount': 2,
   'repeatMaxItems': 4,
   'offerMaxSlots': 3,
+  'editorialRecommendationsEnabled': true,
+  'editorialRecommendationsTitle': '추천 제품',
+  'editorialRecommendationsSubtitle': '지금 카트에 많이 담는 TOP5',
+  'editorialRecommendationsCount': 5,
+  'editorialRecommendationsPoolRaw': [
+    '삼다수 2L 12개 | 12900 | https://placehold.co/160x160/png?text=Water | https://link.coupang.com/example-water',
+    '비비고 왕교자 | 8990 | https://placehold.co/160x160/png?text=Dumpling | https://link.coupang.com/example-dumpling',
+    '켈로그 콘푸로스트 | 7480 | https://placehold.co/160x160/png?text=Cereal | https://link.coupang.com/example-cereal',
+    '서울우유 1L 2입 | 5980 | https://placehold.co/160x160/png?text=Milk | https://link.coupang.com/example-milk',
+    '코카콜라 제로 24캔 | 18900 | https://placehold.co/160x160/png?text=Cola | https://link.coupang.com/example-cola',
+    '동원 참치 8캔 | 13980 | https://placehold.co/160x160/png?text=Tuna | https://link.coupang.com/example-tuna',
+  ].join('\n'),
+  'editorialRecommendationsDisclaimer':
+      '이 섹션에는 제휴 링크가 포함될 수 있으며, 이에 따라 일정 수수료를 제공받을 수 있어요.',
   'storeContextEnabled': false,
   'storeContextStoreName': '이마트 양재점',
   'storeContextPromoTitle': '지금 이 마트 세일',

@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../app/cartly_ui.dart';
 import 'cartly_surface_card.dart';
+import 'cartly_symbol_icon.dart';
 
 class CartlyActionTile extends StatelessWidget {
-  final IconData icon;
+  final Widget icon;
   final String title;
   final String body;
   final String? actionLabel;
@@ -56,7 +57,13 @@ class CartlyActionTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(CartlyRadii.control),
                 ),
                 alignment: Alignment.center,
-                child: Icon(icon, size: CartlyIconSizes.row, color: iconColor),
+                child: IconTheme(
+                  data: IconThemeData(
+                    size: CartlyIconSizes.row,
+                    color: iconColor,
+                  ),
+                  child: icon,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -85,8 +92,8 @@ class CartlyActionTile extends StatelessWidget {
                 const SizedBox(width: 8),
                 const Padding(
                   padding: EdgeInsets.only(top: 10),
-                  child: Icon(
-                    Icons.chevron_right_rounded,
+                  child: CartlySymbolIcon.sf(
+                    'chevron.right',
                     size: CartlyIconSizes.inline,
                     color: CartlyColors.textTertiary,
                   ),

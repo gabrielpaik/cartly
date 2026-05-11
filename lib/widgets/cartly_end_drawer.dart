@@ -9,6 +9,7 @@ import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
 import 'brand_mark.dart';
+import 'cartly_symbol_icon.dart';
 
 final _priceFormatter = NumberFormat('#,###');
 String _fmt(int v) => _priceFormatter.format(v);
@@ -84,13 +85,16 @@ class _CartlyEndDrawerState extends State<CartlyEndDrawer> {
                                   memberSignedIn
                                       ? session.displayName
                                       : isGuestMode
-                                      ? ((session?.displayName.trim().isNotEmpty ?? false)
+                                      ? ((session?.displayName
+                                                    .trim()
+                                                    .isNotEmpty ??
+                                                false)
                                             ? session!.displayName
                                             : 'Guest')
-                                      : AppRuntimeCopy.text(
-                                          ['my', 'guestModeLabel'],
-                                          '게스트로 사용 중이에요',
-                                        ),
+                                      : AppRuntimeCopy.text([
+                                          'my',
+                                          'guestModeLabel',
+                                        ], '게스트로 사용 중이에요'),
                                   style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w900,
@@ -102,10 +106,10 @@ class _CartlyEndDrawerState extends State<CartlyEndDrawer> {
                                       ? (session.email.isEmpty
                                             ? '${session.providerBadge} · ${session.badgeLabel}'
                                             : '${session.email} · ${session.providerBadge}')
-                                      : AppRuntimeCopy.text(
-                                          ['my', 'guestBody'],
-                                          '저장한 카트와 스캔 기록을 이어서 보시려면 로그인해 주세요.',
-                                        ),
+                                      : AppRuntimeCopy.text([
+                                          'my',
+                                          'guestBody',
+                                        ], '저장한 카트와 스캔 기록을 이어서 보시려면 로그인해 주세요.'),
                                   style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -133,7 +137,9 @@ class _CartlyEndDrawerState extends State<CartlyEndDrawer> {
                                   final result = await Navigator.of(context)
                                       .push(
                                         MaterialPageRoute(
-                                          builder: (_) => LoginPage(preferSignup: isGuestMode),
+                                          builder: (_) => LoginPage(
+                                            preferSignup: isGuestMode,
+                                          ),
                                         ),
                                       );
                                   if (result == true && context.mounted) {
@@ -251,7 +257,7 @@ class _CartlyEndDrawerState extends State<CartlyEndDrawer> {
                             style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
                           subtitle: Text(summary),
-                          trailing: const Icon(Icons.chevron_right),
+                          trailing: const CartlySymbolIcon.sf('chevron.right'),
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
@@ -302,7 +308,7 @@ class _CartlyEndDrawerState extends State<CartlyEndDrawer> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.info_outline, size: 18),
+                            const CartlySymbolIcon.sf('info.circle', size: 18),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(

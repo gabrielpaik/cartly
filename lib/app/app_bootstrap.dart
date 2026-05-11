@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:camera/camera.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/widgets.dart';
 
 import '../firebase_options.dart';
 import '../services/admob_service.dart';
+import '../services/app_config_store.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
 
@@ -16,12 +19,37 @@ class CartlyAppBootstrap {
 Future<CartlyAppBootstrap> initializeCartlyApp() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(const Duration(seconds: 8));
+  } catch (_) {}
 
-  final cameras = await availableCameras();
-  await AuthStore.instance.load();
-  await CartStore.instance.load();
-  await AdMobService.instance.initialize();
+  final camerasFuture = availableCameras().timeout(
+    const Duration(seconds: 4),
+    onTimeout: () => <CameraDescription>[],
+  );
+
+  try {
+    await AuthStore.instance.load().timeout(const Duration(seconds: 6));
+  } catch (_) {}
+
+  try {
+    await CartStore.instance.load().timeout(const Duration(seconds: 6));
+  } catch (_) {}
+
+  try {
+    await AppConfigStore.instance.load().timeout(const Duration(seconds: 4));
+  } catch (_) {}
+
+  unawaited(AdMobService.instance.initialize());
+
+  List<CameraDescription> cameras;
+  try {
+    cameras = await camerasFuture;
+  } catch (_) {
+    cameras = const <CameraDescription>[];
+  }
 
   return CartlyAppBootstrap(cameras: cameras);
 }

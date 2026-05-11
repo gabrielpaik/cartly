@@ -4,6 +4,7 @@ import '../app/cartly_ui.dart';
 import '../app_support.dart';
 import '../services/app_runtime_copy.dart';
 import 'cartly_empty_state.dart';
+import 'cartly_symbol_icon.dart';
 
 class CurrentCartSection extends StatelessWidget {
   final List<CartItem> items;
@@ -24,7 +25,11 @@ class CurrentCartSection extends StatelessWidget {
         height: MediaQuery.of(context).size.height * 0.28,
         child: Center(
           child: CartlyEmptyState(
-            icon: Icons.shopping_cart_outlined,
+            icon: const CartlySymbolIcon.sf(
+              'basket',
+              size: 48,
+              color: CartlyColors.textTertiary,
+            ),
             iconSize: 48,
             title: AppRuntimeCopy.text([
               'home',
@@ -48,8 +53,8 @@ class CurrentCartSection extends StatelessWidget {
                   color: CartlyColors.semanticDanger,
                   borderRadius: BorderRadius.circular(CartlyRadii.card),
                 ),
-                child: const Icon(
-                  Icons.delete_outline_rounded,
+                child: const CartlySymbolIcon.sf(
+                  'trash.fill',
                   color: CartlyColors.onBrandPrimary,
                   size: CartlyIconSizes.row,
                 ),
@@ -224,10 +229,8 @@ class _CurrentCartItemCardState extends State<CurrentCartItemCard> {
                               ),
                             ),
                             const SizedBox(width: 6),
-                            Icon(
-                              _expanded
-                                  ? Icons.keyboard_arrow_up_rounded
-                                  : Icons.keyboard_arrow_down_rounded,
+                            CartlySymbolIcon.sf(
+                              _expanded ? 'chevron.up' : 'chevron.down',
                               size: CartlyIconSizes.inline,
                               color: CartlyColors.textTertiary,
                             ),
@@ -261,8 +264,8 @@ class _CurrentCartItemCardState extends State<CurrentCartItemCard> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(
-                        Icons.remove_rounded,
+                      icon: const CartlySymbolIcon.sf(
+                        'minus',
                         size: CartlyIconSizes.inline,
                       ),
                       onPressed: decrease,
@@ -281,8 +284,8 @@ class _CurrentCartItemCardState extends State<CurrentCartItemCard> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(
-                        Icons.add_rounded,
+                      icon: const CartlySymbolIcon.sf(
+                        'plus',
                         size: CartlyIconSizes.inline,
                       ),
                       onPressed: increase,

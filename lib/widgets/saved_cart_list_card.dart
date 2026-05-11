@@ -3,13 +3,20 @@ import 'package:intl/intl.dart';
 
 import '../models/saved_cart.dart';
 import '../services/cart_store.dart';
+import 'cartly_symbol_icon.dart';
 import 'saved_cart_list_card_content.dart';
 
 class SavedCartListCard extends StatelessWidget {
   final SavedCart cart;
   final VoidCallback onTap;
+  final BorderRadius borderRadius;
 
-  const SavedCartListCard({super.key, required this.cart, required this.onTap});
+  const SavedCartListCard({
+    super.key,
+    required this.cart,
+    required this.onTap,
+    this.borderRadius = const BorderRadius.all(Radius.circular(16)),
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,12 +31,12 @@ class SavedCartListCard extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: borderRadius,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: borderRadius,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,7 +59,7 @@ class SavedCartListCard extends StatelessWidget {
                 },
               ),
             ),
-            const Icon(Icons.chevron_right),
+            const CartlySymbolIcon.sf('chevron.right'),
           ],
         ),
       ),

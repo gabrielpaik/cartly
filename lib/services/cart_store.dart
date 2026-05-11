@@ -38,6 +38,10 @@ class CartStore {
       return;
     }
 
+    if (local.ownerId.isEmpty || local.ownerId == currentSession.id) {
+      carts.value = List.unmodifiable(_sort(local.carts));
+    }
+
     try {
       var remoteCarts = await _cartRepository.listCarts(
         currentSession.authToken,
@@ -51,9 +55,7 @@ class CartStore {
             cart: cart,
           );
         }
-        remoteCarts = await _cartRepository.listCarts(
-          currentSession.authToken,
-        );
+        remoteCarts = await _cartRepository.listCarts(currentSession.authToken);
       }
 
       final remainingPending = await _flushPendingOps(
@@ -115,9 +117,7 @@ class CartStore {
         await _upsertPendingOp(
           PendingCartOp.create(ownerId: currentSession.id, cart: localCart),
         );
-        throw const RemoteCartException(
-          '저장은 로컬에 반영했고, 서버 생성은 다시 시도할게',
-        );
+        throw const RemoteCartException('저장은 로컬에 반영했고, 서버 생성은 다시 시도할게');
       }
     }
 
@@ -144,10 +144,7 @@ class CartStore {
           ),
         ];
         await _persistLocal(next, ownerId: currentSession.id);
-        await _clearPendingOp(
-          ownerId: currentSession.id,
-          cartId: remote.id,
-        );
+        await _clearPendingOp(ownerId: currentSession.id, cartId: remote.id);
         return remote;
       } on RemoteCartException {
         final next = [
@@ -164,9 +161,7 @@ class CartStore {
               ? PendingCartOp.create(ownerId: currentSession.id, cart: updated)
               : PendingCartOp.update(ownerId: currentSession.id, cart: updated),
         );
-        throw const RemoteCartException(
-          '저장은 로컬에 반영했고, 서버 동기화는 다시 시도할게',
-        );
+        throw const RemoteCartException('저장은 로컬에 반영했고, 서버 동기화는 다시 시도할게');
       }
     }
 
@@ -207,9 +202,7 @@ class CartStore {
         await _upsertPendingOp(
           PendingCartOp.delete(ownerId: currentSession.id, cartId: id),
         );
-        throw const RemoteCartException(
-          '삭제는 로컬에 반영했고, 서버 동기화는 다시 시도할게',
-        );
+        throw const RemoteCartException('삭제는 로컬에 반영했고, 서버 동기화는 다시 시도할게');
       }
     }
 
@@ -307,9 +300,7 @@ class CartStore {
     await sp.setString(_pendingOpKey, encoded);
     final ownerId = AuthStore.instance.session.value?.id;
     if (ownerId != null && ownerId.isNotEmpty) {
-      _updatePendingCartIds(
-        ops.where((op) => op.ownerId == ownerId).toList(),
-      );
+      _updatePendingCartIds(ops.where((op) => op.ownerId == ownerId).toList());
     } else {
       pendingCartIds.value = <String>{};
     }
@@ -318,8 +309,10 @@ class CartStore {
   Future<void> _upsertPendingOp(PendingCartOp op) async {
     final ops = await _readPendingOps();
     final next = ops
-        .where((existing) =>
-            existing.ownerId != op.ownerId || existing.cartId != op.cartId)
+        .where(
+          (existing) =>
+              existing.ownerId != op.ownerId || existing.cartId != op.cartId,
+        )
         .toList();
     next.add(op);
     await _persistPendingOps(next);
@@ -427,4 +420,3 @@ class _LocalCartState {
 
   const _LocalCartState({required this.carts, required this.ownerId});
 }
-

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_support.dart';
 import '../models/saved_cart.dart';
 import '../services/app_runtime_copy.dart';
+import 'cartly_symbol_icon.dart';
 import 'inline_promo_slot.dart';
 
 Future<void> showSaveCompleteBottomSheet({
@@ -66,13 +67,13 @@ class _SaveCompleteBottomSheet extends StatelessWidget {
             ),
             Row(
               children: [
-                const Icon(Icons.check_circle, color: Color(0xFF1E8E3E)),
+                const CartlySymbolIcon.sf(
+                  'checkmark.circle.fill',
+                  color: Color(0xFF1E8E3E),
+                ),
                 const SizedBox(width: 8),
                 Text(
-                  AppRuntimeCopy.text([
-                    'saveComplete',
-                    'title',
-                  ], '카트를 저장했어요'),
+                  AppRuntimeCopy.text(['saveComplete', 'title'], '카트를 저장했어요'),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,

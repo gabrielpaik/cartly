@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/saved_cart.dart';
 import '../services/app_runtime_copy.dart';
+import 'cartly_symbol_icon.dart';
 
 class CartDetailAppBarActions extends StatelessWidget {
   final bool isEditing;
@@ -37,10 +38,10 @@ class CartDetailAppBarActions extends StatelessWidget {
               'entryAction',
             ], '영수증 확인'),
             onPressed: onReceiptCompare,
-            icon: Icon(
+            icon: CartlySymbolIcon.sf(
               receiptStatus == null
-                  ? Icons.receipt_long_outlined
-                  : Icons.receipt_long,
+                  ? 'checklist.unchecked'
+                  : 'checklist.checked',
             ),
           ),
         TextButton(
@@ -55,7 +56,7 @@ class CartDetailAppBarActions extends StatelessWidget {
         if (isEditing)
           IconButton(
             onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline),
+            icon: const CartlySymbolIcon.sf('trash'),
           ),
       ],
     );

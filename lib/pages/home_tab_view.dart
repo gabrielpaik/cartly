@@ -9,6 +9,7 @@ import '../models/recognized_item.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/scan_repository.dart';
 import '../widgets/cartly_action_tile.dart';
+import '../widgets/cartly_symbol_icon.dart';
 import '../widgets/current_cart_section.dart';
 import '../widgets/item_add_section.dart';
 import '../widgets/recent_scan_card.dart';
@@ -140,7 +141,7 @@ class HomeTabView extends StatelessWidget {
         ),
         const SizedBox(height: CartlySpacing.xl),
         CartlyActionTile(
-          icon: Icons.explore_outlined,
+          icon: const CartlySymbolIcon.sf('sparkle.magnifyingglass'),
           title: AppRuntimeCopy.text([
             'home',
             'exploreEntryTitle',

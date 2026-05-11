@@ -1,8 +1,4 @@
-enum ExploreOfferSourceType {
-  currentCart,
-  pendingReview,
-  repeatPurchase,
-}
+enum ExploreOfferSourceType { currentCart, pendingReview, repeatPurchase }
 
 class ExploreOfferSignal {
   final String intentKey;
@@ -114,7 +110,9 @@ class ExploreStorePromo {
     final priority = rawPriority is int
         ? rawPriority
         : int.tryParse('${json['priority'] ?? ''}') ?? 100;
-    final isSponsored = json['isSponsored'] == true || '${json['isSponsored']}'.trim().toLowerCase() == 'true';
+    final isSponsored =
+        json['isSponsored'] == true ||
+        '${json['isSponsored']}'.trim().toLowerCase() == 'true';
     final sponsorLabelValue = (json['sponsorLabel'] as String?)?.trim();
 
     return ExploreStorePromo(
@@ -142,6 +140,7 @@ class ExploreAlternativeOffer {
   final String title;
   final String? subtitle;
   final int? price;
+  final String? thumbnailUrl;
   final String? deeplinkUrl;
   final List<String> highlights;
 
@@ -150,6 +149,7 @@ class ExploreAlternativeOffer {
     required this.title,
     this.subtitle,
     this.price,
+    this.thumbnailUrl,
     this.deeplinkUrl,
     this.highlights = const [],
   });
@@ -159,9 +159,13 @@ class ExploreAlternativeOffer {
       provider: (json['provider'] as String?)?.trim() ?? '',
       title: (json['title'] as String?)?.trim() ?? '',
       subtitle: (json['subtitle'] as String?)?.trim(),
-      price: json['price'] is int ? json['price'] as int : int.tryParse('${json['price'] ?? ''}'),
+      price: json['price'] is int
+          ? json['price'] as int
+          : int.tryParse('${json['price'] ?? ''}'),
+      thumbnailUrl: (json['thumbnailUrl'] as String?)?.trim(),
       deeplinkUrl: (json['deeplinkUrl'] as String?)?.trim(),
-      highlights: (json['highlights'] as List?)
+      highlights:
+          (json['highlights'] as List?)
               ?.map((item) => item?.toString().trim())
               .whereType<String>()
               .where((item) => item.isNotEmpty)
@@ -175,6 +179,7 @@ class ExploreAlternativeOffer {
     String? title,
     String? subtitle,
     int? price,
+    String? thumbnailUrl,
     String? deeplinkUrl,
     List<String>? highlights,
   }) {
@@ -183,6 +188,7 @@ class ExploreAlternativeOffer {
       title: title ?? this.title,
       subtitle: subtitle ?? this.subtitle,
       price: price ?? this.price,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
       deeplinkUrl: deeplinkUrl ?? this.deeplinkUrl,
       highlights: highlights ?? this.highlights,
     );

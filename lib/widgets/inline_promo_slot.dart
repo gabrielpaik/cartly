@@ -9,6 +9,7 @@ import '../services/ad_tracking_service.dart';
 import '../services/app_config_store.dart';
 import '../services/auth_store.dart';
 import '../widgets/admob_banner_slot.dart';
+import 'cartly_symbol_icon.dart';
 
 class AudienceBannerSlot extends StatelessWidget {
   final bool showForGuests;
@@ -124,11 +125,18 @@ class _InlinePromoSlotState extends State<InlinePromoSlot> {
         }
 
         final slotTitle = _resolveText(liveSlot?.config.title, widget.title);
-        final slotMessage = _resolveText(liveSlot?.config.message, widget.message);
+        final slotMessage = _resolveText(
+          liveSlot?.config.message,
+          widget.message,
+        );
         final slotHeight = liveSlot?.config.maxHeight ?? widget.height;
-        final ctaLabel = _resolveText(liveSlot?.config.ctaLabel, widget.slotKey);
+        final ctaLabel = _resolveText(
+          liveSlot?.config.ctaLabel,
+          widget.slotKey,
+        );
         final imageUrl = liveSlot?.config.imageUrl?.trim();
-        final hasTapAction = (liveSlot?.config.targetUrl?.trim().isNotEmpty ?? false);
+        final hasTapAction =
+            (liveSlot?.config.targetUrl?.trim().isNotEmpty ?? false);
 
         final card = Container(
           constraints: BoxConstraints(minHeight: slotHeight),
@@ -192,7 +200,10 @@ class _InlinePromoSlotState extends State<InlinePromoSlot> {
               ),
               const SizedBox(width: 10),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(999),
@@ -202,7 +213,9 @@ class _InlinePromoSlotState extends State<InlinePromoSlot> {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
-                    color: hasTapAction ? const Color(0xFFE31837) : Colors.black54,
+                    color: hasTapAction
+                        ? const Color(0xFFE31837)
+                        : Colors.black54,
                   ),
                 ),
               ),
@@ -239,8 +252,8 @@ class PromoSlotIcon extends StatelessWidget {
         color: const Color(0xFFE31837).withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Icon(
-        hasTapAction ? Icons.open_in_new : Icons.local_offer_outlined,
+      child: CartlySymbolIcon.sf(
+        hasTapAction ? 'square.and.arrow.up' : 'tag',
         color: const Color(0xFFE31837),
       ),
     );

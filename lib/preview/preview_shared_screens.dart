@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/saved_cart.dart';
 import '../models/user_session.dart';
 import '../services/app_runtime_copy.dart';
+import '../widgets/cartly_symbol_icon.dart';
 import 'preview_state.dart';
 
 String _formatPrice(int value) {
@@ -169,10 +170,7 @@ class PreviewHelpScreen extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          AppRuntimeCopy.text([
-            'help',
-            'subtitle',
-          ], '지금 필요한 비교만 모아 보여드릴게요'),
+          AppRuntimeCopy.text(['help', 'subtitle'], '지금 필요한 비교만 모아 보여드릴게요'),
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -256,7 +254,10 @@ class PreviewSavedScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              AppRuntimeCopy.text(['saved', 'subtitle'], '저장한 장보기 기록을 다시 확인해보세요'),
+              AppRuntimeCopy.text([
+                'saved',
+                'subtitle',
+              ], '저장한 장보기 기록을 다시 확인해보세요'),
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -365,8 +366,8 @@ class _PreviewMyHeader extends StatelessWidget {
                           ).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(18),
                         ),
-                        child: const Icon(
-                          Icons.person_outline_rounded,
+                        child: const CartlySymbolIcon.sf(
+                          'person.circle',
                           color: Color(0xFFE31837),
                           size: 28,
                         ),
@@ -377,10 +378,7 @@ class _PreviewMyHeader extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              AppRuntimeCopy.text([
-                                'my',
-                                'pageTitle',
-                              ], '마이'),
+                              AppRuntimeCopy.text(['my', 'pageTitle'], '마이'),
                               style: const TextStyle(
                                 fontFamily: 'SpaceGrotesk',
                                 fontSize: 30,
@@ -533,10 +531,8 @@ class _PreviewMyAccountSummaryCard extends StatelessWidget {
                               : const Color(0xFFE31837).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(18),
                         ),
-                        child: Icon(
-                          memberSignedIn
-                              ? Icons.verified_user_outlined
-                              : Icons.shopping_bag_outlined,
+                        child: CartlySymbolIcon.sf(
+                          memberSignedIn ? 'person.circle' : 'person',
                           color: memberSignedIn
                               ? Colors.white
                               : const Color(0xFFE31837),
@@ -558,32 +554,98 @@ class _PreviewMyAccountSummaryCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _ContextPill(
-                                  label: memberSignedIn
-                                      ? '회원 계정'
-                                      : isGuestMode
-                                      ? '게스트'
-                                      : '비로그인',
-                                  color: memberSignedIn
-                                      ? Colors.white
-                                      : const Color(0xFFE31837),
-                                  background: badgeBackground,
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (memberSignedIn &&
+                                          session.email.isNotEmpty) ...[
+                                        Text(
+                                          session.email,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: bodyColor,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                      ],
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          _ContextPill(
+                                            label: memberSignedIn
+                                                ? '회원 계정'
+                                                : isGuestMode
+                                                ? '게스트'
+                                                : '비로그인',
+                                            color: memberSignedIn
+                                                ? Colors.white
+                                                : const Color(0xFFE31837),
+                                            background: badgeBackground,
+                                          ),
+                                          _ContextPill(
+                                            label: latestCart == null
+                                                ? '아직 저장 없음'
+                                                : '최근 저장 ${_formatPreviewShortDate(latestCart.createdAt)}',
+                                            color: memberSignedIn
+                                                ? Colors.white
+                                                : const Color(0xFF475569),
+                                            background: memberSignedIn
+                                                ? Colors.white.withValues(
+                                                    alpha: 0.10,
+                                                  )
+                                                : const Color(0xFFF8FAFC),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                _ContextPill(
-                                  label: latestCart == null
-                                      ? '아직 저장 없음'
-                                      : '최근 저장 ${_formatPreviewShortDate(latestCart.createdAt)}',
-                                  color: memberSignedIn
-                                      ? Colors.white
-                                      : const Color(0xFF475569),
-                                  background: memberSignedIn
-                                      ? Colors.white.withValues(alpha: 0.10)
-                                      : const Color(0xFFF8FAFC),
-                                ),
+                                if (memberSignedIn) ...[
+                                  const SizedBox(width: 10),
+                                  OutlinedButton(
+                                    onPressed: () {},
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: bodyColor,
+                                      side: BorderSide(
+                                        color: memberSignedIn
+                                            ? Colors.white.withValues(
+                                                alpha: 0.22,
+                                              )
+                                            : const Color(0xFFE5E7EB),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 10,
+                                      ),
+                                      minimumSize: const Size(0, 36),
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      visualDensity: VisualDensity.compact,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      AppRuntimeCopy.text([
+                                        'my',
+                                        'logoutAction',
+                                      ], '로그아웃'),
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ],
@@ -591,17 +653,6 @@ class _PreviewMyAccountSummaryCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  if (memberSignedIn && session.email.isNotEmpty) ...[
-                    const SizedBox(height: 14),
-                    Text(
-                      session.email,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: bodyColor,
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 14),
                   Text(
                     memberSignedIn
@@ -609,10 +660,10 @@ class _PreviewMyAccountSummaryCard extends StatelessWidget {
                             'my',
                             'memberBody',
                           ], '계정 정보와 지난 장보기 기록을 여기서 함께 관리하실 수 있어요.')
-                        : AppRuntimeCopy.text([
-                            'my',
-                            'guestBody',
-                          ], '지금 저장한 카트는 여기서 보실 수 있고, 로그인하시면 계속 이어서 관리하실 수 있어요.'),
+                        : AppRuntimeCopy.text(
+                            ['my', 'guestBody'],
+                            '지금 저장한 카트는 여기서 보실 수 있고, 로그인하시면 계속 이어서 관리하실 수 있어요.',
+                          ),
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -646,26 +697,22 @@ class _PreviewMyAccountSummaryCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  _PrimaryPreviewButton(
-                    label: memberSignedIn
-                        ? AppRuntimeCopy.text(['my', 'logoutAction'], '로그아웃')
-                        : isGuestMode
-                        ? AppRuntimeCopy.text([
-                            'my',
-                            'guestSignupAction',
-                          ], '회원가입하기')
-                        : AppRuntimeCopy.text([
-                            'my',
-                            'loginAction',
-                          ], '로그인 / 회원가입'),
-                    background: memberSignedIn
-                        ? Colors.white
-                        : const Color(0xFFE31837),
-                    textColor: memberSignedIn
-                        ? const Color(0xFF111827)
-                        : Colors.white,
-                  ),
+                  if (!memberSignedIn) ...[
+                    const SizedBox(height: 16),
+                    _PrimaryPreviewButton(
+                      label: isGuestMode
+                          ? AppRuntimeCopy.text([
+                              'my',
+                              'guestSignupAction',
+                            ], '회원가입하기')
+                          : AppRuntimeCopy.text([
+                              'my',
+                              'loginAction',
+                            ], '로그인 / 회원가입'),
+                      background: const Color(0xFFE31837),
+                      textColor: Colors.white,
+                    ),
+                  ],
                 ],
               ),
             );
@@ -818,10 +865,10 @@ class _PreviewMySecondarySection extends StatelessWidget {
         }
 
         final benefitLines =
-            AppRuntimeCopy.text([
-                  'my',
-                  'benefitsBody',
-                ], '• 지난 카트를 계속 보실 수 있어요\n• 최근 스캔 결과를 이어서 확인하실 수 있어요\n• 다음 장보기 전에 다시 비교하실 수 있어요')
+            AppRuntimeCopy.text(
+                  ['my', 'benefitsBody'],
+                  '• 지난 카트를 계속 보실 수 있어요\n• 최근 스캔 결과를 이어서 확인하실 수 있어요\n• 다음 장보기 전에 다시 비교하실 수 있어요',
+                )
                 .split('\n')
                 .map((line) => line.replaceFirst('•', '').trim())
                 .where((line) => line.isNotEmpty)
@@ -938,9 +985,9 @@ class _PreviewBenefitRow extends StatelessWidget {
             color: const Color(0xFFE31837).withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(999),
           ),
-          child: const Icon(
-            Icons.check_rounded,
-            size: 14,
+          child: const CartlySymbolIcon.sf(
+            'checkmark',
+            size: 12,
             color: Color(0xFFE31837),
           ),
         ),
@@ -985,8 +1032,8 @@ class PreviewLoginScreen extends StatelessWidget {
                   color: const Color(0xFFE31837).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(24),
                 ),
-                child: const Icon(
-                  Icons.shopping_cart_outlined,
+                child: const CartlySymbolIcon.sf(
+                  'cart',
                   color: Color(0xFFE31837),
                   size: 34,
                 ),
@@ -1326,10 +1373,7 @@ class _PreviewPromoCard extends StatelessWidget {
               color: const Color(0xFFE31837).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
-              Icons.local_offer_outlined,
-              color: Color(0xFFE31837),
-            ),
+            child: const CartlySymbolIcon.sf('tag', color: Color(0xFFE31837)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1397,8 +1441,8 @@ class _PreviewScanCard extends StatelessWidget {
               color: const Color(0xFFFFF1F2),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(
-              Icons.document_scanner_outlined,
+            child: const CartlySymbolIcon.sf(
+              'receipt',
               color: Color(0xFFE31837),
             ),
           ),
@@ -1536,7 +1580,7 @@ class _PreviewSavedCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          const Icon(Icons.chevron_right_rounded, color: Colors.black26),
+          const CartlySymbolIcon.sf('chevron.right', color: Colors.black26),
         ],
       ),
     );
@@ -1556,7 +1600,7 @@ class _PreviewEmptyCard extends StatelessWidget {
       children: [
         const Opacity(
           opacity: 0.16,
-          child: Icon(Icons.bookmark_border, size: 72),
+          child: CartlySymbolIcon.sf('bookmark', size: 72),
         ),
         const SizedBox(height: 14),
         Text(

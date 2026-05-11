@@ -4,11 +4,14 @@ import '../app/cartly_ui.dart';
 import '../models/saved_cart.dart';
 import '../pages/cart_detail_page.dart';
 import '../pages/login_page.dart';
+import '../services/app_config_store.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
+import '../services/my_page_insights.dart';
 import '../widgets/cartly_info_card.dart';
 import '../widgets/cartly_surface_card.dart';
+import '../widgets/cartly_symbol_icon.dart';
 import '../widgets/inline_promo_slot.dart';
 import '../widgets/saved_tab_cart_list.dart';
 import '../widgets/saved_tab_empty_state.dart';
@@ -23,11 +26,90 @@ class MyPage extends StatelessWidget {
       children: const [
         _AccountHubCard(),
         SizedBox(height: CartlySpacing.section),
-        _SavedCartsSection(),
+        _MyPageOrderedSections(),
         SizedBox(height: CartlySpacing.lg),
         _MySecondarySections(),
       ],
     );
+  }
+}
+
+class _MyPageOrderedSections extends StatelessWidget {
+  const _MyPageOrderedSections();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<Map<String, dynamic>>(
+      valueListenable: AppConfigStore.instance.runtime,
+      builder: (context, runtimeValue, _) {
+        return ValueListenableBuilder(
+          valueListenable: AuthStore.instance.session,
+          builder: (context, session, _) {
+            final memberSignedIn = session != null && !session.isGuest;
+            return ValueListenableBuilder<List<SavedCart>>(
+              valueListenable: CartStore.instance.carts,
+              builder: (context, carts, _) {
+                final latestCart = _latestCartFrom(carts);
+                final summaries = AppConfigStore.instance.myPageInsightsEnabled
+                    ? MyPageInsightsCalculator.buildMonthlySummaries(
+                        carts: carts,
+                        groups: AppConfigStore.instance.myPageCategoryGroups,
+                        months: AppConfigStore.instance.myPageSummaryMonths,
+                        topCategoryCount:
+                            AppConfigStore.instance.myPageTopCategoriesCount,
+                      ).where((summary) => summary.savedCartCount > 0).toList()
+                    : const <MyPageMonthlySummary>[];
+
+                final sections = <Widget>[];
+                for (final sectionId
+                    in AppConfigStore.instance.myPageSectionOrder) {
+                  final section = _buildSection(
+                    sectionId: sectionId,
+                    memberSignedIn: memberSignedIn,
+                    latestCart: latestCart,
+                    carts: carts,
+                    summaries: summaries,
+                  );
+                  if (section == null) {
+                    continue;
+                  }
+                  if (sections.isNotEmpty) {
+                    sections.add(const SizedBox(height: CartlySpacing.section));
+                  }
+                  sections.add(section);
+                }
+
+                return Column(children: sections);
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget? _buildSection({
+    required String sectionId,
+    required bool memberSignedIn,
+    required SavedCart? latestCart,
+    required List<SavedCart> carts,
+    required List<MyPageMonthlySummary> summaries,
+  }) {
+    switch (sectionId) {
+      case 'recentSaved':
+        return _RecentSavedSection(
+          memberSignedIn: memberSignedIn,
+          latestCart: latestCart,
+        );
+      case 'monthlySummary':
+        if (summaries.isEmpty) {
+          return null;
+        }
+        return _MyInsightsSection(summaries: summaries);
+      case 'allSavedHistory':
+        return _SavedHistorySection(carts: carts);
+    }
+    return null;
   }
 }
 
@@ -73,6 +155,44 @@ class _AccountHubCard extends StatelessWidget {
                       : 'Guest')
                 : AppRuntimeCopy.text(['my', 'guestModeLabel'], '게스트로 사용 중이에요');
 
+            Future<void> handlePrimaryAction() async {
+              if (memberSignedIn) {
+                await AuthStore.instance.signOut();
+                await CartStore.instance.refreshForCurrentSession();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        AppRuntimeCopy.text([
+                          'my',
+                          'logoutDoneMessage',
+                        ], '로그아웃되었어요'),
+                      ),
+                    ),
+                  );
+                }
+                return;
+              }
+
+              final result = await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => LoginPage(preferSignup: isGuestMode),
+                ),
+              );
+              if (result == true && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      AppRuntimeCopy.text([
+                        'my',
+                        'linkedDoneMessage',
+                      ], '계정이 연결되었어요'),
+                    ),
+                  ),
+                );
+              }
+            }
+
             return CartlySurfaceCard(
               padding: const EdgeInsets.all(18),
               backgroundColor: CartlyColors.surface1,
@@ -91,10 +211,8 @@ class _AccountHubCard extends StatelessWidget {
                           color: CartlyColors.surfaceNeutral,
                           borderRadius: BorderRadius.circular(CartlyRadii.hero),
                         ),
-                        child: Icon(
-                          memberSignedIn
-                              ? Icons.history_toggle_off_rounded
-                              : Icons.shopping_bag_outlined,
+                        child: CartlySymbolIcon.sf(
+                          memberSignedIn ? 'person.circle' : 'person',
                           color: CartlyColors.brand,
                           size: 28,
                         ),
@@ -109,26 +227,75 @@ class _AccountHubCard extends StatelessWidget {
                               style: CartlyText.pageHeroCompact,
                             ),
                             const SizedBox(height: 8),
-                            Text(
-                              displayName,
-                              style: const TextStyle(
-                                fontSize: 21,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.4,
-                                color: CartlyColors.textPrimary,
-                              ),
-                            ),
-                            if (memberSignedIn && session.email.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                session.email,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: CartlyColors.textSecondary,
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        displayName,
+                                        style: const TextStyle(
+                                          fontSize: 21,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: -0.4,
+                                          color: CartlyColors.textPrimary,
+                                        ),
+                                      ),
+                                      if (memberSignedIn &&
+                                          session.email.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          session.email,
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: CartlyColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                                if (memberSignedIn) ...[
+                                  const SizedBox(width: 12),
+                                  OutlinedButton(
+                                    style:
+                                        CartlyButtonStyles.secondaryOutline(
+                                          foregroundColor:
+                                              CartlyColors.textSecondary,
+                                          borderColor: CartlyColors.line,
+                                          radius: CartlyRadii.pill,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 10,
+                                          ),
+                                        ).copyWith(
+                                          minimumSize:
+                                              const WidgetStatePropertyAll(
+                                                Size(0, 36),
+                                              ),
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                    onPressed: handlePrimaryAction,
+                                    child: Text(
+                                      AppRuntimeCopy.text([
+                                        'my',
+                                        'logoutAction',
+                                      ], '로그아웃'),
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -152,76 +319,34 @@ class _AccountHubCard extends StatelessWidget {
                       height: 1.5,
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      style: CartlyButtonStyles.primary(
-                        backgroundColor: memberSignedIn
-                            ? CartlyColors.contrast
-                            : CartlyColors.brand,
-                      ).copyWith(elevation: const WidgetStatePropertyAll(0)),
-                      onPressed: () async {
-                        if (memberSignedIn) {
-                          await AuthStore.instance.signOut();
-                          await CartStore.instance.refreshForCurrentSession();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  AppRuntimeCopy.text([
-                                    'my',
-                                    'logoutDoneMessage',
-                                  ], '로그아웃되었어요'),
-                                ),
-                              ),
-                            );
-                          }
-                          return;
-                        }
-
-                        final result = await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                LoginPage(preferSignup: isGuestMode),
-                          ),
-                        );
-                        if (result == true && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                AppRuntimeCopy.text([
+                  if (!memberSignedIn) ...[
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        style: CartlyButtonStyles.primary(
+                          backgroundColor: CartlyColors.brand,
+                        ).copyWith(elevation: const WidgetStatePropertyAll(0)),
+                        onPressed: handlePrimaryAction,
+                        child: Text(
+                          isGuestMode
+                              ? AppRuntimeCopy.text([
                                   'my',
-                                  'linkedDoneMessage',
-                                ], '계정이 연결되었어요'),
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                      child: Text(
-                        memberSignedIn
-                            ? AppRuntimeCopy.text([
-                                'my',
-                                'logoutAction',
-                              ], '로그아웃')
-                            : isGuestMode
-                            ? AppRuntimeCopy.text([
-                                'my',
-                                'guestSignupAction',
-                              ], '회원가입하기')
-                            : AppRuntimeCopy.text([
-                                'my',
-                                'loginAction',
-                              ], '로그인 / 회원가입'),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
+                                  'guestSignupAction',
+                                ], '회원가입하기')
+                              : AppRuntimeCopy.text([
+                                  'my',
+                                  'loginAction',
+                                ], '로그인 / 회원가입'),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             );
@@ -232,97 +357,749 @@ class _AccountHubCard extends StatelessWidget {
   }
 }
 
-class _SavedCartsSection extends StatelessWidget {
-  const _SavedCartsSection();
+class _MyInsightsSection extends StatelessWidget {
+  final List<MyPageMonthlySummary> summaries;
+
+  const _MyInsightsSection({required this.summaries});
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder(
-      valueListenable: AuthStore.instance.session,
-      builder: (context, session, _) {
-        final memberSignedIn = session != null && !session.isGuest;
-        final subtitle = memberSignedIn
-            ? AppRuntimeCopy.text([
-                'my',
-                'savedSectionMemberSubtitle',
-              ], '최근 저장한 장보기를 다시 열고 전체 기록도 함께 확인해보세요')
-            : AppRuntimeCopy.text([
-                'my',
-                'savedSectionGuestSubtitle',
-              ], '게스트로 저장한 카트도 다시 열고 이어서 확인하실 수 있어요');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '월별 요약',
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.6,
+            color: CartlyColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          '자주 담은 상품과 월별 저장 카트를 한 번에 다시 볼 수 있어요',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: CartlyColors.textSecondary,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...summaries.map(
+          (summary) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _MonthlySummaryCard(
+              summary: summary,
+              topItemsCount: AppConfigStore.instance.myPageTopItemsCount,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
 
-        return ValueListenableBuilder<List<SavedCart>>(
-          valueListenable: CartStore.instance.carts,
-          builder: (context, carts, _) {
-            final latestCart = _latestCartFrom(carts);
+class _MonthlySummaryCard extends StatefulWidget {
+  final MyPageMonthlySummary summary;
+  final int topItemsCount;
 
-            return Column(
+  const _MonthlySummaryCard({
+    required this.summary,
+    required this.topItemsCount,
+  });
+
+  @override
+  State<_MonthlySummaryCard> createState() => _MonthlySummaryCardState();
+}
+
+class _MonthlySummaryCardState extends State<_MonthlySummaryCard> {
+  bool _expanded = false;
+
+  void _toggleExpanded() {
+    setState(() {
+      _expanded = !_expanded;
+    });
+  }
+
+  Future<void> _showCategoryItems(MyPageCategorySummary category) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: CartlyColors.surface0,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return FractionallySizedBox(
+          heightFactor: 0.72,
+          child: _MonthlyCategoryItemsSheet(
+            month: widget.summary.month,
+            category: category,
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = widget.summary;
+
+    return CartlySurfaceCard(
+      padding: const EdgeInsets.all(18),
+      backgroundColor: CartlyColors.surface1,
+      radius: CartlyRadii.hero,
+      border: Border.all(color: CartlyColors.line, width: 0.5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _toggleExpanded,
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  AppRuntimeCopy.text(['my', 'savedSectionTitle'], '지난 카트'),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.6,
-                    color: CartlyColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: CartlyColors.textSecondary,
-                    height: 1.45,
-                  ),
-                ),
-                if (latestCart != null) ...[
-                  const SizedBox(height: 14),
-                  _RecentSavedCartCard(cart: latestCart),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      const Text(
-                        '전체 기록',
-                        style: TextStyle(
-                          fontSize: 15,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${summary.month.year}년 ${summary.month.month}월',
+                        style: const TextStyle(
+                          fontSize: 18,
                           fontWeight: FontWeight.w800,
                           color: CartlyColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${carts.length}개',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black45,
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: CartlyColors.surfaceNeutral,
+                        borderRadius: BorderRadius.circular(CartlyRadii.pill),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _expanded ? '접기' : '펼치기',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: CartlyColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          AnimatedRotation(
+                            turns: _expanded ? 0.25 : 0,
+                            duration: const Duration(milliseconds: 180),
+                            child: const CartlySymbolIcon.sf(
+                              'chevron.right',
+                              size: 12,
+                              color: CartlyColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _InsightMetric(
+                        label: '저장 카트',
+                        value: '${summary.savedCartCount}개',
+                      ),
+                    ),
+                    Expanded(
+                      child: _InsightMetric(
+                        label: '상품 수',
+                        value: '${summary.totalItemCount}개',
+                      ),
+                    ),
+                    Expanded(
+                      child: _InsightMetric(
+                        label: '합계',
+                        value: _formatCurrency(summary.totalAmount),
+                      ),
+                    ),
+                  ],
+                ),
+                if (summary.topItems.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  Text(
+                    '자주 담은 상품 TOP ${widget.topItemsCount}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: CartlyColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...summary.topItems
+                      .take(widget.topItemsCount)
+                      .map(
+                        (item) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _MonthlyTopItemRow(item: item),
                         ),
                       ),
-                    ],
-                  ),
                 ],
-                const SizedBox(height: 12),
-                if (carts.isEmpty)
-                  const SavedTabEmptyState(compact: true)
-                else
-                  SavedTabCartList(
-                    carts: carts,
-                    onCartTap: (cart) {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => CartDetailPage(cart: cart),
-                        ),
-                      );
-                    },
-                  ),
               ],
-            );
-          },
-        );
+            ),
+          ),
+          if (summary.topCategories.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            const Text(
+              '카테고리 금액',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: CartlyColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: summary.topCategories
+                  .map(
+                    (category) => _CategorySummaryChip(
+                      category: category,
+                      onTap: () => _showCategoryItems(category),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '금액을 누르면 해당 카테고리 상품이 열려요',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: CartlyColors.textSecondary,
+              ),
+            ),
+          ],
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            child: _expanded
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: _MonthlySavedCartList(carts: summary.carts),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategorySummaryChip extends StatelessWidget {
+  final MyPageCategorySummary category;
+  final VoidCallback onTap;
+
+  const _CategorySummaryChip({required this.category, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: CartlyColors.surfaceNeutral,
+          borderRadius: BorderRadius.circular(CartlyRadii.pill),
+        ),
+        child: Text(
+          '${category.label} ${_formatCurrency(category.amount)}',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: CartlyColors.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MonthlyTopItemRow extends StatelessWidget {
+  final MyPageItemSummary item;
+
+  const _MonthlyTopItemRow({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final iconName = _categorySymbolName(item.categoryLabel);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: CartlyColors.surfaceNeutral,
+        borderRadius: BorderRadius.circular(CartlyRadii.card),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: CartlyColors.surface1,
+              borderRadius: BorderRadius.circular(CartlyRadii.pill),
+            ),
+            child: Center(
+              child: CartlySymbolIcon.sf(
+                iconName,
+                size: 14,
+                color: CartlyColors.brand,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: CartlyColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${item.cartCount}번 담음 · 총 ${item.quantity}개',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: CartlyColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            _formatCurrency(item.amount),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: CartlyColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MonthlySavedCartList extends StatelessWidget {
+  final List<SavedCart> carts;
+
+  const _MonthlySavedCartList({required this.carts});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: CartlyColors.surface0,
+        borderRadius: BorderRadius.circular(CartlyRadii.card),
+        border: Border.all(color: CartlyColors.line, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  '이 달 저장 카트',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: CartlyColors.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                '${carts.length}개',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: CartlyColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...carts.asMap().entries.map(
+            (entry) => Padding(
+              padding: EdgeInsets.only(
+                bottom: entry.key == carts.length - 1 ? 0 : 10,
+              ),
+              child: _MonthlySavedCartRow(cart: entry.value),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MonthlySavedCartRow extends StatelessWidget {
+  final SavedCart cart;
+
+  const _MonthlySavedCartRow({required this.cart});
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = cart.items.take(2).map((item) => item.name).join(' · ');
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => CartDetailPage(cart: cart)));
       },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: CartlyColors.surface1,
+          borderRadius: BorderRadius.circular(CartlyRadii.card),
+          border: Border.all(color: CartlyColors.line, width: 0.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    _cartHeadline(cart),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: CartlyColors.textPrimary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const CartlySymbolIcon.sf(
+                  'chevron.right',
+                  size: 13,
+                  color: CartlyColors.textSecondary,
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${_formatShortDate(cart.createdAt)} · 상품 ${cart.totalCount}개 · ${_formatCurrency(cart.totalPrice)}',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: CartlyColors.textSecondary,
+                height: 1.45,
+              ),
+            ),
+            if (preview.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                preview,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: CartlyColors.textSecondary,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MonthlyCategoryItemsSheet extends StatelessWidget {
+  final DateTime month;
+  final MyPageCategorySummary category;
+
+  const _MonthlyCategoryItemsSheet({
+    required this.month,
+    required this.category,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: CartlyColors.line,
+                  borderRadius: BorderRadius.circular(CartlyRadii.pill),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '${month.year}년 ${month.month}월 · ${category.label}',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: CartlyColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '총 ${category.itemCount}개 · ${_formatCurrency(category.amount)}',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: CartlyColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Expanded(
+              child: ListView.separated(
+                itemCount: category.items.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final item = category.items[index];
+                  final iconName = _categorySymbolName(category.label);
+                  return Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: CartlyColors.surface1,
+                      borderRadius: BorderRadius.circular(CartlyRadii.card),
+                      border: Border.all(color: CartlyColors.line, width: 0.5),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: CartlyColors.surfaceNeutral,
+                            borderRadius: BorderRadius.circular(
+                              CartlyRadii.pill,
+                            ),
+                          ),
+                          child: Center(
+                            child: CartlySymbolIcon.sf(
+                              iconName,
+                              size: 14,
+                              color: CartlyColors.brand,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.label,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: CartlyColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${item.cartCount}번 담음 · 총 ${item.quantity}개',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: CartlyColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          _formatCurrency(item.amount),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: CartlyColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InsightMetric extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InsightMetric({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: CartlyColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: CartlyColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RecentSavedSection extends StatelessWidget {
+  final bool memberSignedIn;
+  final SavedCart? latestCart;
+
+  const _RecentSavedSection({
+    required this.memberSignedIn,
+    required this.latestCart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          AppRuntimeCopy.text(['my', 'savedSectionTitle'], '지난 카트'),
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.6,
+            color: CartlyColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _savedSectionSubtitle(memberSignedIn),
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: CartlyColors.textSecondary,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 14),
+        if (latestCart == null)
+          const SavedTabEmptyState(compact: true)
+        else
+          _RecentSavedCartCard(cart: latestCart!),
+      ],
+    );
+  }
+}
+
+class _SavedHistorySection extends StatelessWidget {
+  final List<SavedCart> carts;
+
+  const _SavedHistorySection({required this.carts});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              '전체 기록',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.6,
+                color: CartlyColors.textPrimary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${carts.length}개',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.black45,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          '저장한 장보기 전체 기록을 시간순으로 다시 확인해보세요',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: CartlyColors.textSecondary,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (carts.isEmpty)
+          const SavedTabEmptyState(compact: true)
+        else
+          SavedTabCartList(
+            carts: carts,
+            onCartTap: (cart) {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => CartDetailPage(cart: cart)),
+              );
+            },
+          ),
+      ],
     );
   }
 }
@@ -479,9 +1256,9 @@ class _BenefitRow extends StatelessWidget {
             color: CartlyColors.surfaceNeutral,
             borderRadius: BorderRadius.circular(CartlyRadii.pill),
           ),
-          child: const Icon(
-            Icons.check_rounded,
-            size: 12,
+          child: const CartlySymbolIcon.sf(
+            'checkmark',
+            size: 11,
             color: CartlyColors.brand,
           ),
         ),
@@ -499,6 +1276,44 @@ class _BenefitRow extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+String _savedSectionSubtitle(bool memberSignedIn) {
+  return memberSignedIn
+      ? AppRuntimeCopy.text([
+          'my',
+          'savedSectionMemberSubtitle',
+        ], '최근 저장한 장보기를 다시 열고 전체 기록도 함께 확인해보세요')
+      : AppRuntimeCopy.text([
+          'my',
+          'savedSectionGuestSubtitle',
+        ], '게스트로 저장한 카트도 다시 열고 이어서 확인하실 수 있어요');
+}
+
+String _categorySymbolName(String categoryLabel) {
+  switch (categoryLabel.trim()) {
+    case '식품':
+      return 'basket';
+    case '생활/건강':
+      return 'checklist.checked';
+    case '디지털/가전':
+      return 'magnifyingglass';
+    case '패션의류':
+    case '패션잡화':
+      return 'bookmark';
+    case '화장품/미용':
+      return 'sparkle.magnifyingglass';
+    case '가구/인테리어':
+      return 'cart';
+    case '출산/육아':
+      return 'person';
+    case '스포츠/레저':
+      return 'figure.run';
+    case '여가/생활편의':
+      return 'ticket';
+    default:
+      return 'tag';
   }
 }
 

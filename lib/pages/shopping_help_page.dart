@@ -1,7 +1,9 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../app/cartly_ui.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../app_support.dart';
 import '../models/explore_offer.dart';
@@ -15,6 +17,7 @@ import '../services/explore_offer_service.dart';
 import '../widgets/cartly_action_tile.dart';
 import '../widgets/cartly_badge.dart';
 import '../widgets/cartly_surface_card.dart';
+import '../widgets/cartly_symbol_icon.dart';
 import '../widgets/section_header.dart';
 
 const ExploreOfferProvider _offerProvider =
@@ -45,6 +48,7 @@ class ShoppingHelpPage extends StatefulWidget {
 
 class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
   final Set<String> _dismissedOfferIntentKeys = <String>{};
+  int _editorialRefreshSeed = DateTime.now().microsecondsSinceEpoch;
 
   @override
   void didUpdateWidget(covariant ShoppingHelpPage oldWidget) {
@@ -69,6 +73,26 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return int.tryParse('$value') ?? fallback;
+  }
+
+  String _providerLabelFromUrl(String? value) {
+    final trimmed = value?.trim() ?? '';
+    final host = Uri.tryParse(trimmed)?.host.toLowerCase() ?? '';
+    if (host.isEmpty) return '추천';
+    if (host.contains('coupang') || host.contains('coupa.ng')) return '쿠팡';
+    if (host.contains('11st')) return '11번가';
+    if (host.contains('naver')) return '네이버';
+    if (host.contains('gmarket')) return 'G마켓';
+    if (host.contains('auction')) return '옥션';
+    if (host.contains('ssg')) return 'SSG';
+    if (host.contains('kurly')) return '컬리';
+    if (host.contains('lotteon')) return '롯데온';
+    if (host.contains('emart')) return '이마트';
+    final segments = host.split('.');
+    final label = segments.length >= 2 ? segments[segments.length - 2] : host;
+    return label.length <= 4
+        ? label.toUpperCase()
+        : '${label[0].toUpperCase()}${label.substring(1)}';
   }
 
   bool _configBool(Map<String, dynamic> config, String key, bool fallback) {
@@ -308,6 +332,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
         'decisionInbox',
         'revisitItems',
         'repeatCandidates',
+        'editorialPicks',
         'offerSlots',
         'savedContext',
         'storeContextPromo',
@@ -361,20 +386,259 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     return _exploreStateIdlePlanning;
   }
 
+  String _stateOrderKey(String state) {
+    switch (state) {
+      case _exploreStatePostSave:
+        return 'postSaveSectionOrder';
+      case _exploreStateStoreContext:
+        return 'storeContextSectionOrder';
+      case _exploreStateIdlePlanning:
+        return 'idlePlanningSectionOrder';
+      case _exploreStateActiveShopping:
+      default:
+        return 'activeShoppingSectionOrder';
+    }
+  }
+
   List<String> _dynamicSectionOrder(
     Map<String, dynamic> config, {
     required bool hasOfferSlots,
+    required bool hasEditorialPicks,
     required String state,
   }) {
-    if (state == _exploreStateActiveShopping) {
-      return const ['heroSummary', 'decisionInbox'];
+    final enabled = _enabledSections(config);
+    final fallback = switch (state) {
+      _exploreStatePostSave => const [
+        'savedContext',
+        'decisionInbox',
+        'repeatCandidates',
+        'editorialPicks',
+        'offerSlots',
+      ],
+      _exploreStateStoreContext => const [
+        'storeContextPromo',
+        'savedContext',
+        'editorialPicks',
+        'repeatCandidates',
+        'offerSlots',
+      ],
+      _exploreStateIdlePlanning => const [
+        'savedContext',
+        'repeatCandidates',
+        'editorialPicks',
+        'offerSlots',
+      ],
+      _ => const ['offerSlots', 'heroSummary', 'decisionInbox', 'revisitItems'],
+    };
+
+    final configured = (config[_stateOrderKey(state)] as String? ?? '')
+        .split(',')
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+
+    final ordered = <String>[];
+
+    void addSection(String sectionId) {
+      if (!enabled.contains(sectionId) || ordered.contains(sectionId)) {
+        return;
+      }
+      if (sectionId == 'offerSlots' && !hasOfferSlots) {
+        return;
+      }
+      if (sectionId == 'editorialPicks' && !hasEditorialPicks) {
+        return;
+      }
+      ordered.add(sectionId);
     }
 
-    final enabled = _enabledSections(config);
-    return const ['repeatCandidates', 'offerSlots']
-        .where(enabled.contains)
-        .where((part) => hasOfferSlots || part != 'offerSlots')
+    for (final sectionId in configured) {
+      addSection(sectionId);
+    }
+    for (final sectionId in fallback) {
+      addSection(sectionId);
+    }
+
+    return ordered;
+  }
+
+  List<ExploreAlternativeOffer> _editorialPoolFromConfig(
+    Map<String, dynamic> config,
+  ) {
+    int? parsePrice(String value) {
+      final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+      if (digits.isEmpty) {
+        return null;
+      }
+      return int.tryParse(digits);
+    }
+
+    final itemPool = (config['editorialRecommendationsItems'] as List?)
+        ?.whereType<Map>()
+        .map((item) {
+          final data = Map<String, dynamic>.from(item);
+          final url =
+              (data['deeplinkUrl'] as String?)?.trim() ??
+              (data['url'] as String?)?.trim() ??
+              '';
+          final title = (data['title'] as String?)?.trim();
+          final subtitle = (data['subtitle'] as String?)?.trim();
+          final provider = (data['provider'] as String?)?.trim();
+          final thumbnailUrl = (data['thumbnailUrl'] as String?)?.trim();
+          final rawPrice = data['price'];
+          final price = rawPrice is int
+              ? rawPrice
+              : rawPrice is num
+              ? rawPrice.toInt()
+              : int.tryParse('${data['price'] ?? ''}');
+          if ((title == null || title.isEmpty) &&
+              url.isEmpty &&
+              (thumbnailUrl == null || thumbnailUrl.isEmpty)) {
+            return null;
+          }
+          final providerUrl = url.isNotEmpty ? url : thumbnailUrl;
+          return ExploreAlternativeOffer(
+            provider: provider == null || provider.isEmpty
+                ? _providerLabelFromUrl(providerUrl)
+                : provider,
+            title: title == null || title.isEmpty ? '추천 상품' : title,
+            subtitle: subtitle == null || subtitle.isEmpty ? null : subtitle,
+            price: price,
+            thumbnailUrl: thumbnailUrl == null || thumbnailUrl.isEmpty
+                ? null
+                : thumbnailUrl,
+            deeplinkUrl: url.isEmpty ? null : url,
+          );
+        })
+        .whereType<ExploreAlternativeOffer>()
         .toList(growable: false);
+    if (itemPool != null && itemPool.isNotEmpty) {
+      return itemPool;
+    }
+
+    final raw = config['editorialRecommendationsPoolRaw'];
+    if (raw is String && raw.trim().isNotEmpty) {
+      final seen = <String>{};
+      final parsed = <ExploreAlternativeOffer>[];
+      for (final line in raw.split(RegExp(r'\r?\n'))) {
+        final trimmed = line.trim();
+        if (trimmed.isEmpty || trimmed.startsWith('#')) {
+          continue;
+        }
+        final iframeMatch = RegExp(
+          r'''<iframe[^>]+src=["']([^"']+)["']''',
+          caseSensitive: false,
+        ).firstMatch(trimmed);
+        final anchorHrefMatch = RegExp(
+          r'''<a[^>]+href=["']([^"']+)["']''',
+          caseSensitive: false,
+        ).firstMatch(trimmed);
+        final imageSrcMatch = RegExp(
+          r'''<img[^>]+src=["']([^"']+)["']''',
+          caseSensitive: false,
+        ).firstMatch(trimmed);
+        final imageAltMatch = RegExp(
+          r'''<img[^>]+alt=["']([^"']+)["']''',
+          caseSensitive: false,
+        ).firstMatch(trimmed);
+        final normalizedLine = iframeMatch?.group(1)?.trim() ?? trimmed;
+        final parts = normalizedLine
+            .split('|')
+            .map((part) => part.trim())
+            .where((part) => part.isNotEmpty)
+            .toList(growable: false);
+
+        var title = imageAltMatch?.group(1)?.trim() ?? '';
+        var deeplinkUrl = anchorHrefMatch?.group(1)?.trim() ?? '';
+        var thumbnailUrl = imageSrcMatch?.group(1)?.trim() ?? '';
+        int? price;
+
+        if (deeplinkUrl.isNotEmpty) {
+          // keep parsed html values
+        } else if (parts.length == 1 &&
+            Uri.tryParse(normalizedLine)?.hasScheme == true) {
+          deeplinkUrl = normalizedLine;
+        } else {
+          title = title.isEmpty && parts.isNotEmpty ? parts.first : title;
+          final urlParts = parts
+              .skip(1)
+              .where((part) => Uri.tryParse(part)?.hasScheme == true)
+              .toList(growable: false);
+          final nonUrlParts = parts
+              .skip(1)
+              .where((part) => Uri.tryParse(part)?.hasScheme != true)
+              .toList(growable: false);
+
+          for (final part in nonUrlParts) {
+            price ??= parsePrice(part);
+          }
+
+          if (urlParts.length >= 2) {
+            thumbnailUrl = urlParts.first;
+            deeplinkUrl = urlParts.last;
+          } else if (urlParts.length == 1) {
+            final candidateUrl = urlParts.first;
+            final looksLikeImage =
+                RegExp(
+                  r'\.(jpg|jpeg|png|webp|gif)(\?|$)',
+                  caseSensitive: false,
+                ).hasMatch(candidateUrl) ||
+                candidateUrl.toLowerCase().contains('image') ||
+                candidateUrl.toLowerCase().contains('thumb');
+            if (price != null && looksLikeImage) {
+              thumbnailUrl = candidateUrl;
+            } else {
+              deeplinkUrl = candidateUrl;
+            }
+          }
+        }
+
+        final dedupeKey = deeplinkUrl.isNotEmpty
+            ? deeplinkUrl
+            : thumbnailUrl.isNotEmpty
+            ? thumbnailUrl
+            : title;
+        if (dedupeKey.isEmpty || !seen.add(dedupeKey)) {
+          continue;
+        }
+        final itemIndex = parsed.length + 1;
+        final providerUrl = deeplinkUrl.isNotEmpty ? deeplinkUrl : thumbnailUrl;
+        parsed.add(
+          ExploreAlternativeOffer(
+            provider: _providerLabelFromUrl(providerUrl),
+            title: title.isEmpty ? '추천 상품 $itemIndex' : title,
+            price: price,
+            thumbnailUrl: thumbnailUrl.isEmpty ? null : thumbnailUrl,
+            deeplinkUrl: deeplinkUrl.isEmpty ? null : deeplinkUrl,
+          ),
+        );
+      }
+      if (parsed.isNotEmpty) {
+        return parsed;
+      }
+    }
+
+    return const [];
+  }
+
+  List<ExploreAlternativeOffer> _buildEditorialOffers(
+    Map<String, dynamic> config, {
+    required String state,
+    required List<ExploreAlternativeOffer> pool,
+  }) {
+    if (state == _exploreStateActiveShopping) {
+      return const [];
+    }
+    if (!_configBool(config, 'editorialRecommendationsEnabled', true)) {
+      return const [];
+    }
+    if (pool.isEmpty) {
+      return const [];
+    }
+
+    const visibleCount = 5;
+    final shuffled = [...pool]..shuffle(Random(_editorialRefreshSeed));
+    return shuffled.take(visibleCount).toList(growable: false);
   }
 
   @override
@@ -395,6 +659,12 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
               carts,
               exploreConfig,
               currentState,
+            );
+            final editorialPool = _editorialPoolFromConfig(exploreConfig);
+            final editorialOffers = _buildEditorialOffers(
+              exploreConfig,
+              state: currentState,
+              pool: editorialPool,
             );
             final baseOfferSlots = _buildOfferSlots(
               revisitItems: revisitItems,
@@ -418,6 +688,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
             final orderedSections = _dynamicSectionOrder(
               exploreConfig,
               hasOfferSlots: offerSlots.isNotEmpty || hiddenOfferCount > 0,
+              hasEditorialPicks: editorialOffers.isNotEmpty,
               state: currentState,
             );
             final sectionWidgets = <Widget>[];
@@ -467,7 +738,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                   }
                   sectionWidgets.add(
                     CartlyActionTile(
-                      icon: Icons.shopping_cart_checkout_rounded,
+                      icon: const CartlySymbolIcon.sf('cart.badge.plus'),
                       title: widget.items.isEmpty
                           ? '홈에서 장보기 시작하기'
                           : '홈에서 실행 이어가기',
@@ -547,6 +818,91 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                   }
                   sectionWidgets.add(const SizedBox(height: 20));
                   break;
+                case 'editorialPicks':
+                  sectionWidgets.add(
+                    SectionHeader(
+                      title: _configText(
+                        exploreConfig,
+                        'editorialRecommendationsTitle',
+                        '추천 제품',
+                      ),
+                      subtitle: _configText(
+                        exploreConfig,
+                        'editorialRecommendationsSubtitle',
+                        '지금 카트에 많이 담는 TOP5',
+                      ),
+                    ),
+                  );
+                  sectionWidgets.add(const SizedBox(height: 10));
+                  if (editorialPool.length > editorialOffers.length) {
+                    sectionWidgets.add(
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          style:
+                              CartlyButtonStyles.quiet(
+                                foregroundColor: const Color(0xFF6B2B35),
+                              ).copyWith(
+                                padding: const WidgetStatePropertyAll(
+                                  EdgeInsets.symmetric(
+                                    horizontal: 0,
+                                    vertical: 0,
+                                  ),
+                                ),
+                                textStyle: const WidgetStatePropertyAll(
+                                  TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                          onPressed: () {
+                            setState(() {
+                              _editorialRefreshSeed =
+                                  DateTime.now().microsecondsSinceEpoch;
+                            });
+                          },
+                          icon: const CartlySymbolIcon.sf(
+                            'arrow.clockwise',
+                            size: 18,
+                          ),
+                          label: const Text('다른 추천 보기'),
+                        ),
+                      ),
+                    );
+                    sectionWidgets.add(const SizedBox(height: 6));
+                  }
+                  sectionWidgets.addAll(
+                    editorialOffers.map(
+                      (offer) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _AlternativeOfferPreviewCard(offer: offer),
+                      ),
+                    ),
+                  );
+                  final disclaimer =
+                      (exploreConfig['editorialRecommendationsDisclaimer']
+                              as String?)
+                          ?.trim() ??
+                      '';
+                  if (disclaimer.isNotEmpty) {
+                    sectionWidgets.add(
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4, bottom: 8),
+                        child: Text(
+                          disclaimer,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: CartlyColors.textSecondary,
+                            height: 1.45,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  sectionWidgets.add(const SizedBox(height: 20));
+                  break;
                 case 'offerSlots':
                   sectionWidgets.add(
                     const SectionHeader(
@@ -582,7 +938,10 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                               _dismissedOfferIntentKeys.clear();
                             });
                           },
-                          icon: const Icon(Icons.visibility_rounded, size: 18),
+                          icon: const CartlySymbolIcon.sf(
+                            'eyeglasses',
+                            size: 18,
+                          ),
                           label: const Text('가린 대안 다시 보기'),
                         ),
                       ),
@@ -1157,8 +1516,8 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                       children: [
                         const Padding(
                           padding: EdgeInsets.only(top: 2),
-                          child: Icon(
-                            Icons.check_circle_outline_rounded,
+                          child: CartlySymbolIcon.sf(
+                            'checkmark.circle',
                             size: 18,
                             color: CartlyColors.subBrand,
                           ),
@@ -1503,8 +1862,8 @@ class _RepeatCandidateCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              const Icon(
-                Icons.history_rounded,
+              const CartlySymbolIcon.sf(
+                'arrow.uturn.backward.circle',
                 color: CartlyColors.subBrand,
                 size: CartlyIconSizes.control,
               ),
@@ -1592,8 +1951,8 @@ class _OfferSlotCard extends StatelessWidget {
                             color: const Color(0xFF232323),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
-                            Icons.visibility_off_rounded,
+                          child: const CartlySymbolIcon.sf(
+                            'eyeglasses.slash',
                             size: 16,
                             color: CartlyColors.onBrandPrimary,
                           ),
@@ -1826,19 +2185,26 @@ class _SavedContextHeroCard extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              FilledButton.tonalIcon(
+              FilledButton.icon(
+                style: CartlyButtonStyles.primary(
+                  backgroundColor: CartlyColors.surfaceNeutral,
+                  foregroundColor: CartlyColors.textPrimary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                ).copyWith(elevation: const WidgetStatePropertyAll(0)),
                 onPressed: latest == null ? onStartShopping : onOpenLatest,
-                icon: Icon(
-                  latest == null
-                      ? Icons.home_rounded
-                      : Icons.shopping_bag_rounded,
+                icon: CartlySymbolIcon.sf(
+                  latest == null ? 'cart' : 'cart.circle.fill',
+                  color: CartlyColors.textPrimary,
                 ),
                 label: Text(latest == null ? '홈에서 시작하기' : '이 장보기 이어보기'),
               ),
               if (latest != null)
                 TextButton.icon(
                   onPressed: onOpenAll,
-                  icon: const Icon(Icons.history_rounded),
+                  icon: const CartlySymbolIcon.sf('clock.arrow.circlepath'),
                   label: const Text('지난 카트 전체 보기'),
                 ),
             ],
@@ -1854,104 +2220,157 @@ class _AlternativeOfferPreviewCard extends StatelessWidget {
 
   const _AlternativeOfferPreviewCard({required this.offer});
 
+  String _ctaLabel() {
+    if (offer.price != null) {
+      return '₩${formatPrice(offer.price!)}';
+    }
+    final provider = offer.provider.trim();
+    if (provider.isEmpty) {
+      return '상세 페이지에서 확인하기';
+    }
+    return '$provider에서 확인하기';
+  }
+
+  Future<void> _openLink(String deeplink) async {
+    final uri = Uri.tryParse(deeplink);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   @override
   Widget build(BuildContext context) {
     final deeplink = offer.deeplinkUrl?.trim();
     final canOpen = deeplink != null && deeplink.isNotEmpty;
 
-    return InkWell(
-      onTap: canOpen
-          ? () async {
-              final uri = Uri.tryParse(deeplink);
-              if (uri == null) return;
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-          : null,
-      borderRadius: BorderRadius.circular(CartlyRadii.control),
-      child: CartlySurfaceCard(
-        padding: const EdgeInsets.all(14),
-        backgroundColor: CartlyColors.surface1,
-        radius: CartlyRadii.control,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return CartlySurfaceCard(
+      padding: const EdgeInsets.all(14),
+      backgroundColor: CartlyColors.surface1,
+      radius: CartlyRadii.control,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AlternativeOfferThumbnail(imageUrl: offer.thumbnailUrl),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    offer.title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                    ),
+                Text(
+                  offer.title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    height: 1.35,
                   ),
                 ),
-                CartlyBadge(label: offer.provider),
-                if (canOpen) ...[
-                  const SizedBox(width: 8),
-                  const Icon(
-                    Icons.open_in_new_rounded,
-                    size: CartlyIconSizes.inline,
-                    color: CartlyColors.subBrand,
+                const SizedBox(height: 10),
+                OutlinedButton(
+                  onPressed: canOpen ? () => _openLink(deeplink) : null,
+                  style: CartlyButtonStyles.secondaryOutline(
+                    foregroundColor: CartlyColors.textPrimary,
+                    borderColor: CartlyColors.line,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _ctaLabel(),
+                        style: TextStyle(
+                          fontSize: offer.price != null ? 14 : 13,
+                          fontWeight: FontWeight.w800,
+                          color: canOpen
+                              ? CartlyColors.textPrimary
+                              : CartlyColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const CartlySymbolIcon.sf(
+                        'square.and.arrow.up',
+                        size: CartlyIconSizes.inline,
+                        color: CartlyColors.subBrand,
+                      ),
+                    ],
+                  ),
+                ),
+                if (offer.subtitle != null &&
+                    offer.subtitle!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    offer.subtitle!,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: CartlyColors.textSecondary,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+                if (offer.highlights.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  ...offer.highlights.map(
+                    (highlight) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        '• $highlight',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: CartlyColors.textPrimary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ],
             ),
-            if (offer.subtitle != null &&
-                offer.subtitle!.trim().isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                offer.subtitle!,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: CartlyColors.textSecondary,
-                  height: 1.45,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AlternativeOfferThumbnail extends StatelessWidget {
+  final String? imageUrl;
+
+  const _AlternativeOfferThumbnail({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmed = imageUrl?.trim() ?? '';
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(CartlyRadii.control),
+      child: Container(
+        width: 72,
+        height: 72,
+        color: CartlyColors.surface2,
+        child: trimmed.isEmpty
+            ? const Center(
+                child: CartlySymbolIcon.sf(
+                  'photo',
+                  size: 22,
+                  color: CartlyColors.textTertiary,
                 ),
-              ),
-            ],
-            if (offer.price != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                '₩${formatPrice(offer.price!)}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-            if (offer.highlights.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              ...offer.highlights.map(
-                (highlight) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(
-                    '• $highlight',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: CartlyColors.textPrimary,
-                      height: 1.4,
+              )
+            : Image.network(
+                trimmed,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(
+                    child: CartlySymbolIcon.sf(
+                      'photo',
+                      size: 22,
+                      color: CartlyColors.textTertiary,
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
-            ],
-            if (canOpen) ...[
-              const SizedBox(height: 8),
-              Text(
-                deeplink,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: CartlyColors.subBrand,
-                ),
-              ),
-            ],
-          ],
-        ),
       ),
     );
   }

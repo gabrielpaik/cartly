@@ -25,6 +25,7 @@ class _CartlyAppState extends State<CartlyApp> with WidgetsBindingObserver {
     AppConfigStore.instance.branding,
     AppConfigStore.instance.copy,
     AppConfigStore.instance.adSlots,
+    AppConfigStore.instance.runtime,
   ]);
 
   @override

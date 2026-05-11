@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/app_runtime_copy.dart';
+import 'cartly_symbol_icon.dart';
 
 class SavedTabEmptyState extends StatelessWidget {
   final bool compact;
@@ -14,14 +15,11 @@ class SavedTabEmptyState extends StatelessWidget {
       children: [
         Opacity(
           opacity: 0.16,
-          child: Icon(Icons.bookmark_border, size: compact ? 56 : 72),
+          child: CartlySymbolIcon.sf('bookmark', size: compact ? 56 : 72),
         ),
         SizedBox(height: compact ? 12 : 14),
         Text(
-          AppRuntimeCopy.text([
-            'saved',
-            'emptyTitle',
-          ], '아직 저장된 카트가 없어요'),
+          AppRuntimeCopy.text(['saved', 'emptyTitle'], '아직 저장된 카트가 없어요'),
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,

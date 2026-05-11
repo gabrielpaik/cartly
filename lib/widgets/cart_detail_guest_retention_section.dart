@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/saved_cart.dart';
+import 'cartly_symbol_icon.dart';
 
 class CartDetailGuestRetentionSection extends StatelessWidget {
   final SavedCart cart;
@@ -39,13 +40,8 @@ class CartDetailGuestRetentionSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              cart.isExpired
-                  ? '게스트 저장 기간이 만료돼서 카트가 잠겼어요'
-                  : '게스트 저장 기간이 남아 있어요',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-              ),
+              cart.isExpired ? '게스트 저장 기간이 만료돼서 카트가 잠겼어요' : '게스트 저장 기간이 남아 있어요',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 6),
             Text(
@@ -112,10 +108,7 @@ class CartDetailGuestLockedView extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 28,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
           decoration: BoxDecoration(
             color: const Color(0xFFF6F7F9),
             borderRadius: BorderRadius.circular(20),
@@ -124,8 +117,8 @@ class CartDetailGuestLockedView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.lock_outline_rounded,
+              const CartlySymbolIcon.sf(
+                'lock',
                 size: 42,
                 color: Color(0xFFE31837),
               ),
@@ -133,10 +126,7 @@ class CartDetailGuestLockedView extends StatelessWidget {
               const Text(
                 '만료된 게스트 카트 전체가 잠겨 있어요',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
               Text(

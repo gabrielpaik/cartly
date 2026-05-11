@@ -22,6 +22,7 @@ import '../services/remote_scan_repository.dart';
 import '../services/scan_repository.dart';
 import '../services/shopping_nudge_service.dart';
 import '../widgets/total_bar.dart';
+import '../widgets/cartly_symbol_icon.dart';
 import '../app/cartly_ui.dart';
 
 class HomePage extends StatefulWidget {
@@ -231,13 +232,13 @@ class _HomePageState extends State<HomePage> {
     _refreshShoppingNudge();
   }
 
-  Widget _navIcon(IconData icon, {required bool showDot}) {
+  Widget _navIcon(Widget icon, {required bool showDot}) {
     return SizedBox(
       width: 34,
       height: 34,
       child: Stack(
         children: [
-          Center(child: Icon(icon, size: 28)),
+          Center(child: SizedBox(width: 28, height: 28, child: icon)),
           if (showDot)
             Positioned(
               right: 1,
@@ -546,7 +547,8 @@ class _HomePageState extends State<HomePage> {
             selectedIndex: _tabIndex,
             onDestinationSelected: _selectTab,
             backgroundColor: CartlyColors.surface0,
-            indicatorColor: CartlyColors.surfaceNeutral,
+            indicatorColor: Colors.transparent,
+            overlayColor: const WidgetStatePropertyAll(Colors.transparent),
             height: 78,
             labelTextStyle: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.selected)) {
@@ -564,21 +566,42 @@ class _HomePageState extends State<HomePage> {
             }),
             destinations: [
               NavigationDestination(
-                icon: _navIcon(Icons.home_outlined, showDot: _showHomeDot),
-                selectedIcon: _navIcon(Icons.home, showDot: _showHomeDot),
+                icon: _navIcon(
+                  const CartlySymbolIcon.sf('cart', size: 28),
+                  showDot: _showHomeDot,
+                ),
+                selectedIcon: _navIcon(
+                  const CartlySymbolIcon.sf('cart.fill', size: 28),
+                  showDot: _showHomeDot,
+                ),
                 label: branding.homeTabLabel,
               ),
               NavigationDestination(
                 icon: _navIcon(
-                  Icons.explore_outlined,
+                  const CartlySymbolIcon.sf('magnifyingglass', size: 28),
                   showDot: _showExploreDot,
                 ),
-                selectedIcon: _navIcon(Icons.explore, showDot: _showExploreDot),
+                selectedIcon: _navIcon(
+                  const CartlySymbolIcon.sf(
+                    'sparkle.magnifyingglass',
+                    size: 28,
+                  ),
+                  showDot: _showExploreDot,
+                ),
                 label: branding.helpTabLabel,
               ),
               NavigationDestination(
-                icon: _navIcon(Icons.person_outline, showDot: false),
-                selectedIcon: _navIcon(Icons.person, showDot: false),
+                icon: _navIcon(
+                  const CartlySymbolIcon.sf('person.crop.circle', size: 28),
+                  showDot: false,
+                ),
+                selectedIcon: _navIcon(
+                  const CartlySymbolIcon.sf(
+                    'person.crop.circle.fill',
+                    size: 28,
+                  ),
+                  showDot: false,
+                ),
                 label: branding.myTabLabel,
               ),
             ],

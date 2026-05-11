@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/app_ad_slot.dart';
 import '../models/app_branding.dart';
+import 'my_page_insights.dart';
 
 class AppConfigStore {
   AppConfigStore._();
@@ -40,6 +41,85 @@ class AppConfigStore {
       return value < 1 ? 60 : value.toInt();
     }
     return 60;
+  }
+
+  bool get myPageInsightsEnabled {
+    final dynamic value = runtime.value['myPageInsightsEnabled'];
+    if (value is bool) return value;
+    return true;
+  }
+
+  int get myPageSummaryMonths {
+    final dynamic value = runtime.value['myPageSummaryMonths'];
+    if (value is num) {
+      return value.toInt().clamp(1, 12);
+    }
+    return 3;
+  }
+
+  int get myPageTopCategoriesCount {
+    final dynamic value = runtime.value['myPageTopCategoriesCount'];
+    if (value is num) {
+      return value.toInt().clamp(1, 8);
+    }
+    return 3;
+  }
+
+  int get myPageTopItemsCount {
+    final dynamic value = runtime.value['myPageTopItemsCount'];
+    if (value is num) {
+      return value.toInt().clamp(1, 8);
+    }
+    return 3;
+  }
+
+  List<String> get myPageSectionOrder {
+    final raw = runtime.value['myPageSectionOrder'];
+    final fallback = <String>[
+      'recentSaved',
+      'monthlySummary',
+      'allSavedHistory',
+    ];
+    final values = raw is List
+        ? raw.whereType<String>().toList()
+        : raw is String
+        ? raw
+              .split(',')
+              .map((item) => item.trim())
+              .where((item) => item.isNotEmpty)
+              .toList()
+        : const <String>[];
+    if (values.isEmpty) {
+      return fallback;
+    }
+    final ordered = <String>[];
+    for (final item in values) {
+      if (!fallback.contains(item) || ordered.contains(item)) {
+        continue;
+      }
+      ordered.add(item);
+    }
+    for (final item in fallback) {
+      if (!ordered.contains(item)) {
+        ordered.add(item);
+      }
+    }
+    return ordered;
+  }
+
+  List<MyPageCategoryGroup> get myPageCategoryGroups {
+    final raw = runtime.value['myPageCategoryGroups'];
+    if (raw is! List) {
+      return const [];
+    }
+    return raw
+        .whereType<Map>()
+        .map(
+          (item) =>
+              MyPageCategoryGroup.fromJson(Map<String, dynamic>.from(item)),
+        )
+        .where((item) => item.label.trim().isNotEmpty)
+        .toList();
   }
 
   AppAdSlot? slotByKey(String slotKey) {

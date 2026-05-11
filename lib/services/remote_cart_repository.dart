@@ -6,7 +6,11 @@ import 'api_base.dart';
 
 class RemoteCartRepository {
   RemoteCartRepository({HttpClient? httpClient})
-    : _httpClient = httpClient ?? HttpClient();
+    : _httpClient =
+          httpClient ??
+          (HttpClient()..connectionTimeout = const Duration(seconds: 4));
+
+  static const Duration _requestTimeout = Duration(seconds: 8);
 
   final HttpClient _httpClient;
 
@@ -93,10 +97,12 @@ class RemoteCartRepository {
     Map<String, dynamic>? body,
   }) async {
     final request = switch (method) {
-      'GET' => await _httpClient.getUrl(_uri(path)),
-      'POST' => await _httpClient.postUrl(_uri(path)),
-      'PATCH' => await _httpClient.patchUrl(_uri(path)),
-      'DELETE' => await _httpClient.deleteUrl(_uri(path)),
+      'GET' => await _httpClient.getUrl(_uri(path)).timeout(_requestTimeout),
+      'POST' => await _httpClient.postUrl(_uri(path)).timeout(_requestTimeout),
+      'PATCH' =>
+        await _httpClient.patchUrl(_uri(path)).timeout(_requestTimeout),
+      'DELETE' =>
+        await _httpClient.deleteUrl(_uri(path)).timeout(_requestTimeout),
       _ => throw ArgumentError('Unsupported method: $method'),
     };
 
@@ -108,8 +114,11 @@ class RemoteCartRepository {
       request.write(jsonEncode(body));
     }
 
-    final response = await request.close();
-    final responseBody = await response.transform(utf8.decoder).join();
+    final response = await request.close().timeout(_requestTimeout);
+    final responseBody = await response
+        .transform(utf8.decoder)
+        .join()
+        .timeout(_requestTimeout);
     final decoded = responseBody.isEmpty
         ? <String, dynamic>{}
         : jsonDecode(responseBody) as Map<String, dynamic>;

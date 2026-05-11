@@ -8,6 +8,7 @@ import '../models/recognized_item_candidate.dart';
 import '../models/scan_job.dart';
 import '../services/remote_scan_repository.dart';
 import '../services/scan_repository.dart';
+import 'cartly_symbol_icon.dart';
 import 'inline_scanner_box.dart';
 import 'recognized_result_card.dart';
 import 'scan_ui_helpers.dart';
@@ -15,6 +16,36 @@ import 'scan_ui_helpers.dart';
 String _fmt(int v) => fmtScanPrice(v);
 
 String _scanText(String key, String fallback) => scanText(key, fallback);
+
+String _scanFailureTitle() => _scanText('failureTitle', '가격표를 읽지 못했어요');
+
+String _scanFailureBody() => _scanText('failureBody', '사진을 다시 찍거나 직접 추가해 주세요');
+
+String _userFacingScanErrorMessage(String? rawMessage) {
+  final message = rawMessage?.trim() ?? '';
+  if (message.isEmpty) {
+    return _scanFailureBody();
+  }
+
+  final lower = message.toLowerCase();
+  const internalMarkers = [
+    'openclaw',
+    'runner',
+    'ocr',
+    'exception',
+    'socket',
+    'http',
+    'timeout',
+    'connection',
+    'trace',
+  ];
+
+  if (internalMarkers.any(lower.contains)) {
+    return _scanFailureBody();
+  }
+
+  return message;
+}
 
 class ItemAddSection extends StatefulWidget {
   final List<CameraDescription> cameras;
@@ -406,9 +437,10 @@ class _ItemAddSectionState extends State<ItemAddSection> {
         }
 
         if (job.status == ScanJobStatus.failed) {
-          final message =
-              job.errorMessage ??
-              _scanText('resultEmpty', '텍스트를 못 읽었어요. 더 가까이/선명하게 찍어봐요');
+          final message = _userFacingScanErrorMessage(
+            job.errorMessage ??
+                _scanText('resultEmpty', '텍스트를 못 읽었어요. 더 가까이/선명하게 찍어봐요'),
+          );
           await _deleteQueuedImage(imagePath);
           setState(() {
             isOcrRunning = false;
@@ -457,7 +489,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
           _updateQueueEntry(
             queueEntryId,
             status: _ScanQueueStatus.failed,
-            errorMessage: error.message,
+            errorMessage: _userFacingScanErrorMessage(error.message),
           );
         }
       });
@@ -508,9 +540,9 @@ class _ItemAddSectionState extends State<ItemAddSection> {
       unawaited(_pollForSubmittedJob(submitted, imagePath));
     } on ScanRepositoryException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_userFacingScanErrorMessage(error.message))),
+      );
       await _deleteQueuedImage(imagePath);
       setState(() {
         isOcrRunning = false;
@@ -555,7 +587,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.camera_alt, color: Colors.white),
+                const CartlySymbolIcon.sf('camera', color: Colors.white),
                 const SizedBox(width: 8),
                 Text(
                   _queueStatusMessage != null
@@ -703,7 +735,10 @@ class _ItemAddSectionState extends State<ItemAddSection> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.edit, color: Colors.white),
+                const CartlySymbolIcon.sf(
+                  'long.text.page.and.pencil',
+                  color: Colors.white,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   _scanText('manualAddAction', '직접 추가하기'),
@@ -894,13 +929,17 @@ class _ScanInboxRow extends StatelessWidget {
         label: '촬영 완료',
       ),
     };
-    final title =
+    final title = switch (entry.status) {
+      _ScanQueueStatus.failed => _scanFailureTitle(),
+      _ =>
         entry.item?.name ??
-        entry.errorMessage ??
-        _scanText('queueUntitled', '새 가격표');
+            entry.errorMessage ??
+            _scanText('queueUntitled', '새 가격표'),
+    };
     final subtitle = switch (entry.status) {
-      _ScanQueueStatus.failed =>
-        entry.errorMessage ?? _scanText('processingError', '분석 처리 중 오류가 났어요'),
+      _ScanQueueStatus.failed => _userFacingScanErrorMessage(
+        entry.errorMessage,
+      ),
       _ScanQueueStatus.added => '카트에 담았어요',
       _ScanQueueStatus.ready =>
         entry.item == null ? '결과를 확인해 주세요' : '₩${_fmt(entry.item!.price)}',
@@ -964,11 +1003,14 @@ class _ScanInboxRow extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               if (entry.status == _ScanQueueStatus.ready && !isActive)
-                const Icon(Icons.chevron_right, color: Colors.black38),
+                const CartlySymbolIcon.sf(
+                  'chevron.right',
+                  color: Colors.black38,
+                ),
               IconButton(
                 tooltip: _scanText('recentDismiss', '지우기'),
                 onPressed: onDismiss,
-                icon: const Icon(Icons.close, size: 18),
+                icon: const CartlySymbolIcon.sf('eraser.fill', size: 18),
                 visualDensity: VisualDensity.compact,
               ),
             ],

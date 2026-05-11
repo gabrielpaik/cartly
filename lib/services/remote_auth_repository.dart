@@ -9,7 +9,11 @@ import 'install_id_store.dart';
 
 class RemoteAuthRepository implements AuthRepository {
   RemoteAuthRepository({HttpClient? httpClient})
-    : _httpClient = httpClient ?? HttpClient();
+    : _httpClient =
+          httpClient ??
+          (HttpClient()..connectionTimeout = const Duration(seconds: 4));
+
+  static const Duration _requestTimeout = Duration(seconds: 8);
 
   final HttpClient _httpClient;
 
@@ -148,10 +152,7 @@ class RemoteAuthRepository implements AuthRepository {
     return _requestJson('POST', path, body: body);
   }
 
-  Future<Map<String, dynamic>> _getJson(
-    String path, {
-    String? authToken,
-  }) {
+  Future<Map<String, dynamic>> _getJson(String path, {String? authToken}) {
     return _requestJson('GET', path, authToken: authToken);
   }
 
@@ -161,7 +162,9 @@ class RemoteAuthRepository implements AuthRepository {
     Map<String, dynamic>? body,
     String? authToken,
   }) async {
-    final request = await _httpClient.openUrl(method, _uri(path));
+    final request = await _httpClient
+        .openUrl(method, _uri(path))
+        .timeout(_requestTimeout);
     request.headers.set(HttpHeaders.acceptHeader, 'application/json');
 
     final trimmedToken = authToken?.trim() ?? '';
@@ -177,8 +180,11 @@ class RemoteAuthRepository implements AuthRepository {
       request.write(jsonEncode(body));
     }
 
-    final response = await request.close();
-    final responseBody = await response.transform(utf8.decoder).join();
+    final response = await request.close().timeout(_requestTimeout);
+    final responseBody = await response
+        .transform(utf8.decoder)
+        .join()
+        .timeout(_requestTimeout);
     final decoded = responseBody.isEmpty
         ? <String, dynamic>{}
         : jsonDecode(responseBody) as Map<String, dynamic>;
@@ -229,24 +235,26 @@ class RemoteAuthRepository implements AuthRepository {
     );
 
     final rawGuestCode = (user['guestCode'] as String?)?.trim();
-    final rawToken = ((sessionMap?['token'] ?? currentSession?.authToken ?? '')
-            as String)
-        .trim();
-    final rawExpiresAt =
-        ((sessionMap?['expiresAt'] ?? '') as String).trim();
+    final rawToken =
+        ((sessionMap?['token'] ?? currentSession?.authToken ?? '') as String)
+            .trim();
+    final rawExpiresAt = ((sessionMap?['expiresAt'] ?? '') as String).trim();
 
     return UserSession(
       id: (user['id'] ?? currentSession?.id ?? '') as String,
       provider: provider,
-      displayName: ((user['displayName'] ?? currentSession?.displayName ?? '')
-              as String)
-          .trim(),
+      displayName:
+          ((user['displayName'] ?? currentSession?.displayName ?? '') as String)
+              .trim(),
       guestCode: rawGuestCode == null || rawGuestCode.isEmpty
           ? currentSession?.guestCode
           : rawGuestCode,
       email: ((user['email'] ?? currentSession?.email ?? '') as String).trim(),
-      isGuest: (user['isGuest'] ?? currentSession?.isGuest ?? provider == AuthProviderType.guest)
-          as bool,
+      isGuest:
+          (user['isGuest'] ??
+                  currentSession?.isGuest ??
+                  provider == AuthProviderType.guest)
+              as bool,
       signedInAt: currentSession?.signedInAt ?? DateTime.now(),
       authToken: rawToken,
       sessionExpiresAt: rawExpiresAt.isEmpty

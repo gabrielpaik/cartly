@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../services/app_runtime_copy.dart';
+import 'cartly_symbol_icon.dart';
 
 final _priceFormatter = NumberFormat('#,###');
 String _fmt(int v) => _priceFormatter.format(v);
@@ -99,8 +100,8 @@ class _SavedCartItemAddSectionState extends State<SavedCartItemAddSection> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  _open ? Icons.close : Icons.add,
+                CartlySymbolIcon.sf(
+                  _open ? 'xmark' : 'plus',
                   color: Colors.white,
                   size: 20,
                 ),

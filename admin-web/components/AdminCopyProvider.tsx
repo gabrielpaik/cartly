@@ -35,17 +35,18 @@ const fallbackContext: CopyContextValue = {
 
 const AdminCopyContext = createContext<CopyContextValue | null>(null)
 
-function visiblePrefixes(pathname: string) {
+function visiblePrefixes(pathname?: string | null) {
+  const safePathname = pathname ?? ''
   const common = ['admin.nav.', 'admin.common.', 'admin.copy.']
-  if (pathname.startsWith('/overview')) return [...common, 'admin.overview.']
-  if (pathname.startsWith('/users/')) return [...common, 'admin.users.', 'admin.users.detail.']
-  if (pathname.startsWith('/users')) return [...common, 'admin.users.']
-  if (pathname.startsWith('/scan-ops')) return [...common, 'admin.scanops.']
-  if (pathname.startsWith('/carts')) return [...common, 'admin.carts.']
-  if (pathname.startsWith('/ads')) return [...common, 'admin.ads.']
-  if (pathname.startsWith('/content')) return [...common, 'admin.content.']
-  if (pathname.startsWith('/config')) return [...common, 'admin.config.']
-  if (pathname.startsWith('/login')) return [...common, 'admin.login.']
+  if (safePathname.startsWith('/overview')) return [...common, 'admin.overview.']
+  if (safePathname.startsWith('/users/')) return [...common, 'admin.users.', 'admin.users.detail.']
+  if (safePathname.startsWith('/users')) return [...common, 'admin.users.']
+  if (safePathname.startsWith('/scan-ops')) return [...common, 'admin.scanops.']
+  if (safePathname.startsWith('/carts')) return [...common, 'admin.carts.']
+  if (safePathname.startsWith('/ads')) return [...common, 'admin.ads.']
+  if (safePathname.startsWith('/content')) return [...common, 'admin.content.']
+  if (safePathname.startsWith('/config')) return [...common, 'admin.config.']
+  if (safePathname.startsWith('/login')) return [...common, 'admin.login.']
   return common
 }
 
@@ -55,7 +56,7 @@ export function useAdminCopy() {
 }
 
 export default function AdminCopyProvider({ children }: { children: ReactNode }) {
-  const pathname = usePathname()
+  const pathname = usePathname() ?? ''
   const router = useRouter()
   const [savedValues, setSavedValues] = useState<Record<string, string>>({})
   const [draftValues, setDraftValues] = useState<Record<string, string>>({})

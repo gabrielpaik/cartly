@@ -10,6 +10,7 @@ from ..deps import db_dep
 from ..services.branding_service import get_branding
 from ..services.coupang_runtime_service import get_coupang_runtime_status, save_coupang_runtime
 from ..services.push_service import get_push_runtime_status
+from ..services.runtime_settings_service import get_runtime_settings, save_runtime_settings
 from ..services.smoke_history_service import get_smoke_history, record_smoke_result
 from ..services.storage_health import storage_health_check
 from .admin_common import ADMIN_ROUTE_DEP
@@ -56,6 +57,7 @@ def admin_config(db: OrmSession = Depends(db_dep)):
             },
             'coupangPartners': coupang_runtime,
             'push': get_push_runtime_status(db),
+            'runtimeSettings': get_runtime_settings(db),
             'smokeHistory': smoke_history.get('history') or [],
         },
     }
@@ -67,6 +69,14 @@ def update_coupang_partners_config(payload: Dict[str, Any], db: OrmSession = Dep
     return {
         'ok': True,
         'data': get_coupang_runtime_status(db),
+    }
+
+
+@router.put('/config/runtime-settings')
+def update_runtime_settings(payload: Dict[str, Any], db: OrmSession = Depends(db_dep)):
+    return {
+        'ok': True,
+        'data': save_runtime_settings(db, payload),
     }
 
 

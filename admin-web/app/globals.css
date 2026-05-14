@@ -105,13 +105,34 @@ a { color: inherit; text-decoration: none; }
 .sectionGrid { display: grid; gap: 16px; }
 .twoCol { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.95fr); gap: 18px; align-items: start; }
 .threeCol { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.exploreWorkbench { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 10px; align-items: start; }
+.exploreWorkbench { display: grid; grid-template-columns: 220px minmax(0, 1fr) minmax(280px, 0.82fr); gap: 10px; align-items: start; }
 .exploreWorkbenchRail,
 .exploreWorkbenchCenter,
 .exploreWorkbenchSide { min-width: 0; }
 .exploreWorkbenchRail { display: grid; gap: 10px; align-self: start; position: sticky; top: 16px; }
 .exploreWorkbenchCenter { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); min-width: 0; }
 .exploreWorkbenchMain { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); min-width: 0; }
+.exploreWorkbenchSide { display: grid; gap: 10px; align-self: start; position: sticky; top: 16px; }
+.exploreRailCard,
+.explorePreviewCard { padding: 10px; border-radius: 12px; }
+.exploreRailStack { display: grid; gap: 8px; }
+.exploreRailButton { display: grid; gap: 4px; width: 100%; padding: 10px 11px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; text-align: left; color: #0f172a; }
+.exploreRailButton.active { border-color: #0f172a; background: #f8fafc; box-shadow: inset 0 0 0 1px #0f172a; }
+.exploreTaskButton.active { border-color: #1d4ed8; box-shadow: inset 0 0 0 1px #1d4ed8; }
+.exploreRailButtonLabel { font-size: 12px; font-weight: 800; color: #111827; }
+.exploreRailButtonText { font-size: 11px; line-height: 1.35; color: #475467; }
+.exploreRailButtonMeta { font-size: 10px; font-weight: 700; color: #667085; }
+.explorePreviewLead { font-size: 13px; font-weight: 800; line-height: 1.4; color: #0f172a; }
+.explorePreviewSublead { margin-top: 4px; font-size: 11px; line-height: 1.45; color: #667085; }
+.explorePreviewSection { display: grid; gap: 6px; margin-top: 12px; }
+.explorePreviewSectionTitle { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #98a2b3; }
+.explorePreviewList { display: grid; gap: 6px; }
+.explorePreviewListRow,
+.explorePreviewMetricRow { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center; padding: 7px 8px; border: 1px solid #eceff3; border-radius: 10px; background: #fbfcfd; font-size: 11px; color: #0f172a; }
+.explorePreviewMetricRow { grid-template-columns: minmax(0, 1fr) auto; }
+.explorePreviewIndex { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 999px; background: #e2e8f0; color: #0f172a; font-size: 10px; font-weight: 800; }
+.explorePreviewEmpty { padding: 8px 10px; border: 1px dashed #d0d7de; border-radius: 10px; font-size: 11px; color: #667085; background: #fbfcfd; }
+.explorePreviewActionRow { display: flex; gap: 6px; margin-top: 12px; }
 .exploreActionBar { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 8px; }
 .exploreActionBarSingle { grid-template-columns: minmax(0, 1fr); }
 .exploreActionSplit { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }

@@ -332,6 +332,12 @@ Purpose: full scenario preview
 - selected mode should remain visible in header, meta strip, and preview at the same time
 - preview should always be mode-bound, never visually ambiguous about which app state it reflects
 
+### Explore implementation checkpoint
+- served `/explore` now includes a live mode rail, separate task strip, always-visible mode/task summary strip, and a mode-bound right preview panel
+- mode changes now move together across header preview selector, state tabs, meta strip, and preview context so the operator is not editing one state while previewing another
+- recommendation / rules / copy / store workspaces remain the same underlying operators, but the shell now makes the current mode and task explicit before deeper follow-up work
+- next Explore work should deepen the preview realism and task-specific decision guidance, not go back to a blended mega-settings surface
+
 ---
 
 ## 3. Content

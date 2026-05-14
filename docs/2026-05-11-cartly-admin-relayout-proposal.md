@@ -25,7 +25,6 @@ What is already moving in code:
 - global admin IA has shifted toward `Dashboard / App Experience / Growth / Operations / System`
 - Explore is already being treated as a workspace with tabbed operator surfaces instead of one long form
 - Content has moved toward a compact operator header, dense sheet editing, and popup preview instead of a large inline preview block
-- Cart / Receipt copy inside Content now has a denser quick-entry strip for short item/receipt labels and actions, while longer validation/context copy stays in a sheet table
 - Scan Ops has moved toward a table-first queue view, with row double-click opening detail in a modal instead of keeping a confusing fixed detail card on the page
 - feedback is being folded into queue summary and job detail context instead of living as a detached primary card
 
@@ -202,6 +201,11 @@ Examples:
 - long editable forms
 - mixed content/runtime details inline
 
+### Current direction update
+- Overview now follows the same compact operator shell as Push: compact header, summary strip first, dense meta strip, then warning/detail cards
+- the first visible layer should be operator signals and current-state metrics, not large decorative summary blocks
+- detail clusters can stay below, but their spacing and card density should inherit the same compact console grammar
+
 ---
 
 ## 2. Explore
@@ -376,13 +380,6 @@ Content should stop being a raw key list and become screen-based content operati
 - connected screens
 - live preview snapshot
 
-### Current implementation note
-The Cart / Receipt subsection has now partially adopted this direction in code, but in a tighter operator form:
-
-- short labels and CTAs like item name, price, save, receipt entry, and reminder count can sit in a dense quick-entry strip
-- longer validation or receipt-context copy can stay in a lower sheet table
-- this keeps the cart/receipt editor from feeling like a long one-field-per-row page when the operator is only tuning compact copy tokens
-
 ### Why this works
 Operators think:
 - "Home > Explore Entry 문구 바꾸자"
@@ -425,6 +422,12 @@ Split product-runtime settings from infra/system.
 - left section list
 - center grouped settings/matrix
 - right runtime/live value panel
+
+### Current direction update
+- Runtime Config now shares the Push compact shell as well: compact header, summary strip, meta strip, then pane-driven operator surfaces
+- pane switching should not introduce separate visual density rules; overview, smoke, runtime, my-page, and Coupang panes should all inherit the same compact console baseline
+- my-page and Coupang should not fall back to tall one-column forms; keep operator controls grouped into compact subcards, with long JSON/note/history blocks visually secondary
+- avoid server/client pane mismatch for query-param-driven tabs; the served runtime must render the selected pane cleanly without hydration drift
 
 ---
 
@@ -480,6 +483,8 @@ Right sheet:
 Current direction update:
 - Ads should move toward inventory-table and campaign-history grammar, not repeated large per-slot form blocks
 - slot inventory, live/reserved state, and recent campaign history should be scannable before deep editing
+- the next concrete Ads shape is now table first plus one selected-slot editor, instead of rendering every slot as a full live/reserved editor stack at once
+- live and reserved editing can stay side-by-side inside the selected slot sheet, but selection should happen from the inventory table above
 - after Push reaches a stable operator pattern, Ads should inherit the same Growth grammar
 
 ### Users

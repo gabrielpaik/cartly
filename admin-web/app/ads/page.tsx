@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import { CampaignRow, fallbackSlots, SlotConfig, SlotEditorPanel, SlotHistory, SlotPreview, SlotRow } from '../../components/ads'
 import { useAdminCopy } from '../../components/AdminCopyProvider'
 import PageHeader from '../../components/PageHeader'
-import StatCard from '../../components/StatCard'
 import { fetchJsonSafe, isUnauthorizedError, postFormData, putJson } from '../../lib/api'
 import { formatDate } from '../../lib/format'
 
@@ -42,6 +41,7 @@ export default function AdsPage() {
   const [historyPeriodTo, setHistoryPeriodTo] = useState('')
   const [slotQuery, setSlotQuery] = useState('')
   const [slotStatusFilter, setSlotStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [selectedSlotKey, setSelectedSlotKey] = useState<string | null>(null)
 
   const activeSlots = useMemo(() => slots.filter((slot) => slot.status === 'active').length, [slots])
   const liveCampaigns = useMemo(() => campaigns.filter((campaign) => campaign.variant === 'live').length, [campaigns])
@@ -64,6 +64,14 @@ export default function AdsPage() {
       return matchesStatus && matchesQuery
     })
   }, [slotQuery, slotStatusFilter, slots])
+  const selectedSlot = useMemo(() => {
+    if (!selectedSlotKey) return filteredSlots[0] ?? null
+    return slots.find((slot) => slot.slotKey === selectedSlotKey) ?? filteredSlots[0] ?? null
+  }, [filteredSlots, selectedSlotKey, slots])
+  const selectedSlotCampaigns = useMemo(() => {
+    if (!selectedSlot) return []
+    return (campaignsBySlot[selectedSlot.slotKey] ?? []).filter((campaign) => campaign.id !== selectedSlot.config.liveCampaignId && campaign.id !== selectedSlot.config.reservedCampaignId)
+  }, [campaignsBySlot, selectedSlot])
 
   async function loadCampaigns() {
     try {
@@ -106,6 +114,16 @@ export default function AdsPage() {
   useEffect(() => {
     if (!loading) void loadCampaigns()
   }, [historyQuery, historyVariantFilter, historyStatusFilter, historyPeriodFrom, historyPeriodTo])
+
+  useEffect(() => {
+    if (filteredSlots.length === 0) {
+      if (selectedSlotKey !== null) setSelectedSlotKey(null)
+      return
+    }
+    if (!selectedSlotKey || !filteredSlots.some((slot) => slot.slotKey === selectedSlotKey)) {
+      setSelectedSlotKey(filteredSlots[0].slotKey)
+    }
+  }, [filteredSlots, selectedSlotKey])
 
   function updateSlot(slotKey: string, patch: Partial<SlotRow>) {
     setSlots((prev) => prev.map((slot) => (slot.slotKey === slotKey ? { ...slot, ...patch } : slot)))
@@ -158,6 +176,15 @@ export default function AdsPage() {
     }
   }
 
+  function openSlot(slotKey: string) {
+    setSelectedSlotKey(slotKey)
+    if (typeof window !== 'undefined') {
+      window.setTimeout(() => {
+        document.getElementById('selected-slot-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 0)
+    }
+  }
+
   async function uploadAsset(slotKey: string, file: File, field: 'imageUrl' | 'reservedImageUrl') {
     const uploadId = `${slotKey}:${field}`
     setUploadingKey(uploadId)
@@ -192,7 +219,7 @@ export default function AdsPage() {
   const bulkExportHref = `/api/cartly-admin/admin/ads/campaigns/export.xlsx${exportParams.toString() ? `?${exportParams.toString()}` : ''}`
 
   return (
-    <div>
+    <div className="exploreCompactPage">
       <PageHeader
         badge={usingFallback ? 'Fallback data' : loading ? 'Loading...' : 'Live data'}
         title={t('admin.ads.title', 'Ads')}
@@ -210,14 +237,35 @@ export default function AdsPage() {
         </div>
       ) : null}
 
-      <div className="kpiGrid">
-        <StatCard label="Slots" value={`${slots.length}`} note={`${t('admin.ads.kpi.active', 'active')} ${activeSlots} · ${t('admin.ads.kpi.inactive', 'inactive')} ${slots.length - activeSlots}`} />
-        <StatCard label="Campaigns" value={`${campaigns.length}`} note={`${t('admin.ads.kpi.liveVariant', 'live variant')} ${liveCampaigns} · ${t('admin.ads.kpi.reservedVariant', 'reserved variant')} ${reservedCampaigns}`} />
-        <StatCard label={t('admin.ads.kpi.liveStatus', 'Live Status')} value={`${liveStatusCampaigns}`} note={t('admin.ads.kpi.liveStatusNote', '실제 status=live 캠페인 수')} />
-        <StatCard label={t('admin.ads.kpi.export', 'Export Scope')} value={historyQuery.trim() ? historyQuery.trim() : t('admin.ads.kpi.exportAll', 'all')} note={`${historyVariantFilter} · ${historyStatusFilter}`} />
+      <div className="exploreSummaryGrid section" style={{ marginTop: 12 }}>
+        <div className="exploreSummaryCell">
+          <div className="exploreSummaryLabel">Slots</div>
+          <div className="exploreSummaryValue">{slots.length}</div>
+          <div className="exploreSummaryNote">active {activeSlots} · inactive {slots.length - activeSlots}</div>
+        </div>
+        <div className="exploreSummaryCell">
+          <div className="exploreSummaryLabel">Campaigns</div>
+          <div className="exploreSummaryValue">{campaigns.length}</div>
+          <div className="exploreSummaryNote">live {liveCampaigns} · reserved {reservedCampaigns}</div>
+        </div>
+        <div className="exploreSummaryCell">
+          <div className="exploreSummaryLabel">Live status</div>
+          <div className="exploreSummaryValue">{liveStatusCampaigns}</div>
+          <div className="exploreSummaryNote">status=live rows</div>
+        </div>
+        <div className="exploreSummaryCell">
+          <div className="exploreSummaryLabel">Selected</div>
+          <div className="exploreSummaryValue">{selectedSlot ? 1 : 0}</div>
+          <div className="exploreSummaryNote">{selectedSlot?.slotKey ?? 'none'}</div>
+        </div>
+        <div className="exploreSummaryCell">
+          <div className="exploreSummaryLabel">Export scope</div>
+          <div className="exploreSummaryValue">{historyQuery.trim() ? historyQuery.trim() : 'all'}</div>
+          <div className="exploreSummaryNote">{historyVariantFilter} · {historyStatusFilter}</div>
+        </div>
       </div>
 
-      <div className="metaRow section" style={{ marginTop: 16 }}>
+      <div className="metaRow section" style={{ marginTop: 8 }}>
         <div className="metaPill">{t('admin.ads.meta.query', 'query')} {historyQuery.trim() || '-'}</div>
         <div className="metaPill">{t('admin.ads.meta.variant', 'variant')} {historyVariantFilter}</div>
         <div className="metaPill">{t('admin.ads.meta.status', 'status')} {historyStatusFilter}</div>
@@ -270,8 +318,9 @@ export default function AdsPage() {
                   const slotCampaigns = campaignsBySlot[slot.slotKey] ?? []
                   const liveCount = slotCampaigns.filter((campaign) => campaign.variant === 'live').length
                   const reservedCount = slotCampaigns.filter((campaign) => campaign.variant === 'reserved').length
+                  const isSelected = selectedSlot?.slotKey === slot.slotKey
                   return (
-                    <tr key={`inventory-${slot.slotKey}`}>
+                    <tr key={`inventory-${slot.slotKey}`} onClick={() => openSlot(slot.slotKey)} style={{ cursor: 'pointer', background: isSelected ? 'rgba(227, 24, 55, 0.06)' : undefined }}>
                       <td>
                         <div style={{ display: 'grid', gap: 4, minWidth: 220 }}>
                           <strong>{slot.config.slotLabel || slot.slotKey}</strong>
@@ -298,7 +347,9 @@ export default function AdsPage() {
                       </td>
                       <td>{formatDate(slot.updatedAt ?? slot.createdAt)}</td>
                       <td>
-                        <a className="ghostBtn ghostBtnSmall" href={`#slot-${slot.slotKey}`}>open</a>
+                        <button className="ghostBtn ghostBtnSmall" type="button" onClick={(event) => { event.stopPropagation(); openSlot(slot.slotKey) }}>
+                          {isSelected ? 'selected' : 'open'}
+                        </button>
                       </td>
                     </tr>
                   )
@@ -309,29 +360,29 @@ export default function AdsPage() {
         )}
       </div>
 
-      <form className="card" style={{ marginTop: 16, marginBottom: 16 }} onSubmit={(e) => e.preventDefault()}>
-        <div className="sectionHeader" style={{ marginBottom: 12 }}>
+      <form className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 12, marginBottom: 12 }} onSubmit={(e) => e.preventDefault()}>
+        <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
           <div>
             <h2 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.ads.filters.title', '지난 광고 필터')}</h2>
             <p className="pageDesc">{t('admin.ads.filters.desc', '유형/상태/검색어와 기간으로 지난 광고를 좁혀보고, 같은 조건으로 일괄 다운로드')}</p>
           </div>
         </div>
-        <div className="sectionGrid" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr' }}>
-          <label className="field">
-            <div className="fieldLabel">{t('admin.ads.filters.search', '검색')}</div>
-            <input className="textInput" value={historyQuery} onChange={(e) => setHistoryQuery(e.target.value)} placeholder="광고 제목, 문구, CTA" />
+        <div className="exploreSheetFilterGrid" style={{ gridTemplateColumns: 'minmax(220px, 2fr) repeat(4, minmax(140px, 1fr))' }}>
+          <label className="field" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">{t('admin.ads.filters.search', '검색')}</div>
+            <input className="textInput exploreSheetInput" value={historyQuery} onChange={(e) => setHistoryQuery(e.target.value)} placeholder="광고 제목, 문구, CTA" />
           </label>
-          <label className="field">
-            <div className="fieldLabel">{t('admin.ads.filters.variant', '유형')}</div>
-            <select className="textInput" value={historyVariantFilter} onChange={(e) => setHistoryVariantFilter(e.target.value as 'all' | 'live' | 'reserved')}>
+          <label className="field" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">{t('admin.ads.filters.variant', '유형')}</div>
+            <select className="textInput exploreSheetInput" value={historyVariantFilter} onChange={(e) => setHistoryVariantFilter(e.target.value as 'all' | 'live' | 'reserved')}>
               <option value="all">{t('admin.ads.filters.option.all', '전체')}</option>
               <option value="live">{t('admin.ads.history.variant.live', '현재 광고 이력')}</option>
               <option value="reserved">{t('admin.ads.history.variant.reserved', '예약 광고 이력')}</option>
             </select>
           </label>
-          <label className="field">
-            <div className="fieldLabel">{t('admin.ads.filters.status', '상태')}</div>
-            <select className="textInput" value={historyStatusFilter} onChange={(e) => setHistoryStatusFilter(e.target.value as 'all' | 'ended' | 'cancelled' | 'scheduled' | 'live')}>
+          <label className="field" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">{t('admin.ads.filters.status', '상태')}</div>
+            <select className="textInput exploreSheetInput" value={historyStatusFilter} onChange={(e) => setHistoryStatusFilter(e.target.value as 'all' | 'ended' | 'cancelled' | 'scheduled' | 'live')}>
               <option value="all">{t('admin.ads.filters.option.all', '전체')}</option>
               <option value="ended">{t('admin.ads.status.ended', '종료됨')}</option>
               <option value="cancelled">{t('admin.ads.status.cancelled', '취소됨')}</option>
@@ -339,92 +390,91 @@ export default function AdsPage() {
               <option value="live">{t('admin.ads.filters.option.live', '라이브')}</option>
             </select>
           </label>
-          <label className="field">
-            <div className="fieldLabel">{t('admin.ads.filters.periodFrom', '시작일')}</div>
-            <input className="textInput" type="date" value={historyPeriodFrom} onChange={(e) => setHistoryPeriodFrom(e.target.value)} />
+          <label className="field" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">{t('admin.ads.filters.periodFrom', '시작일')}</div>
+            <input className="textInput exploreSheetInput" type="date" value={historyPeriodFrom} onChange={(e) => setHistoryPeriodFrom(e.target.value)} />
           </label>
-          <label className="field">
-            <div className="fieldLabel">{t('admin.ads.filters.periodTo', '종료일')}</div>
-            <input className="textInput" type="date" value={historyPeriodTo} onChange={(e) => setHistoryPeriodTo(e.target.value)} />
+          <label className="field" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">{t('admin.ads.filters.periodTo', '종료일')}</div>
+            <input className="textInput exploreSheetInput" type="date" value={historyPeriodTo} onChange={(e) => setHistoryPeriodTo(e.target.value)} />
           </label>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           <a className="ghostBtn pageActionBtn" href={bulkExportHref}>{t('admin.ads.filters.bulkExport', '기간내 지난광고 Excel 일괄 다운로드')}</a>
         </div>
       </form>
 
-      <div className="section sectionGrid">
-        {filteredSlots.map((slot) => {
-          const slotCampaigns = (campaignsBySlot[slot.slotKey] ?? []).filter((campaign) => campaign.id !== slot.config.liveCampaignId && campaign.id !== slot.config.reservedCampaignId)
-          return (
-            <div className="card" key={slot.slotKey} id={`slot-${slot.slotKey}`}>
-              <div className="sectionHeader">
-                <div>
-                  <h2 className="panelTitle" style={{ marginBottom: 6 }}>{slot.config.slotLabel || slot.slotKey}</h2>
-                  <p className="pageDesc" style={{ marginBottom: 8 }}>{slot.config.slotDescription || '슬롯 설명 없음'}</p>
-                  <div className="metaRow" style={{ marginTop: 0 }}>
-                    <div className="metaPill">{slot.slotKey}</div>
-                    <div className="metaPill">{slot.placementType}</div>
-                    <div className="metaPill">{slot.config.screen}</div>
-                    <div className="metaPill">{slot.config.position}</div>
-                    <div className="metaPill">{slot.config.placementNote || '-'}</div>
-                  </div>
-                </div>
-                <div className="metaRow" style={{ marginTop: 0 }}>
-                  <div className="metaPill">updated {formatDate(slot.updatedAt ?? slot.createdAt)}</div>
-                </div>
-              </div>
-
-              <div className="slotEditorLayout">
-                <SlotEditorPanel
-                  title={t('admin.ads.livePanel.title', '현재 노출 광고')}
-                  description={t('admin.ads.livePanel.desc', '현재 앱에 노출 중인 광고 설정')}
-                  slot={slot}
-                  variant="live"
-                  uploading={uploadingKey === `${slot.slotKey}:imageUrl`}
-                  saving={savingKey === `${slot.slotKey}:live`}
-                  readOnly={usingFallback}
-                  onSlotChange={(patch) => updateSlot(slot.slotKey, patch)}
-                  onConfigChange={(patch) => updateConfig(slot.slotKey, patch)}
-                  onUpload={(file) => void uploadAsset(slot.slotKey, file, 'imageUrl')}
-                  onSave={() => void saveSlot(slot, 'live')}
-                />
-                <SlotEditorPanel
-                  title={t('admin.ads.reservedPanel.title', '예약 광고 세팅')}
-                  description={t('admin.ads.reservedPanel.desc', '다음 노출 순서를 미리 준비하는 예약 광고 설정')}
-                  slot={slot}
-                  variant="reserved"
-                  uploading={uploadingKey === `${slot.slotKey}:reservedImageUrl`}
-                  saving={savingKey === `${slot.slotKey}:reserved`}
-                  readOnly={usingFallback}
-                  onSlotChange={(patch) => updateSlot(slot.slotKey, patch)}
-                  onConfigChange={(patch) => updateConfig(slot.slotKey, patch)}
-                  onUpload={(file) => void uploadAsset(slot.slotKey, file, 'reservedImageUrl')}
-                  onSave={() => void saveSlot(slot, 'reserved')}
-                />
-                <SlotPreview slot={slot} />
-              </div>
-
-              <div className="section" style={{ marginTop: 18 }}>
-                <div className="sectionHeader" style={{ marginBottom: 12 }}>
-                  <div>
-                    <h3 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.ads.history.title', '지난 광고 데이터')}</h3>
-                    <p className="pageDesc">{t('admin.ads.history.desc', '이 슬롯에 연결되었던 지난 광고 성과 기록')}</p>
-                  </div>
-                </div>
-                <SlotHistory
-                  campaigns={slotCampaigns}
-                  variantFilter={historyVariantFilter}
-                  statusFilter={historyStatusFilter}
-                  query={historyQuery}
-                  periodFrom={historyPeriodFrom}
-                  periodTo={historyPeriodTo}
-                />
+      {selectedSlot ? (
+        <div className="card exploreDenseCard exploreSheetCard" id="selected-slot-editor">
+          <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
+            <div>
+              <h2 className="panelTitle" style={{ marginBottom: 6 }}>{selectedSlot.config.slotLabel || selectedSlot.slotKey}</h2>
+              <p className="pageDesc" style={{ marginBottom: 8 }}>{selectedSlot.config.slotDescription || '슬롯 설명 없음'}</p>
+              <div className="metaRow" style={{ marginTop: 0 }}>
+                <div className="metaPill">{selectedSlot.slotKey}</div>
+                <div className="metaPill">{selectedSlot.placementType}</div>
+                <div className="metaPill">{selectedSlot.config.screen}</div>
+                <div className="metaPill">{selectedSlot.config.position}</div>
+                <div className="metaPill">{selectedSlot.config.placementNote || '-'}</div>
               </div>
             </div>
-          )
-        })}
-      </div>
+            <div className="metaRow" style={{ marginTop: 0 }}>
+              <div className="metaPill">selected slot</div>
+              <div className="metaPill">history {selectedSlotCampaigns.length}</div>
+              <div className="metaPill">updated {formatDate(selectedSlot.updatedAt ?? selectedSlot.createdAt)}</div>
+            </div>
+          </div>
+
+          <div className="slotEditorLayout adsSelectedSlotLayout">
+            <SlotEditorPanel
+              title={t('admin.ads.livePanel.title', '현재 노출 광고')}
+              description={t('admin.ads.livePanel.desc', '현재 앱에 노출 중인 광고 설정')}
+              slot={selectedSlot}
+              variant="live"
+              uploading={uploadingKey === `${selectedSlot.slotKey}:imageUrl`}
+              saving={savingKey === `${selectedSlot.slotKey}:live`}
+              readOnly={usingFallback}
+              onSlotChange={(patch) => updateSlot(selectedSlot.slotKey, patch)}
+              onConfigChange={(patch) => updateConfig(selectedSlot.slotKey, patch)}
+              onUpload={(file) => void uploadAsset(selectedSlot.slotKey, file, 'imageUrl')}
+              onSave={() => void saveSlot(selectedSlot, 'live')}
+            />
+            <SlotEditorPanel
+              title={t('admin.ads.reservedPanel.title', '예약 광고 세팅')}
+              description={t('admin.ads.reservedPanel.desc', '다음 노출 순서를 미리 준비하는 예약 광고 설정')}
+              slot={selectedSlot}
+              variant="reserved"
+              uploading={uploadingKey === `${selectedSlot.slotKey}:reservedImageUrl`}
+              saving={savingKey === `${selectedSlot.slotKey}:reserved`}
+              readOnly={usingFallback}
+              onSlotChange={(patch) => updateSlot(selectedSlot.slotKey, patch)}
+              onConfigChange={(patch) => updateConfig(selectedSlot.slotKey, patch)}
+              onUpload={(file) => void uploadAsset(selectedSlot.slotKey, file, 'reservedImageUrl')}
+              onSave={() => void saveSlot(selectedSlot, 'reserved')}
+            />
+            <SlotPreview slot={selectedSlot} />
+          </div>
+
+          <div className="section" style={{ marginTop: 12 }}>
+            <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
+              <div>
+                <h3 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.ads.history.title', '지난 광고 데이터')}</h3>
+                <p className="pageDesc">{t('admin.ads.history.desc', '이 슬롯에 연결되었던 지난 광고 성과 기록')}</p>
+              </div>
+            </div>
+            <SlotHistory
+              campaigns={selectedSlotCampaigns}
+              variantFilter={historyVariantFilter}
+              statusFilter={historyStatusFilter}
+              query={historyQuery}
+              periodFrom={historyPeriodFrom}
+              periodTo={historyPeriodTo}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="emptyState">선택된 slot이 없어.</div>
+      )}
     </div>
   )
 }

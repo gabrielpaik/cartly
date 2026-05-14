@@ -589,7 +589,7 @@ export default function OverviewPage() {
   }))
 
   return (
-    <div>
+    <div className="exploreCompactPage">
       <PageHeader
         badge={overviewUsingFallback ? t('admin.common.badge.fallback', 'Fallback data') : overviewLoading ? t('admin.common.badge.loading', 'Loading...') : t('admin.common.badge.live', 'Live data')}
         title={t('admin.overview.title', 'Overview')}
@@ -611,8 +611,36 @@ export default function OverviewPage() {
         </div>
       ) : null}
 
-      <div className="card" style={{ marginBottom: 16, borderColor: opsAlerts.length > 0 ? '#ffd6dc' : '#d9f4e3', background: opsAlerts.length > 0 ? 'linear-gradient(180deg, #fff, #fff7f8)' : 'linear-gradient(180deg, #fff, #f8fffb)' }}>
-        <div className="sectionHeader" style={{ marginBottom: 12 }}>
+      <div className="exploreSummaryGrid section" style={{ marginTop: 12 }}>
+        <div className="exploreSummaryCell">
+          <div className="exploreSummaryLabel">DAU</div>
+          <div className="exploreSummaryValue">{formatNumber(data.dau)}</div>
+          <div className="exploreSummaryNote">전일 비교 {summaryComparisons?.dau?.day != null ? formatSignedNumber(data.dau - summaryComparisons.dau.day) : '-'}</div>
+        </div>
+        <div className="exploreSummaryCell">
+          <div className="exploreSummaryLabel">WAU</div>
+          <div className="exploreSummaryValue">{formatNumber(data.wau)}</div>
+          <div className="exploreSummaryNote">전주 비교 {summaryComparisons?.wau?.week != null ? formatSignedNumber(data.wau - summaryComparisons.wau.week) : '-'}</div>
+        </div>
+        <div className="exploreSummaryCell">
+          <div className="exploreSummaryLabel">MAU</div>
+          <div className="exploreSummaryValue">{formatNumber(data.mau)}</div>
+          <div className="exploreSummaryNote">전월 비교 {summaryComparisons?.mau?.month != null ? formatSignedNumber(data.mau - summaryComparisons.mau.month) : '-'}</div>
+        </div>
+        <div className="exploreSummaryCell">
+          <div className="exploreSummaryLabel">Scan success</div>
+          <div className="exploreSummaryValue">{formatPercent(data.scanSuccessRate)}</div>
+          <div className="exploreSummaryNote">total scans {formatNumber(data.totalScans)}</div>
+        </div>
+        <div className="exploreSummaryCell">
+          <div className="exploreSummaryLabel">Smoke</div>
+          <div className="exploreSummaryValue">{smokeLoading ? 'CHECK' : smoke.ok ? 'OK' : 'FAIL'}</div>
+          <div className="exploreSummaryNote">streak {recentSmokeFailureStreak} · alerts {opsAlerts.length}</div>
+        </div>
+      </div>
+
+      <div className="card exploreDenseCard exploreSheetCard overviewOpsCard" style={{ marginBottom: 12, borderColor: opsAlerts.length > 0 ? '#ffd6dc' : '#d9f4e3', background: opsAlerts.length > 0 ? 'linear-gradient(180deg, #fff, #fff7f8)' : 'linear-gradient(180deg, #fff, #f8fffb)' }}>
+        <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
           <div>
             <h2 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.overview.ops.title', 'Operator warnings')}</h2>
             <p className="pageDesc" style={{ marginTop: 0, marginBottom: 0 }}>{t('admin.overview.ops.desc', 'overview 첫 화면에서 지금 바로 봐야 할 운영 신호만 모아둔 카드야.')}</p>
@@ -653,7 +681,7 @@ export default function OverviewPage() {
             {t('admin.overview.ops.empty', '지금은 눈에 띄는 운영 경고가 없어. smoke, storage, Coupang runtime, public landing section 상태가 모두 안정적이야.')}
           </div>
         ) : (
-          <div style={{ display: 'grid', gap: 10 }}>
+          <div className="overviewAlertGrid">
             {opsAlerts.map((alert, index) => {
               const toneStyles =
                 alert.tone === 'critical'
@@ -680,8 +708,8 @@ export default function OverviewPage() {
                         textColor: '#1e3a8a',
                       }
               return (
-                <div key={`${alert.title}-${index}`} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 12, alignItems: 'flex-start', padding: '12px 14px', borderRadius: 14, border: toneStyles.border, background: toneStyles.background }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 74, padding: '7px 10px', borderRadius: 999, background: toneStyles.badgeBackground, color: toneStyles.badgeColor, fontSize: 12, fontWeight: 800, textTransform: 'uppercase' }}>
+                <div key={`${alert.title}-${index}`} className="overviewAlertRow" style={{ border: toneStyles.border, background: toneStyles.background }}>
+                  <span className="overviewAlertBadge" style={{ background: toneStyles.badgeBackground, color: toneStyles.badgeColor }}>
                     {alert.tone}
                   </span>
                   <div>
@@ -694,20 +722,19 @@ export default function OverviewPage() {
           </div>
         )}
 
-        <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+        <div className="overviewSubsection">
+          <div className="overviewSubsectionTitle">
             Recent smoke history
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+          <div className="overviewMiniLogGrid">
             {recentSmokeHistory.map((entry, index) => {
               const failedResults = entry.results.filter((result) => !result.ok)
               const lead = failedResults[0]
               return (
                 <div
                   key={`${entry.checkedAt}-${index}`}
+                  className="overviewMiniLogCard"
                   style={{
-                    padding: '12px 14px',
-                    borderRadius: 14,
                     border: `1px solid ${entry.ok ? 'rgba(34,197,94,0.18)' : 'rgba(245,158,11,0.24)'}`,
                     background: entry.ok ? 'rgba(255,255,255,0.96)' : 'rgba(255,247,237,0.9)',
                   }}
@@ -728,8 +755,8 @@ export default function OverviewPage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+        <div className="overviewSubsection">
+          <div className="overviewSubsectionTitle">
             Frequent failing targets
           </div>
           {failingSmokeTargets.length === 0 ? (
@@ -737,13 +764,12 @@ export default function OverviewPage() {
               아직 누적된 smoke target 실패가 없어.
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+            <div className="overviewMiniLogGrid">
               {failingSmokeTargets.slice(0, 5).map((target) => (
                 <div
                   key={target.key}
+                  className="overviewMiniLogCard"
                   style={{
-                    padding: '12px 14px',
-                    borderRadius: 14,
                     border: '1px solid rgba(245,158,11,0.24)',
                     background: 'rgba(255,247,237,0.9)',
                   }}
@@ -766,7 +792,7 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      <div className="metaRow" style={{ marginBottom: 16 }}>
+      <div className="metaRow section" style={{ marginTop: 8, marginBottom: 12 }}>
         <div className="metaPill">{t('admin.overview.meta.snapshotDate', '기준일')} {data.snapshotDate ?? '-'}</div>
         <div className="metaPill">{t('admin.overview.meta.generatedAt', '생성시각')} {formatDate(data.snapshotGeneratedAt)}</div>
         <div className="metaPill">{t('admin.overview.meta.source', '소스')} {data.snapshotSource ?? '-'}</div>
@@ -779,9 +805,9 @@ export default function OverviewPage() {
         <div className="metaPill">last smoke fail {lastSmokeFailure ? formatDate(lastSmokeFailure.checkedAt) : '-'}</div>
       </div>
 
-      <div className="summaryClusterGrid">
+      <div className="summaryClusterGrid overviewSummaryClusterGrid">
         {snapshotSummaryGroups.map((group) => (
-          <div key={group.title} className="card summaryClusterCard">
+          <div key={group.title} className="card summaryClusterCard overviewSummaryClusterCard">
             <div className="kpiLabel summaryClusterTitle">{group.title}</div>
             <div className="summaryClusterInner">
               {group.items.map((item) => (
@@ -809,18 +835,18 @@ export default function OverviewPage() {
       </div>
 
       <div className="section">
-        <div className="card">
+        <div className="card exploreDenseCard exploreSheetCard overviewPeriodCard">
           <div className="sectionHeader">
             <div>
               <h2 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.overview.period.title', '누적 보기')}</h2>
               <p className="pageDesc">{t('admin.overview.period.desc', '선택한 기간 안에서 집계된 누적 값')}</p>
             </div>
-            <div className="segmentedControl">
+            <div className="segmentedControl overviewSegmentedControl">
               {periodOptions.map((option) => (
                 <button
                   key={option.key}
                   type="button"
-                  className={`segmentedBtn ${period === option.key ? 'active' : ''}`}
+                  className={`segmentedBtn overviewSegmentedBtn ${period === option.key ? 'active' : ''}`}
                   onClick={() => setPeriod(option.key)}
                 >
                   {option.label}
@@ -837,15 +863,15 @@ export default function OverviewPage() {
             </div>
           ) : null}
 
-          <div className="metaRow" style={{ marginBottom: 16 }}>
+          <div className="metaRow section" style={{ marginTop: 8, marginBottom: 12 }}>
             <div className="metaPill">{t('admin.overview.period.range', '기간')} {periodData.rangeStart} ~ {periodData.rangeEnd}</div>
             <div className="metaPill">{t('admin.overview.period.state', '상태')} {periodLoading ? t('admin.common.badge.loading', 'Loading...') : periodUsingFallback ? t('admin.common.badge.fallback', 'Fallback data') : t('admin.common.badge.live', 'Live data')}</div>
             <div className="metaPill">{t('admin.overview.period.deviceReady', 'device 준비')} {periodData.deviceBreakdownReady ? t('admin.common.ready', '완료') : t('admin.common.notReady', '미완료')}</div>
           </div>
 
-          <div className="cumulativeClusterGrid">
+          <div className="cumulativeClusterGrid overviewCumulativeClusterGrid">
             {cumulativeSummaryGroups.map((group) => (
-              <div key={group.title} className="card cumulativeClusterCard">
+              <div key={group.title} className="card cumulativeClusterCard overviewSummaryClusterCard">
                 <div className="kpiLabel summaryClusterTitle">{group.title}</div>
                 <div className={`cumulativeClusterInner ${group.columns === 2 ? 'cols2' : 'cols3'}`}>
                   {group.items.map(([label, value]) => (
@@ -858,7 +884,7 @@ export default function OverviewPage() {
               </div>
             ))}
 
-            <div className="card cumulativeClusterCard">
+            <div className="card cumulativeClusterCard overviewSummaryClusterCard">
               <div className="kpiLabel summaryClusterTitle">{t('admin.overview.cumulative.ad', 'Ad')}</div>
               <div className="cumulativeClusterInner cols3">
                 <div className="summaryMiniCard">

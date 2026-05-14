@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 import PageHeader from '../../components/PageHeader'
-import StatCard from '../../components/StatCard'
 import { useAdminCopy } from '../../components/AdminCopyProvider'
 import { fetchJsonSafe, putJson } from '../../lib/api'
 import { mockConfig } from '../../lib/mock'
@@ -108,8 +108,9 @@ type ConfigDto = {
   smokeHistory?: SmokeHistoryEntry[]
 }
 
-export default function ConfigPage() {
+function ConfigPageInner() {
   const { t } = useAdminCopy()
+  const searchParams = useSearchParams()
   const [savingCoupang, setSavingCoupang] = useState(false)
   const [savingRuntime, setSavingRuntime] = useState(false)
   const [runtimeMessage, setRuntimeMessage] = useState<string | null>(null)
@@ -140,14 +141,10 @@ export default function ConfigPage() {
     cfg.backendRunMode === 'terminal-login-session'
       ? t('admin.config.runtime.startupNote', 'login-session supervisor 기준으로 부팅/로그인 후 따라 켜져야 해')
       : t('admin.config.runtime.startupNoteUnexpected', '예상한 login-session runtime 모드와 다를 수 있어 확인이 필요해')
-  const activePane = (() => {
-    const value = typeof window !== 'undefined'
-      ? new URLSearchParams(window.location.search).get('pane')
-      : null
-    return value === 'overview' || value === 'smoke' || value === 'runtime' || value === 'my-page' || value === 'coupang'
-      ? value
-      : 'overview'
-  })()
+  const paneParam = searchParams.get('pane')
+  const activePane = paneParam === 'overview' || paneParam === 'smoke' || paneParam === 'runtime' || paneParam === 'my-page' || paneParam === 'coupang'
+    ? paneParam
+    : 'overview'
   const configPaneOptions = [
     { id: 'overview', label: 'Overview' },
     { id: 'smoke', label: 'Smoke' },
@@ -237,7 +234,7 @@ export default function ConfigPage() {
   }
 
   return (
-    <div>
+    <div className="exploreCompactPage">
       <PageHeader
         badge={res.usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : res.loading ? t('admin.common.badge.loading', 'Loading...') : t('admin.common.badge.live', 'Live data')}
         title={t('admin.config.title', 'Config')}
@@ -257,15 +254,15 @@ export default function ConfigPage() {
         </div>
       ) : null}
 
-      <div className="metaRow" style={{ marginBottom: 16 }}>
+      <div className="metaRow section" style={{ marginTop: 8, marginBottom: 12 }}>
         <span className="metaPill">pane {activePane}</span>
         <span className="metaPill">runtime {cfg.backendRunMode}</span>
         <span className="metaPill">storage {cfg.storageWritable ? 'writable' : 'blocked'}</span>
         <span className="metaPill">smoke {smoke.ok ? 'ok' : 'check needed'}</span>
       </div>
 
-      <div className="exploreActionBar" style={{ marginBottom: 16 }}>
-        <div className="exploreActionPanel exploreActionPanelTight">
+      <div className="exploreActionBar exploreActionBarSingle" style={{ marginBottom: 12 }}>
+        <div className="exploreActionPanel exploreActionPanelTight configPaneBar">
           <div className="exploreActionLabel">Pane</div>
           <div className="exploreActionMeta">
             <span className="metaPill">active {activePane}</span>
@@ -287,15 +284,35 @@ export default function ConfigPage() {
 
       {activePane === 'overview' ? (
         <>
-      <div className="kpiGrid">
-        <StatCard label={t('admin.config.kpi.remoteScan', 'Remote Scan')} value={cfg.remoteScan ? t('admin.common.on', 'ON') : t('admin.common.off', 'OFF')} note={t('admin.config.kpi.remoteScanNote', 'remote scan API 사용 여부')} />
-        <StatCard label={t('admin.config.kpi.ads', 'Ads')} value={cfg.adsEnabled ? t('admin.common.on', 'ON') : t('admin.common.off', 'OFF')} note={t('admin.config.kpi.adsNote', '광고 슬롯 활성화 여부')} />
-        <StatCard label={t('admin.config.kpi.storage', 'Storage')} value={cfg.storageWritable ? t('admin.config.kpi.storageWritable', 'Writable') : t('admin.config.kpi.storageBlocked', 'Blocked')} note={storageRootDisplay} />
-        <StatCard label={t('admin.config.kpi.runtimeStartup', 'Runtime Startup')} value={cfg.backendRunMode} note={startupModeNote} />
-        <StatCard label={t('admin.config.kpi.pathCompatibility', 'Path Compatibility')} value={pathCompatibility} note={cfg.legacyPathCompatibilityActive ? storageRootActual : t('admin.config.compat.noteClean', 'rename 이후 clean path 상태')} />
+      <div className="exploreSummaryGrid section" style={{ marginTop: 12 }}>
+        <div className="exploreSummaryCell">
+          <div className="exploreSummaryLabel">Remote scan</div>
+          <div className="exploreSummaryValue">{cfg.remoteScan ? 'ON' : 'OFF'}</div>
+          <div className="exploreSummaryNote">remote scan API usage</div>
+        </div>
+        <div className="exploreSummaryCell">
+          <div className="exploreSummaryLabel">Ads</div>
+          <div className="exploreSummaryValue">{cfg.adsEnabled ? 'ON' : 'OFF'}</div>
+          <div className="exploreSummaryNote">slot runtime enable</div>
+        </div>
+        <div className="exploreSummaryCell">
+          <div className="exploreSummaryLabel">Storage</div>
+          <div className="exploreSummaryValue">{cfg.storageWritable ? 'Writable' : 'Blocked'}</div>
+          <div className="exploreSummaryNote">{storageRootDisplay}</div>
+        </div>
+        <div className="exploreSummaryCell">
+          <div className="exploreSummaryLabel">Runtime startup</div>
+          <div className="exploreSummaryValue">{cfg.backendRunMode}</div>
+          <div className="exploreSummaryNote">{startupModeNote}</div>
+        </div>
+        <div className="exploreSummaryCell">
+          <div className="exploreSummaryLabel">Path compatibility</div>
+          <div className="exploreSummaryValue">{cfg.legacyPathCompatibilityActive ? 'compat' : 'clean'}</div>
+          <div className="exploreSummaryNote">{cfg.legacyPathCompatibilityActive ? storageRootActual : t('admin.config.compat.noteClean', 'rename 이후 clean path 상태')}</div>
+        </div>
       </div>
 
-      <div className="metaRow section" style={{ marginTop: 16 }}>
+      <div className="metaRow section" style={{ marginTop: 8 }}>
         <span className="metaPill">{t('admin.config.meta.apiBase', 'api base')} {cfg.apiBase}</span>
         <span className="metaPill">{t('admin.config.meta.storageErrors', 'storage errors')} {storageErrorCount}</span>
         <span className="metaPill">{t('admin.config.meta.logoMode', 'logo mode')} {cfg.branding.logoType}</span>
@@ -305,7 +322,7 @@ export default function ConfigPage() {
         <span className="metaPill">smoke {smoke.ok ? 'ok' : 'check needed'}</span>
       </div>
 
-      <div className="opsSignalGrid section" style={{ marginTop: 16 }}>
+      <div className="opsSignalGrid section configCompactSignalGrid" style={{ marginTop: 12 }}>
         <div className="opsSignalCard" style={{ borderColor: cfg.storageWritable ? 'rgba(34,197,94,0.18)' : 'rgba(225,29,72,0.22)', background: cfg.storageWritable ? 'rgba(240,253,244,0.7)' : 'rgba(255,241,242,0.82)' }}>
           <div className="opsSignalLabel">Storage</div>
           <div className="opsSignalValue">{cfg.storageWritable ? 'Writable' : 'Blocked'}</div>
@@ -328,8 +345,8 @@ export default function ConfigPage() {
 
       {activePane === 'smoke' ? (
       <div className="sectionGrid section">
-        <div className={`card ${smoke.ok ? 'successCard' : 'warnCard'}`}>
-          <div className="sectionHeader">
+        <div className={`card exploreDenseCard exploreSheetCard configPaneCard ${smoke.ok ? 'successCard' : 'warnCard'}`}>
+          <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
             <div>
               <h2 className="panelTitle" style={{ marginBottom: 0 }}>Operator smoke</h2>
             </div>
@@ -341,14 +358,12 @@ export default function ConfigPage() {
             </div>
           </div>
           {smokeMessage ? <div className="loginError" style={{ marginBottom: 12 }}>{smokeMessage}</div> : null}
-          <div style={{ display: 'grid', gap: 10 }}>
+          <div className="configSmokeGrid">
             {smoke.results.map((result) => (
               <div
                 key={result.key}
-                className="smokeResultRow"
+                className="smokeResultRow configSmokeRow"
                 style={{
-                  padding: '10px 12px',
-                  borderRadius: 14,
                   border: `1px solid ${result.ok ? 'rgba(34,197,94,0.2)' : 'rgba(225,29,72,0.2)'}`,
                   background: result.ok ? 'rgba(240,253,244,0.75)' : 'rgba(255,241,242,0.8)',
                 }}
@@ -362,7 +377,7 @@ export default function ConfigPage() {
             ))}
           </div>
 
-          <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+          <div className="configHistoryStack">
             <div className="metaRow" style={{ marginTop: 0 }}>
               <span className="metaPill">history {smoke.history?.length ?? 0}개</span>
             </div>
@@ -374,11 +389,8 @@ export default function ConfigPage() {
                 return (
                   <div
                     key={`${entry.checkedAt}-${index}`}
+                    className="configHistoryCard"
                     style={{
-                      display: 'grid',
-                      gap: 8,
-                      padding: '10px 12px',
-                      borderRadius: 14,
                       border: `1px solid ${entry.ok ? 'rgba(34,197,94,0.16)' : 'rgba(245,158,11,0.24)'}`,
                       background: entry.ok ? '#fff' : 'rgba(255,247,237,0.92)',
                     }}
@@ -403,8 +415,8 @@ export default function ConfigPage() {
       ) : null}
 
       {activePane === 'runtime' ? (
-      <div className="sectionGrid twoCol section">
-        <div className={`card ${cfg.storageWritable ? 'successCard' : 'warnCard'}`}>
+      <div className="sectionGrid twoCol section configTwoColSection">
+        <div className={`card exploreDenseCard exploreSheetCard configPaneCard ${cfg.storageWritable ? 'successCard' : 'warnCard'}`}>
           <h2 className="panelTitle">{t('admin.config.storage.title', 'Storage health')}</h2>
           <div className="tableWrap">
             <table className="dataTable">
@@ -424,7 +436,7 @@ export default function ConfigPage() {
           </div>
         </div>
 
-        <div className="card successCard">
+        <div className="card exploreDenseCard exploreSheetCard configPaneCard successCard">
           <h2 className="panelTitle">{t('admin.config.runtime.title', 'Runtime & startup')}</h2>
           <div className="tableWrap">
             <table className="dataTable">
@@ -447,61 +459,75 @@ export default function ConfigPage() {
       ) : null}
 
       {activePane === 'my-page' ? (
-      <div className="sectionGrid twoCol section">
-        <div className="card">
-          <h2 className="panelTitle">My page monthly summary</h2>
-          <div className="metaRow" style={{ marginTop: 0, marginBottom: 12 }}>
+      <div className="sectionGrid twoCol section configTwoColSection">
+        <div className="card exploreDenseCard exploreSheetCard configPaneCard configFormCard">
+          <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 8 }}>
+            <div>
+              <h2 className="panelTitle" style={{ marginBottom: 0 }}>My page monthly summary</h2>
+            </div>
+            <div className="buttonRow configInlineButtonRow">
+              <button className="primaryBtn" onClick={() => void saveRuntimeSettings()} disabled={savingRuntime}>Save runtime</button>
+              <button className="ghostBtn ghostBtnSmall" onClick={() => {
+                setRuntimeDraft(cfg.runtimeSettings)
+                setSectionOrderDraft(cfg.runtimeSettings.myPageSectionOrder.join(', '))
+                setCategoryGroupsDraft(JSON.stringify(cfg.runtimeSettings.myPageCategoryGroups, null, 2))
+              }} disabled={savingRuntime}>Reset</button>
+            </div>
+          </div>
+          <div className="metaRow" style={{ marginTop: 0, marginBottom: 10 }}>
             <span className="metaPill">state {runtimeDraft.myPageInsightsEnabled ? 'enabled' : 'disabled'}</span>
             <span className="metaPill">months {runtimeDraft.myPageSummaryMonths}</span>
             <span className="metaPill">top categories {runtimeDraft.myPageTopCategoriesCount}</span>
             <span className="metaPill">top items {runtimeDraft.myPageTopItemsCount}</span>
             <span className="metaPill">order {runtimeDraft.myPageSectionOrder.join(' > ')}</span>
           </div>
-          <label className="field">
-            <div className="fieldLabel">활성화</div>
-            <input type="checkbox" checked={runtimeDraft.myPageInsightsEnabled} onChange={(e) => setRuntimeDraft((current) => ({ ...current, myPageInsightsEnabled: e.target.checked }))} />
-          </label>
-          <label className="field">
-            <div className="fieldLabel">리마인더 지연(분)</div>
-            <input className="textInput" type="number" min={1} value={runtimeDraft.receiptReminderDelayMinutes} onChange={(e) => setRuntimeDraft((current) => ({ ...current, receiptReminderDelayMinutes: Number(e.target.value || 60) }))} />
-          </label>
-          <label className="field">
-            <div className="fieldLabel">월 수</div>
-            <input className="textInput" type="number" min={1} max={12} value={runtimeDraft.myPageSummaryMonths} onChange={(e) => setRuntimeDraft((current) => ({ ...current, myPageSummaryMonths: Number(e.target.value || 3) }))} />
-          </label>
-          <label className="field">
-            <div className="fieldLabel">상위 카테고리 수</div>
-            <input className="textInput" type="number" min={1} max={8} value={runtimeDraft.myPageTopCategoriesCount} onChange={(e) => setRuntimeDraft((current) => ({ ...current, myPageTopCategoriesCount: Number(e.target.value || 3) }))} />
-          </label>
-          <label className="field">
-            <div className="fieldLabel">자주 담은 상품 수</div>
-            <input className="textInput" type="number" min={1} max={8} value={runtimeDraft.myPageTopItemsCount} onChange={(e) => setRuntimeDraft((current) => ({ ...current, myPageTopItemsCount: Number(e.target.value || 3) }))} />
-          </label>
-          <label className="field">
-            <div className="fieldLabel">섹션 노출 순서 (comma)</div>
-            <input className="textInput" value={sectionOrderDraft} onChange={(e) => setSectionOrderDraft(e.target.value)} placeholder="recentSaved, monthlySummary, allSavedHistory" />
-            <div className="saveMessage" style={{ marginTop: 8 }}>available recentSaved, monthlySummary, allSavedHistory</div>
-          </label>
-          <label className="field">
-            <div className="fieldLabel">카테고리 그룹(JSON 배열)</div>
-            <textarea className="textInput" rows={12} value={categoryGroupsDraft} onChange={(e) => setCategoryGroupsDraft(e.target.value)} />
-          </label>
-          <div className="buttonRow" style={{ marginTop: 12, flexWrap: 'wrap' }}>
-            <button className="primaryBtn" onClick={() => void saveRuntimeSettings()} disabled={savingRuntime}>Save runtime</button>
-            <button className="ghostBtn ghostBtnSmall" onClick={() => {
-              setRuntimeDraft(cfg.runtimeSettings)
-              setSectionOrderDraft(cfg.runtimeSettings.myPageSectionOrder.join(', '))
-              setCategoryGroupsDraft(JSON.stringify(cfg.runtimeSettings.myPageCategoryGroups, null, 2))
-            }} disabled={savingRuntime}>Reset</button>
+          <div className="configMiniControlGrid">
+            <label className="field configMiniControlCard configToggleField">
+              <div className="fieldLabel">활성화</div>
+              <input type="checkbox" checked={runtimeDraft.myPageInsightsEnabled} onChange={(e) => setRuntimeDraft((current) => ({ ...current, myPageInsightsEnabled: e.target.checked }))} />
+            </label>
+            <label className="field configMiniControlCard">
+              <div className="fieldLabel">리마인더 지연(분)</div>
+              <input className="textInput" type="number" min={1} value={runtimeDraft.receiptReminderDelayMinutes} onChange={(e) => setRuntimeDraft((current) => ({ ...current, receiptReminderDelayMinutes: Number(e.target.value || 60) }))} />
+            </label>
+            <label className="field configMiniControlCard">
+              <div className="fieldLabel">월 수</div>
+              <input className="textInput" type="number" min={1} max={12} value={runtimeDraft.myPageSummaryMonths} onChange={(e) => setRuntimeDraft((current) => ({ ...current, myPageSummaryMonths: Number(e.target.value || 3) }))} />
+            </label>
+            <label className="field configMiniControlCard">
+              <div className="fieldLabel">상위 카테고리 수</div>
+              <input className="textInput" type="number" min={1} max={8} value={runtimeDraft.myPageTopCategoriesCount} onChange={(e) => setRuntimeDraft((current) => ({ ...current, myPageTopCategoriesCount: Number(e.target.value || 3) }))} />
+            </label>
+            <label className="field configMiniControlCard">
+              <div className="fieldLabel">자주 담은 상품 수</div>
+              <input className="textInput" type="number" min={1} max={8} value={runtimeDraft.myPageTopItemsCount} onChange={(e) => setRuntimeDraft((current) => ({ ...current, myPageTopItemsCount: Number(e.target.value || 3) }))} />
+            </label>
           </div>
-          <div className="metaRow" style={{ marginTop: 12 }}>
-            <span className="metaPill">saved groups {cfg.runtimeSettings.myPageCategoryGroups.length}</span>
-            <span className="metaPill">section order {cfg.runtimeSettings.myPageSectionOrder.join(' > ')}</span>
+          <div className="configEditorGrid">
+            <div className="configInlineSubcard">
+              <div className="configSubcardTitle">Section order</div>
+              <label className="field">
+                <div className="fieldLabel">섹션 노출 순서 (comma)</div>
+                <input className="textInput" value={sectionOrderDraft} onChange={(e) => setSectionOrderDraft(e.target.value)} placeholder="recentSaved, monthlySummary, allSavedHistory" />
+              </label>
+              <div className="saveMessage">available recentSaved, monthlySummary, allSavedHistory</div>
+              <div className="metaRow" style={{ marginTop: 0 }}>
+                <span className="metaPill">saved groups {cfg.runtimeSettings.myPageCategoryGroups.length}</span>
+                <span className="metaPill">section order {cfg.runtimeSettings.myPageSectionOrder.join(' > ')}</span>
+              </div>
+            </div>
+            <div className="configInlineSubcard">
+              <div className="configSubcardTitle">Category groups</div>
+              <label className="field">
+                <div className="fieldLabel">카테고리 그룹(JSON 배열)</div>
+                <textarea className="textInput configJsonEditor" rows={9} value={categoryGroupsDraft} onChange={(e) => setCategoryGroupsDraft(e.target.value)} />
+              </label>
+            </div>
           </div>
-          {runtimeMessage ? <div className="loginError" style={{ marginTop: 12 }}>{runtimeMessage}</div> : null}
+          {runtimeMessage ? <div className="loginError" style={{ marginTop: 10 }}>{runtimeMessage}</div> : null}
         </div>
 
-        <div className="card">
+        <div className="card exploreDenseCard exploreSheetCard configPaneCard">
           <h2 className="panelTitle">{t('admin.config.branding.title', '브랜딩')}</h2>
           <div className="tableWrap">
             <table className="dataTable">
@@ -519,7 +545,7 @@ export default function ConfigPage() {
           </div>
         </div>
 
-        <div className="card successCard">
+        <div className="card exploreDenseCard exploreSheetCard configPaneCard successCard">
           <h2 className="panelTitle">Public landing</h2>
           <div className="tableWrap">
             <table className="dataTable">
@@ -537,54 +563,66 @@ export default function ConfigPage() {
       ) : null}
 
       {activePane === 'coupang' ? (
-      <div className="sectionGrid twoCol section">
-        <div className={`card ${cfg.coupangPartners.affiliateReady ? 'successCard' : 'warnCard'}`}>
-          <h2 className="panelTitle">Coupang runtime</h2>
-          <div className="metaRow" style={{ marginTop: 0, marginBottom: 12 }}>
+      <div className="sectionGrid twoCol section configTwoColSection">
+        <div className={`card exploreDenseCard exploreSheetCard configPaneCard configFormCard ${cfg.coupangPartners.affiliateReady ? 'successCard' : 'warnCard'}`}>
+          <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 8 }}>
+            <div>
+              <h2 className="panelTitle" style={{ marginBottom: 0 }}>Coupang runtime</h2>
+            </div>
+            <div className="buttonRow configInlineButtonRow">
+              <button className="primaryBtn" onClick={() => void saveCoupangOverride(true)} disabled={savingCoupang}>Force ON</button>
+              <button className="ghostBtn ghostBtnSmall" onClick={() => void saveCoupangOverride(false)} disabled={savingCoupang}>Force OFF</button>
+              <button className="ghostBtn ghostBtnSmall" onClick={() => void saveCoupangOverride(null)} disabled={savingCoupang}>Use env default</button>
+            </div>
+          </div>
+          <div className="metaRow" style={{ marginTop: 0, marginBottom: 10 }}>
             <span className="metaPill">state {cfg.coupangPartners.enabled ? 'enabled' : 'disabled'}</span>
             <span className="metaPill">note {savingCoupang ? 'saving' : noteDirty ? 'unsaved' : 'saved'}</span>
             <span className="metaPill">affiliate {cfg.coupangPartners.affiliateReady ? 'ready' : 'not ready'}</span>
           </div>
-          <div className="tableWrap">
-            <table className="dataTable">
-              <tbody>
-                <tr><th>key</th><th>value</th></tr>
-                <tr><td>effective enabled</td><td>{String(cfg.coupangPartners.enabled)}</td></tr>
-                <tr><td>env enabled default</td><td>{String(cfg.coupangPartners.envEnabled)}</td></tr>
-                <tr><td>admin override</td><td>{cfg.coupangPartners.enabledOverride === null ? 'none' : String(cfg.coupangPartners.enabledOverride)}</td></tr>
-                <tr><td>config source</td><td>{cfg.coupangPartners.configSource}</td></tr>
-                <tr><td>access key configured</td><td>{String(cfg.coupangPartners.accessKeyConfigured)}</td></tr>
-                <tr><td>secret key configured</td><td>{String(cfg.coupangPartners.secretKeyConfigured)}</td></tr>
-                <tr><td>affiliate ready</td><td>{String(cfg.coupangPartners.affiliateReady)}</td></tr>
-                <tr><td>last updated</td><td>{cfg.coupangPartners.updatedAt ?? '-'}</td></tr>
-              </tbody>
-            </table>
+          <div className="configEditorGrid">
+            <div className="configInlineSubcard">
+              <div className="configSubcardTitle">Runtime summary</div>
+              <div className="tableWrap">
+                <table className="dataTable">
+                  <tbody>
+                    <tr><th>key</th><th>value</th></tr>
+                    <tr><td>effective enabled</td><td>{String(cfg.coupangPartners.enabled)}</td></tr>
+                    <tr><td>env enabled default</td><td>{String(cfg.coupangPartners.envEnabled)}</td></tr>
+                    <tr><td>admin override</td><td>{cfg.coupangPartners.enabledOverride === null ? 'none' : String(cfg.coupangPartners.enabledOverride)}</td></tr>
+                    <tr><td>config source</td><td>{cfg.coupangPartners.configSource}</td></tr>
+                    <tr><td>access key configured</td><td>{String(cfg.coupangPartners.accessKeyConfigured)}</td></tr>
+                    <tr><td>secret key configured</td><td>{String(cfg.coupangPartners.secretKeyConfigured)}</td></tr>
+                    <tr><td>affiliate ready</td><td>{String(cfg.coupangPartners.affiliateReady)}</td></tr>
+                    <tr><td>last updated</td><td>{cfg.coupangPartners.updatedAt ?? '-'}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="configInlineSubcard">
+              <div className="configSubcardTitle">Override note</div>
+              <label className="field">
+                <div className="fieldLabel">운영 메모</div>
+                <textarea
+                  className="textInput"
+                  rows={4}
+                  value={coupangNoteDraft}
+                  onChange={(e) => setCoupangNoteDraft(e.target.value)}
+                  placeholder="예: 쿠팡 답변 전까지 강제 OFF 유지, 키 수령 후 smoke test 예정"
+                />
+              </label>
+              <div className="metaRow" style={{ marginTop: 0 }}>
+                <span className="metaPill">last note {cfg.coupangPartners.operatorNote ? 'saved' : 'none'}</span>
+              </div>
+              {cfg.coupangPartners.operatorNote ? <div className="saveMessage">{cfg.coupangPartners.operatorNote}</div> : null}
+              <div className="buttonRow configInlineButtonRow">
+                <button className="ghostBtn ghostBtnSmall" onClick={() => setCoupangNoteDraft(cfg.coupangPartners.operatorNote || '')} disabled={savingCoupang}>메모 되돌리기</button>
+              </div>
+              {runtimeMessage ? <div className="loginError" style={{ marginTop: 0 }}>{runtimeMessage}</div> : null}
+            </div>
           </div>
-          <label className="field" style={{ marginTop: 12 }}>
-            <div className="fieldLabel">운영 메모</div>
-            <textarea
-              className="textInput"
-              rows={3}
-              value={coupangNoteDraft}
-              onChange={(e) => setCoupangNoteDraft(e.target.value)}
-              placeholder="예: 쿠팡 답변 전까지 강제 OFF 유지, 키 수령 후 smoke test 예정"
-            />
-          </label>
-          <div className="metaRow" style={{ marginTop: 8 }}>
-            <span className="metaPill">last note {cfg.coupangPartners.operatorNote ? 'saved' : 'none'}</span>
-          </div>
-          {cfg.coupangPartners.operatorNote ? <div className="saveMessage" style={{ marginTop: 8 }}>{cfg.coupangPartners.operatorNote}</div> : null}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-             <button className="ghostBtn ghostBtnSmall" onClick={() => setCoupangNoteDraft(cfg.coupangPartners.operatorNote || '')} disabled={savingCoupang}>메모 되돌리기</button>
-          </div>
-          <div className="buttonRow" style={{ marginTop: 12, flexWrap: 'wrap' }}>
-            <button className="primaryBtn" onClick={() => void saveCoupangOverride(true)} disabled={savingCoupang}>Force ON</button>
-            <button className="ghostBtn ghostBtnSmall" onClick={() => void saveCoupangOverride(false)} disabled={savingCoupang}>Force OFF</button>
-            <button className="ghostBtn ghostBtnSmall" onClick={() => void saveCoupangOverride(null)} disabled={savingCoupang}>Use env default</button>
-          </div>
-          {runtimeMessage ? <div className="loginError" style={{ marginTop: 12 }}>{runtimeMessage}</div> : null}
 
-          <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+          <div className="configHistoryStack">
             <div className="metaRow" style={{ marginTop: 0 }}>
               <span className="metaPill">history {cfg.coupangPartners.recentChanges.length}개</span>
             </div>
@@ -594,11 +632,8 @@ export default function ConfigPage() {
               cfg.coupangPartners.recentChanges.map((change, index) => (
                 <div
                   key={`${change.changedAt}-${index}`}
+                  className="configHistoryCard"
                   style={{
-                    display: 'grid',
-                    gap: 6,
-                    padding: '10px 12px',
-                    borderRadius: 14,
                     border: '1px solid rgba(15,23,42,0.08)',
                     background: '#fff',
                   }}
@@ -616,7 +651,7 @@ export default function ConfigPage() {
           </div>
         </div>
 
-        <div className={`card ${cfg.storageWritable ? 'successCard' : 'warnCard'}`}>
+        <div className={`card exploreDenseCard exploreSheetCard configPaneCard ${cfg.storageWritable ? 'successCard' : 'warnCard'}`}>
           <h2 className="panelTitle">{t('admin.config.operator.title', 'Operator notes')}</h2>
           <ul className="inlineList">
             <li>{startupModeNote}</li>
@@ -628,5 +663,13 @@ export default function ConfigPage() {
       </div>
       ) : null}
     </div>
+  )
+}
+
+export default function ConfigPage() {
+  return (
+    <Suspense fallback={<div className="exploreCompactPage"><div className="card">Loading...</div></div>}>
+      <ConfigPageInner />
+    </Suspense>
   )
 }

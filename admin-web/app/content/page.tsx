@@ -38,31 +38,6 @@ type FieldConfig = {
   kind?: 'text' | 'textarea' | 'number'
 }
 
-const DETAIL_COMPACT_FIELD_KEYS: Array<keyof ContentSettings> = [
-  'commonCancel',
-  'commonConfirm',
-  'commonEdit',
-  'commonLoading',
-  'cartDetailTitleSuffix',
-  'cartDetailEdit',
-  'cartDetailDone',
-  'cartDetailDeleteConfirm',
-  'cartDetailDeleteCancel',
-  'cartDetailEmpty',
-  'cartDetailItemAdded',
-  'cartDetailSavedSnapshotDone',
-  'cartDetailNameLabel',
-  'cartDetailPriceLabel',
-  'cartDetailApply',
-  'cartDetailTotalLabel',
-  'cartDetailSaveButton',
-  'cartDetailSaving',
-  'cartDetailValidationNameRequired',
-  'receiptCompareEntryAction',
-  'receiptCompareSavedCartOnlyBadge',
-  'receiptReminderDelayMinutes',
-]
-
 const LOGO_TYPE_OPTIONS = [
   { value: 'text', label: '텍스트' },
   { value: 'image', label: '이미지' },
@@ -355,13 +330,6 @@ export default function ContentPage() {
     landing: groupMap.publicSite.fields.filter((field) => !String(field.key).startsWith('publicSitePrivacy')),
     privacy: groupMap.publicSite.fields.filter((field) => String(field.key).startsWith('publicSitePrivacy')),
   }), [groupMap])
-  const detailFieldGroups = useMemo(() => {
-    const compactKeySet = new Set<keyof ContentSettings>(DETAIL_COMPACT_FIELD_KEYS)
-    return {
-      compact: groupMap.detail.fields.filter((field) => compactKeySet.has(field.key)),
-      extended: groupMap.detail.fields.filter((field) => !compactKeySet.has(field.key)),
-    }
-  }, [groupMap])
 
   function buildAppPreviewSrc() {
     return `/app-preview/index.html?v=${Date.now()}`
@@ -552,22 +520,6 @@ export default function ContentPage() {
             ))}
           </tbody>
         </table>
-      </div>
-    )
-  }
-
-  function renderCompactFieldGrid(fields: FieldConfig[]) {
-    return (
-      <div className="contentQuickFieldGrid">
-        {fields.map((field) => (
-          <label className="contentQuickFieldCard" key={String(field.key)}>
-            <div className="contentQuickFieldHeader">
-              <span className="contentQuickFieldLabel">{field.label}</span>
-              <span className="contentQuickFieldKey">{String(field.key)}</span>
-            </div>
-            {renderFieldControl(field, 'sheet')}
-          </label>
-        ))}
       </div>
     )
   }
@@ -961,28 +913,10 @@ export default function ContentPage() {
                 <div className="compactMetaRow">
                   {appCopyTab === 'help' ? <span className="metaPill">Explore base copy</span> : null}
                   {appCopyTab === 'help' ? <span className="metaPill">Decision Copy는 Explore</span> : null}
-                  {appCopyTab === 'detail' ? <span className="metaPill">item / receipt quick copy</span> : null}
                   <span className="metaPill">fields {activeAppGroup.fields.length}</span>
                 </div>
               </div>
-              {appCopyTab === 'detail' ? (
-                <>
-                  <div className="contentDetailQuickSection">
-                    <div className="contentSheetSectionTitleRow">
-                      <strong>Quick entry</strong>
-                      <span className="metaPill">dense {detailFieldGroups.compact.length}</span>
-                    </div>
-                    {renderCompactFieldGrid(detailFieldGroups.compact)}
-                  </div>
-                  <div className="contentDetailExtendedSection">
-                    <div className="contentSheetSectionTitleRow">
-                      <strong>Long copy / validation</strong>
-                      <span className="metaPill">sheet {detailFieldGroups.extended.length}</span>
-                    </div>
-                    {renderFieldSheet(detailFieldGroups.extended)}
-                  </div>
-                </>
-              ) : renderFieldSheet(activeAppGroup.fields)}
+              {renderFieldSheet(activeAppGroup.fields)}
             </div>
           ) : null}
 

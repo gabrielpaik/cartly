@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from typing import List, Optional
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -95,6 +95,22 @@ class ScanFailureLog(Base):
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     details_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class CategoryOverride(Base):
+    __tablename__ = 'category_overrides'
+    __table_args__ = (
+        UniqueConstraint('target_type', 'target_id', name='uq_category_overrides_target'),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    target_type: Mapped[str] = mapped_column(String(40))
+    target_id: Mapped[str] = mapped_column(String(36))
+    naver_large_category: Mapped[str] = mapped_column(String(120))
+    naver_category_path: Mapped[str] = mapped_column(String(255))
+    source: Mapped[str] = mapped_column(String(40), default='admin-override-v1')
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Cart(Base):

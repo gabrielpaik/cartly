@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session as OrmSession
 from ..core.settings import settings
 from ..db.models import ScanJob
 from .openclaw_scan_runner import OpenClawScanRunnerError, run_openclaw_scan
+from .scan_category_service import enrich_result_with_category
 from .scan_service import log_scan_failure
 
 
@@ -81,19 +82,23 @@ def _run_openclaw(job: ScanJob) -> dict:
     except OpenClawScanRunnerError as exc:
         raise ScanProcessingError(exc.code, exc.message, exc.details) from exc
 
+    result = {
+        'name': scan.name,
+        'price': scan.price,
+        'sku': scan.sku,
+        'confidence': scan.confidence,
+        'source': scan.source,
+        'rawText': scan.raw_text,
+    }
+    meta = {
+        'engine': 'openclaw',
+        **scan.meta,
+    }
+    category_meta = enrich_result_with_category(result, meta)
+    meta['categoryMeta'] = category_meta
     return {
-        'result': {
-            'name': scan.name,
-            'price': scan.price,
-            'sku': scan.sku,
-            'confidence': scan.confidence,
-            'source': scan.source,
-            'rawText': scan.raw_text,
-        },
-        'meta': {
-            'engine': 'openclaw',
-            **scan.meta,
-        },
+        'result': result,
+        'meta': meta,
     }
 
 

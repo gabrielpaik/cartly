@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type WheelEvent } from 'react'
 
 import PageHeader from '../../components/PageHeader'
-import StatCard from '../../components/StatCard'
 import { useAdminCopy } from '../../components/AdminCopyProvider'
-import { putJson } from '../../lib/api'
+import { postJson, putJson } from '../../lib/api'
 import { mockExploreSettings } from '../../lib/mock'
 import { useAdminData } from '../../lib/useAdminData'
 
@@ -29,12 +28,44 @@ type StoreContextPromoPreview = {
 
 type EditorialRecommendationPreview = {
   id: string
+  historyId?: string
+  raw?: string
   title: string
   price?: number
   thumbnailUrl?: string
   url?: string
   deeplinkUrl?: string
   provider: string
+  displaySlot?: number
+  startsAt?: string
+  endsAt?: string
+  registeredAt?: string
+  deletedAt?: string
+  updatedAt?: string
+}
+
+type EditorialRecommendationHistoryEntry = EditorialRecommendationPreview & {
+  historyId: string
+}
+
+type RecommendationDraftRow = {
+  id: string
+  raw: string
+  parsed: EditorialRecommendationPreview | null
+  displaySlot: number
+  startsAt: string
+  endsAt: string
+}
+
+type RecommendationSheetRecord = {
+  '노출 순번': number
+  'URL': string
+  '등록일시': string
+  '종료일시': string
+  '상품명': string
+  '가격': number | ''
+  '썸네일 URL': string
+  'Provider': string
 }
 
 type ExploreStateRuleSet = {
@@ -115,6 +146,7 @@ type ExploreSettings = {
   editorialRecommendationsPoolRaw: string
   editorialRecommendationsDisclaimer: string
   editorialRecommendationsItems?: EditorialRecommendationPreview[]
+  editorialRecommendationsHistory?: EditorialRecommendationHistoryEntry[]
   storeContextEnabled: boolean
   storeContextStoreName: string
   storeContextPromoTitle: string
@@ -153,6 +185,15 @@ type ExploreSectionOption = {
   description: string
 }
 
+type ExploreWorkspaceId = 'layout' | 'recommendations' | 'rules' | 'copy' | 'store'
+
+type ExploreWorkspaceOption = {
+  id: ExploreWorkspaceId
+  label: string
+  description: string
+  statLabel: string
+}
+
 type ExploreStateOption = {
   id: ExploreStateId
   label: string
@@ -160,7 +201,22 @@ type ExploreStateOption = {
 }
 
 const PREVIEW_SRC = '/app-preview/index.html?screen=help'
-const EDITORIAL_VISIBLE_COUNT = 5
+const DEFAULT_EDITORIAL_VISIBLE_COUNT = 5
+const RECOMMENDATION_SEARCH_OPTIONS = [
+  { id: 'registeredAt', label: '등록일', placeholder: 'YYYY-MM-DD' },
+  { id: 'title', label: '상품명', placeholder: '상품명 검색' },
+  { id: 'provider', label: 'Provider', placeholder: 'Provider 검색' },
+] as const
+const RECOMMENDATION_SHEET_COLUMNS: Array<keyof RecommendationSheetRecord> = [
+  '노출 순번',
+  'URL',
+  '등록일시',
+  '종료일시',
+  '상품명',
+  '가격',
+  '썸네일 URL',
+  'Provider',
+]
 const EXPLORE_STATE_OPTIONS: ExploreStateOption[] = [
   {
     id: 'activeShopping',
@@ -226,6 +282,137 @@ const EXPLORE_SECTION_OPTIONS: ExploreSectionOption[] = [
     description: '특정 마트 문맥이 잡혔을 때 세일과 오프라인 광고 슬롯을 보여줘.',
   },
 ]
+
+const EXPLORE_WORKSPACE_OPTIONS: ExploreWorkspaceOption[] = [
+  {
+    id: 'layout',
+    label: 'Layout',
+    description: '상태별 섹션 노출과 순서를 다듬는 작업 레일',
+    statLabel: 'sections',
+  },
+  {
+    id: 'recommendations',
+    label: 'Recommendation Pool',
+    description: '운영자 추천 제품 풀과 HTML/URL 입력 결과를 관리',
+    statLabel: 'pool',
+  },
+  {
+    id: 'rules',
+    label: 'Decision Rules',
+    description: '상태별 limit, ranking, count cap을 조정',
+    statLabel: 'rules',
+  },
+  {
+    id: 'copy',
+    label: 'Decision Copy',
+    description: '결정 인박스 라벨과 설명 문구를 관리',
+    statLabel: 'copy',
+  },
+  {
+    id: 'store',
+    label: 'Store Context',
+    description: '오프라인 매장 문맥과 행사/프로모션 골격',
+    statLabel: 'store',
+  },
+]
+
+const STATE_RULE_FIELDS: Array<{ key: keyof ExploreStateRuleSet; min: number; max: number }> = [
+  { key: 'revisitRecentScanLimit', min: 0, max: 8 },
+  { key: 'revisitCartItemLimit', min: 0, max: 8 },
+  { key: 'revisitMaxItems', min: 0, max: 12 },
+  { key: 'repeatMinCount', min: 1, max: 10 },
+  { key: 'repeatMaxItems', min: 0, max: 12 },
+  { key: 'offerMaxSlots', min: 0, max: 12 },
+  { key: 'storeContextMaxPromos', min: 0, max: 12 },
+]
+
+const DECISION_FIELDS: Array<keyof ExploreDecisionPrioritySet> = [
+  'offerPendingReview',
+  'offerCurrentCart',
+  'offerRepeatPurchase',
+  'recentScanPending',
+  'recentScanInCart',
+  'currentCartHighImpact',
+  'currentCartDefault',
+]
+
+const STATE_RULE_META: Record<keyof ExploreStateRuleSet, { label: string }> = {
+  revisitRecentScanLimit: { label: '최근 스캔 재노출 개수' },
+  revisitCartItemLimit: { label: '현재 카트 재노출 개수' },
+  revisitMaxItems: { label: '다시 보기 최대 개수' },
+  repeatMinCount: { label: '반복 구매 최소 빈도' },
+  repeatMaxItems: { label: '반복 구매 최대 개수' },
+  offerMaxSlots: { label: '대체 오퍼 최대 개수' },
+  storeContextMaxPromos: { label: '마트 프로모션 최대 개수' },
+}
+
+const PROMO_POLICY_FIELDS: Array<{ key: keyof ExplorePromoPolicySet; label: string; range: string }> = [
+  { key: 'allowSponsoredPromos', label: '스폰서드 프로모션 허용', range: 'bool' },
+  { key: 'maxSponsoredPromos', label: '스폰서드 최대 개수', range: '0–12' },
+  { key: 'organicFirst', label: '오가닉 우선 노출', range: 'bool' },
+]
+
+const DECISION_FIELD_META: Record<keyof ExploreDecisionPrioritySet, { label: string }> = {
+  offerPendingReview: { label: '검토 필요 오퍼' },
+  offerCurrentCart: { label: '현재 카트 연관 오퍼' },
+  offerRepeatPurchase: { label: '반복 구매 연관 오퍼' },
+  recentScanPending: { label: '최근 스캔 미결정' },
+  recentScanInCart: { label: '최근 스캔 장바구니 포함' },
+  currentCartHighImpact: { label: '현재 카트 핵심 영향 상품' },
+  currentCartDefault: { label: '현재 카트 기본 제안' },
+}
+
+const DECISION_COPY_MESSAGE_FIELDS: Array<{
+  id: string
+  label: string
+  reasonKey: keyof ExploreDecisionCopy
+  bodyKey: keyof ExploreDecisionCopy
+}> = [
+  { id: 'recentScanPending', label: '최근 스캔 미결정', reasonKey: 'recentScanPendingReasonLabel', bodyKey: 'recentScanPendingBody' },
+  { id: 'recentScanInCart', label: '최근 스캔 장바구니 포함', reasonKey: 'recentScanInCartReasonLabel', bodyKey: 'recentScanInCartBody' },
+  { id: 'currentCartHighImpact', label: '현재 카트 핵심 영향', reasonKey: 'currentCartHighImpactReasonLabel', bodyKey: 'currentCartHighImpactBody' },
+  { id: 'currentCartDefault', label: '현재 카트 기본 제안', reasonKey: 'currentCartDefaultReasonLabel', bodyKey: 'currentCartDefaultBody' },
+]
+
+const OFFER_REASON_LABEL_FIELDS: Record<ExploreStateId, keyof ExploreDecisionCopy> = {
+  activeShopping: 'offerReasonLabelActiveShopping',
+  postSave: 'offerReasonLabelPostSave',
+  idlePlanning: 'offerReasonLabelIdlePlanning',
+  storeContext: 'offerReasonLabelStoreContext',
+}
+
+function readExploreWorkspaceFromLocation(): ExploreWorkspaceId {
+  if (typeof window === 'undefined') {
+    return 'recommendations'
+  }
+  const value = new URLSearchParams(window.location.search).get('ws')
+  return EXPLORE_WORKSPACE_OPTIONS.some((option) => option.id === value)
+    ? (value as ExploreWorkspaceId)
+    : 'recommendations'
+}
+
+function ensureLocationChangeEventPatched() {
+  if (typeof window === 'undefined') return
+  const historyState = window.history as History & {
+    __cartlyLocationPatched?: boolean
+    __cartlyPushState?: History['pushState']
+    __cartlyReplaceState?: History['replaceState']
+  }
+  if (historyState.__cartlyLocationPatched) return
+  historyState.__cartlyPushState = window.history.pushState.bind(window.history)
+  historyState.__cartlyReplaceState = window.history.replaceState.bind(window.history)
+  window.history.pushState = ((...args) => {
+    const result = historyState.__cartlyPushState?.(...args)
+    window.dispatchEvent(new Event('cartly:locationchange'))
+    return result
+  }) as History['pushState']
+  window.history.replaceState = ((...args) => {
+    const result = historyState.__cartlyReplaceState?.(...args)
+    window.dispatchEvent(new Event('cartly:locationchange'))
+    return result
+  }) as History['replaceState']
+  historyState.__cartlyLocationPatched = true
+}
 
 function parseSectionList(value: string) {
   return value
@@ -433,6 +620,236 @@ function parseEditorialRecommendations(raw: string): EditorialRecommendationPrev
   return results
 }
 
+function normalizeScheduleText(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  const normalized = trimmed.replace(/\./g, '-').replace('T', ' ')
+  const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2}))?$/)
+  if (!match) return value
+  const [, year, month, day, hour = '00', minute = '00'] = match
+  return `${year}-${month}-${day} ${hour}:${minute}`
+}
+
+function buildRecommendationItemFromRow(row: RecommendationDraftRow, fallbackIndex: number): EditorialRecommendationPreview {
+  const parsed = row.parsed
+  const registeredAt = normalizeScheduleText(row.startsAt || parsed?.registeredAt || '')
+  const startsAt = normalizeScheduleText(row.startsAt || parsed?.startsAt || parsed?.registeredAt || '')
+  return {
+    id: row.id || `editorial-pick-${fallbackIndex + 1}`,
+    historyId: parsed?.historyId,
+    raw: row.raw.trim(),
+    title: parsed?.title ?? '',
+    price: parsed?.price,
+    thumbnailUrl: parsed?.thumbnailUrl ?? '',
+    url: parsed?.url ?? parsed?.deeplinkUrl ?? '',
+    deeplinkUrl: parsed?.deeplinkUrl ?? parsed?.url ?? '',
+    provider: parsed?.provider ?? '',
+    displaySlot: row.displaySlot,
+    startsAt,
+    endsAt: normalizeScheduleText(row.endsAt),
+    registeredAt,
+    deletedAt: parsed?.deletedAt ?? '',
+    updatedAt: parsed?.updatedAt ?? '',
+  }
+}
+
+function parseRecommendationDraftRows(
+  raw: string,
+  cachedItems: EditorialRecommendationPreview[] = [],
+): RecommendationDraftRow[] {
+  const sourceLines = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'))
+  const parsedItems = parseEditorialRecommendations(raw)
+  return sourceLines.map((line, index) => {
+    const id = `editorial-pick-${index + 1}`
+    const cached = cachedItems[index] ?? null
+    return {
+      id,
+      raw: line,
+      parsed: cached ? { ...cached, id } : parsedItems[index] ?? null,
+      displaySlot: cached?.displaySlot ?? 999,
+      startsAt: normalizeScheduleText(cached?.startsAt ?? ''),
+      endsAt: normalizeScheduleText(cached?.endsAt ?? ''),
+    }
+  })
+}
+
+function stringifyRecommendationDraftRows(rows: RecommendationDraftRow[]) {
+  return rows.map((row) => row.raw.trim()).filter(Boolean).join('\n')
+}
+
+function parseRecommendationSheetText(value: unknown) {
+  return typeof value === 'string' ? value.trim() : value == null ? '' : String(value).trim()
+}
+
+function parseRecommendationSheetPrice(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  const digits = parseRecommendationSheetText(value).replace(/[^0-9]/g, '')
+  if (!digits) return undefined
+  const parsed = Number(digits)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function buildRecommendationSheetRows(rows: RecommendationDraftRow[]): RecommendationSheetRecord[] {
+  const source = rows.length > 0
+    ? rows
+    : [{ id: 'editorial-pick-1', raw: '', parsed: null, displaySlot: 999, startsAt: '', endsAt: '' }]
+  return source.map((row) => ({
+    '노출 순번': row.displaySlot,
+    'URL': row.raw,
+    '등록일시': normalizeScheduleText(row.startsAt || row.parsed?.registeredAt || ''),
+    '종료일시': normalizeScheduleText(row.endsAt),
+    '상품명': row.parsed?.title ?? '',
+    '가격': row.parsed?.price ?? '',
+    '썸네일 URL': row.parsed?.thumbnailUrl ?? '',
+    'Provider': row.parsed?.provider ?? '',
+  }))
+}
+
+function buildRecommendationRowsFromSheet(records: Record<string, unknown>[]): RecommendationDraftRow[] {
+  return records
+    .map<RecommendationDraftRow | null>((record, index) => {
+      const raw = parseRecommendationSheetText(record['URL'] ?? record['입력값'] ?? record.raw ?? record.url)
+      const explicitProvider = parseRecommendationSheetText(record.Provider ?? record.provider)
+      const explicitTitle = parseRecommendationSheetText(record['상품명'] ?? record.title)
+      const explicitThumbnail = parseRecommendationSheetText(record['썸네일 URL'] ?? record['썸네일'] ?? record.thumbnailUrl)
+      const explicitStartsAt = normalizeScheduleText(parseRecommendationSheetText(record['등록일시'] ?? record['노출 시작'] ?? record['노출시작'] ?? record.startsAt ?? record.registeredAt))
+      const explicitEndsAt = normalizeScheduleText(parseRecommendationSheetText(record['종료일시'] ?? record['노출 종료'] ?? record['노출종료'] ?? record.endsAt))
+      const explicitPrice = parseRecommendationSheetPrice(record['가격'] ?? record.price)
+      const parsedSlot = Number(parseRecommendationSheetText(record['노출 순번'] ?? record['노출'] ?? record.displaySlot ?? record.slot) || 999)
+      const displaySlot = parsedSlot >= 1 && parsedSlot <= 10 ? parsedSlot : 999
+      const fallbackParsed = raw ? parseEditorialRecommendations(raw)[0] ?? null : null
+      const hasStructuredData = Boolean(
+        explicitProvider
+          || explicitTitle
+          || explicitThumbnail
+          || explicitStartsAt
+          || explicitEndsAt
+          || explicitPrice != null,
+      )
+
+      if (!raw && !hasStructuredData) {
+        return null
+      }
+
+      const id = `editorial-pick-${index + 1}`
+      const providerUrl = fallbackParsed?.deeplinkUrl || fallbackParsed?.url || raw
+      const normalizedRaw = raw || explicitTitle || `imported-row-${index + 1}`
+      const parsed = hasStructuredData || fallbackParsed
+        ? {
+          id,
+          raw: normalizedRaw,
+          title: explicitTitle || fallbackParsed?.title || '',
+          price: explicitPrice ?? fallbackParsed?.price,
+          thumbnailUrl: explicitThumbnail || fallbackParsed?.thumbnailUrl || '',
+          url: fallbackParsed?.url || fallbackParsed?.deeplinkUrl || raw,
+          deeplinkUrl: fallbackParsed?.deeplinkUrl || fallbackParsed?.url || raw,
+          provider: explicitProvider || fallbackParsed?.provider || providerLabelFromUrl(providerUrl),
+          displaySlot,
+          startsAt: explicitStartsAt,
+          endsAt: explicitEndsAt,
+          registeredAt: explicitStartsAt,
+        }
+        : null
+
+      return {
+        id,
+        raw: normalizedRaw,
+        parsed,
+        displaySlot,
+        startsAt: explicitStartsAt,
+        endsAt: explicitEndsAt,
+      }
+    })
+    .filter((row): row is RecommendationDraftRow => row !== null)
+}
+
+function recommendationLifecycleState(item: {
+  startsAt?: string
+  endsAt?: string
+  registeredAt?: string
+  deletedAt?: string
+}, now = new Date()) {
+  if (item.deletedAt) return 'deleted' as const
+  const start = parseRecommendationDateTime(item.startsAt)
+  const end = parseRecommendationDateTime(item.endsAt)
+  if (start && start.getTime() > now.getTime()) return 'scheduled' as const
+  if (end && end.getTime() < now.getTime()) return 'ended' as const
+  if (item.registeredAt) return 'active' as const
+  if (item.startsAt || item.endsAt) return 'draftScheduled' as const
+  return 'draft' as const
+}
+
+function recommendationDraftStatusLabel(row: RecommendationDraftRow, hasSlotConflict = false) {
+  if (hasSlotConflict) return '슬롯중복'
+  switch (recommendationLifecycleState({
+    startsAt: row.startsAt || row.parsed?.startsAt,
+    endsAt: row.endsAt || row.parsed?.endsAt,
+    registeredAt: row.parsed?.registeredAt,
+    deletedAt: row.parsed?.deletedAt,
+  })) {
+    case 'deleted':
+      return '삭제'
+    case 'active':
+      return '운영중'
+    case 'scheduled':
+      return row.parsed?.registeredAt ? '등록대기' : '대기'
+    case 'ended':
+      return '종료'
+    case 'draftScheduled':
+      return '예약'
+    case 'draft':
+    default:
+      return '초안'
+  }
+}
+
+function recommendationHistoryStatusLabel(item: EditorialRecommendationHistoryEntry) {
+  switch (recommendationLifecycleState(item)) {
+    case 'deleted':
+      return '삭제'
+    case 'active':
+      return '운영중'
+    case 'scheduled':
+      return '예정'
+    case 'ended':
+      return '지난 노출'
+    case 'draft':
+    case 'draftScheduled':
+    default:
+      return '등록 이력'
+  }
+}
+
+function matchesRecommendationSearch(value: string | undefined, needle: string) {
+  if (!needle) return true
+  return (value ?? '').toLocaleLowerCase().includes(needle)
+}
+
+function parseRecommendationDateTime(value: string | undefined) {
+  if (!value?.trim()) return null
+  const normalized = value.includes('T') ? value : value.replace(' ', 'T')
+  const parsed = new Date(normalized)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function isRecommendationActiveAt(item: {
+  startsAt?: string
+  endsAt?: string
+  registeredAt?: string
+  deletedAt?: string
+}, now: Date) {
+  if (item.deletedAt) return false
+  const start = parseRecommendationDateTime(item.startsAt)
+  const end = parseRecommendationDateTime(item.endsAt)
+  if (start && start.getTime() > now.getTime()) return false
+  if (end && end.getTime() < now.getTime()) return false
+  if (!start && !end && !item.registeredAt) return false
+  return true
+}
+
 function buildStorePromoPreview(settings: ExploreSettings): StoreContextPromoPreview[] {
   const maxPromos = settings.stateRules.storeContext.storeContextMaxPromos ?? settings.storeContextMaxPromos
   const labels = settings.storeContextPromoSeedLabels
@@ -490,8 +907,22 @@ export default function ExploreAdminPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [previewScenario, setPreviewScenario] = useState<ExploreStateId>('activeShopping')
   const [layoutState, setLayoutState] = useState<ExploreStateId>('activeShopping')
+  const [selectedRecommendationId, setSelectedRecommendationId] = useState<string | null>(null)
+  const [selectedRecommendationRowIds, setSelectedRecommendationRowIds] = useState<string[]>([])
+  const [resolvingRowId, setResolvingRowId] = useState<string | null>(null)
+  const [registeringRowId, setRegisteringRowId] = useState<string | null>(null)
+  const [deletingRowIds, setDeletingRowIds] = useState<string[]>([])
+  const [bulkRecommendationAction, setBulkRecommendationAction] = useState<'resolve' | 'register' | 'delete' | null>(null)
+  const [pendingDeleteRecommendationRowIds, setPendingDeleteRecommendationRowIds] = useState<string[] | null>(null)
+  const [savingRecommendations, setSavingRecommendations] = useState(false)
+  const [importingRecommendationSheet, setImportingRecommendationSheet] = useState(false)
+  const [recommendationSearchField, setRecommendationSearchField] = useState<(typeof RECOMMENDATION_SEARCH_OPTIONS)[number]['id']>('registeredAt')
+  const [recommendationSearchQuery, setRecommendationSearchQuery] = useState('')
+  const [activeWorkspace, setActiveWorkspace] = useState<ExploreWorkspaceId>(readExploreWorkspaceFromLocation)
   const [previewNonce, setPreviewNonce] = useState(0)
-  const previewFrameRef = useRef<HTMLIFrameElement | null>(null)
+  const previewPopupRef = useRef<Window | null>(null)
+  const recommendationSheetInputRef = useRef<HTMLInputElement | null>(null)
+  const recommendationSheetViewportRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     setForm(res.data.data)
@@ -523,6 +954,18 @@ export default function ExploreAdminPage() {
     }
     return base
   }, [enabledSections, form, layoutState])
+  const layoutSectionRows = useMemo(() => {
+    const orderMap = new Map(orderedSections.map((id, index) => [id, index]))
+    return [...EXPLORE_SECTION_OPTIONS].sort((left, right) => {
+      const leftIndex = orderMap.get(left.id)
+      const rightIndex = orderMap.get(right.id)
+      if (leftIndex != null && rightIndex != null) return leftIndex - rightIndex
+      if (leftIndex != null) return -1
+      if (rightIndex != null) return 1
+      return EXPLORE_SECTION_OPTIONS.findIndex((item) => item.id === left.id)
+        - EXPLORE_SECTION_OPTIONS.findIndex((item) => item.id === right.id)
+    })
+  }, [orderedSections])
   const currentStateRules = form.stateRules[layoutState]
   const currentPromoPolicy = form.statePromoPolicies[layoutState]
   const currentDecisionPriority = form.stateDecisionPriorities[layoutState]
@@ -530,17 +973,611 @@ export default function ExploreAdminPage() {
   const isDirty = JSON.stringify(form) !== JSON.stringify(res.data.data)
   const storePromoPreview = useMemo(() => buildStorePromoPreview(form), [form])
   const editorialPoolPreview = useMemo(() => {
-    if ((form.editorialRecommendationsItems?.length ?? 0) > 0) {
-      return form.editorialRecommendationsItems ?? []
+    const hydratedItems = (form.editorialRecommendationsItems ?? []).filter((item) => {
+      return Boolean(item.title?.trim() || item.deeplinkUrl?.trim() || item.thumbnailUrl?.trim())
+    })
+    if (hydratedItems.length > 0) {
+      return hydratedItems
     }
     return parseEditorialRecommendations(form.editorialRecommendationsPoolRaw)
   }, [form.editorialRecommendationsItems, form.editorialRecommendationsPoolRaw])
+  const historicalRecommendationRows = useMemo(() => {
+    const activeHistoryIds = new Set(
+      (form.editorialRecommendationsItems ?? [])
+        .map((item) => item.historyId)
+        .filter((value): value is string => Boolean(value)),
+    )
+    return [...(form.editorialRecommendationsHistory ?? [])]
+      .filter((item) => !activeHistoryIds.has(item.historyId))
+      .sort((a, b) => {
+        const left = b.deletedAt || b.endsAt || b.updatedAt || b.registeredAt || ''
+        const right = a.deletedAt || a.endsAt || a.updatedAt || a.registeredAt || ''
+        return left.localeCompare(right)
+      })
+  }, [form.editorialRecommendationsHistory, form.editorialRecommendationsItems])
+  const recommendationDraftRows = useMemo(
+    () => parseRecommendationDraftRows(form.editorialRecommendationsPoolRaw, form.editorialRecommendationsItems ?? []),
+    [form.editorialRecommendationsItems, form.editorialRecommendationsPoolRaw],
+  )
+  const recommendationSearchNeedle = recommendationSearchQuery.trim()
+  const recommendationSearchNeedleLower = recommendationSearchNeedle.toLocaleLowerCase()
+  const recommendationSearchOption = RECOMMENDATION_SEARCH_OPTIONS.find((option) => option.id === recommendationSearchField) ?? RECOMMENDATION_SEARCH_OPTIONS[0]
+  const filteredRecommendationDraftRows = useMemo(() => {
+    return recommendationDraftRows.filter((row) => {
+      if (!recommendationSearchNeedle) return true
+      const registeredAt = row.parsed?.registeredAt ?? ''
+      switch (recommendationSearchField) {
+        case 'registeredAt':
+          return registeredAt.startsWith(recommendationSearchNeedle)
+        case 'provider':
+          return matchesRecommendationSearch(row.parsed?.provider, recommendationSearchNeedleLower)
+        case 'title':
+        default:
+          return matchesRecommendationSearch(row.parsed?.title || row.raw, recommendationSearchNeedleLower)
+      }
+    })
+  }, [recommendationDraftRows, recommendationSearchField, recommendationSearchNeedle, recommendationSearchNeedleLower])
+  const filteredHistoricalRecommendationRows = useMemo(() => {
+    return historicalRecommendationRows.filter((item) => {
+      if (!recommendationSearchNeedle) return true
+      const registeredAt = item.registeredAt ?? ''
+      switch (recommendationSearchField) {
+        case 'registeredAt':
+          return registeredAt.startsWith(recommendationSearchNeedle)
+        case 'provider':
+          return matchesRecommendationSearch(item.provider, recommendationSearchNeedleLower)
+        case 'title':
+        default:
+          return matchesRecommendationSearch(item.title || item.raw, recommendationSearchNeedleLower)
+      }
+    })
+  }, [historicalRecommendationRows, recommendationSearchField, recommendationSearchNeedle, recommendationSearchNeedleLower])
+  const selectedRecommendationRowIdSet = useMemo(() => new Set(selectedRecommendationRowIds), [selectedRecommendationRowIds])
+  const visibleRecommendationRowIds = useMemo(() => filteredRecommendationDraftRows.map((row) => row.id), [filteredRecommendationDraftRows])
+  const visibleSelectedRecommendationRowIds = useMemo(
+    () => visibleRecommendationRowIds.filter((id) => selectedRecommendationRowIdSet.has(id)),
+    [selectedRecommendationRowIdSet, visibleRecommendationRowIds],
+  )
+  const allVisibleRecommendationRowsSelected = visibleRecommendationRowIds.length > 0 && visibleSelectedRecommendationRowIds.length === visibleRecommendationRowIds.length
+  const hasSelectedRecommendationRows = visibleSelectedRecommendationRowIds.length > 0
+  const isRecommendationActionBusy = Boolean(
+    bulkRecommendationAction
+      || resolvingRowId
+      || registeringRowId
+      || deletingRowIds.length > 0
+      || savingRecommendations,
+  )
+  const hasRecommendationSearchQuery = Boolean(recommendationSearchNeedle)
+
+  useEffect(() => {
+    const existingIds = new Set(recommendationDraftRows.map((row) => row.id))
+    setSelectedRecommendationRowIds((prev) => {
+      const next = prev.filter((id) => existingIds.has(id))
+      return next.length === prev.length ? prev : next
+    })
+    setPendingDeleteRecommendationRowIds((prev) => {
+      if (!prev) return null
+      const next = prev.filter((id) => existingIds.has(id))
+      return next.length > 0 ? next : null
+    })
+  }, [recommendationDraftRows])
+
+  const recommendationDuplicateSlotIds = useMemo(() => {
+    const bucket = new Map<number, string[]>()
+    for (const row of recommendationDraftRows) {
+      if (row.displaySlot < 1 || row.displaySlot > 10) continue
+      const current = bucket.get(row.displaySlot) ?? []
+      current.push(row.id)
+      bucket.set(row.displaySlot, current)
+    }
+    const duplicates = new Set<string>()
+    for (const ids of bucket.values()) {
+      if (ids.length < 2) continue
+      for (const id of ids) duplicates.add(id)
+    }
+    return duplicates
+  }, [recommendationDraftRows])
+  const recommendationDuplicateSlots = useMemo(() => {
+    const counts = new Map<number, number>()
+    for (const row of recommendationDraftRows) {
+      if (row.displaySlot < 1 || row.displaySlot > 10) continue
+      counts.set(row.displaySlot, (counts.get(row.displaySlot) ?? 0) + 1)
+    }
+    return [...counts.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([slot]) => slot)
+      .sort((a, b) => a - b)
+  }, [recommendationDraftRows])
+  const hasRecommendationSlotConflicts = recommendationDuplicateSlots.length > 0
   const liveTitle = appConfigRes.data.data.copy?.help?.pageTitle ?? 'Explore'
   const liveSubtitle = appConfigRes.data.data.copy?.help?.subtitle ?? '지금 살 상품 결정과 지난 장보기 회고를 한 곳에서 이어가요'
   const features = appConfigRes.data.data.features
+  const activeWorkspaceOption =
+    EXPLORE_WORKSPACE_OPTIONS.find((option) => option.id === activeWorkspace) ??
+    EXPLORE_WORKSPACE_OPTIONS[0]
+
+  useEffect(() => {
+    ensureLocationChangeEventPatched()
+    const syncWorkspace = () => setActiveWorkspace(readExploreWorkspaceFromLocation())
+    syncWorkspace()
+    window.addEventListener('popstate', syncWorkspace)
+    window.addEventListener('cartly:locationchange', syncWorkspace as EventListener)
+    return () => {
+      window.removeEventListener('popstate', syncWorkspace)
+      window.removeEventListener('cartly:locationchange', syncWorkspace as EventListener)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (editorialPoolPreview.length === 0) {
+      setSelectedRecommendationId(null)
+      return
+    }
+    if (!selectedRecommendationId || !editorialPoolPreview.some((item) => item.id === selectedRecommendationId)) {
+      setSelectedRecommendationId(editorialPoolPreview[0]?.id ?? null)
+    }
+  }, [editorialPoolPreview, selectedRecommendationId])
 
   function update<K extends keyof ExploreSettings>(key: K, value: ExploreSettings[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function recommendationRowIndex(rowId: string) {
+    return recommendationDraftRows.findIndex((row) => row.id === rowId)
+  }
+
+  function updateRecommendationRow(rowId: string, nextRaw: string) {
+    const nextRows = recommendationDraftRows.map((row) =>
+      row.id === rowId ? { ...row, raw: nextRaw } : row,
+    )
+    const rowIndex = recommendationRowIndex(rowId)
+    const nextItems = [...(form.editorialRecommendationsItems ?? [])]
+    if (rowIndex >= 0) {
+      while (nextItems.length <= rowIndex) {
+        nextItems.push({ id: `editorial-pick-${nextItems.length + 1}`, title: '', provider: '', displaySlot: 999 })
+      }
+      nextItems[rowIndex] = {
+        ...nextItems[rowIndex],
+        id: rowId,
+        raw: nextRaw,
+        title: '',
+        price: undefined,
+        thumbnailUrl: '',
+        url: '',
+        deeplinkUrl: '',
+        provider: '',
+        historyId: '',
+        registeredAt: '',
+        deletedAt: '',
+        updatedAt: '',
+      }
+    }
+    setForm((prev) => ({
+      ...prev,
+      editorialRecommendationsPoolRaw: stringifyRecommendationDraftRows(nextRows),
+      editorialRecommendationsItems: nextItems,
+    }))
+  }
+
+  function updateRecommendationDisplaySlot(rowId: string, value: string) {
+    const parsed = Number(value || 999)
+    const displaySlot = parsed >= 1 && parsed <= 10 ? parsed : 999
+    const nextRows = recommendationDraftRows.map((row) =>
+      row.id === rowId ? { ...row, displaySlot } : row,
+    )
+    const rowIndex = recommendationRowIndex(rowId)
+    const nextItems = [...(form.editorialRecommendationsItems ?? [])]
+    while (nextItems.length <= rowIndex) {
+      nextItems.push({ id: `editorial-pick-${nextItems.length + 1}`, title: '', provider: '', displaySlot: 999 })
+    }
+    if (rowIndex >= 0) {
+      nextItems[rowIndex] = { ...nextItems[rowIndex], id: rowId, displaySlot }
+    }
+    setForm((prev) => ({
+      ...prev,
+      editorialRecommendationsPoolRaw: stringifyRecommendationDraftRows(nextRows),
+      editorialRecommendationsItems: nextItems,
+    }))
+  }
+
+  function updateRecommendationSchedule(rowId: string, key: 'startsAt' | 'endsAt', value: string) {
+    const normalized = value
+    const nextRows = recommendationDraftRows.map((row) =>
+      row.id === rowId ? { ...row, [key]: normalized } : row,
+    )
+    const rowIndex = recommendationRowIndex(rowId)
+    if (rowIndex < 0) return
+    const nextItems = [...(form.editorialRecommendationsItems ?? [])]
+    while (nextItems.length <= rowIndex) {
+      nextItems.push({ id: `editorial-pick-${nextItems.length + 1}`, title: '', provider: '', displaySlot: 999 })
+    }
+    nextItems[rowIndex] = { ...nextItems[rowIndex], id: rowId, [key]: normalized }
+    setForm((prev) => ({
+      ...prev,
+      editorialRecommendationsPoolRaw: stringifyRecommendationDraftRows(nextRows),
+      editorialRecommendationsItems: nextItems,
+    }))
+  }
+
+  function normalizeRecommendationSchedule(rowId: string, key: 'startsAt' | 'endsAt') {
+    const row = recommendationDraftRows.find((item) => item.id === rowId)
+    if (!row) return
+    updateRecommendationSchedule(rowId, key, normalizeScheduleText(row[key]))
+  }
+
+  function toggleRecommendationRowSelection(rowId: string, checked: boolean) {
+    setSelectedRecommendationRowIds((prev) => {
+      if (checked) {
+        return prev.includes(rowId) ? prev : [...prev, rowId]
+      }
+      return prev.filter((id) => id !== rowId)
+    })
+  }
+
+  function toggleAllVisibleRecommendationRows(checked: boolean) {
+    setSelectedRecommendationRowIds((prev) => {
+      const visibleSet = new Set(visibleRecommendationRowIds)
+      if (checked) {
+        const next = [...prev]
+        for (const id of visibleRecommendationRowIds) {
+          if (!next.includes(id)) next.push(id)
+        }
+        return next
+      }
+      return prev.filter((id) => !visibleSet.has(id))
+    })
+  }
+
+  function openRecommendationDeleteDialog(rowIds: string[]) {
+    const nextIds = [...new Set(rowIds)].filter((id) => recommendationDraftRows.some((row) => row.id === id))
+    if (nextIds.length === 0) {
+      setMessage('삭제할 행을 먼저 선택해줘')
+      return
+    }
+    setPendingDeleteRecommendationRowIds(nextIds)
+  }
+
+  function closeRecommendationDeleteDialog() {
+    setPendingDeleteRecommendationRowIds(null)
+  }
+
+  function handleRecommendationSheetWheel(event: WheelEvent<HTMLDivElement>) {
+    const viewport = recommendationSheetViewportRef.current
+    if (!viewport) return
+    if (viewport.scrollWidth <= viewport.clientWidth) return
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
+    viewport.scrollLeft += event.deltaY
+    event.preventDefault()
+  }
+
+  function applyRecommendationDraftRows(nextRows: RecommendationDraftRow[]) {
+    const normalizedRows = nextRows.map((row, index) => ({
+      id: `editorial-pick-${index + 1}`,
+      raw: row.raw.trim(),
+      parsed: row.parsed ? { ...row.parsed, id: `editorial-pick-${index + 1}` } : null,
+      displaySlot: row.displaySlot >= 1 && row.displaySlot <= 10 ? row.displaySlot : 999,
+      startsAt: normalizeScheduleText(row.startsAt),
+      endsAt: normalizeScheduleText(row.endsAt),
+    }))
+    setForm((prev) => ({
+      ...prev,
+      editorialRecommendationsPoolRaw: stringifyRecommendationDraftRows(normalizedRows),
+      editorialRecommendationsItems: normalizedRows.map((row, index) => buildRecommendationItemFromRow(row, index)),
+    }))
+    setSelectedRecommendationId(normalizedRows[0]?.id ?? null)
+  }
+
+  async function downloadRecommendationSheet() {
+    setMessage(null)
+    try {
+      const XLSX = await import('xlsx')
+      const workbook = XLSX.utils.book_new()
+      const worksheet = XLSX.utils.json_to_sheet(buildRecommendationSheetRows(recommendationDraftRows), {
+        header: RECOMMENDATION_SHEET_COLUMNS,
+      })
+      worksheet['!cols'] = [
+        { wch: 10 },
+        { wch: 54 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 36 },
+        { wch: 12 },
+        { wch: 36 },
+        { wch: 14 },
+      ]
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Recommendations')
+      const guide = XLSX.utils.aoa_to_sheet([
+        ['기준'],
+        ['필수 컬럼', '노출 순번', 'URL', '등록일시', '종료일시'],
+        ['형식', '', '', 'YYYY-MM-DD 00:00', 'YYYY-MM-DD 00:00'],
+        ['종료일시', '빈칸 허용'],
+        [],
+        ['선택 컬럼'],
+        ['상품명', '가격', '썸네일 URL', 'Provider'],
+        [],
+        ['동작'],
+        ['상품명/가격/썸네일 URL을 비우면 URL 기준 resolve 결과를 사용함'],
+        ['노출 시작일시는 등록일시를 기준으로 자동 생성됨'],
+      ])
+      guide['!cols'] = [{ wch: 22 }, { wch: 42 }, { wch: 22 }, { wch: 22 }]
+      XLSX.utils.book_append_sheet(workbook, guide, 'Guide')
+      XLSX.writeFile(workbook, 'cartly-recommendations.xlsx')
+      setMessage('추천 상품 엑셀 다운로드 완료')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '추천 상품 엑셀 다운로드 실패')
+    }
+  }
+
+  async function uploadRecommendationSheet(file: File | null) {
+    if (!file) return
+    setImportingRecommendationSheet(true)
+    setMessage(null)
+    try {
+      const XLSX = await import('xlsx')
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' })
+      const firstSheetName = workbook.SheetNames[0]
+      if (!firstSheetName) {
+        throw new Error('첫 번째 시트를 찾지 못했어')
+      }
+      const worksheet = workbook.Sheets[firstSheetName]
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' })
+      const importedRows = buildRecommendationRowsFromSheet(rows)
+      if (importedRows.length === 0) {
+        throw new Error('업로드할 추천 상품 행이 없어')
+      }
+      applyRecommendationDraftRows(importedRows)
+      setMessage(`추천 상품 엑셀 업로드 완료, ${importedRows.length}개 행 반영됨`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '추천 상품 엑셀 업로드 실패')
+    } finally {
+      if (recommendationSheetInputRef.current) {
+        recommendationSheetInputRef.current.value = ''
+      }
+      setImportingRecommendationSheet(false)
+    }
+  }
+
+  async function resolveRecommendationRow(rowId: string) {
+    const row = recommendationDraftRows.find((item) => item.id === rowId)
+    if (!row) return
+    setResolvingRowId(rowId)
+    setMessage(null)
+    try {
+      const response = await postJson<{ ok: boolean; data: EditorialRecommendationPreview }>('/admin/explore/resolve-item', {
+        id: row.id,
+        historyId: row.parsed?.historyId,
+        raw: row.raw,
+        displaySlot: row.displaySlot,
+        startsAt: normalizeScheduleText(row.startsAt),
+        endsAt: normalizeScheduleText(row.endsAt),
+      })
+      const resolved = response.data
+      const rowIndex = recommendationRowIndex(rowId)
+      const nextItems = [...(form.editorialRecommendationsItems ?? [])]
+      while (nextItems.length <= rowIndex) {
+        nextItems.push({ id: `editorial-pick-${nextItems.length + 1}`, title: '', provider: '', displaySlot: 999 })
+      }
+      if (rowIndex >= 0) {
+        nextItems[rowIndex] = { ...resolved, raw: row.raw, displaySlot: row.displaySlot }
+      }
+      setForm((prev) => ({ ...prev, editorialRecommendationsItems: nextItems }))
+      setSelectedRecommendationId(rowId)
+      return { ...resolved, raw: row.raw, displaySlot: row.displaySlot }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '추천 행 확인에 실패했어')
+      return null
+    } finally {
+      setResolvingRowId(null)
+    }
+  }
+
+  function buildRecommendationSectionPatch(rows: RecommendationDraftRow[], items: EditorialRecommendationPreview[]) {
+    return {
+      editorialRecommendationsEnabled: form.editorialRecommendationsEnabled,
+      editorialRecommendationsTitle: form.editorialRecommendationsTitle,
+      editorialRecommendationsSubtitle: form.editorialRecommendationsSubtitle,
+      editorialRecommendationsCount: form.editorialRecommendationsCount,
+      editorialRecommendationsPoolRaw: stringifyRecommendationDraftRows(rows),
+      editorialRecommendationsDisclaimer: form.editorialRecommendationsDisclaimer,
+      editorialRecommendationsItems: items.map((item, index) => ({
+        ...item,
+        id: item.id || `editorial-pick-${index + 1}` ,
+      })),
+    }
+  }
+
+  async function saveRecommendationSection() {
+    if (hasRecommendationSlotConflicts) {
+      setMessage(`고정 슬롯 중복부터 정리해줘. 충돌 슬롯: ${recommendationDuplicateSlots.join(', ')}`)
+      return
+    }
+    setSavingRecommendations(true)
+    setMessage(null)
+    try {
+      const payload = {
+        ...res.data.data,
+        ...buildRecommendationSectionPatch(
+          recommendationDraftRows,
+          recommendationDraftRows.map((row, index) => buildRecommendationItemFromRow(row, index)),
+        ),
+      }
+      await putJson<{ ok: boolean; data: ExploreSettings }>('/admin/explore', payload)
+      setMessage('추천 상품 섹션 저장 완료')
+      await Promise.allSettled([res.reload(), appConfigRes.reload()])
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '추천 상품 섹션 저장 실패')
+    } finally {
+      setSavingRecommendations(false)
+    }
+  }
+
+  async function registerRecommendationRow(rowId: string) {
+    const rowIndex = recommendationRowIndex(rowId)
+    if (rowIndex < 0) return false
+    const row = recommendationDraftRows[rowIndex]
+    if (recommendationDuplicateSlotIds.has(rowId)) {
+      setMessage(`고정 슬롯 ${row.displaySlot} 중복을 먼저 정리해줘`)
+      return false
+    }
+    setRegisteringRowId(rowId)
+    setMessage(null)
+    try {
+      const registeredAtDraft = normalizeScheduleText(row.startsAt) || normalizeScheduleText(row.parsed?.registeredAt ?? '')
+      const endsAtDraft = normalizeScheduleText(row.endsAt)
+      const resolvedBase = row.parsed?.title?.trim() ? buildRecommendationItemFromRow(row, rowIndex) : await resolveRecommendationRow(rowId)
+      if (!resolvedBase) return false
+      const resolved = {
+        ...resolvedBase,
+        registeredAt: registeredAtDraft || resolvedBase.registeredAt || '',
+        startsAt: registeredAtDraft || resolvedBase.startsAt || resolvedBase.registeredAt || '',
+        endsAt: endsAtDraft,
+      }
+      const baseRows = parseRecommendationDraftRows(
+        res.data.data.editorialRecommendationsPoolRaw,
+        res.data.data.editorialRecommendationsItems ?? [],
+      )
+      while (baseRows.length <= rowIndex) {
+        baseRows.push({
+          id: `editorial-pick-${baseRows.length + 1}`,
+          raw: 'https://',
+          parsed: null,
+          displaySlot: 999,
+          startsAt: '',
+          endsAt: '',
+        })
+      }
+      baseRows[rowIndex] = {
+        id: `editorial-pick-${rowIndex + 1}`,
+        raw: row.raw,
+        parsed: resolved,
+        displaySlot: row.displaySlot,
+        startsAt: registeredAtDraft || normalizeScheduleText(row.startsAt),
+        endsAt: endsAtDraft,
+      }
+      const payload = {
+        ...res.data.data,
+        ...buildRecommendationSectionPatch(
+          baseRows,
+          baseRows.map((entry, index) => buildRecommendationItemFromRow(entry, index)),
+        ),
+      }
+      await putJson<{ ok: boolean; data: ExploreSettings }>('/admin/explore', payload)
+      setMessage('추천 상품 행 등록 완료')
+      await Promise.allSettled([res.reload(), appConfigRes.reload()])
+      return true
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '추천 상품 행 등록 실패')
+      return false
+    } finally {
+      setRegisteringRowId(null)
+    }
+  }
+
+  function appendRecommendationRow() {
+    const nextRows = [...recommendationDraftRows, { id: `draft-${Date.now()}`, raw: 'https://', parsed: null, displaySlot: 999, startsAt: '', endsAt: '' }]
+    update('editorialRecommendationsPoolRaw', stringifyRecommendationDraftRows(nextRows))
+  }
+
+  async function deleteRecommendationRows(rowIds: string[]) {
+    const targetIds = [...new Set(rowIds)].filter((id) => recommendationDraftRows.some((row) => row.id === id))
+    if (targetIds.length === 0) {
+      setMessage('삭제할 행을 먼저 선택해줘')
+      return false
+    }
+
+    const savedRows = parseRecommendationDraftRows(
+      res.data.data.editorialRecommendationsPoolRaw,
+      res.data.data.editorialRecommendationsItems ?? [],
+    )
+    const savedRowCount = savedRows.length
+    const targetIdSet = new Set(targetIds)
+    const selectedIndexes = targetIds
+      .map((id) => recommendationRowIndex(id))
+      .filter((index) => index >= 0)
+    const hasPersistedRow = selectedIndexes.some((index) => index < savedRowCount)
+    const nextRows = recommendationDraftRows.filter((row) => !targetIdSet.has(row.id))
+
+    setDeletingRowIds(targetIds)
+    setMessage(null)
+    try {
+      setSelectedRecommendationRowIds((prev) => prev.filter((id) => !targetIdSet.has(id)))
+      if (selectedRecommendationId && targetIdSet.has(selectedRecommendationId)) {
+        setSelectedRecommendationId(nextRows[0]?.id ?? null)
+      }
+
+      if (!hasPersistedRow) {
+        setForm((prev) => ({
+          ...prev,
+          editorialRecommendationsPoolRaw: stringifyRecommendationDraftRows(nextRows),
+          editorialRecommendationsItems: nextRows.map((row, index) => buildRecommendationItemFromRow(row, index)),
+        }))
+        setMessage(targetIds.length === 1 ? '저장 전 행 제거 완료' : `선택 ${targetIds.length}개 행 제거 완료`)
+        return true
+      }
+
+      const payload = {
+        ...res.data.data,
+        ...buildRecommendationSectionPatch(
+          nextRows,
+          nextRows.map((entry, index) => buildRecommendationItemFromRow(entry, index)),
+        ),
+      }
+      await putJson<{ ok: boolean; data: ExploreSettings }>('/admin/explore', payload)
+      setMessage(targetIds.length === 1 ? '추천 상품 행 삭제 완료' : `선택 ${targetIds.length}개 행 삭제 완료`)
+      await Promise.allSettled([res.reload(), appConfigRes.reload()])
+      return true
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '추천 상품 행 삭제 실패')
+      return false
+    } finally {
+      setDeletingRowIds([])
+      setPendingDeleteRecommendationRowIds(null)
+    }
+  }
+
+  async function bulkResolveRecommendationRows() {
+    if (!hasSelectedRecommendationRows) {
+      setMessage('선택한 행이 없어')
+      return
+    }
+    setBulkRecommendationAction('resolve')
+    setMessage(null)
+    try {
+      let successCount = 0
+      for (const rowId of visibleSelectedRecommendationRowIds) {
+        const resolved = await resolveRecommendationRow(rowId)
+        if (resolved) successCount += 1
+      }
+      setMessage(successCount === visibleSelectedRecommendationRowIds.length ? `선택 ${successCount}개 행 확인 완료` : `선택 ${successCount}/${visibleSelectedRecommendationRowIds.length}개 행 확인 완료`)
+    } finally {
+      setBulkRecommendationAction(null)
+    }
+  }
+
+  async function bulkRegisterRecommendationRows() {
+    if (!hasSelectedRecommendationRows) {
+      setMessage('선택한 행이 없어')
+      return
+    }
+    setBulkRecommendationAction('register')
+    setMessage(null)
+    try {
+      let successCount = 0
+      for (const rowId of visibleSelectedRecommendationRowIds) {
+        const registered = await registerRecommendationRow(rowId)
+        if (registered) successCount += 1
+      }
+      setMessage(successCount === visibleSelectedRecommendationRowIds.length ? `선택 ${successCount}개 행 등록 완료` : `선택 ${successCount}/${visibleSelectedRecommendationRowIds.length}개 행 등록 완료`)
+    } finally {
+      setBulkRecommendationAction(null)
+    }
+  }
+
+  async function confirmDeleteRecommendationRows() {
+    if (!pendingDeleteRecommendationRowIds || pendingDeleteRecommendationRowIds.length === 0) return
+    setBulkRecommendationAction('delete')
+    await deleteRecommendationRows(pendingDeleteRecommendationRowIds)
+    setBulkRecommendationAction(null)
   }
 
   function updateStateRule<K extends keyof ExploreStateRuleSet>(key: K, value: ExploreStateRuleSet[K]) {
@@ -672,13 +1709,32 @@ export default function ExploreAdminPage() {
   }
 
   function postPreviewPayload() {
-    previewFrameRef.current?.contentWindow?.postMessage(
+    previewPopupRef.current?.postMessage(
       {
         type: 'branding-preview',
         payload: previewPayload(),
       },
       '*',
     )
+  }
+
+  function openPreviewPopup() {
+    const existing = previewPopupRef.current
+    if (existing && !existing.closed) {
+      existing.focus()
+      postPreviewPayload()
+      return
+    }
+    const next = window.open(PREVIEW_SRC, 'cartly-explore-preview', 'popup=yes,width=480,height=920,resizable=yes,scrollbars=yes')
+    if (!next) {
+      setMessage('브라우저가 preview popup을 막았어. 팝업 허용 후 다시 눌러줘.')
+      return
+    }
+    previewPopupRef.current = next
+    next.focus()
+    window.setTimeout(() => {
+      postPreviewPayload()
+    }, 500)
   }
 
   useEffect(() => {
@@ -704,13 +1760,66 @@ export default function ExploreAdminPage() {
   }
 
   return (
-    <div>
+    <div className="exploreCompactPage">
       <PageHeader
         badge={res.usingFallback ? 'Fallback data' : res.loading ? 'Loading...' : 'Live data'}
         title={t('admin.explore.title', 'Explore')}
-        description={t('admin.explore.desc', '도움/Explore 탭 운영 제어를 Content에서 분리한 전용 화면')}
-        onRefresh={() => void Promise.allSettled([res.reload(), appConfigRes.reload()])}
-        refreshing={res.loading || appConfigRes.loading || saving}
+        description={activeWorkspace === 'copy' ? '' : t('admin.explore.desc', '도움/Explore 탭 운영 제어를 Content에서 분리한 전용 화면')}
+        actions={(
+          <div className="exploreHeaderActionStrip">
+            <div className="exploreHeaderActionGroup exploreHeaderActionGroupPreview">
+              <div className="exploreHeaderActionRow">
+                <button className="primaryBtn pageActionBtn pageActionBtnPrimary exploreHeaderActionBtn" type="button" onClick={openPreviewPopup}>
+                  Preview
+                </button>
+                <button
+                  className="ghostBtn pageActionBtn exploreHeaderIconBtn"
+                  type="button"
+                  onClick={() => setPreviewNonce((value) => value + 1)}
+                  aria-label="Preview 다시 보내기"
+                  title="Preview 다시 보내기"
+                >
+                  ↻
+                </button>
+              </div>
+              <label className="exploreHeaderMiniField">
+                <span>미리보기 상태</span>
+                <select className="textInput exploreHeaderMiniSelect" value={previewScenario} onChange={(e) => setPreviewScenario(e.target.value as ExploreStateId)}>
+                  {EXPLORE_STATE_OPTIONS.map((state) => (
+                    <option key={state.id} value={state.id}>{state.label}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <span className="exploreHeaderActionDivider" aria-hidden="true" />
+            <div className="exploreHeaderActionGroup">
+              <button className="primaryBtn pageActionBtn pageActionBtnPrimary exploreHeaderActionBtn" type="button" onClick={() => void onSave()} disabled={saving}>
+                {saving ? '저장중' : '저장'}
+              </button>
+              <button
+                className="ghostBtn pageActionBtn exploreHeaderIconBtn"
+                type="button"
+                onClick={() => setForm(res.data.data)}
+                disabled={saving || !isDirty}
+                aria-label="저장 되돌리기"
+                title="저장 되돌리기"
+              >
+                ↻
+              </button>
+            </div>
+            <span className="exploreHeaderActionDivider" aria-hidden="true" />
+            <div className="exploreHeaderActionGroup">
+              <button
+                className="ghostBtn pageActionBtn exploreHeaderActionBtn"
+                type="button"
+                onClick={() => void Promise.allSettled([res.reload(), appConfigRes.reload()])}
+                disabled={res.loading || appConfigRes.loading || saving}
+              >
+                {res.loading || appConfigRes.loading || saving ? 'DATA...' : 'DATA'}
+              </button>
+            </div>
+          </div>
+        )}
       />
 
       {res.error ? <div className="loginError" style={{ marginBottom: 16 }}>{res.error}</div> : null}
@@ -721,109 +1830,97 @@ export default function ExploreAdminPage() {
         </div>
       ) : null}
 
-      <div className="kpiGrid">
-        <StatCard label="Visible sections" value={`${enabledSections.length}`} note={enabledSections.join(' · ') || '-'} />
-        <StatCard label="Explore state" value={form.stateMode === 'auto' ? 'AUTO' : form.stateMode} note={form.stateMode === 'auto' ? 'runtime decides' : 'forced override'} />
-        <StatCard label="Revisit cap" value={`${currentStateRules.revisitMaxItems}`} note={`recent ${currentStateRules.revisitRecentScanLimit} · cart ${currentStateRules.revisitCartItemLimit}`} />
-        <StatCard label="Repeat rule" value={`≥ ${currentStateRules.repeatMinCount}`} note={`max ${currentStateRules.repeatMaxItems}`} />
-        <StatCard label="Offer slots" value={`${currentStateRules.offerMaxSlots}`} note={features?.coupangPartnersAffiliateReady ? 'affiliate ready' : 'fallback/search mode'} />
-        <StatCard label="Manual picks" value={form.editorialRecommendationsEnabled ? `${Math.min(EDITORIAL_VISIBLE_COUNT, editorialPoolPreview.length)} / ${editorialPoolPreview.length}` : 'OFF'} note="show 5 fixed" />
-        <StatCard label="Store promo" value={form.storeContextEnabled ? 'ON' : 'OFF'} note={`${form.storeContextStoreName} · ${storePromoPreview.length}개 preview`} />
-      </div>
-
-      <div className="metaRow section" style={{ marginTop: 16 }}>
-        <span className="metaPill">same-intent + manual picks</span>
-        <span className="metaPill">bridge {features?.exploreOfferBridgeEnabled ? 'on' : 'off'}</span>
-        <span className="metaPill">coupang {features?.coupangPartnersEnabled ? 'enabled' : 'disabled'}</span>
-        <span className="metaPill">title/subtitle in Content</span>
-        <span className="metaPill">decision copy in Explore</span>
-      </div>
-
-      <div className="twoCol" style={{ marginTop: 16 }}>
-        <div>
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="sectionHeader" style={{ marginBottom: 12 }}>
-              <div>
-                <h2 className="panelTitle" style={{ marginBottom: 6 }}>표시할 섹션</h2>
-                <p className="pageDesc">보일지 끌지 정하고, 상태별 레이아웃 순서를 따로 다듬으면 돼.</p>
+      <div className="exploreWorkbenchMain" style={{ marginTop: 16 }}>
+        <div className="exploreWorkbenchCenter">
+          {activeWorkspace === 'store' ? (
+            <div className="exploreActionBar exploreActionBarSingle">
+              <div className="exploreActionPanel exploreActionPanelTight">
+                <div className="exploreActionLabel">편집 기준</div>
+                <div className="exploreActionMeta">
+                  <span className="metaPill">{activeWorkspaceOption.label}</span>
+                  <span className="metaPill">{EXPLORE_STATE_OPTIONS.find((state) => state.id === layoutState)?.label}</span>
+                </div>
+                <div className="exploreActionSplit">
+                  <label className="field">
+                    <div className="fieldLabel">편집 상태</div>
+                    <select className="textInput" value={layoutState} onChange={(e) => setLayoutState(e.target.value as ExploreStateId)}>
+                      {EXPLORE_STATE_OPTIONS.map((state) => (
+                        <option key={state.id} value={state.id}>{state.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
               </div>
             </div>
-            <div className="metaRow" style={{ marginBottom: 12 }}>
+          ) : null}
+          <div className="card" style={{ marginBottom: activeWorkspace === 'layout' ? 16 : 0, display: activeWorkspace === 'layout' ? 'block' : 'none' }}>
+            <div className="sectionHeader" style={{ marginBottom: 10 }}>
+              <div>
+                <h2 className="panelTitle" style={{ marginBottom: 0 }}>Layout</h2>
+              </div>
+            </div>
+            <div className="exploreLayoutStateTabs" style={{ marginBottom: 12 }}>
               {EXPLORE_STATE_OPTIONS.map((state) => (
                 <button
                   key={state.id}
-                  className="ghostBtnSmall"
+                  className={`editorSubtab${layoutState === state.id ? ' active' : ''}`}
                   type="button"
                   onClick={() => setLayoutState(state.id)}
-                  disabled={layoutState === state.id}
                 >
                   {state.label}
                 </button>
               ))}
             </div>
-            <div className="metaRow compactMetaRow" style={{ marginBottom: 12 }}>
-              <span className="metaPill">편집 중</span>
-              <span className="metaPill">{EXPLORE_STATE_OPTIONS.find((state) => state.id === layoutState)?.label}</span>
-              <span className="metaPill">{EXPLORE_STATE_OPTIONS.find((state) => state.id === layoutState)?.description}</span>
+            <div className="tableWrap">
+              <table className="dataTable exploreDenseTable">
+                <thead>
+                  <tr>
+                    <th>ON</th>
+                    <th>섹션</th>
+                    <th>Key</th>
+                    <th>순서</th>
+                    <th>조작</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {layoutSectionRows.map((section) => {
+                    const enabled = enabledSections.includes(section.id)
+                    const orderIndex = orderedSections.indexOf(section.id)
+                    return (
+                      <tr key={section.id} className={enabled ? '' : 'exploreRowMuted'}>
+                        <td data-label="ON">
+                          <input type="checkbox" checked={enabled} onChange={() => toggleSection(section.id)} />
+                        </td>
+                        <td data-label="섹션">
+                          <div style={{ fontWeight: 800, color: '#0f172a' }}>{section.label}</div>
+                        </td>
+                        <td data-label="Key"><code>{section.id}</code></td>
+                        <td data-label="순서">{enabled ? `${orderIndex + 1}번째` : '숨김'}</td>
+                        <td data-label="조작">
+                          <div className="exploreRowActions">
+                            <button className="ghostBtnSmall" type="button" onClick={() => moveSection(section.id, -1)} disabled={!enabled || orderIndex <= 0}>
+                              위로
+                            </button>
+                            <button className="ghostBtnSmall" type="button" onClick={() => moveSection(section.id, 1)} disabled={!enabled || orderIndex < 0 || orderIndex >= orderedSections.length - 1}>
+                              아래로
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
-            <div style={{ display: 'grid', gap: 12 }}>
-              {EXPLORE_SECTION_OPTIONS.map((section) => {
-                const enabled = enabledSections.includes(section.id)
-                const orderIndex = orderedSections.indexOf(section.id)
-                return (
-                  <div
-                    key={section.id}
-                    style={{
-                      border: '1px solid rgba(15, 23, 42, 0.08)',
-                      borderRadius: 16,
-                      padding: 14,
-                      background: enabled ? '#ffffff' : '#f8fafc',
-                    }}
-                  >
-                    <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={enabled} onChange={() => toggleSection(section.id)} style={{ marginTop: 4 }} />
-                      <div>
-                        <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>{section.label}</div>
-                        <div style={{ fontSize: 13, lineHeight: 1.5, color: '#475569' }}>{section.description}</div>
-                      </div>
-                    </label>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 12, paddingLeft: 26 }}>
-                      <span className="metaPill">{enabled ? `표시 중 · ${orderIndex + 1}번째` : '숨김'}</span>
-                      <button className="ghostBtnSmall" type="button" onClick={() => moveSection(section.id, -1)} disabled={!enabled || orderIndex <= 0}>
-                        위로
-                      </button>
-                      <button className="ghostBtnSmall" type="button" onClick={() => moveSection(section.id, 1)} disabled={!enabled || orderIndex < 0 || orderIndex >= orderedSections.length - 1}>
-                        아래로
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-            <div className="metaRow" style={{ marginTop: 12 }}>
-              <span className="metaPill">현재 순서</span>
-              {orderedSections.map((sectionId) => {
-                const section = EXPLORE_SECTION_OPTIONS.find((item) => item.id === sectionId)
-                return <span className="metaPill" key={sectionId}>{section?.label ?? sectionId}</span>
-              })}
-            </div>
-            <details style={{ marginTop: 12 }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#334155' }}>고급값 직접 보기</summary>
+            <details className="exploreLayoutAdvanced" style={{ marginTop: 12 }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#334155' }}>고급 설정</summary>
               <div className="sectionGrid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 12 }}>
-                <label className="field">
-                  <div className="fieldLabel">enabledSections</div>
-                  <input className="textInput" value={form.enabledSections} onChange={(e) => update('enabledSections', e.target.value)} />
-                </label>
-                <label className="field">
-                  <div className="fieldLabel">sectionOrder (legacy fallback)</div>
-                  <input className="textInput" value={form.sectionOrder} onChange={(e) => update('sectionOrder', e.target.value)} />
-                </label>
                 <label className="field">
                   <div className="fieldLabel">{stateOrderKey(layoutState)}</div>
                   <input className="textInput" value={form[stateOrderKey(layoutState)]} onChange={(e) => update(stateOrderKey(layoutState), e.target.value)} />
                 </label>
                 <label className="field">
-                  <div className="fieldLabel">stateMode</div>
+                  <div className="fieldLabel">Explore state mode</div>
                   <select className="textInput" value={form.stateMode} onChange={(e) => update('stateMode', e.target.value as ExploreSettings['stateMode'])}>
                     <option value="auto">auto</option>
                     {EXPLORE_STATE_OPTIONS.map((state) => <option key={state.id} value={state.id}>{state.id}</option>)}
@@ -833,319 +1930,533 @@ export default function ExploreAdminPage() {
             </details>
           </div>
 
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="sectionHeader" style={{ marginBottom: 12 }}>
-              <div>
-                <h2 className="panelTitle" style={{ marginBottom: 6 }}>Explore state mode</h2>
-                <p className="pageDesc">기본은 runtime이 상태를 고르고, 필요하면 특정 상태로 강제할 수 있어.</p>
+          <div className="card exploreDenseCard exploreSheetCard" style={{ marginBottom: activeWorkspace === 'recommendations' ? 16 : 0, display: activeWorkspace === 'recommendations' ? 'block' : 'none' }}>
+            <div className="sectionHeader exploreDenseHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
+              <div className="exploreSheetHeaderMain">
+                <h2 className="panelTitle" style={{ marginBottom: 0 }}>추천 제품</h2>
+                <label className="exploreSheetInlineCheck">
+                  <input type="checkbox" checked={form.editorialRecommendationsEnabled} onChange={(e) => update('editorialRecommendationsEnabled', e.target.checked)} />
+                  <span>활성화</span>
+                </label>
+                <label className="exploreSheetInlineField exploreSheetInlineFieldCount">
+                  <span>노출 개수</span>
+                  <input className="textInput exploreSheetInput" type="number" min={1} max={50} value={form.editorialRecommendationsCount} onChange={(e) => update('editorialRecommendationsCount', Number(e.target.value || DEFAULT_EDITORIAL_VISIBLE_COUNT))} />
+                </label>
+                <label className="exploreSheetInlineField exploreSheetInlineFieldTitle">
+                  <span>섹션 제목</span>
+                  <input className="textInput exploreSheetInput" value={form.editorialRecommendationsTitle} onChange={(e) => update('editorialRecommendationsTitle', e.target.value)} />
+                </label>
+                <label className="exploreSheetInlineField exploreSheetInlineFieldSubtitle">
+                  <span>섹션 설명</span>
+                  <input className="textInput exploreSheetInput" value={form.editorialRecommendationsSubtitle} onChange={(e) => update('editorialRecommendationsSubtitle', e.target.value)} />
+                </label>
+              </div>
+              <div className="exploreSheetHeaderActions">
+                <button className="ghostBtnSmall exploreSheetBtn" type="button" onClick={() => void downloadRecommendationSheet()}>
+                  양식 다운로드
+                </button>
+                <button className="ghostBtnSmall exploreSheetBtn" type="button" onClick={() => recommendationSheetInputRef.current?.click()} disabled={importingRecommendationSheet}>
+                  {importingRecommendationSheet ? '엑셀 업로드중' : '엑셀 업로드'}
+                </button>
+                <input
+                  ref={recommendationSheetInputRef}
+                  className="hiddenInput"
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={(event) => void uploadRecommendationSheet(event.currentTarget.files?.[0] ?? null)}
+                />
+                <button className="ghostBtnSmall exploreSheetBtn" type="button" onClick={() => void bulkResolveRecommendationRows()} disabled={!hasSelectedRecommendationRows || isRecommendationActionBusy}>
+                  {bulkRecommendationAction === 'resolve' ? '일괄 확인중' : '일괄 확인'}
+                </button>
+                <button className="ghostBtnSmall exploreSheetBtn" type="button" onClick={() => void bulkRegisterRecommendationRows()} disabled={!hasSelectedRecommendationRows || isRecommendationActionBusy || hasRecommendationSlotConflicts}>
+                  {bulkRecommendationAction === 'register' ? '일괄 등록중' : '일괄 등록'}
+                </button>
+                <button className="ghostBtnSmall exploreSheetBtn" type="button" onClick={() => openRecommendationDeleteDialog(visibleSelectedRecommendationRowIds)} disabled={!hasSelectedRecommendationRows || isRecommendationActionBusy}>
+                  {bulkRecommendationAction === 'delete' ? '일괄 삭제중' : '일괄 삭제'}
+                </button>
+                <button className="primaryBtn exploreCompactBtn" type="button" onClick={() => void saveRecommendationSection()} disabled={savingRecommendations || hasRecommendationSlotConflicts || isRecommendationActionBusy}>
+                  {savingRecommendations ? '저장 중...' : '저장'}
+                </button>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="ghostBtnSmall" type="button" onClick={() => update('stateMode', 'auto')} disabled={form.stateMode === 'auto'}>
-                Auto
+            <div className="metaRow compactMetaRow" style={{ marginBottom: 10 }}>
+              <span className="metaPill">view {filteredRecommendationDraftRows.length + filteredHistoricalRecommendationRows.length}행</span>
+              <span className="metaPill">history {historicalRecommendationRows.length}개</span>
+              <span className="metaPill">selected {visibleSelectedRecommendationRowIds.length}개</span>
+              {hasRecommendationSlotConflicts ? <span className="metaPill exploreMetaPillWarn">slot {recommendationDuplicateSlots.join(', ')} 중복</span> : null}
+            </div>
+            <div className="sectionGrid exploreSheetFilterGrid" style={{ marginBottom: 10 }}>
+              <label className="field">
+                <div className="fieldLabel exploreSheetFieldLabel">검색 기준</div>
+                <select
+                  className="textInput exploreSheetInput"
+                  value={recommendationSearchField}
+                  onChange={(e) => {
+                    const nextField = e.target.value as (typeof RECOMMENDATION_SEARCH_OPTIONS)[number]['id']
+                    setRecommendationSearchField(nextField)
+                  }}
+                >
+                  {RECOMMENDATION_SEARCH_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <div className="fieldLabel exploreSheetFieldLabel">검색어</div>
+                <input
+                  className="textInput exploreSheetInput"
+                  type="text"
+                  value={recommendationSearchQuery}
+                  onChange={(e) => setRecommendationSearchQuery(e.target.value)}
+                  placeholder={recommendationSearchOption.placeholder}
+                />
+              </label>
+            </div>
+            <div
+              ref={recommendationSheetViewportRef}
+              className="exploreSheetViewport"
+              style={{ marginBottom: 6 }}
+              onWheel={handleRecommendationSheetWheel}
+            >
+              <div className="exploreSheetCanvas">
+                <table className="exploreSpreadsheetTable exploreSimpleSheet">
+                <colgroup>
+                  <col style={{ width: 36 }} />
+                  <col style={{ width: 76 }} />
+                  <col style={{ width: 112 }} />
+                  <col style={{ width: 64 }} />
+                  <col style={{ width: 220 }} />
+                  <col style={{ width: 88 }} />
+                  <col style={{ width: 360 }} />
+                  <col style={{ width: 88 }} />
+                  <col style={{ width: 56 }} />
+                  <col style={{ width: 64 }} />
+                  <col style={{ width: 124 }} />
+                  <col style={{ width: 124 }} />
+                  <col style={{ width: 60 }} />
+                  <col style={{ width: 60 }} />
+                  <col style={{ width: 60 }} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>
+                      <input
+                        type="checkbox"
+                        checked={allVisibleRecommendationRowsSelected}
+                        onChange={(e) => toggleAllVisibleRecommendationRows(e.target.checked)}
+                        disabled={visibleRecommendationRowIds.length === 0 || isRecommendationActionBusy}
+                        aria-label="현재 보이는 추천 행 전체 선택"
+                      />
+                    </th>
+                    <th>상태</th>
+                    <th>등록일</th>
+                    <th>노출</th>
+                    <th>입력값</th>
+                    <th>Provider</th>
+                    <th>상품명</th>
+                    <th>가격</th>
+                    <th>썸네일</th>
+                    <th>링크</th>
+                    <th>등록일시</th>
+                    <th>종료일시</th>
+                    <th>확인</th>
+                    <th>등록</th>
+                    <th>삭제</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRecommendationDraftRows.length > 0 || filteredHistoricalRecommendationRows.length > 0 ? (
+                    <>
+                      {filteredRecommendationDraftRows.map((row) => {
+                        const parsed = row.parsed
+                        const selected = selectedRecommendationId === row.id
+                        const checked = selectedRecommendationRowIdSet.has(row.id)
+                        const isDeleting = deletingRowIds.includes(row.id)
+                        const hasSlotConflict = recommendationDuplicateSlotIds.has(row.id)
+                        return (
+                          <tr key={row.id} className={`${selected ? 'exploreRowSelected ' : ''}${hasSlotConflict ? 'exploreRowConflict' : ''}`.trim()}>
+                            <td data-label="선택">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => toggleRecommendationRowSelection(row.id, e.target.checked)}
+                                disabled={isRecommendationActionBusy}
+                                aria-label={`${row.id} 선택`}
+                              />
+                            </td>
+                            <td data-label="상태">{recommendationDraftStatusLabel(row, hasSlotConflict)}</td>
+                            <td data-label="등록일">{row.parsed?.registeredAt || '-'}</td>
+                            <td data-label="노출">
+                              <div className="exploreSlotCell">
+                                <input
+                                  className="textInput exploreMatrixInput"
+                                  type="number"
+                                  min={1}
+                                  max={999}
+                                  value={row.displaySlot}
+                                  onChange={(e) => updateRecommendationDisplaySlot(row.id, e.target.value)}
+                                />
+                                {hasSlotConflict ? <span className="exploreSlotConflictTag">중복</span> : null}
+                              </div>
+                            </td>
+                            <td data-label="입력값">
+                              <input
+                                className="textInput exploreSpreadsheetInput"
+                                value={row.raw}
+                                onChange={(e) => updateRecommendationRow(row.id, e.target.value)}
+                                placeholder="URL 또는 iframe / HTML"
+                              />
+                            </td>
+                            <td data-label="Provider">{parsed?.provider ?? '-'}</td>
+                            <td data-label="상품명">
+                              <div className="exploreCellTitle">{parsed?.title ?? '-'}</div>
+                            </td>
+                            <td data-label="가격">{parsed?.price != null ? `₩${parsed.price.toLocaleString('ko-KR')}` : '-'}</td>
+                            <td data-label="썸네일">
+                              {parsed?.thumbnailUrl ? (
+                                <a href={parsed.thumbnailUrl} target="_blank" rel="noreferrer" className="exploreMiniThumbLink">
+                                  <img src={parsed.thumbnailUrl} alt={parsed.title} className="exploreMiniThumb" />
+                                </a>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                            <td data-label="링크">
+                              {parsed?.deeplinkUrl || parsed?.url ? (
+                                <a href={parsed?.deeplinkUrl || parsed?.url} target="_blank" rel="noreferrer" className="editorExternalLink">
+                                  열기
+                                </a>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                            <td data-label="등록일시">
+                              <input
+                                className="textInput exploreDateInput"
+                                type="text"
+                                value={row.startsAt}
+                                onChange={(e) => updateRecommendationSchedule(row.id, 'startsAt', e.target.value)}
+                                onBlur={() => normalizeRecommendationSchedule(row.id, 'startsAt')}
+                                placeholder="YYYY-MM-DD 00:00"
+                              />
+                            </td>
+                            <td data-label="종료일시">
+                              <input
+                                className="textInput exploreDateInput"
+                                type="text"
+                                value={row.endsAt}
+                                onChange={(e) => updateRecommendationSchedule(row.id, 'endsAt', e.target.value)}
+                                onBlur={() => normalizeRecommendationSchedule(row.id, 'endsAt')}
+                                placeholder="YYYY-MM-DD 00:00"
+                              />
+                            </td>
+                            <td data-label="확인">
+                              <button className="ghostBtnSmall exploreSheetBtn" type="button" onClick={() => void resolveRecommendationRow(row.id)} disabled={isRecommendationActionBusy}>
+                                {resolvingRowId === row.id ? '확인중' : '확인'}
+                              </button>
+                            </td>
+                            <td data-label="등록">
+                              <button className="ghostBtnSmall exploreSheetBtn" type="button" onClick={() => void registerRecommendationRow(row.id)} disabled={isRecommendationActionBusy || hasSlotConflict}>
+                                {registeringRowId === row.id ? '등록중' : '등록'}
+                              </button>
+                            </td>
+                            <td data-label="삭제">
+                              <button className="ghostBtnSmall exploreSheetBtn" type="button" onClick={() => openRecommendationDeleteDialog([row.id])} disabled={isRecommendationActionBusy}>
+                                {isDeleting ? '삭제중' : '삭제'}
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                      {filteredHistoricalRecommendationRows.map((item) => (
+                        <tr key={`history-${item.historyId}`} className="exploreRowHistory">
+                          <td data-label="선택">-</td>
+                          <td data-label="상태">{recommendationHistoryStatusLabel(item)}</td>
+                          <td data-label="등록일">{item.registeredAt || '-'}</td>
+                          <td data-label="노출">{item.displaySlot ?? 999}</td>
+                          <td data-label="입력값"><div className="exploreHistoryRaw">{item.raw || item.deeplinkUrl || item.url || '-'}</div></td>
+                          <td data-label="Provider">{item.provider || '-'}</td>
+                          <td data-label="상품명"><div className="exploreCellTitle">{item.title || '-'}</div></td>
+                          <td data-label="가격">{item.price != null ? `₩${item.price.toLocaleString('ko-KR')}` : '-'}</td>
+                          <td data-label="썸네일">
+                            {item.thumbnailUrl ? (
+                              <a href={item.thumbnailUrl} target="_blank" rel="noreferrer" className="exploreMiniThumbLink">
+                                <img src={item.thumbnailUrl} alt={item.title} className="exploreMiniThumb" />
+                              </a>
+                            ) : '-'}
+                          </td>
+                          <td data-label="링크">
+                            {item.deeplinkUrl || item.url ? (
+                              <a href={item.deeplinkUrl || item.url} target="_blank" rel="noreferrer" className="editorExternalLink">열기</a>
+                            ) : '-'}
+                          </td>
+                          <td data-label="등록일시">{item.registeredAt || item.startsAt || '-'}</td>
+                          <td data-label="종료일시">{item.endsAt || '-'}</td>
+                          <td data-label="확인">-</td>
+                          <td data-label="등록">-</td>
+                          <td data-label="삭제">-</td>
+                        </tr>
+                      ))}
+                    </>
+                  ) : (
+                    <tr>
+                      <td data-label="상태" colSpan={15} className="emptyState">
+                        {hasRecommendationSearchQuery ? '검색 결과 없음' : '행 없음'}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+                </table>
+              </div>
+            </div>
+            {pendingDeleteRecommendationRowIds && pendingDeleteRecommendationRowIds.length > 0 ? (
+              <div className="confirmOverlay" role="dialog" aria-modal="true" aria-label="추천 상품 삭제 확인">
+                <div className="confirmDialog">
+                  <div className="confirmTitle">삭제 확인</div>
+                  <div className="confirmText">
+                    {pendingDeleteRecommendationRowIds.length === 1
+                      ? '이 추천 상품 행을 삭제할까? 확인을 누르면 삭제됩니다.'
+                      : `선택한 ${pendingDeleteRecommendationRowIds.length}개 행을 삭제할까? 확인을 누르면 삭제됩니다.`}
+                  </div>
+                  <div className="confirmActions">
+                    <button className="ghostBtnSmall exploreSheetBtn" type="button" onClick={closeRecommendationDeleteDialog} disabled={bulkRecommendationAction === 'delete'}>
+                      취소
+                    </button>
+                    <button className="primaryBtn exploreCompactBtn confirmDangerBtn" type="button" onClick={() => void confirmDeleteRecommendationRows()} disabled={bulkRecommendationAction === 'delete'}>
+                      {bulkRecommendationAction === 'delete' ? '삭제중' : '확인'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            <div className="compactActionRow" style={{ marginBottom: 12 }}>
+              <button className="ghostBtnSmall exploreSheetUtilityBtn" type="button" onClick={appendRecommendationRow}>
+                행 추가
               </button>
+            </div>
+            <label className="field" style={{ marginTop: 8 }}>
+              <div className="fieldLabel exploreSheetFieldLabel">하단 단서조항</div>
+              <textarea className="textInput exploreSheetTextarea" rows={3} value={form.editorialRecommendationsDisclaimer} onChange={(e) => update('editorialRecommendationsDisclaimer', e.target.value)} placeholder="이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다." />
+            </label>
+          </div>
+
+          <div className="card exploreDenseCard exploreRuleSheetCard" style={{ marginBottom: activeWorkspace === 'rules' ? 16 : 0, display: activeWorkspace === 'rules' ? 'block' : 'none' }}>
+            <div className="sectionHeader" style={{ marginBottom: 10 }}>
+              <div>
+                <h2 className="panelTitle" style={{ marginBottom: 0 }}>Decision Rules</h2>
+              </div>
+            </div>
+            <div className="exploreLayoutStateTabs exploreRuleStateTabs" style={{ marginBottom: 10 }}>
               {EXPLORE_STATE_OPTIONS.map((state) => (
                 <button
                   key={state.id}
-                  className="ghostBtnSmall"
+                  className={`editorSubtab${layoutState === state.id ? ' active' : ''}`}
                   type="button"
-                  onClick={() => update('stateMode', state.id)}
-                  disabled={form.stateMode === state.id}
+                  onClick={() => setLayoutState(state.id)}
                 >
-                  {state.label} 강제
+                  {state.label}
                 </button>
               ))}
             </div>
+            <div className="tableWrap exploreRuleSheetWrap">
+              <table className="dataTable exploreRuleSheetTable">
+                <colgroup>
+                  <col style={{ width: '44%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '14%' }} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>항목</th>
+                    <th>값</th>
+                    <th>범위</th>
+                    <th>우선순위</th>
+                    <th>CAP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="exploreRuleSectionRow">
+                    <td colSpan={5}>Rules</td>
+                  </tr>
+                  {STATE_RULE_FIELDS.map((field) => (
+                    <tr key={field.key}>
+                      <td data-label="항목">
+                        <div className="exploreRuleItemCell">
+                          <div className="exploreRuleItemLabel">{STATE_RULE_META[field.key].label}</div>
+                          <div className="exploreRuleItemKey">{field.key}</div>
+                        </div>
+                      </td>
+                      <td data-label="값">
+                        <input
+                          className="textInput exploreRuleNumberInput"
+                          type="number"
+                          min={field.min}
+                          max={field.max}
+                          value={currentStateRules[field.key]}
+                          onChange={(e) => updateStateRule(field.key, Number(e.target.value || field.min))}
+                        />
+                      </td>
+                      <td data-label="범위"><span className="exploreRuleRange">{field.min}–{field.max}</span></td>
+                      <td data-label="우선순위" className="exploreRuleEmptyCell">-</td>
+                      <td data-label="CAP" className="exploreRuleEmptyCell">-</td>
+                    </tr>
+                  ))}
+                  <tr className="exploreRuleSectionRow">
+                    <td colSpan={5}>Policy</td>
+                  </tr>
+                  {PROMO_POLICY_FIELDS.map((field) => (
+                    <tr key={field.key}>
+                      <td data-label="항목">
+                        <div className="exploreRuleItemCell">
+                          <div className="exploreRuleItemLabel">{field.label}</div>
+                          <div className="exploreRuleItemKey">{field.key}</div>
+                        </div>
+                      </td>
+                      <td data-label="값">
+                        {field.key === 'maxSponsoredPromos' ? (
+                          <input
+                            className="textInput exploreRuleNumberInput"
+                            type="number"
+                            min={0}
+                            max={12}
+                            value={currentPromoPolicy.maxSponsoredPromos}
+                            onChange={(e) => updatePromoPolicy('maxSponsoredPromos', Number(e.target.value || 0))}
+                          />
+                        ) : (
+                          <label className="exploreRuleCheck">
+                            <input
+                              type="checkbox"
+                              checked={field.key === 'allowSponsoredPromos' ? currentPromoPolicy.allowSponsoredPromos : currentPromoPolicy.organicFirst}
+                              onChange={(e) => {
+                                if (field.key === 'allowSponsoredPromos') {
+                                  updatePromoPolicy('allowSponsoredPromos', e.target.checked)
+                                  return
+                                }
+                                updatePromoPolicy('organicFirst', e.target.checked)
+                              }}
+                            />
+                          </label>
+                        )}
+                      </td>
+                      <td data-label="범위"><span className="exploreRuleRange">{field.range}</span></td>
+                      <td data-label="우선순위" className="exploreRuleEmptyCell">-</td>
+                      <td data-label="CAP" className="exploreRuleEmptyCell">-</td>
+                    </tr>
+                  ))}
+                  <tr className="exploreRuleSectionRow">
+                    <td colSpan={5}>Priority</td>
+                  </tr>
+                  {DECISION_FIELDS.map((key) => (
+                    <tr key={key}>
+                      <td data-label="항목">
+                        <div className="exploreRuleItemCell">
+                          <div className="exploreRuleItemLabel">{DECISION_FIELD_META[key].label}</div>
+                          <div className="exploreRuleItemKey">{key}</div>
+                        </div>
+                      </td>
+                      <td data-label="값" className="exploreRuleEmptyCell">-</td>
+                      <td data-label="범위" className="exploreRuleEmptyCell">-</td>
+                      <td data-label="우선순위">
+                        <input className="textInput exploreRuleNumberInput" type="number" min={0} max={999} value={currentDecisionPriority[key]} onChange={(e) => updateDecisionPriority(key, Number(e.target.value || 0))} />
+                      </td>
+                      <td data-label="CAP">
+                        <input className="textInput exploreRuleNumberInput" type="number" min={0} max={4} value={currentDecisionMaxCount[key]} onChange={(e) => updateDecisionMaxCount(key, Number(e.target.value || 0))} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="sectionHeader" style={{ marginBottom: 12 }}>
-              <div>
-                <h2 className="panelTitle" style={{ marginBottom: 6 }}>추천 제품</h2>
-                <p className="pageDesc">앱에는 상품명, 가격, 썸네일만 보이게 하고 링크는 카드 탭 동작에만 써. 하단 단서조항도 여기서 같이 관리해.</p>
+          <div className="card exploreDenseCard exploreSheetCard exploreCopyWorkspaceCard" style={{ marginBottom: activeWorkspace === 'copy' ? 16 : 0, display: activeWorkspace === 'copy' ? 'block' : 'none' }}>
+            <div className="sectionHeader exploreCopyHeader" style={{ marginBottom: 6 }}>
+              <h2 className="panelTitle" style={{ marginBottom: 0 }}>Decision Copy</h2>
+              <a className="editorExternalLink" href="/content?section=app">Content Surfaces</a>
+            </div>
+            <div className="exploreCopyReferenceStrip">
+              <div className="exploreCopyReferenceFields">
+                <label className="field exploreCopyMiniField">
+                  <div className="fieldLabel">도움 페이지 제목</div>
+                  <input className="textInput exploreCopyInput" value={liveTitle} disabled readOnly />
+                </label>
+                <label className="field exploreCopyMiniField">
+                  <div className="fieldLabel">도움 subtitle</div>
+                  <input className="textInput exploreCopyInput" value={liveSubtitle} disabled readOnly />
+                </label>
               </div>
             </div>
-            <div className="metaRow compactMetaRow" style={{ marginBottom: 12 }}>
-              <span className="metaPill">pool {editorialPoolPreview.length}개</span>
-              <span className="metaPill">show {Math.min(EDITORIAL_VISIBLE_COUNT, editorialPoolPreview.length || EDITORIAL_VISIBLE_COUNT)}개</span>
-              <span className="metaPill">fixed 5</span>
+            <div className="exploreCopySectionTitleRow">
+              <strong>Decision inbox copy</strong>
             </div>
-            <div className="sectionGrid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
-              <label className="field">
-                <div className="fieldLabel">
-                  <input type="checkbox" checked={form.editorialRecommendationsEnabled} onChange={(e) => update('editorialRecommendationsEnabled', e.target.checked)} style={{ marginRight: 8 }} />
-                  추천 제품 섹션 활성화
-                </div>
-              </label>
-              <label className="field">
-                <div className="fieldLabel">노출 개수</div>
-                <input className="textInput" value="5" disabled />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">섹션 제목</div>
-                <input className="textInput" value={form.editorialRecommendationsTitle} onChange={(e) => update('editorialRecommendationsTitle', e.target.value)} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">섹션 설명</div>
-                <input className="textInput" value={form.editorialRecommendationsSubtitle} onChange={(e) => update('editorialRecommendationsSubtitle', e.target.value)} />
-              </label>
+            <div className="tableWrap exploreCopySheetWrap">
+              <table className="dataTable exploreCopySheetTable">
+                <colgroup>
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '22%' }} />
+                  <col style={{ width: '58%' }} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>항목</th>
+                    <th>짧은 라벨</th>
+                    <th>본문</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {DECISION_COPY_MESSAGE_FIELDS.map((field) => (
+                    <tr key={field.id}>
+                      <td data-label="항목">
+                        <div className="exploreRuleItemCell">
+                          <div className="exploreRuleItemLabel">{field.label}</div>
+                          <div className="exploreRuleItemKey">{field.reasonKey}</div>
+                        </div>
+                      </td>
+                      <td data-label="짧은 라벨">
+                        <input className="textInput exploreCopyInput" value={form.decisionCopy[field.reasonKey]} onChange={(e) => updateDecisionCopy(field.reasonKey, e.target.value)} />
+                      </td>
+                      <td data-label="본문">
+                        <textarea className="textInput exploreCopyTextarea" rows={1} value={form.decisionCopy[field.bodyKey]} onChange={(e) => updateDecisionCopy(field.bodyKey, e.target.value)} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <label className="field" style={{ marginTop: 12 }}>
-              <div className="fieldLabel">추천 상품 풀</div>
-              <textarea className="textInput" rows={10} value={form.editorialRecommendationsPoolRaw} onChange={(e) => update('editorialRecommendationsPoolRaw', e.target.value)} placeholder={'상품명 | 12900 | https://image.example.com/item.jpg | https://partners.coupang.com/...\n상품명 | 5980 | https://image.example.com/item.jpg'} />
-              <div className="previewSubtitle" style={{ marginTop: 8 }}>한 줄에 하나씩 넣어. 권장 형식은 `상품명 | 가격 | 썸네일URL | 링크URL` 이고, 링크는 선택이야.</div>
-            </label>
-            <label className="field" style={{ marginTop: 12 }}>
-              <div className="fieldLabel">하단 단서조항</div>
-              <textarea className="textInput" rows={3} value={form.editorialRecommendationsDisclaimer} onChange={(e) => update('editorialRecommendationsDisclaimer', e.target.value)} placeholder="이 섹션에는 제휴 링크가 포함될 수 있으며, 이에 따라 일정 수수료를 제공받을 수 있어요." />
-              <div className="previewSubtitle" style={{ marginTop: 8 }}>추천 상품 카드 5개 아래에 작은 안내문으로 노출돼.</div>
-            </label>
-          </div>
-
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="sectionHeader" style={{ marginBottom: 12 }}>
-              <div>
-                <h2 className="panelTitle" style={{ marginBottom: 6 }}>State rules & counts</h2>
-                <p className="pageDesc">지금 선택한 상태에서 몇 개를 보여줄지, 어떤 기준으로 자를지 따로 조절해.</p>
-              </div>
-            </div>
-            <div className="metaRow compactMetaRow" style={{ marginBottom: 12 }}>
-              <span className="metaPill">rule target</span>
+            <div className="exploreCopySectionTitleRow">
+              <strong>Offer copy</strong>
               <span className="metaPill">{EXPLORE_STATE_OPTIONS.find((state) => state.id === layoutState)?.label}</span>
             </div>
-            <div className="sectionGrid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-              <label className="field">
-                <div className="fieldLabel">revisitRecentScanLimit</div>
-                <input className="textInput" type="number" min={0} max={8} value={currentStateRules.revisitRecentScanLimit} onChange={(e) => updateStateRule('revisitRecentScanLimit', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">revisitCartItemLimit</div>
-                <input className="textInput" type="number" min={0} max={8} value={currentStateRules.revisitCartItemLimit} onChange={(e) => updateStateRule('revisitCartItemLimit', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">revisitMaxItems</div>
-                <input className="textInput" type="number" min={0} max={12} value={currentStateRules.revisitMaxItems} onChange={(e) => updateStateRule('revisitMaxItems', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">repeatMinCount</div>
-                <input className="textInput" type="number" min={1} max={10} value={currentStateRules.repeatMinCount} onChange={(e) => updateStateRule('repeatMinCount', Number(e.target.value || 1))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">repeatMaxItems</div>
-                <input className="textInput" type="number" min={0} max={12} value={currentStateRules.repeatMaxItems} onChange={(e) => updateStateRule('repeatMaxItems', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">offerMaxSlots</div>
-                <input className="textInput" type="number" min={0} max={12} value={currentStateRules.offerMaxSlots} onChange={(e) => updateStateRule('offerMaxSlots', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">storeContextMaxPromos</div>
-                <input className="textInput" type="number" min={0} max={12} value={currentStateRules.storeContextMaxPromos} onChange={(e) => updateStateRule('storeContextMaxPromos', Number(e.target.value || 0))} />
-              </label>
-            </div>
-          </div>
-
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="sectionHeader" style={{ marginBottom: 12 }}>
-              <div>
-                <h2 className="panelTitle" style={{ marginBottom: 6 }}>Promo policy</h2>
-                <p className="pageDesc">현재 선택한 상태에서 sponsored를 허용할지, 몇 개까지 보일지, organic을 먼저 둘지 정해.</p>
-              </div>
-            </div>
-            <div className="metaRow compactMetaRow" style={{ marginBottom: 12 }}>
-              <span className="metaPill">policy target</span>
-              <span className="metaPill">{EXPLORE_STATE_OPTIONS.find((state) => state.id === layoutState)?.label}</span>
-            </div>
-            <div className="sectionGrid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-              <label className="field">
-                <div className="fieldLabel">
-                  <input type="checkbox" checked={currentPromoPolicy.allowSponsoredPromos} onChange={(e) => updatePromoPolicy('allowSponsoredPromos', e.target.checked)} style={{ marginRight: 8 }} />
-                  allowSponsoredPromos
-                </div>
-              </label>
-              <label className="field">
-                <div className="fieldLabel">maxSponsoredPromos</div>
-                <input className="textInput" type="number" min={0} max={12} value={currentPromoPolicy.maxSponsoredPromos} onChange={(e) => updatePromoPolicy('maxSponsoredPromos', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">
-                  <input type="checkbox" checked={currentPromoPolicy.organicFirst} onChange={(e) => updatePromoPolicy('organicFirst', e.target.checked)} style={{ marginRight: 8 }} />
-                  organicFirst
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="sectionHeader" style={{ marginBottom: 12 }}>
-              <div>
-                <h2 className="panelTitle" style={{ marginBottom: 6 }}>Decision ranking</h2>
-                <p className="pageDesc">현재 선택한 상태에서 어떤 이유 카드를 먼저 위로 올릴지 숫자로 정해.</p>
-              </div>
-            </div>
-            <div className="metaRow compactMetaRow" style={{ marginBottom: 12 }}>
-              <span className="metaPill">ranking target</span>
-              <span className="metaPill">{EXPLORE_STATE_OPTIONS.find((state) => state.id === layoutState)?.label}</span>
-            </div>
-            <div className="sectionGrid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-              <label className="field">
-                <div className="fieldLabel">offerPendingReview</div>
-                <input className="textInput" type="number" min={0} max={999} value={currentDecisionPriority.offerPendingReview} onChange={(e) => updateDecisionPriority('offerPendingReview', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">offerCurrentCart</div>
-                <input className="textInput" type="number" min={0} max={999} value={currentDecisionPriority.offerCurrentCart} onChange={(e) => updateDecisionPriority('offerCurrentCart', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">offerRepeatPurchase</div>
-                <input className="textInput" type="number" min={0} max={999} value={currentDecisionPriority.offerRepeatPurchase} onChange={(e) => updateDecisionPriority('offerRepeatPurchase', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">recentScanPending</div>
-                <input className="textInput" type="number" min={0} max={999} value={currentDecisionPriority.recentScanPending} onChange={(e) => updateDecisionPriority('recentScanPending', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">recentScanInCart</div>
-                <input className="textInput" type="number" min={0} max={999} value={currentDecisionPriority.recentScanInCart} onChange={(e) => updateDecisionPriority('recentScanInCart', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">currentCartHighImpact</div>
-                <input className="textInput" type="number" min={0} max={999} value={currentDecisionPriority.currentCartHighImpact} onChange={(e) => updateDecisionPriority('currentCartHighImpact', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">currentCartDefault</div>
-                <input className="textInput" type="number" min={0} max={999} value={currentDecisionPriority.currentCartDefault} onChange={(e) => updateDecisionPriority('currentCartDefault', Number(e.target.value || 0))} />
-              </label>
-            </div>
-            <div className="metaRow" style={{ marginTop: 12 }}>
-              <span className="metaPill">preview order</span>
-              {decisionPriorityPreview(form, layoutState).map((item) => (
-                <span className="metaPill" key={item.key}>{item.label} · {item.value}</span>
+            <div className="exploreLayoutStateTabs exploreRuleStateTabs exploreCopyStateTabs" style={{ marginBottom: 6 }}>
+              {EXPLORE_STATE_OPTIONS.map((state) => (
+                <button
+                  key={state.id}
+                  className={`editorSubtab${layoutState === state.id ? ' active' : ''}`}
+                  type="button"
+                  onClick={() => setLayoutState(state.id)}
+                >
+                  {state.label}
+                </button>
               ))}
             </div>
-          </div>
-
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="sectionHeader" style={{ marginBottom: 12 }}>
-              <div>
-                <h2 className="panelTitle" style={{ marginBottom: 6 }}>Decision max counts</h2>
-                <p className="pageDesc">한 이유 타입이 decision inbox를 너무 많이 차지하지 않도록 상태별 상한선을 정해.</p>
-              </div>
-            </div>
-            <div className="metaRow compactMetaRow" style={{ marginBottom: 12 }}>
-              <span className="metaPill">cap target</span>
-              <span className="metaPill">{EXPLORE_STATE_OPTIONS.find((state) => state.id === layoutState)?.label}</span>
-            </div>
-            <div className="sectionGrid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-              <label className="field">
-                <div className="fieldLabel">offerPendingReview</div>
-                <input className="textInput" type="number" min={0} max={4} value={currentDecisionMaxCount.offerPendingReview} onChange={(e) => updateDecisionMaxCount('offerPendingReview', Number(e.target.value || 0))} />
+            <div className="exploreCopyOfferGrid">
+              <label className="field exploreCopyMiniField">
+                <div className="fieldLabel">상태별 짧은 라벨</div>
+                <input className="textInput exploreCopyInput" value={form.decisionCopy[OFFER_REASON_LABEL_FIELDS[layoutState]]} onChange={(e) => updateDecisionCopy(OFFER_REASON_LABEL_FIELDS[layoutState], e.target.value)} />
               </label>
-              <label className="field">
-                <div className="fieldLabel">offerCurrentCart</div>
-                <input className="textInput" type="number" min={0} max={4} value={currentDecisionMaxCount.offerCurrentCart} onChange={(e) => updateDecisionMaxCount('offerCurrentCart', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">offerRepeatPurchase</div>
-                <input className="textInput" type="number" min={0} max={4} value={currentDecisionMaxCount.offerRepeatPurchase} onChange={(e) => updateDecisionMaxCount('offerRepeatPurchase', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">recentScanPending</div>
-                <input className="textInput" type="number" min={0} max={4} value={currentDecisionMaxCount.recentScanPending} onChange={(e) => updateDecisionMaxCount('recentScanPending', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">recentScanInCart</div>
-                <input className="textInput" type="number" min={0} max={4} value={currentDecisionMaxCount.recentScanInCart} onChange={(e) => updateDecisionMaxCount('recentScanInCart', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">currentCartHighImpact</div>
-                <input className="textInput" type="number" min={0} max={4} value={currentDecisionMaxCount.currentCartHighImpact} onChange={(e) => updateDecisionMaxCount('currentCartHighImpact', Number(e.target.value || 0))} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">currentCartDefault</div>
-                <input className="textInput" type="number" min={0} max={4} value={currentDecisionMaxCount.currentCartDefault} onChange={(e) => updateDecisionMaxCount('currentCartDefault', Number(e.target.value || 0))} />
-              </label>
-            </div>
-            <div className="metaRow" style={{ marginTop: 12 }}>
-              <span className="metaPill">preview caps</span>
-              {decisionMaxCountPreview(form, layoutState).map((item) => (
-                <span className="metaPill" key={item.key}>{item.label} · max {item.value}</span>
-              ))}
-            </div>
-          </div>
-
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="sectionHeader" style={{ marginBottom: 12 }}>
-              <div>
-                <h2 className="panelTitle" style={{ marginBottom: 6 }}>Decision copy</h2>
-                <p className="pageDesc">결정 인박스에서 왜 지금 다시 봐야 하는지 설명하는 문구를 여기서 직접 바꿔.</p>
-              </div>
-            </div>
-            <div className="metaRow compactMetaRow" style={{ marginBottom: 12 }}>
-              <span className="metaPill">runtime editable</span>
-              <span className="metaPill">preview reflects instantly</span>
-            </div>
-            <div className="sectionGrid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
-              <label className="field">
-                <div className="fieldLabel">recentScanPendingReasonLabel</div>
-                <input className="textInput" value={form.decisionCopy.recentScanPendingReasonLabel} onChange={(e) => updateDecisionCopy('recentScanPendingReasonLabel', e.target.value)} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">recentScanInCartReasonLabel</div>
-                <input className="textInput" value={form.decisionCopy.recentScanInCartReasonLabel} onChange={(e) => updateDecisionCopy('recentScanInCartReasonLabel', e.target.value)} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">currentCartHighImpactReasonLabel</div>
-                <input className="textInput" value={form.decisionCopy.currentCartHighImpactReasonLabel} onChange={(e) => updateDecisionCopy('currentCartHighImpactReasonLabel', e.target.value)} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">currentCartDefaultReasonLabel</div>
-                <input className="textInput" value={form.decisionCopy.currentCartDefaultReasonLabel} onChange={(e) => updateDecisionCopy('currentCartDefaultReasonLabel', e.target.value)} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">offerReasonLabelActiveShopping</div>
-                <input className="textInput" value={form.decisionCopy.offerReasonLabelActiveShopping} onChange={(e) => updateDecisionCopy('offerReasonLabelActiveShopping', e.target.value)} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">offerReasonLabelPostSave</div>
-                <input className="textInput" value={form.decisionCopy.offerReasonLabelPostSave} onChange={(e) => updateDecisionCopy('offerReasonLabelPostSave', e.target.value)} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">offerReasonLabelIdlePlanning</div>
-                <input className="textInput" value={form.decisionCopy.offerReasonLabelIdlePlanning} onChange={(e) => updateDecisionCopy('offerReasonLabelIdlePlanning', e.target.value)} />
-              </label>
-              <label className="field">
-                <div className="fieldLabel">offerReasonLabelStoreContext</div>
-                <input className="textInput" value={form.decisionCopy.offerReasonLabelStoreContext} onChange={(e) => updateDecisionCopy('offerReasonLabelStoreContext', e.target.value)} />
-              </label>
-              <label className="field" style={{ gridColumn: '1 / -1' }}>
-                <div className="fieldLabel">recentScanPendingBody</div>
-                <textarea className="textInput" rows={2} value={form.decisionCopy.recentScanPendingBody} onChange={(e) => updateDecisionCopy('recentScanPendingBody', e.target.value)} />
-              </label>
-              <label className="field" style={{ gridColumn: '1 / -1' }}>
-                <div className="fieldLabel">recentScanInCartBody</div>
-                <textarea className="textInput" rows={2} value={form.decisionCopy.recentScanInCartBody} onChange={(e) => updateDecisionCopy('recentScanInCartBody', e.target.value)} />
-              </label>
-              <label className="field" style={{ gridColumn: '1 / -1' }}>
-                <div className="fieldLabel">currentCartHighImpactBody</div>
-                <textarea className="textInput" rows={2} value={form.decisionCopy.currentCartHighImpactBody} onChange={(e) => updateDecisionCopy('currentCartHighImpactBody', e.target.value)} />
-              </label>
-              <label className="field" style={{ gridColumn: '1 / -1' }}>
-                <div className="fieldLabel">currentCartDefaultBody</div>
-                <textarea className="textInput" rows={2} value={form.decisionCopy.currentCartDefaultBody} onChange={(e) => updateDecisionCopy('currentCartDefaultBody', e.target.value)} />
-              </label>
-              <label className="field" style={{ gridColumn: '1 / -1' }}>
-                <div className="fieldLabel">offerBody</div>
-                <textarea className="textInput" rows={2} value={form.decisionCopy.offerBody} onChange={(e) => updateDecisionCopy('offerBody', e.target.value)} />
+              <label className="field exploreCopyMiniField">
+                <div className="fieldLabel">공통 본문</div>
+                <textarea className="textInput exploreCopyTextarea" rows={1} value={form.decisionCopy.offerBody} onChange={(e) => updateDecisionCopy('offerBody', e.target.value)} />
               </label>
             </div>
           </div>
 
-          <div className="card">
+          <div className="card" style={{ display: activeWorkspace === 'store' ? 'block' : 'none' }}>
             <div className="sectionHeader" style={{ marginBottom: 12 }}>
               <div>
-                <h2 className="panelTitle" style={{ marginBottom: 6 }}>Store-context skeleton</h2>
-                <p className="pageDesc">특정 마트 문맥에서 오프라인 행사와 광고를 띄우기 위한 골격이야.</p>
+                <h2 className="panelTitle" style={{ marginBottom: 0 }}>Store context</h2>
               </div>
             </div>
             <div className="metaRow compactMetaRow" style={{ marginBottom: 12 }}>
@@ -1214,84 +2525,33 @@ export default function ExploreAdminPage() {
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="stickySideColumn">
-          <div className="card">
-            <div className="sectionHeader" style={{ marginBottom: 12 }}>
-              <div>
-                <h2 className="panelTitle" style={{ marginBottom: 6 }}>Explore preview</h2>
-                <p className="pageDesc">실제 Help/Explore 위젯을 preview 데이터로 렌더링한 화면이야. 스크린샷 목업은 아니야.</p>
-              </div>
-            </div>
-            <div className="metaRow compactMetaRow" style={{ marginBottom: 12 }}>
-              <span className="metaPill">real widget</span>
-              <span className="metaPill">preview data</span>
-              <span className="metaPill">title: {liveTitle}</span>
-              <span className="metaPill">{EXPLORE_STATE_OPTIONS.find((state) => state.id === previewScenario)?.label} 화면</span>
-            </div>
-            <div className="metaRow" style={{ marginBottom: 12 }}>
-              <span className="metaPill">decision reasons</span>
-              {decisionReasonVocabulary(form, previewScenario).map((label) => (
-                <span className="metaPill" key={label}>{label}</span>
-              ))}
-            </div>
-            <div className="metaRow" style={{ marginBottom: 12 }}>
-              <span className="metaPill">decision ranking</span>
-              {decisionPriorityPreview(form, previewScenario).map((item) => (
-                <span className="metaPill" key={`${item.key}-${item.value}`}>{item.label} · {item.value}</span>
-              ))}
-            </div>
-            <div className="metaRow" style={{ marginBottom: 12 }}>
-              <span className="metaPill">decision caps</span>
-              {decisionMaxCountPreview(form, previewScenario).map((item) => (
-                <span className="metaPill" key={`${item.key}-cap-${item.value}`}>{item.label} · max {item.value}</span>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-              {EXPLORE_STATE_OPTIONS.map((state) => (
-                <button
-                  key={state.id}
-                  className="ghostBtnSmall"
-                  type="button"
-                  onClick={() => setPreviewScenario(state.id)}
-                  disabled={previewScenario === state.id}
-                >
-                  {state.label}
-                </button>
-              ))}
-            </div>
-            <iframe
-              key={previewNonce}
-              ref={previewFrameRef}
-              title="Explore preview"
-              src={PREVIEW_SRC}
-              onLoad={() => postPreviewPayload()}
-              style={{ width: '100%', minHeight: 700, border: '1px solid rgba(15, 23, 42, 0.08)', borderRadius: 18, background: '#f8fafc' }}
-            />
-          </div>
-
-          <div className="card utilityRailCardTight">
-            <div className="sectionHeader" style={{ marginBottom: 12 }}>
-              <div>
-                <h2 className="panelTitle" style={{ marginBottom: 6 }}>Save</h2>
-                <p className="pageDesc">탭 라벨과 상단 카피는 아직 Content에서 관리해.</p>
-              </div>
-            </div>
-            <div className="metaRow compactMetaRow" style={{ marginBottom: 12 }}>
-              <span className="metaPill">{isDirty ? 'unsaved changes' : 'saved'}</span>
-            </div>
-            <div style={{ display: 'grid', gap: 8 }}>
-              <button className="primaryBtn compactPrimaryAction" type="button" onClick={() => void onSave()} disabled={saving}>
-                {saving ? '저장 중...' : 'Explore 저장'}
-              </button>
-              <button className="ghostBtn" type="button" onClick={() => setForm(res.data.data)} disabled={saving || !isDirty}>
-                되돌리기
-              </button>
-              <button className="ghostBtn" type="button" onClick={() => setPreviewNonce((value) => value + 1)}>
-                preview reload
-              </button>
-            </div>
-          </div>
+      <div className="exploreSummaryGrid section" style={{ marginTop: 12, display: activeWorkspace === 'layout' || activeWorkspace === 'rules' || activeWorkspace === 'copy' ? 'none' : 'grid' }}>
+        <div className="exploreSummaryCell">
+          <span className="exploreSummaryLabel">Visible sections</span>
+          <strong className="exploreSummaryValue">{enabledSections.length}</strong>
+          <span className="exploreSummaryNote">{enabledSections.join(' · ') || '-'}</span>
+        </div>
+        <div className="exploreSummaryCell">
+          <span className="exploreSummaryLabel">Explore state</span>
+          <strong className="exploreSummaryValue">{form.stateMode === 'auto' ? 'AUTO' : form.stateMode}</strong>
+          <span className="exploreSummaryNote">{form.stateMode === 'auto' ? 'runtime decides' : 'forced override'}</span>
+        </div>
+        <div className="exploreSummaryCell">
+          <span className="exploreSummaryLabel">Revisit / Repeat</span>
+          <strong className="exploreSummaryValue">{currentStateRules.revisitMaxItems} / ≥ {currentStateRules.repeatMinCount}</strong>
+          <span className="exploreSummaryNote">recent {currentStateRules.revisitRecentScanLimit} · cart {currentStateRules.revisitCartItemLimit} · repeat max {currentStateRules.repeatMaxItems}</span>
+        </div>
+        <div className="exploreSummaryCell">
+          <span className="exploreSummaryLabel">Offers / Picks</span>
+          <strong className="exploreSummaryValue">{currentStateRules.offerMaxSlots} / {form.editorialRecommendationsEnabled ? `${Math.min(form.editorialRecommendationsCount || DEFAULT_EDITORIAL_VISIBLE_COUNT, editorialPoolPreview.length)} of ${editorialPoolPreview.length}` : 'OFF'}</strong>
+          <span className="exploreSummaryNote">{features?.coupangPartnersAffiliateReady ? 'affiliate ready' : 'fallback/search mode'} · fixed 5</span>
+        </div>
+        <div className="exploreSummaryCell">
+          <span className="exploreSummaryLabel">Store promo</span>
+          <strong className="exploreSummaryValue">{form.storeContextEnabled ? 'ON' : 'OFF'}</strong>
+          <span className="exploreSummaryNote">{form.storeContextStoreName} · {storePromoPreview.length}개 preview</span>
         </div>
       </div>
     </div>

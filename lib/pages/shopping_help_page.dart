@@ -462,6 +462,27 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     return ordered;
   }
 
+  bool _isEditorialOfferActive(ExploreAlternativeOffer offer) {
+    DateTime? parseSchedule(String? value) {
+      final text = value?.trim();
+      if (text == null || text.isEmpty) {
+        return null;
+      }
+      return DateTime.tryParse(text.replaceFirst(' ', 'T'));
+    }
+
+    final now = DateTime.now();
+    final startsAt = parseSchedule(offer.startsAt);
+    final endsAt = parseSchedule(offer.endsAt);
+    if (startsAt != null && now.isBefore(startsAt)) {
+      return false;
+    }
+    if (endsAt != null && now.isAfter(endsAt)) {
+      return false;
+    }
+    return true;
+  }
+
   List<ExploreAlternativeOffer> _editorialPoolFromConfig(
     Map<String, dynamic> config,
   ) {
@@ -508,9 +529,15 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                 ? null
                 : thumbnailUrl,
             deeplinkUrl: url.isEmpty ? null : url,
+            displaySlot: data['displaySlot'] is int
+                ? data['displaySlot'] as int
+                : int.tryParse('${data['displaySlot'] ?? ''}') ?? 999,
+            startsAt: (data['startsAt'] as String?)?.trim(),
+            endsAt: (data['endsAt'] as String?)?.trim(),
           );
         })
         .whereType<ExploreAlternativeOffer>()
+        .where(_isEditorialOfferActive)
         .toList(growable: false);
     if (itemPool != null && itemPool.isNotEmpty) {
       return itemPool;
@@ -610,11 +637,12 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
             price: price,
             thumbnailUrl: thumbnailUrl.isEmpty ? null : thumbnailUrl,
             deeplinkUrl: deeplinkUrl.isEmpty ? null : deeplinkUrl,
+            displaySlot: 999,
           ),
         );
       }
       if (parsed.isNotEmpty) {
-        return parsed;
+        return parsed.where(_isEditorialOfferActive).toList(growable: false);
       }
     }
 
@@ -636,9 +664,39 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
       return const [];
     }
 
-    const visibleCount = 5;
-    final shuffled = [...pool]..shuffle(Random(_editorialRefreshSeed));
-    return shuffled.take(visibleCount).toList(growable: false);
+    final visibleCount = _configInt(config, 'editorialRecommendationsCount', 5)
+        .clamp(1, 50);
+    final fixedBySlot = <int, ExploreAlternativeOffer>{};
+    final randomPool = <ExploreAlternativeOffer>[];
+
+    for (final offer in pool) {
+      final slot = offer.displaySlot;
+      if (slot >= 1 && slot <= 10 && !fixedBySlot.containsKey(slot)) {
+        fixedBySlot[slot] = offer;
+      } else {
+        randomPool.add(offer);
+      }
+    }
+
+    final shuffled = [...randomPool]..shuffle(Random(_editorialRefreshSeed));
+    final arranged = List<ExploreAlternativeOffer?>.filled(visibleCount, null);
+
+    for (final entry in fixedBySlot.entries) {
+      final index = entry.key - 1;
+      if (index >= 0 && index < visibleCount) {
+        arranged[index] = entry.value;
+      }
+    }
+
+    var randomIndex = 0;
+    for (var index = 0; index < arranged.length; index += 1) {
+      if (arranged[index] != null) continue;
+      if (randomIndex >= shuffled.length) break;
+      arranged[index] = shuffled[randomIndex];
+      randomIndex += 1;
+    }
+
+    return arranged.whereType<ExploreAlternativeOffer>().toList(growable: false);
   }
 
   @override

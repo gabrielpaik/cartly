@@ -1,5 +1,6 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import text
 from sqlalchemy.orm import Session as OrmSession
 
 from ..deps import db_dep
@@ -7,6 +8,7 @@ from ..services.admin_user_service import (
     archive_legacy_guest,
     get_user_detail_with_carts,
     list_legacy_guests,
+    list_users_for_admin,
     merge_legacy_guest_into_user,
 )
 from .admin_common import ADMIN_ROUTE_DEP
@@ -15,29 +17,33 @@ router = APIRouter(dependencies=ADMIN_ROUTE_DEP)
 
 
 @router.get('/users')
-def list_users(db: OrmSession = Depends(db_dep)):
-    rows = db.execute(
-        text(
-            "select id, display_name, email, auth_provider, is_guest, created_at, last_seen_at, guest_key, last_device_platform, last_app_version "
-            "from users where status = 'active' order by created_at desc limit 100"
-        )
-    )
-    users = [
-        {
-            'id': r[0],
-            'displayName': r[1],
-            'email': r[2],
-            'provider': r[3],
-            'isGuest': r[4],
-            'createdAt': r[5].isoformat() if r[5] else None,
-            'lastSeenAt': r[6].isoformat() if r[6] else None,
-            'guestKey': r[7],
-            'lastDevicePlatform': r[8],
-            'lastAppVersion': r[9],
-        }
-        for r in rows
-    ]
-    return {'ok': True, 'data': {'users': users}}
+def list_users(
+    accountType: str = Query(default='all', pattern='^(all|member|guest)$'),
+    query: str = Query(default=''),
+    lastSeenWithinDays: Optional[int] = Query(default=None, ge=1, le=3650),
+    sessionCountMin: Optional[int] = Query(default=None, ge=0, le=100000),
+    scanCountMin: Optional[int] = Query(default=None, ge=0, le=100000),
+    scanCountLt: Optional[int] = Query(default=None, ge=0, le=100000),
+    savedCartCountMin: Optional[int] = Query(default=None, ge=0, le=100000),
+    readyPushOnly: bool = Query(default=False),
+    limit: int = Query(default=500, ge=1, le=5000),
+    db: OrmSession = Depends(db_dep),
+):
+    return {
+        'ok': True,
+        'data': list_users_for_admin(
+            db,
+            account_type=accountType,
+            query=query,
+            last_seen_within_days=lastSeenWithinDays,
+            session_count_min=sessionCountMin,
+            scan_count_min=scanCountMin,
+            scan_count_lt=scanCountLt,
+            saved_cart_count_min=savedCartCountMin,
+            ready_push_only=readyPushOnly,
+            limit=limit,
+        ),
+    }
 
 
 @router.get('/users/legacy-guests')

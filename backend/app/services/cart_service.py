@@ -1,5 +1,6 @@
 import csv
 import io
+import os
 from datetime import date, datetime, timedelta
 from typing import Iterable, Optional
 
@@ -11,6 +12,8 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session as OrmSession, selectinload
 
 from ..db.models import Cart, CartItem, Receipt, User
+from .category_override_service import TARGET_TYPE_CART_ITEM, TARGET_TYPE_SCAN_JOB, load_category_overrides, override_to_category_meta
+from .scan_category_service import infer_large_category
 
 
 _CartUserType = str
@@ -80,7 +83,24 @@ def _apply_cart_filters(
     return stmt
 
 
-def _serialize_cart_item(item: CartItem) -> dict:
+def _load_category_override_maps_for_carts(db: OrmSession, carts: list[Cart]) -> tuple[dict[str, object], dict[str, object]]:
+    item_ids = [item.id for cart in carts for item in cart.items if item.id]
+    scan_job_ids = [item.scan_job_id for cart in carts for item in cart.items if item.scan_job_id]
+    item_overrides = load_category_overrides(db, target_type=TARGET_TYPE_CART_ITEM, target_ids=item_ids)
+    scan_job_overrides = load_category_overrides(db, target_type=TARGET_TYPE_SCAN_JOB, target_ids=scan_job_ids)
+    return item_overrides, scan_job_overrides
+
+
+
+def _serialize_cart_item(
+    item: CartItem,
+    *,
+    cart_item_overrides_by_id: Optional[dict[str, object]] = None,
+    scan_job_overrides_by_id: Optional[dict[str, object]] = None,
+) -> dict:
+    item_override = override_to_category_meta((cart_item_overrides_by_id or {}).get(item.id or ''))
+    scan_job_override = override_to_category_meta((scan_job_overrides_by_id or {}).get(item.scan_job_id or ''))
+    category_meta = item_override or scan_job_override or infer_large_category(item.name, item.original_name, item.scan_job_id)
     return {
         'id': item.id,
         'scanResultId': item.scan_job_id,
@@ -89,6 +109,7 @@ def _serialize_cart_item(item: CartItem) -> dict:
         'price': item.price,
         'quantity': item.quantity,
         'source': item.source,
+        'categoryMeta': category_meta,
         'createdAt': item.created_at.isoformat() if item.created_at else None,
         'updatedAt': item.updated_at.isoformat() if item.updated_at else None,
     }
@@ -166,6 +187,16 @@ def _serialize_receipt_status(receipt: Optional[Receipt]) -> Optional[dict]:
         'receiptStatus': receipt.status,
         'merchantName': receipt.merchant_name,
         'hasReceipt': True,
+        'imageAvailable': bool(receipt.image_path),
+        'imagePathLabel': os.path.basename(receipt.image_path or '') if receipt.image_path else None,
+        'purchasedAt': receipt.purchased_at.isoformat() if receipt.purchased_at else None,
+        'currency': receipt.currency,
+        'subtotal': receipt.subtotal,
+        'tax': receipt.tax,
+        'totalAmount': receipt.total_amount,
+        'totalDiscountAmount': receipt.total_discount_amount,
+        'errorMessage': receipt.error_message,
+        'rawText': receipt.raw_text,
         'updatedAt': receipt.updated_at.isoformat() if receipt.updated_at else None,
         'completedAt': completed_at,
     }
@@ -176,6 +207,8 @@ def _serialize_cart(
     include_items: bool = True,
     user: Optional[User] = None,
     latest_receipt: Optional[Receipt] = None,
+    cart_item_overrides_by_id: Optional[dict[str, object]] = None,
+    scan_job_overrides_by_id: Optional[dict[str, object]] = None,
 ) -> dict:
     is_member_cart = user is not None and not user.is_guest
     expires_at = None if is_member_cart else cart.expires_at
@@ -208,7 +241,14 @@ def _serialize_cart(
             'provider': user.auth_provider,
         }
     if include_items:
-        data['items'] = [_serialize_cart_item(item) for item in cart.items]
+        data['items'] = [
+            _serialize_cart_item(
+                item,
+                cart_item_overrides_by_id=cart_item_overrides_by_id,
+                scan_job_overrides_by_id=scan_job_overrides_by_id,
+            )
+            for item in cart.items
+        ]
     return data
 
 
@@ -220,11 +260,14 @@ def serialize_cart_with_receipt(
     user: Optional[User] = None,
 ) -> dict:
     latest_receipt = _load_latest_receipts_for_carts(db, [cart]).get(cart.id)
+    cart_item_overrides_by_id, scan_job_overrides_by_id = _load_category_override_maps_for_carts(db, [cart])
     return _serialize_cart(
         cart,
         include_items=include_items,
         user=user,
         latest_receipt=latest_receipt,
+        cart_item_overrides_by_id=cart_item_overrides_by_id,
+        scan_job_overrides_by_id=scan_job_overrides_by_id,
     )
 
 
@@ -236,12 +279,15 @@ def serialize_carts_with_receipts(
     user: Optional[User] = None,
 ) -> list[dict]:
     latest_by_cart_id = _load_latest_receipts_for_carts(db, carts)
+    cart_item_overrides_by_id, scan_job_overrides_by_id = _load_category_override_maps_for_carts(db, carts)
     return [
         _serialize_cart(
             cart,
             include_items=include_items,
             user=user,
             latest_receipt=latest_by_cart_id.get(cart.id),
+            cart_item_overrides_by_id=cart_item_overrides_by_id,
+            scan_job_overrides_by_id=scan_job_overrides_by_id,
         )
         for cart in carts
     ]
@@ -414,6 +460,8 @@ def list_carts_admin(
     all_filtered_carts = list(db.scalars(filtered_stmt.order_by(Cart.created_at.desc())).all())
     carts = all_filtered_carts[:limit]
     users_by_id = _load_users_for_carts(db, all_filtered_carts)
+    latest_receipts_by_cart_id = _load_latest_receipts_for_carts(db, all_filtered_carts)
+    cart_item_overrides_by_id, scan_job_overrides_by_id = _load_category_override_maps_for_carts(db, all_filtered_carts)
 
     total_carts = len(all_filtered_carts)
     member_carts = sum(1 for cart in all_filtered_carts if (users_by_id.get(cart.user_id or '') and not users_by_id[cart.user_id or ''].is_guest))
@@ -438,7 +486,14 @@ def list_carts_admin(
             'userType': user_type,
         },
         'carts': [
-            _serialize_cart(cart, include_items=True, user=users_by_id.get(cart.user_id or ''))
+            _serialize_cart(
+                cart,
+                include_items=True,
+                user=users_by_id.get(cart.user_id or ''),
+                latest_receipt=latest_receipts_by_cart_id.get(cart.id),
+                cart_item_overrides_by_id=cart_item_overrides_by_id,
+                scan_job_overrides_by_id=scan_job_overrides_by_id,
+            )
             for cart in carts
         ],
     }

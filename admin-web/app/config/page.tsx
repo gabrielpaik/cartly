@@ -140,6 +140,21 @@ export default function ConfigPage() {
     cfg.backendRunMode === 'terminal-login-session'
       ? t('admin.config.runtime.startupNote', 'login-session supervisor 기준으로 부팅/로그인 후 따라 켜져야 해')
       : t('admin.config.runtime.startupNoteUnexpected', '예상한 login-session runtime 모드와 다를 수 있어 확인이 필요해')
+  const activePane = (() => {
+    const value = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('pane')
+      : null
+    return value === 'overview' || value === 'smoke' || value === 'runtime' || value === 'my-page' || value === 'coupang'
+      ? value
+      : 'overview'
+  })()
+  const configPaneOptions = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'smoke', label: 'Smoke' },
+    { id: 'runtime', label: 'Runtime' },
+    { id: 'my-page', label: 'My' },
+    { id: 'coupang', label: 'Coupang' },
+  ] as const
 
   useEffect(() => {
     setCoupangNoteDraft(cfg.coupangPartners.operatorNote || '')
@@ -242,6 +257,36 @@ export default function ConfigPage() {
         </div>
       ) : null}
 
+      <div className="metaRow" style={{ marginBottom: 16 }}>
+        <span className="metaPill">pane {activePane}</span>
+        <span className="metaPill">runtime {cfg.backendRunMode}</span>
+        <span className="metaPill">storage {cfg.storageWritable ? 'writable' : 'blocked'}</span>
+        <span className="metaPill">smoke {smoke.ok ? 'ok' : 'check needed'}</span>
+      </div>
+
+      <div className="exploreActionBar" style={{ marginBottom: 16 }}>
+        <div className="exploreActionPanel exploreActionPanelTight">
+          <div className="exploreActionLabel">Pane</div>
+          <div className="exploreActionMeta">
+            <span className="metaPill">active {activePane}</span>
+            <span className="metaPill">smoke {smoke.results.length} checks</span>
+          </div>
+          <div className="editorTabRow">
+            {configPaneOptions.map((pane) => (
+              <a
+                key={pane.id}
+                href={`/config?pane=${pane.id}`}
+                className={`editorSectionTab ${activePane === pane.id ? 'active' : ''}`}
+              >
+                <span>{pane.label}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {activePane === 'overview' ? (
+        <>
       <div className="kpiGrid">
         <StatCard label={t('admin.config.kpi.remoteScan', 'Remote Scan')} value={cfg.remoteScan ? t('admin.common.on', 'ON') : t('admin.common.off', 'OFF')} note={t('admin.config.kpi.remoteScanNote', 'remote scan API 사용 여부')} />
         <StatCard label={t('admin.config.kpi.ads', 'Ads')} value={cfg.adsEnabled ? t('admin.common.on', 'ON') : t('admin.common.off', 'OFF')} note={t('admin.config.kpi.adsNote', '광고 슬롯 활성화 여부')} />
@@ -278,12 +323,15 @@ export default function ConfigPage() {
         </div>
       </div>
 
+      </>
+      ) : null}
+
+      {activePane === 'smoke' ? (
       <div className="sectionGrid section">
         <div className={`card ${smoke.ok ? 'successCard' : 'warnCard'}`}>
           <div className="sectionHeader">
             <div>
-              <h2 className="panelTitle" style={{ marginBottom: 6 }}>Operator smoke</h2>
-              <p className="pageDesc" style={{ marginTop: 0, marginBottom: 0 }}>공개면, API, admin 진입점을 한 번에 확인하는 운영 점검 카드야.</p>
+              <h2 className="panelTitle" style={{ marginBottom: 0 }}>Operator smoke</h2>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <span className="metaPill">checkedAt {smoke.checkedAt}</span>
@@ -315,7 +363,9 @@ export default function ConfigPage() {
           </div>
 
           <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
-            <div className="previewSubtitle">최근 smoke 기록</div>
+            <div className="metaRow" style={{ marginTop: 0 }}>
+              <span className="metaPill">history {smoke.history?.length ?? 0}개</span>
+            </div>
             {(smoke.history?.length ?? 0) === 0 ? (
               <div className="metaPill">아직 저장된 smoke 기록이 없어</div>
             ) : (
@@ -350,39 +400,53 @@ export default function ConfigPage() {
           </div>
         </div>
       </div>
+      ) : null}
 
+      {activePane === 'runtime' ? (
       <div className="sectionGrid twoCol section">
         <div className={`card ${cfg.storageWritable ? 'successCard' : 'warnCard'}`}>
           <h2 className="panelTitle">{t('admin.config.storage.title', 'Storage health')}</h2>
-          <ul className="inlineList">
-            <li>{t('admin.config.storage.root', 'storageRoot')}: {storageRootDisplay}</li>
-            <li>{t('admin.config.storage.writable', 'storageWritable')}: {String(cfg.storageWritable)}</li>
-            <li>{t('admin.config.storage.input', 'input')}: {cfg.storagePaths.input ?? '-'}</li>
-            <li>{t('admin.config.storage.feedbackLogs', 'feedbackLogs')}: {cfg.storagePaths.feedbackLogs ?? '-'}</li>
-            <li>{t('admin.config.storage.failureLogs', 'failureLogs')}: {cfg.storagePaths.failureLogs ?? '-'}</li>
-            <li>{t('admin.config.storage.failed', 'failed')}: {cfg.storagePaths.failed ?? '-'}</li>
-            <li>{t('admin.config.storage.errors', 'errors')}: {cfg.storageErrors.length === 0 ? t('admin.common.none', 'none') : cfg.storageErrors.join(' | ')}</li>
-            {cfg.legacyPathCompatibilityActive ? <li>{t('admin.config.storage.actualRoot', 'actualStorageRoot')}: {storageRootActual}</li> : null}
-            {cfg.legacyPathCompatibilityActive ? <li>{t('admin.config.storage.actualRuntimeAssets', 'actualRuntimeAssetsRoot')}: {runtimeAssetsActual}</li> : null}
-          </ul>
+          <div className="tableWrap">
+            <table className="dataTable">
+              <tbody>
+                <tr><th>key</th><th>value</th></tr>
+                <tr><td>{t('admin.config.storage.root', 'storageRoot')}</td><td>{storageRootDisplay}</td></tr>
+                <tr><td>{t('admin.config.storage.writable', 'storageWritable')}</td><td>{String(cfg.storageWritable)}</td></tr>
+                <tr><td>{t('admin.config.storage.input', 'input')}</td><td>{cfg.storagePaths.input ?? '-'}</td></tr>
+                <tr><td>{t('admin.config.storage.feedbackLogs', 'feedbackLogs')}</td><td>{cfg.storagePaths.feedbackLogs ?? '-'}</td></tr>
+                <tr><td>{t('admin.config.storage.failureLogs', 'failureLogs')}</td><td>{cfg.storagePaths.failureLogs ?? '-'}</td></tr>
+                <tr><td>{t('admin.config.storage.failed', 'failed')}</td><td>{cfg.storagePaths.failed ?? '-'}</td></tr>
+                <tr><td>{t('admin.config.storage.errors', 'errors')}</td><td>{cfg.storageErrors.length === 0 ? t('admin.common.none', 'none') : cfg.storageErrors.join(' | ')}</td></tr>
+                {cfg.legacyPathCompatibilityActive ? <tr><td>{t('admin.config.storage.actualRoot', 'actualStorageRoot')}</td><td>{storageRootActual}</td></tr> : null}
+                {cfg.legacyPathCompatibilityActive ? <tr><td>{t('admin.config.storage.actualRuntimeAssets', 'actualRuntimeAssetsRoot')}</td><td>{runtimeAssetsActual}</td></tr> : null}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="card successCard">
           <h2 className="panelTitle">{t('admin.config.runtime.title', 'Runtime & startup')}</h2>
-          <ul className="inlineList">
-            <li>{t('admin.config.runtime.backendRunMode', 'backendRunMode')}: {cfg.backendRunMode}</li>
-            <li>{t('admin.config.runtime.serviceName', 'serviceName')}: {cfg.serviceName ?? '-'}</li>
-            <li>{t('admin.config.runtime.apiBase', 'apiBase')}: {cfg.apiBase}</li>
-            <li>{t('admin.config.runtime.pathCompatibility', 'pathCompatibility')}: {pathCompatibility}</li>
-            <li>{t('admin.config.runtime.runtimeAssets', 'runtimeAssetsRoot')}: {runtimeAssetsDisplay}</li>
-            <li>{t('admin.config.runtime.brandingAssets', 'brandingAssetsDir')}: {brandingAssetsDisplay}</li>
-            <li>{t('admin.config.runtime.adsAssets', 'adsAssetsDir')}: {adsAssetsDisplay}</li>
-            {cfg.legacyPathCompatibilityActive ? <li>{t('admin.config.runtime.actualBrandingAssets', 'actualBrandingAssetsDir')}: {brandingAssetsActual}</li> : null}
-            {cfg.legacyPathCompatibilityActive ? <li>{t('admin.config.runtime.actualAdsAssets', 'actualAdsAssetsDir')}: {adsAssetsActual}</li> : null}
-          </ul>
+          <div className="tableWrap">
+            <table className="dataTable">
+              <tbody>
+                <tr><th>key</th><th>value</th></tr>
+                <tr><td>{t('admin.config.runtime.backendRunMode', 'backendRunMode')}</td><td>{cfg.backendRunMode}</td></tr>
+                <tr><td>{t('admin.config.runtime.serviceName', 'serviceName')}</td><td>{cfg.serviceName ?? '-'}</td></tr>
+                <tr><td>{t('admin.config.runtime.apiBase', 'apiBase')}</td><td>{cfg.apiBase}</td></tr>
+                <tr><td>{t('admin.config.runtime.pathCompatibility', 'pathCompatibility')}</td><td>{pathCompatibility}</td></tr>
+                <tr><td>{t('admin.config.runtime.runtimeAssets', 'runtimeAssetsRoot')}</td><td>{runtimeAssetsDisplay}</td></tr>
+                <tr><td>{t('admin.config.runtime.brandingAssets', 'brandingAssetsDir')}</td><td>{brandingAssetsDisplay}</td></tr>
+                <tr><td>{t('admin.config.runtime.adsAssets', 'adsAssetsDir')}</td><td>{adsAssetsDisplay}</td></tr>
+                {cfg.legacyPathCompatibilityActive ? <tr><td>{t('admin.config.runtime.actualBrandingAssets', 'actualBrandingAssetsDir')}</td><td>{brandingAssetsActual}</td></tr> : null}
+                {cfg.legacyPathCompatibilityActive ? <tr><td>{t('admin.config.runtime.actualAdsAssets', 'actualAdsAssetsDir')}</td><td>{adsAssetsActual}</td></tr> : null}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
+      ) : null}
 
+      {activePane === 'my-page' ? (
       <div className="sectionGrid twoCol section">
         <div className="card">
           <h2 className="panelTitle">My page monthly summary</h2>
@@ -416,7 +480,7 @@ export default function ConfigPage() {
           <label className="field">
             <div className="fieldLabel">섹션 노출 순서 (comma)</div>
             <input className="textInput" value={sectionOrderDraft} onChange={(e) => setSectionOrderDraft(e.target.value)} placeholder="recentSaved, monthlySummary, allSavedHistory" />
-            <div className="previewSubtitle" style={{ marginTop: 8 }}>available: recentSaved, monthlySummary, allSavedHistory</div>
+            <div className="saveMessage" style={{ marginTop: 8 }}>available recentSaved, monthlySummary, allSavedHistory</div>
           </label>
           <label className="field">
             <div className="fieldLabel">카테고리 그룹(JSON 배열)</div>
@@ -430,35 +494,49 @@ export default function ConfigPage() {
               setCategoryGroupsDraft(JSON.stringify(cfg.runtimeSettings.myPageCategoryGroups, null, 2))
             }} disabled={savingRuntime}>Reset</button>
           </div>
-          <div className="previewSubtitle" style={{ marginTop: 12 }}>Saved groups {cfg.runtimeSettings.myPageCategoryGroups.length}개 · section order {cfg.runtimeSettings.myPageSectionOrder.join(' > ')} · app side local cart data 기준으로 계산돼</div>
+          <div className="metaRow" style={{ marginTop: 12 }}>
+            <span className="metaPill">saved groups {cfg.runtimeSettings.myPageCategoryGroups.length}</span>
+            <span className="metaPill">section order {cfg.runtimeSettings.myPageSectionOrder.join(' > ')}</span>
+          </div>
           {runtimeMessage ? <div className="loginError" style={{ marginTop: 12 }}>{runtimeMessage}</div> : null}
         </div>
 
         <div className="card">
           <h2 className="panelTitle">{t('admin.config.branding.title', '브랜딩')}</h2>
-          <ul className="inlineList">
-            <li>{t('admin.config.branding.logoType', 'logoType')}: {cfg.branding.logoType}</li>
-            <li>{t('admin.config.branding.logoText', 'logoText')}: {cfg.branding.logoText}</li>
-            <li>{t('admin.config.branding.logoImageUrl', 'logoImageUrl')}: {cfg.branding.logoImageUrl ?? '-'}</li>
-            <li>{t('admin.config.branding.splashImageUrl', 'splashImageUrl')}: {cfg.branding.splashImageUrl ?? '-'}</li>
-            <li>{t('admin.config.branding.assetsDir', 'brandingAssetsDir')}: {brandingAssetsDisplay}</li>
-            <li>{t('admin.config.branding.adsAssetsDir', 'adsAssetsDir')}: {adsAssetsDisplay}</li>
-            <li>{t('admin.config.branding.runtimeAssetsDir', 'runtimeAssetsRoot')}: {runtimeAssetsDisplay}</li>
-          </ul>
+          <div className="tableWrap">
+            <table className="dataTable">
+              <tbody>
+                <tr><th>key</th><th>value</th></tr>
+                <tr><td>{t('admin.config.branding.logoType', 'logoType')}</td><td>{cfg.branding.logoType}</td></tr>
+                <tr><td>{t('admin.config.branding.logoText', 'logoText')}</td><td>{cfg.branding.logoText}</td></tr>
+                <tr><td>{t('admin.config.branding.logoImageUrl', 'logoImageUrl')}</td><td>{cfg.branding.logoImageUrl ?? '-'}</td></tr>
+                <tr><td>{t('admin.config.branding.splashImageUrl', 'splashImageUrl')}</td><td>{cfg.branding.splashImageUrl ?? '-'}</td></tr>
+                <tr><td>{t('admin.config.branding.assetsDir', 'brandingAssetsDir')}</td><td>{brandingAssetsDisplay}</td></tr>
+                <tr><td>{t('admin.config.branding.adsAssetsDir', 'adsAssetsDir')}</td><td>{adsAssetsDisplay}</td></tr>
+                <tr><td>{t('admin.config.branding.runtimeAssetsDir', 'runtimeAssetsRoot')}</td><td>{runtimeAssetsDisplay}</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="card successCard">
           <h2 className="panelTitle">Public landing</h2>
-          <ul className="inlineList">
-            <li>mode: {cfg.publicSite.dynamicLandingEnabled ? 'dynamic app-config' : 'static'}</li>
-            <li>landing routes: {cfg.publicSite.landingRoutes.join(', ')}</li>
-            <li>privacy routes: {cfg.publicSite.privacyRoutes.join(', ')}</li>
-            <li>branding assets: {cfg.publicSite.assetsRoutePrefix}</li>
-            <li>운영 기준: 공개 랜딩/프라이버시는 admin content 수정값을 즉시 반영하는 단일 surface로 본다</li>
-          </ul>
+          <div className="tableWrap">
+            <table className="dataTable">
+              <tbody>
+                <tr><th>key</th><th>value</th></tr>
+                <tr><td>mode</td><td>{cfg.publicSite.dynamicLandingEnabled ? 'dynamic app-config' : 'static'}</td></tr>
+                <tr><td>landing routes</td><td>{cfg.publicSite.landingRoutes.join(', ')}</td></tr>
+                <tr><td>privacy routes</td><td>{cfg.publicSite.privacyRoutes.join(', ')}</td></tr>
+                <tr><td>branding assets</td><td>{cfg.publicSite.assetsRoutePrefix}</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
+      ) : null}
 
+      {activePane === 'coupang' ? (
       <div className="sectionGrid twoCol section">
         <div className={`card ${cfg.coupangPartners.affiliateReady ? 'successCard' : 'warnCard'}`}>
           <h2 className="panelTitle">Coupang runtime</h2>
@@ -467,16 +545,21 @@ export default function ConfigPage() {
             <span className="metaPill">note {savingCoupang ? 'saving' : noteDirty ? 'unsaved' : 'saved'}</span>
             <span className="metaPill">affiliate {cfg.coupangPartners.affiliateReady ? 'ready' : 'not ready'}</span>
           </div>
-          <ul className="inlineList">
-            <li>effective enabled: {String(cfg.coupangPartners.enabled)}</li>
-            <li>env enabled default: {String(cfg.coupangPartners.envEnabled)}</li>
-            <li>admin override: {cfg.coupangPartners.enabledOverride === null ? 'none' : String(cfg.coupangPartners.enabledOverride)}</li>
-            <li>config source: {cfg.coupangPartners.configSource}</li>
-            <li>access key configured: {String(cfg.coupangPartners.accessKeyConfigured)}</li>
-            <li>secret key configured: {String(cfg.coupangPartners.secretKeyConfigured)}</li>
-            <li>affiliate ready: {String(cfg.coupangPartners.affiliateReady)}</li>
-            <li>last updated: {cfg.coupangPartners.updatedAt ?? '-'}</li>
-          </ul>
+          <div className="tableWrap">
+            <table className="dataTable">
+              <tbody>
+                <tr><th>key</th><th>value</th></tr>
+                <tr><td>effective enabled</td><td>{String(cfg.coupangPartners.enabled)}</td></tr>
+                <tr><td>env enabled default</td><td>{String(cfg.coupangPartners.envEnabled)}</td></tr>
+                <tr><td>admin override</td><td>{cfg.coupangPartners.enabledOverride === null ? 'none' : String(cfg.coupangPartners.enabledOverride)}</td></tr>
+                <tr><td>config source</td><td>{cfg.coupangPartners.configSource}</td></tr>
+                <tr><td>access key configured</td><td>{String(cfg.coupangPartners.accessKeyConfigured)}</td></tr>
+                <tr><td>secret key configured</td><td>{String(cfg.coupangPartners.secretKeyConfigured)}</td></tr>
+                <tr><td>affiliate ready</td><td>{String(cfg.coupangPartners.affiliateReady)}</td></tr>
+                <tr><td>last updated</td><td>{cfg.coupangPartners.updatedAt ?? '-'}</td></tr>
+              </tbody>
+            </table>
+          </div>
           <label className="field" style={{ marginTop: 12 }}>
             <div className="fieldLabel">운영 메모</div>
             <textarea
@@ -487,9 +570,10 @@ export default function ConfigPage() {
               placeholder="예: 쿠팡 답변 전까지 강제 OFF 유지, 키 수령 후 smoke test 예정"
             />
           </label>
-          <div className="previewSubtitle" style={{ marginTop: 8 }}>
-            마지막 메모: {cfg.coupangPartners.operatorNote || '없음'}
+          <div className="metaRow" style={{ marginTop: 8 }}>
+            <span className="metaPill">last note {cfg.coupangPartners.operatorNote ? 'saved' : 'none'}</span>
           </div>
+          {cfg.coupangPartners.operatorNote ? <div className="saveMessage" style={{ marginTop: 8 }}>{cfg.coupangPartners.operatorNote}</div> : null}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
              <button className="ghostBtn ghostBtnSmall" onClick={() => setCoupangNoteDraft(cfg.coupangPartners.operatorNote || '')} disabled={savingCoupang}>메모 되돌리기</button>
           </div>
@@ -501,7 +585,9 @@ export default function ConfigPage() {
           {runtimeMessage ? <div className="loginError" style={{ marginTop: 12 }}>{runtimeMessage}</div> : null}
 
           <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
-            <div className="previewSubtitle">최근 변경 이력</div>
+            <div className="metaRow" style={{ marginTop: 0 }}>
+              <span className="metaPill">history {cfg.coupangPartners.recentChanges.length}개</span>
+            </div>
             {cfg.coupangPartners.recentChanges.length === 0 ? (
               <div className="metaPill">아직 변경 이력이 없어</div>
             ) : (
@@ -534,12 +620,13 @@ export default function ConfigPage() {
           <h2 className="panelTitle">{t('admin.config.operator.title', 'Operator notes')}</h2>
           <ul className="inlineList">
             <li>{startupModeNote}</li>
-            <li>{cfg.storageWritable ? t('admin.config.operator.storageHealthy', '지금 storageWritable=true 라서 NAS write 경로는 정상으로 보인다') : t('admin.config.operator.storageUnhealthy', 'storageWritable=false 면 scan/job 저장 전부 흔들릴 수 있어 먼저 runtime/storage를 봐야 해')}</li>
-            <li>{cfg.legacyPathCompatibilityActive ? t('admin.config.operator.compatEnabled', 'rename 잔재 호환 경로가 아직 살아 있어서 display path와 actual path가 다를 수 있어') : t('admin.config.operator.compatDisabled', '호환 경로 없이 clean path 상태로 보인다')}</li>
-            <li>{t('admin.config.operator.recoveryHint', '이상 징후가 있으면 partial restart보다 canonical runtime refresh 기준으로 복구하는 편이 안전해')}</li>
+            <li>{cfg.storageWritable ? 'storage writable' : 'storage blocked'}</li>
+            <li>{cfg.legacyPathCompatibilityActive ? 'legacy path compatibility on' : 'legacy path compatibility off'}</li>
+            <li>prefer canonical runtime refresh</li>
           </ul>
         </div>
       </div>
+      ) : null}
     </div>
   )
 }

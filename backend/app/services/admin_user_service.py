@@ -1,11 +1,184 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import func, select, update
+from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.orm import Session as OrmSession, selectinload
 
-from ..db.models import AdImpression, AppEvent, Cart, ScanFailureLog, ScanFeedback, ScanJob, Session, User
+from ..db.models import AdImpression, AppEvent, Cart, PushDevice, ScanFailureLog, ScanFeedback, ScanJob, Session, User
 from .cart_service import serialize_cart
+
+
+def list_users_for_admin(
+    db: OrmSession,
+    *,
+    account_type: str = 'all',
+    query: str = '',
+    last_seen_within_days: Optional[int] = None,
+    session_count_min: Optional[int] = None,
+    scan_count_min: Optional[int] = None,
+    scan_count_lt: Optional[int] = None,
+    saved_cart_count_min: Optional[int] = None,
+    ready_push_only: bool = False,
+    limit: int = 500,
+) -> dict:
+    cart_count = (
+        select(
+            Cart.user_id.label('user_id'),
+            func.count(Cart.id).label('saved_cart_count'),
+            func.max(Cart.created_at).label('last_saved_at'),
+        )
+        .where(Cart.deleted_at.is_(None))
+        .group_by(Cart.user_id)
+        .subquery()
+    )
+    session_count = (
+        select(
+            Session.user_id.label('user_id'),
+            func.count(Session.id).label('session_count'),
+            func.max(Session.last_seen_at).label('last_session_at'),
+        )
+        .where(Session.user_id.is_not(None))
+        .group_by(Session.user_id)
+        .subquery()
+    )
+    scan_count = (
+        select(
+            ScanJob.user_id.label('user_id'),
+            func.count(ScanJob.id).label('scan_count'),
+            func.max(ScanJob.created_at).label('last_scan_at'),
+        )
+        .where(ScanJob.user_id.is_not(None))
+        .group_by(ScanJob.user_id)
+        .subquery()
+    )
+    push_count = (
+        select(
+            PushDevice.user_id.label('user_id'),
+            func.count(PushDevice.id).label('push_device_count'),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            PushDevice.status == 'active',
+                            PushDevice.notifications_enabled.is_(True),
+                            PushDevice.push_token.is_not(None),
+                        ),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label('ready_push_device_count'),
+        )
+        .where(PushDevice.user_id.is_not(None))
+        .group_by(PushDevice.user_id)
+        .subquery()
+    )
+
+    stmt = (
+        select(
+            User.id,
+            User.display_name,
+            User.email,
+            User.auth_provider,
+            User.is_guest,
+            User.guest_code,
+            User.created_at,
+            User.last_seen_at,
+            User.guest_key,
+            User.last_device_platform,
+            User.last_app_version,
+            func.coalesce(cart_count.c.saved_cart_count, 0).label('saved_cart_count'),
+            func.coalesce(session_count.c.session_count, 0).label('session_count'),
+            func.coalesce(scan_count.c.scan_count, 0).label('scan_count'),
+            func.coalesce(push_count.c.push_device_count, 0).label('push_device_count'),
+            func.coalesce(push_count.c.ready_push_device_count, 0).label('ready_push_device_count'),
+            cart_count.c.last_saved_at,
+            scan_count.c.last_scan_at,
+        )
+        .outerjoin(cart_count, cart_count.c.user_id == User.id)
+        .outerjoin(session_count, session_count.c.user_id == User.id)
+        .outerjoin(scan_count, scan_count.c.user_id == User.id)
+        .outerjoin(push_count, push_count.c.user_id == User.id)
+        .where(User.status == 'active')
+    )
+
+    if account_type == 'member':
+        stmt = stmt.where(User.is_guest.is_(False))
+    elif account_type == 'guest':
+        stmt = stmt.where(User.is_guest.is_(True))
+
+    trimmed = query.strip().lower()
+    if trimmed:
+        like = f'%{trimmed}%'
+        stmt = stmt.where(
+            or_(
+                func.lower(func.coalesce(User.id, '')).like(like),
+                func.lower(func.coalesce(User.display_name, '')).like(like),
+                func.lower(func.coalesce(User.email, '')).like(like),
+                func.lower(func.coalesce(User.auth_provider, '')).like(like),
+                func.lower(func.coalesce(User.guest_code, '')).like(like),
+                func.lower(func.coalesce(User.last_device_platform, '')).like(like),
+            )
+        )
+
+    if last_seen_within_days is not None:
+        since = datetime.utcnow() - timedelta(days=max(1, last_seen_within_days))
+        stmt = stmt.where(User.last_seen_at.is_not(None), User.last_seen_at >= since)
+    if session_count_min is not None:
+        stmt = stmt.where(func.coalesce(session_count.c.session_count, 0) >= max(0, session_count_min))
+    if scan_count_min is not None:
+        stmt = stmt.where(func.coalesce(scan_count.c.scan_count, 0) >= max(0, scan_count_min))
+    if scan_count_lt is not None:
+        stmt = stmt.where(func.coalesce(scan_count.c.scan_count, 0) < max(0, scan_count_lt))
+    if saved_cart_count_min is not None:
+        stmt = stmt.where(func.coalesce(cart_count.c.saved_cart_count, 0) >= max(0, saved_cart_count_min))
+    if ready_push_only:
+        stmt = stmt.where(func.coalesce(push_count.c.ready_push_device_count, 0) > 0)
+
+    rows = list(
+        db.execute(
+            stmt.order_by(func.coalesce(User.last_seen_at, User.created_at).desc(), User.created_at.desc()).limit(max(1, min(limit, 5000)))
+        ).all()
+    )
+
+    users = [
+        {
+            'id': row[0],
+            'displayName': row[1],
+            'email': row[2],
+            'provider': row[3],
+            'isGuest': row[4],
+            'guestCode': row[5],
+            'createdAt': row[6].isoformat() if row[6] else None,
+            'lastSeenAt': row[7].isoformat() if row[7] else None,
+            'guestKey': row[8],
+            'lastDevicePlatform': row[9],
+            'lastAppVersion': row[10],
+            'cartCount': int(row[11] or 0),
+            'savedCartCount': int(row[11] or 0),
+            'sessionCount': int(row[12] or 0),
+            'scanCount': int(row[13] or 0),
+            'pushDeviceCount': int(row[14] or 0),
+            'readyPushDeviceCount': int(row[15] or 0),
+            'lastSavedAt': row[16].isoformat() if row[16] else None,
+            'lastScanAt': row[17].isoformat() if row[17] else None,
+        }
+        for row in rows
+    ]
+
+    return {
+        'summary': {
+            'filteredUsers': len(users),
+            'members': sum(1 for user in users if not user['isGuest']),
+            'guests': sum(1 for user in users if user['isGuest']),
+            'readyPushUsers': sum(1 for user in users if user['readyPushDeviceCount'] > 0),
+            'totalSessions': sum(user['sessionCount'] for user in users),
+            'totalScans': sum(user['scanCount'] for user in users),
+            'totalSavedCarts': sum(user['savedCartCount'] for user in users),
+        },
+        'users': users,
+    }
+
 
 
 def get_user_detail_with_carts(db: OrmSession, user_id: str, limit: int = 200) -> Optional[dict]:

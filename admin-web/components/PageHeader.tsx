@@ -1,5 +1,7 @@
 'use client'
 
+import type { ReactNode } from 'react'
+
 import { useAdminCopy } from './AdminCopyProvider'
 
 export default function PageHeader({
@@ -10,6 +12,7 @@ export default function PageHeader({
   refreshing,
   actionLabel,
   inlineRefresh = false,
+  actions,
 }: {
   title: string
   description: string
@@ -18,6 +21,7 @@ export default function PageHeader({
   refreshing?: boolean
   actionLabel?: string
   inlineRefresh?: boolean
+  actions?: ReactNode
 }) {
   const { t } = useAdminCopy()
 
@@ -42,11 +46,14 @@ export default function PageHeader({
         </div>
         <p className="pageDesc">{description}</p>
       </div>
-      {onRefresh && !inlineRefresh ? (
+      {((onRefresh && !inlineRefresh) || actions) ? (
         <div className="pageActions">
-          <button className="ghostBtn pageActionBtn" type="button" onClick={onRefresh} disabled={refreshing}>
-            {refreshing ? t('admin.common.refreshing', '불러오는 중...') : actionLabel ?? t('admin.common.refresh', '데이터 불러오기')}
-          </button>
+          {actions}
+          {onRefresh && !inlineRefresh ? (
+            <button className="ghostBtn pageActionBtn" type="button" onClick={onRefresh} disabled={refreshing}>
+              {refreshing ? t('admin.common.refreshing', '불러오는 중...') : actionLabel ?? t('admin.common.refresh', '데이터 불러오기')}
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>

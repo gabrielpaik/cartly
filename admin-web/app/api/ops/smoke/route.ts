@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { CARTLY_PUBLIC_ADMIN_BASE_URL, CARTLY_PUBLIC_APP_BASE_URL } from '../../../../lib/publicUrlConfig'
 import { getBackendApiBase } from '../../../../lib/serverConfig'
 
 const TARGETS = [
@@ -12,31 +13,31 @@ const TARGETS = [
   {
     key: 'publicApiHealth',
     label: 'Public API /health',
-    url: 'https://scan-api.seoa-nas.com/health',
+    url: `${CARTLY_PUBLIC_APP_BASE_URL}/health`,
     expectedStatuses: [200],
   },
   {
     key: 'publicLanding',
     label: 'Public landing /',
-    url: 'https://scan-api.seoa-nas.com/',
+    url: `${CARTLY_PUBLIC_APP_BASE_URL}/`,
     expectedStatuses: [200],
   },
   {
     key: 'publicPrivacy',
     label: 'Public privacy /privacy',
-    url: 'https://scan-api.seoa-nas.com/privacy',
+    url: `${CARTLY_PUBLIC_APP_BASE_URL}/privacy`,
     expectedStatuses: [200],
   },
   {
     key: 'publicAppConfig',
     label: 'Public app-config /v1/app-config',
-    url: 'https://scan-api.seoa-nas.com/v1/app-config',
+    url: `${CARTLY_PUBLIC_APP_BASE_URL}/v1/app-config`,
     expectedStatuses: [200],
   },
   {
     key: 'adminLogin',
     label: 'Admin login /login',
-    url: 'https://cartly-admin.seoa-nas.com/login',
+    url: `${CARTLY_PUBLIC_ADMIN_BASE_URL}/login`,
     expectedStatuses: [200],
   },
 ] as const

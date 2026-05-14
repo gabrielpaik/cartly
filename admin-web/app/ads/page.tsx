@@ -40,6 +40,8 @@ export default function AdsPage() {
   const [historyQuery, setHistoryQuery] = useState('')
   const [historyPeriodFrom, setHistoryPeriodFrom] = useState('')
   const [historyPeriodTo, setHistoryPeriodTo] = useState('')
+  const [slotQuery, setSlotQuery] = useState('')
+  const [slotStatusFilter, setSlotStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
 
   const activeSlots = useMemo(() => slots.filter((slot) => slot.status === 'active').length, [slots])
   const liveCampaigns = useMemo(() => campaigns.filter((campaign) => campaign.variant === 'live').length, [campaigns])
@@ -53,6 +55,15 @@ export default function AdsPage() {
     }, {}),
     [campaigns],
   )
+  const filteredSlots = useMemo(() => {
+    const query = slotQuery.trim().toLowerCase()
+    return slots.filter((slot) => {
+      const matchesStatus = slotStatusFilter === 'all' ? true : slot.status === slotStatusFilter
+      const haystacks = [slot.slotKey, slot.config.slotLabel, slot.config.slotDescription, slot.config.screen, slot.config.position, slot.placementType]
+      const matchesQuery = !query || haystacks.filter(Boolean).some((value) => String(value).toLowerCase().includes(query))
+      return matchesStatus && matchesQuery
+    })
+  }, [slotQuery, slotStatusFilter, slots])
 
   async function loadCampaigns() {
     try {
@@ -214,6 +225,90 @@ export default function AdsPage() {
         <div className="metaPill">{usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : t('admin.common.badge.live', 'Live data')}</div>
       </div>
 
+      <div className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 16, marginBottom: 16 }}>
+        <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 12 }}>
+          <div>
+            <h2 className="panelTitle" style={{ marginBottom: 6 }}>Slot inventory</h2>
+            <p className="pageDesc" style={{ margin: 0 }}>slot, surface, live/reserved 상태를 먼저 표로 훑고 아래에서 깊게 수정하는 흐름으로 맞췄어.</p>
+          </div>
+          <div className="metaRow" style={{ marginTop: 0 }}>
+            <div className="metaPill">filtered {filteredSlots.length}</div>
+            <div className="metaPill">all {slots.length}</div>
+          </div>
+        </div>
+        <div className="exploreSheetFilterGrid" style={{ gridTemplateColumns: 'minmax(220px, 1fr) minmax(160px, 220px)' }}>
+          <label className="field" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">slot 검색</div>
+            <input className="textInput exploreSheetInput" value={slotQuery} onChange={(e) => setSlotQuery(e.target.value)} placeholder="slot / screen / position" />
+          </label>
+          <label className="field" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">status</div>
+            <select className="textInput exploreSheetInput" value={slotStatusFilter} onChange={(e) => setSlotStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}>
+              <option value="all">all</option>
+              <option value="active">active</option>
+              <option value="inactive">inactive</option>
+            </select>
+          </label>
+        </div>
+        {filteredSlots.length === 0 ? (
+          <div className="emptyState" style={{ marginTop: 12 }}>조건에 맞는 slot이 없어.</div>
+        ) : (
+          <div className="tableWrap" style={{ marginTop: 12 }}>
+            <table className="dataTable">
+              <thead>
+                <tr>
+                  <th>Slot</th>
+                  <th>Surface</th>
+                  <th>Status</th>
+                  <th>Live / Reserved</th>
+                  <th>Updated</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSlots.map((slot) => {
+                  const slotCampaigns = campaignsBySlot[slot.slotKey] ?? []
+                  const liveCount = slotCampaigns.filter((campaign) => campaign.variant === 'live').length
+                  const reservedCount = slotCampaigns.filter((campaign) => campaign.variant === 'reserved').length
+                  return (
+                    <tr key={`inventory-${slot.slotKey}`}>
+                      <td>
+                        <div style={{ display: 'grid', gap: 4, minWidth: 220 }}>
+                          <strong>{slot.config.slotLabel || slot.slotKey}</strong>
+                          <span style={{ color: '#64748b', fontSize: 12 }}>{slot.slotKey}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'grid', gap: 4 }}>
+                          <span className="metaPill">{slot.config.screen}</span>
+                          <span style={{ color: '#64748b', fontSize: 12 }}>{slot.config.position}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'grid', gap: 4 }}>
+                          <span className="metaPill">{slot.status}</span>
+                          <span style={{ color: '#64748b', fontSize: 12 }}>{slot.placementType}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'grid', gap: 4 }}>
+                          <span className="metaPill">live {liveCount}</span>
+                          <span className="metaPill">reserved {reservedCount}</span>
+                        </div>
+                      </td>
+                      <td>{formatDate(slot.updatedAt ?? slot.createdAt)}</td>
+                      <td>
+                        <a className="ghostBtn ghostBtnSmall" href={`#slot-${slot.slotKey}`}>open</a>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       <form className="card" style={{ marginTop: 16, marginBottom: 16 }} onSubmit={(e) => e.preventDefault()}>
         <div className="sectionHeader" style={{ marginBottom: 12 }}>
           <div>
@@ -259,10 +354,10 @@ export default function AdsPage() {
       </form>
 
       <div className="section sectionGrid">
-        {slots.map((slot) => {
+        {filteredSlots.map((slot) => {
           const slotCampaigns = (campaignsBySlot[slot.slotKey] ?? []).filter((campaign) => campaign.id !== slot.config.liveCampaignId && campaign.id !== slot.config.reservedCampaignId)
           return (
-            <div className="card" key={slot.slotKey}>
+            <div className="card" key={slot.slotKey} id={`slot-${slot.slotKey}`}>
               <div className="sectionHeader">
                 <div>
                   <h2 className="panelTitle" style={{ marginBottom: 6 }}>{slot.config.slotLabel || slot.slotKey}</h2>

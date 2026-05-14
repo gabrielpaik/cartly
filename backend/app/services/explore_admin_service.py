@@ -7,6 +7,7 @@ from html.parser import HTMLParser
 from typing import Any, Dict, Iterable, List, Optional
 from urllib.parse import parse_qs, urljoin, urlparse
 from urllib.request import Request, urlopen
+from uuid import uuid4
 
 from sqlalchemy.orm import Session as OrmSession
 
@@ -226,6 +227,7 @@ DEFAULT_EXPLORE_SETTINGS: Dict[str, Any] = {
     'editorialRecommendationsCount': 5,
     'editorialRecommendationsPoolRaw': '',
     'editorialRecommendationsDisclaimer': '이 섹션에는 제휴 링크가 포함될 수 있으며, 이에 따라 일정 수수료를 제공받을 수 있어요.',
+    'editorialRecommendationsHistory': [],
     'storeContextEnabled': False,
     'storeContextStoreName': '이마트 양재점',
     'storeContextPromoTitle': '지금 이 마트 세일',
@@ -266,6 +268,36 @@ def _coerce_text(value: Any, default: str) -> str:
         if normalized:
             return normalized
     return default
+
+
+def _coerce_datetime_text(value: Any) -> str:
+    if not isinstance(value, str):
+        return ''
+    normalized = value.strip()
+    if not normalized:
+        return ''
+    normalized = normalized.replace('.', '-').replace('T', ' ')
+    if re.fullmatch(r'\d{4}-\d{2}-\d{2}', normalized):
+        normalized = f'{normalized} 00:00'
+    try:
+        parsed = datetime.fromisoformat(normalized.replace('Z', '+00:00').replace(' ', 'T'))
+    except ValueError:
+        return ''
+    return parsed.strftime('%Y-%m-%d %H:%M')
+
+
+def _now_admin_text() -> str:
+    return datetime.now().strftime('%Y-%m-%d %H:%M')
+
+
+def _coerce_display_slot(value: Any) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return 999
+    if 1 <= parsed <= 10:
+        return parsed
+    return 999
 
 
 def _coerce_state_mode(value: Any, default: str) -> str:
@@ -550,12 +582,20 @@ def _coerce_editorial_item(item: Any, item_index: int) -> Optional[Dict[str, Any
         price = None
     return {
         'id': str(item.get('id') or f'editorial-pick-{item_index}').strip() or f'editorial-pick-{item_index}',
+        'historyId': str(item.get('historyId') or '').strip(),
         'title': title,
         'price': price,
         'thumbnailUrl': thumbnail_url,
         'url': deeplink_url,
         'deeplinkUrl': deeplink_url,
         'provider': provider,
+        'raw': str(item.get('raw') or '').strip(),
+        'displaySlot': _coerce_display_slot(item.get('displaySlot')),
+        'startsAt': _coerce_datetime_text(item.get('startsAt')),
+        'endsAt': _coerce_datetime_text(item.get('endsAt')),
+        'registeredAt': _coerce_datetime_text(item.get('registeredAt')),
+        'deletedAt': _coerce_datetime_text(item.get('deletedAt')),
+        'updatedAt': _coerce_datetime_text(item.get('updatedAt')),
     }
 
 
@@ -617,6 +657,7 @@ def _build_editorial_recommendations(raw_value: Any) -> List[Dict[str, Any]]:
                 'url': deeplink_url,
                 'deeplinkUrl': deeplink_url,
                 'provider': provider,
+                'displaySlot': 999,
                 '_manualTitle': bool(manual_title),
                 '_manualPrice': price is not None,
                 '_manualThumbnail': bool(thumbnail_url),
@@ -640,9 +681,16 @@ def _enrich_editorial_recommendations(
             cache_by_url[key] = coerced
 
     enriched: List[Dict[str, Any]] = []
+    coerced_cached_items = [
+        coerced
+        for item_index, raw_cached in enumerate(cached_items or [], start=1)
+        for coerced in [_coerce_editorial_item(raw_cached, item_index)]
+        if coerced is not None
+    ]
     for index, item in enumerate(items, start=1):
         key = str(item.get('deeplinkUrl') or item.get('thumbnailUrl') or item.get('title') or '')
         cached = cache_by_url.get(key)
+        positional_cached = coerced_cached_items[index - 1] if index - 1 < len(coerced_cached_items) else None
         final_title = str(item.get('title') or '').strip() or f'추천 상품 {index}'
         final_price = item.get('price')
         final_thumbnail = str(item.get('thumbnailUrl') or '').strip()
@@ -693,6 +741,14 @@ def _enrich_editorial_recommendations(
                 'url': final_url,
                 'deeplinkUrl': final_url,
                 'provider': final_provider or _provider_label_from_url(final_url),
+                'raw': str(item.get('raw') or (cached or positional_cached or {}).get('raw') or '').strip(),
+                'historyId': str(item.get('historyId') or (cached or positional_cached or {}).get('historyId') or '').strip(),
+                'displaySlot': _coerce_display_slot(item.get('displaySlot') or (cached or positional_cached or {}).get('displaySlot')),
+                'startsAt': _coerce_datetime_text(item.get('startsAt') or (cached or positional_cached or {}).get('startsAt')),
+                'endsAt': _coerce_datetime_text(item.get('endsAt') or (cached or positional_cached or {}).get('endsAt')),
+                'registeredAt': _coerce_datetime_text(item.get('registeredAt') or (cached or positional_cached or {}).get('registeredAt')),
+                'deletedAt': _coerce_datetime_text(item.get('deletedAt') or (cached or positional_cached or {}).get('deletedAt')),
+                'updatedAt': _coerce_datetime_text(item.get('updatedAt') or (cached or positional_cached or {}).get('updatedAt')),
             }
         )
 
@@ -1000,7 +1056,12 @@ def normalize_explore_settings(
         data.get('editorialRecommendationsSubtitle'),
         DEFAULT_EXPLORE_SETTINGS['editorialRecommendationsSubtitle'],
     )
-    data['editorialRecommendationsCount'] = 5
+    data['editorialRecommendationsCount'] = _coerce_int(
+        data.get('editorialRecommendationsCount'),
+        DEFAULT_EXPLORE_SETTINGS['editorialRecommendationsCount'],
+        1,
+        50,
+    )
     data['editorialRecommendationsPoolRaw'] = _normalize_editorial_pool_raw(
         data.get('editorialRecommendationsPoolRaw'),
         DEFAULT_EXPLORE_SETTINGS['editorialRecommendationsPoolRaw'],
@@ -1034,6 +1095,9 @@ def normalize_explore_settings(
             for coerced in [_coerce_editorial_item(item, index)]
             if coerced is not None
         ]
+    )
+    data['editorialRecommendationsHistory'] = _normalize_editorial_history(
+        data.get('editorialRecommendationsHistory')
     )
     data['storeContextEnabled'] = _coerce_bool(
         data.get('storeContextEnabled'),
@@ -1106,6 +1170,142 @@ def _editorial_items_need_refresh(items: Optional[List[Dict[str, Any]]]) -> bool
     return False
 
 
+def _normalize_editorial_history(value: Any) -> List[Dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    normalized: List[Dict[str, Any]] = []
+    for index, item in enumerate(value, start=1):
+        coerced = _coerce_editorial_item(item, index)
+        if coerced is None:
+            continue
+        history_id = str(item.get('historyId') or coerced.get('historyId') or f'editorial-history-{uuid4().hex[:12]}').strip()
+        normalized.append({
+            **coerced,
+            'historyId': history_id,
+            'registeredAt': _coerce_datetime_text(item.get('registeredAt') or coerced.get('registeredAt')),
+            'deletedAt': _coerce_datetime_text(item.get('deletedAt') or coerced.get('deletedAt')),
+            'updatedAt': _coerce_datetime_text(item.get('updatedAt') or coerced.get('updatedAt')),
+        })
+    return normalized
+
+
+def _apply_editorial_history(
+    normalized: Dict[str, Any],
+    current_payload: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    next_items = [
+        coerced
+        for index, item in enumerate(normalized.get('editorialRecommendationsItems') or [], start=1)
+        for coerced in [_coerce_editorial_item(item, index)]
+        if coerced is not None
+    ]
+    current_history = _normalize_editorial_history((current_payload or {}).get('editorialRecommendationsHistory'))
+    history_by_id = {
+        str(item.get('historyId') or '').strip(): dict(item)
+        for item in current_history
+        if str(item.get('historyId') or '').strip()
+    }
+    now_text = _now_admin_text()
+    active_history_ids: set[str] = set()
+    finalized_items: List[Dict[str, Any]] = []
+
+    for index, item in enumerate(next_items, start=1):
+        history_id = str(item.get('historyId') or '').strip() or f'editorial-history-{uuid4().hex[:12]}'
+        existing = history_by_id.get(history_id, {})
+        registered_at = _coerce_datetime_text(item.get('registeredAt') or existing.get('registeredAt')) or now_text
+        starts_at = _coerce_datetime_text(item.get('startsAt') or existing.get('startsAt') or registered_at) or registered_at
+        finalized_item = {
+            **item,
+            'id': str(item.get('id') or f'editorial-pick-{index}').strip() or f'editorial-pick-{index}',
+            'historyId': history_id,
+            'registeredAt': registered_at,
+            'startsAt': starts_at,
+            'deletedAt': '',
+            'updatedAt': now_text,
+        }
+        finalized_items.append(finalized_item)
+        history_by_id[history_id] = {
+            **existing,
+            **finalized_item,
+            'historyId': history_id,
+            'registeredAt': registered_at,
+            'startsAt': starts_at,
+            'deletedAt': '',
+            'updatedAt': now_text,
+        }
+        active_history_ids.add(history_id)
+
+    for history_id, record in list(history_by_id.items()):
+        if history_id in active_history_ids:
+            continue
+        if record.get('deletedAt'):
+            continue
+        history_by_id[history_id] = {
+            **record,
+            'deletedAt': now_text,
+            'updatedAt': now_text,
+        }
+
+    history_list = sorted(
+        history_by_id.values(),
+        key=lambda item: (
+            _coerce_datetime_text(item.get('registeredAt')),
+            _coerce_datetime_text(item.get('updatedAt')),
+        ),
+        reverse=True,
+    )
+    normalized['editorialRecommendationsItems'] = finalized_items
+    normalized['editorialRecommendationsHistory'] = history_list
+    return normalized
+
+
+def resolve_editorial_recommendation_item(payload: Dict[str, Any]) -> Dict[str, Any]:
+    raw = str(payload.get('raw') or '').strip()
+    item_id = str(payload.get('id') or 'editorial-pick-1').strip() or 'editorial-pick-1'
+    starts_at = _coerce_datetime_text(payload.get('startsAt'))
+    ends_at = _coerce_datetime_text(payload.get('endsAt'))
+    parsed_items = _build_editorial_recommendations(raw)
+    cached_item = {
+        'id': item_id,
+        'historyId': str(payload.get('historyId') or '').strip(),
+        'raw': raw,
+        'displaySlot': _coerce_display_slot(payload.get('displaySlot')),
+        'startsAt': starts_at,
+        'endsAt': ends_at,
+    }
+    if parsed_items:
+        parsed_items[0]['id'] = item_id
+        parsed_items[0]['historyId'] = cached_item['historyId']
+        parsed_items[0]['raw'] = raw
+        parsed_items[0]['displaySlot'] = cached_item['displaySlot']
+        parsed_items[0]['startsAt'] = starts_at
+        parsed_items[0]['endsAt'] = ends_at
+        enriched = _enrich_editorial_recommendations(parsed_items, cached_items=[cached_item])
+        if enriched:
+            enriched[0]['id'] = item_id
+            enriched[0]['historyId'] = cached_item['historyId']
+            enriched[0]['raw'] = raw
+            enriched[0]['displaySlot'] = cached_item['displaySlot']
+            enriched[0]['startsAt'] = starts_at
+            enriched[0]['endsAt'] = ends_at
+            coerced = _coerce_editorial_item(enriched[0], 1)
+            if coerced is not None:
+                return coerced
+    return {
+        'id': item_id,
+        'title': '',
+        'price': None,
+        'thumbnailUrl': '',
+        'url': '',
+        'deeplinkUrl': '',
+        'provider': '',
+        'raw': raw,
+        'displaySlot': _coerce_display_slot(payload.get('displaySlot')),
+        'startsAt': starts_at,
+        'endsAt': ends_at,
+    }
+
+
 def get_explore_settings(db: OrmSession) -> Dict[str, Any]:
     setting = db.get(AppSetting, EXPLORE_SETTINGS_KEY)
     if setting is None:
@@ -1153,6 +1353,7 @@ def save_explore_settings(db: OrmSession, payload: Dict[str, Any]) -> Dict[str, 
         enrich_editorial_items=True,
         cached_editorial_items=cached_items,
     )
+    normalized = _apply_editorial_history(normalized, current_payload)
     setting = db.get(AppSetting, EXPLORE_SETTINGS_KEY)
     if setting is None:
         setting = AppSetting(

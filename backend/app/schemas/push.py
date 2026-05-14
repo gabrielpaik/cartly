@@ -14,10 +14,22 @@ class PushDeviceRegisterRequest(BaseModel):
     debugInfo: Optional[Dict[str, Any]] = None
 
 
+class AdminPushAudienceEntry(BaseModel):
+    userId: Optional[str] = None
+    installId: Optional[str] = None
+    name: Optional[str] = None
+    memo: Optional[str] = None
+
+
+class AdminPushAudiencePreviewRequest(BaseModel):
+    entries: list[AdminPushAudienceEntry] = []
+
+
 class AdminPushBroadcastRequest(BaseModel):
     kind: Literal['notice', 'promotion'] = 'notice'
-    audience: Literal['all', 'members', 'guests'] = 'all'
+    audience: Literal['all', 'members', 'guests', 'upload'] = 'all'
     title: str
     message: str
     targetTab: Optional[Literal['home', 'explore', 'my']] = None
     targetUrl: Optional[str] = None
+    explicitAudience: Optional[list[AdminPushAudienceEntry]] = None

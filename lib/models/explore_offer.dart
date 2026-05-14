@@ -142,6 +142,9 @@ class ExploreAlternativeOffer {
   final int? price;
   final String? thumbnailUrl;
   final String? deeplinkUrl;
+  final int displaySlot;
+  final String? startsAt;
+  final String? endsAt;
   final List<String> highlights;
 
   const ExploreAlternativeOffer({
@@ -151,10 +154,17 @@ class ExploreAlternativeOffer {
     this.price,
     this.thumbnailUrl,
     this.deeplinkUrl,
+    this.displaySlot = 999,
+    this.startsAt,
+    this.endsAt,
     this.highlights = const [],
   });
 
   factory ExploreAlternativeOffer.fromJson(Map<String, dynamic> json) {
+    final rawDisplaySlot = json['displaySlot'];
+    final displaySlot = rawDisplaySlot is int
+        ? rawDisplaySlot
+        : int.tryParse('${json['displaySlot'] ?? ''}') ?? 999;
     return ExploreAlternativeOffer(
       provider: (json['provider'] as String?)?.trim() ?? '',
       title: (json['title'] as String?)?.trim() ?? '',
@@ -164,6 +174,9 @@ class ExploreAlternativeOffer {
           : int.tryParse('${json['price'] ?? ''}'),
       thumbnailUrl: (json['thumbnailUrl'] as String?)?.trim(),
       deeplinkUrl: (json['deeplinkUrl'] as String?)?.trim(),
+      displaySlot: displaySlot,
+      startsAt: (json['startsAt'] as String?)?.trim(),
+      endsAt: (json['endsAt'] as String?)?.trim(),
       highlights:
           (json['highlights'] as List?)
               ?.map((item) => item?.toString().trim())
@@ -181,6 +194,9 @@ class ExploreAlternativeOffer {
     int? price,
     String? thumbnailUrl,
     String? deeplinkUrl,
+    int? displaySlot,
+    String? startsAt,
+    String? endsAt,
     List<String>? highlights,
   }) {
     return ExploreAlternativeOffer(
@@ -190,6 +206,9 @@ class ExploreAlternativeOffer {
       price: price ?? this.price,
       thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
       deeplinkUrl: deeplinkUrl ?? this.deeplinkUrl,
+      displaySlot: displaySlot ?? this.displaySlot,
+      startsAt: startsAt ?? this.startsAt,
+      endsAt: endsAt ?? this.endsAt,
       highlights: highlights ?? this.highlights,
     );
   }

@@ -7,6 +7,9 @@ Expose only the app runtime API publicly for TestFlight / production app access,
 Recommended public URL:
 - `https://scan-api.seoa-nas.com`
 
+Legacy note:
+- If older notes mention `https://scancart-api.seoa-nas.com`, treat that as stale historical context unless DNS/tunnel is explicitly reconfigured again.
+
 ## Local topology
 
 - Public app hostname: `scan-api.seoa-nas.com` → Cloudflare Tunnel → `app-public-proxy` on `127.0.0.1:3100`

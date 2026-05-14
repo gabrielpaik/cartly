@@ -139,14 +139,17 @@ def create_push_campaign(
     target_url: Optional[str],
     requested_by: Optional[str],
     requested_by_source: Optional[str],
+    explicit_audience: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     runtime = get_push_runtime_status(db)
     status = 'queued' if runtime['ready'] else 'blocked'
     error_message = None if runtime['ready'] else '; '.join(runtime['blockers'])
 
+    normalized_explicit_audience = _normalize_explicit_audience_entries(explicit_audience)
+
     row = PushCampaign(
         kind=kind,
-        audience=audience,
+        audience='upload' if audience == 'upload' else audience,
         status=status,
         title=title.strip(),
         message=message.strip(),
@@ -163,7 +166,7 @@ def create_push_campaign(
 
     if runtime['ready']:
         try:
-            result = _send_campaign_now(db, row)
+            result = _send_campaign_now(db, row, explicit_audience=normalized_explicit_audience)
         except Exception as error:
             row.status = 'failed'
             row.error_message = str(error)
@@ -210,13 +213,167 @@ def _firebase_app() -> firebase_admin.App:
     return firebase_admin.initialize_app(cred, options or None)
 
 
-def _eligible_device_rows(db: OrmSession, audience: str) -> List[Tuple[PushDevice, Optional[User]]]:
+def _normalize_explicit_audience_entries(entries: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Optional[str]]]:
+    normalized: List[Dict[str, Optional[str]]] = []
+    seen = set()
+    for entry in entries or []:
+        user_id = str(entry.get('userId') or '').strip() or None
+        install_id = str(entry.get('installId') or '').strip() or None
+        name = str(entry.get('name') or '').strip() or None
+        memo = str(entry.get('memo') or '').strip() or None
+        if not user_id and not install_id:
+            continue
+        key = (user_id or '', install_id or '')
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append({'userId': user_id, 'installId': install_id, 'name': name, 'memo': memo})
+    return normalized
+
+
+
+def _candidate_device_rows_for_entry(db: OrmSession, entry: Dict[str, Optional[str]]) -> List[Tuple[PushDevice, Optional[User]]]:
+    rows: List[Tuple[PushDevice, Optional[User]]] = []
+    seen = set()
+
+    def append(query_rows: List[Tuple[PushDevice, Optional[User]]]):
+        for device, user in query_rows:
+            if device.id in seen:
+                continue
+            seen.add(device.id)
+            rows.append((device, user))
+
+    install_id = entry.get('installId')
+    user_id = entry.get('userId')
+    if install_id:
+        append(
+            db.query(PushDevice, User)
+            .outerjoin(User, PushDevice.user_id == User.id)
+            .filter(PushDevice.install_id == install_id)
+            .all()
+        )
+    if user_id:
+        append(
+            db.query(PushDevice, User)
+            .outerjoin(User, PushDevice.user_id == User.id)
+            .filter(PushDevice.user_id == user_id)
+            .all()
+        )
+    return rows
+
+
+
+def _device_issue_code(device: PushDevice) -> str:
+    if device.status != 'active':
+        return 'invalid' if device.status == 'invalid' else 'inactive'
+    if not (device.push_token or '').strip():
+        return 'token_missing'
+    if not device.notifications_enabled:
+        return 'notifications_off'
+    return 'ready'
+
+
+
+def preview_push_audience(db: OrmSession, entries: Optional[List[Dict[str, Any]]]) -> Dict[str, Any]:
+    normalized = _normalize_explicit_audience_entries(entries)
+    summary = {
+        'uploadedRows': len(normalized),
+        'matchedRows': 0,
+        'readyRows': 0,
+        'matchedDevices': 0,
+        'readyDevices': 0,
+        'notFoundRows': 0,
+        'tokenMissingRows': 0,
+        'notificationsOffRows': 0,
+        'invalidRows': 0,
+        'inactiveRows': 0,
+    }
+    preview_rows: List[Dict[str, Any]] = []
+    matched_device_ids = set()
+    ready_device_ids = set()
+
+    for entry in normalized:
+        rows = _candidate_device_rows_for_entry(db, entry)
+        ready_rows = [(device, user) for device, user in rows if _device_issue_code(device) == 'ready']
+        for device, _ in rows:
+            matched_device_ids.add(device.id)
+        for device, _ in ready_rows:
+            ready_device_ids.add(device.id)
+
+        if not rows:
+            issue = 'not_found'
+            summary['notFoundRows'] += 1
+        elif ready_rows:
+            issue = 'ready'
+            summary['matchedRows'] += 1
+            summary['readyRows'] += 1
+        else:
+            summary['matchedRows'] += 1
+            issue_codes = {_device_issue_code(device) for device, _ in rows}
+            if 'invalid' in issue_codes:
+                issue = 'invalid'
+                summary['invalidRows'] += 1
+            elif 'notifications_off' in issue_codes:
+                issue = 'notifications_off'
+                summary['notificationsOffRows'] += 1
+            elif 'token_missing' in issue_codes:
+                issue = 'token_missing'
+                summary['tokenMissingRows'] += 1
+            else:
+                issue = 'inactive'
+                summary['inactiveRows'] += 1
+
+        preview_rows.append(
+            {
+                'userId': entry.get('userId'),
+                'installId': entry.get('installId'),
+                'name': entry.get('name'),
+                'memo': entry.get('memo'),
+                'issue': issue,
+                'matchedDeviceCount': len(rows),
+                'readyDeviceCount': len(ready_rows),
+                'platforms': sorted({device.platform for device, _ in rows if (device.platform or '').strip()}),
+                'lastSeenAt': max((device.last_seen_at for device, _ in rows if device.last_seen_at), default=None),
+            }
+        )
+
+    summary['matchedDevices'] = len(matched_device_ids)
+    summary['readyDevices'] = len(ready_device_ids)
+    return {
+        'summary': summary,
+        'rows': [
+            {
+                **row,
+                'lastSeenAt': row['lastSeenAt'].isoformat() if row['lastSeenAt'] else None,
+            }
+            for row in preview_rows[:50]
+        ],
+    }
+
+
+
+def _eligible_device_rows(
+    db: OrmSession,
+    audience: str,
+    *,
+    explicit_audience: Optional[List[Dict[str, Any]]] = None,
+) -> List[Tuple[PushDevice, Optional[User]]]:
     rows = db.query(PushDevice, User).outerjoin(User, PushDevice.user_id == User.id).filter(
         PushDevice.status == 'active',
         PushDevice.notifications_enabled.is_(True),
         PushDevice.push_token.is_not(None),
     ).all()
 
+    if audience == 'upload':
+        selected: List[Tuple[PushDevice, Optional[User]]] = []
+        seen = set()
+        for entry in _normalize_explicit_audience_entries(explicit_audience):
+            for device, user in _candidate_device_rows_for_entry(db, entry):
+                if _device_issue_code(device) != 'ready' or device.id in seen:
+                    continue
+                seen.add(device.id)
+                selected.append((device, user))
+        return selected
     if audience == 'all':
         return rows
     if audience == 'members':
@@ -226,8 +383,13 @@ def _eligible_device_rows(db: OrmSession, audience: str) -> List[Tuple[PushDevic
     return rows
 
 
-def _send_campaign_now(db: OrmSession, campaign: PushCampaign) -> Dict[str, Any]:
-    rows = _eligible_device_rows(db, campaign.audience)
+def _send_campaign_now(
+    db: OrmSession,
+    campaign: PushCampaign,
+    *,
+    explicit_audience: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    rows = _eligible_device_rows(db, campaign.audience, explicit_audience=explicit_audience)
     tokens = []
     target_devices: List[PushDevice] = []
     seen = set()

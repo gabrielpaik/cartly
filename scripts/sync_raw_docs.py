@@ -217,6 +217,7 @@ METADATA_OVERRIDES = {
     'dev_cartly:docs/receipt-compare-v1.md': {'status': 'active', 'kind': 'scope'},
     'dev_cartly:docs/2026-05-11-cartly-admin-relayout-proposal.md': {'status': 'draft', 'kind': 'proposal'},
     'dev_cartly:docs/2026-05-14-users-push-admin-growth-checkpoint-handoff.md': {'status': 'active', 'kind': 'handoff'},
+    'dev_cartly:docs/2026-05-14-veteran-operator-admin-audit.md': {'status': 'active', 'kind': 'audit'},
     'dev_cartly:docs/2026-05-07-cartly-design-audit-home-explore-current-cart.md': {'status': 'reference', 'kind': 'audit'},
     'dev_cartly:docs/2026-05-07-cartly-design-evaluation-rubric.md': {'status': 'reference', 'kind': 'rubric'},
     'dev_cartly:docs/2026-05-07-cartly-visual-foundation-v1.md': {'status': 'reference', 'kind': 'foundation'},
@@ -439,6 +440,11 @@ RELATION_OVERRIDES = {
         'related_ui': ['UI-2026-05-11-Cartly-Admin-Relayout-Proposal', 'UI-2026-05-07-Cartly-Design-Audit-Home-Explore-Current-Cart'],
         'related_issues': ['Issue-Baseline-Audit-2026-04-10'],
     },
+    'dev_cartly:docs/2026-05-14-veteran-operator-admin-audit.md': {
+        'related_ui': ['UI-2026-05-11-Cartly-Admin-Relayout-Proposal', 'UI-Admin-Frontend-Spec'],
+        'related_dashboard': ['Dashboard-2026-05-14-Users-Push-Admin-Growth-Checkpoint-Handoff', 'Dashboard-Operations-Runbook'],
+        'related_product': ['Product-Admin-Architecture'],
+    },
     'dev_cartly:docs/ARCHITECTURE.md': {
         'related_api': ['API-Backend-Overview', 'API-Spec-Draft'],
         'related_db': ['DB-Schema-Draft'],
@@ -592,6 +598,10 @@ SUMMARY_OVERRIDES = {
     'dev_cartly:docs/2026-05-07-ui-progress-handoff.md': [
         '이 문서는 2026-05-07 기준 UI 작업 진행 상황과 사용자 피드백을 넘겨주기 위한 인계 문서다.',
         '무엇을 끝냈고, 무엇이 검증됐고, 어떤 피드백이 다음 수정으로 이어져야 하는지 정리한다.',
+    ],
+    'dev_cartly:docs/2026-05-14-veteran-operator-admin-audit.md': [
+        '이 문서는 2026-05-14 기준 카틀리 어드민을 베테랑 운영자 관점으로 다시 해석한 점검 메모다.',
+        'Ads, Explore, Users, Carts, Scan Ops, Config, Content를 각각 어떤 운영 도구로 봐야 하는지와 다음 우선순위를 정리한다.',
     ],
     'dev_cartly:docs/ARCHITECTURE.md': [
         '이 문서는 카틀리 전체 시스템 구조를 앱, 백엔드, 어드민 웹 기준으로 설명한다.',
@@ -800,6 +810,8 @@ def detect_category(sync_root: SyncRoot, rel: Path) -> str:
         return '01_Product'
     if rel.parts[:2] == ('backend', 'README.md'):
         return '04_API'
+    if rel == Path('docs/2026-05-14-veteran-operator-admin-audit.md'):
+        return '03_UIUX'
     if 'launchimage.imageset' in rel_text:
         return '08_Archive'
     if 'assets/icons' in rel_text or 'app-preview/assets/assets/icons' in rel_text:

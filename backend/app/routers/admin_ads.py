@@ -9,6 +9,8 @@ from ..schemas.ad_slot import AdSlotUpdateRequest
 from ..services.ad_slot_service import (
     export_ad_campaign_xlsx,
     export_ad_campaigns_xlsx,
+    get_ad_performance_summary,
+    get_ad_slot_workspace,
     list_ad_campaigns,
     list_ad_slots,
     update_ad_slot,
@@ -26,6 +28,43 @@ def list_ad_slots_route(db: OrmSession = Depends(db_dep)):
 @router.put('/ads/slots/{slot_key}')
 def update_ad_slot_route(slot_key: str, payload: AdSlotUpdateRequest, db: OrmSession = Depends(db_dep)):
     return {'ok': True, 'data': update_ad_slot(db, slot_key, payload.model_dump(exclude_none=True))}
+
+
+@router.get('/ads/performance/summary')
+def ad_performance_summary_route(
+    slotKey: Optional[str] = Query(default=None),
+    surface: str = Query(default=''),
+    status: str = Query(default='all'),
+    variant: str = Query(default='all'),
+    periodFrom: str = Query(default=''),
+    periodTo: str = Query(default=''),
+    db: OrmSession = Depends(db_dep),
+):
+    return {
+        'ok': True,
+        'data': get_ad_performance_summary(
+            db,
+            slot_key=slotKey,
+            surface=surface,
+            status=status,
+            variant=variant,
+            period_from=periodFrom,
+            period_to=periodTo,
+        ),
+    }
+
+
+@router.get('/ads/slots/{slot_key}/workspace')
+def ad_slot_workspace_route(
+    slot_key: str,
+    periodFrom: str = Query(default=''),
+    periodTo: str = Query(default=''),
+    db: OrmSession = Depends(db_dep),
+):
+    return {
+        'ok': True,
+        'data': get_ad_slot_workspace(db, slot_key, period_from=periodFrom, period_to=periodTo),
+    }
 
 
 @router.get('/ads/campaigns')

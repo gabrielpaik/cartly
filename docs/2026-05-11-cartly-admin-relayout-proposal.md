@@ -319,6 +319,19 @@ Purpose: full scenario preview
 - runtime refresh
 - save current tab
 
+### Current direction update
+- Explore should now be treated as a decision console, not just a dense settings page
+- mode separation is mandatory because the live product already operates across distinct states like activeShopping / postSave / idlePlanning / storeContext
+- the operator should always know which mode they are editing, which recommendation/result logic belongs to that mode, and what preview scenario is currently active
+- recommendation pool operations, decision-rule tuning, and decision-copy editing should feel like separate tasks, not one blended mega-surface
+- future refactors should bias toward explicit mode rails, selected-mode context, and bulk-operation strips that do not compete visually with state-level decision work
+
+### Explore P0 target shape
+- persistent left mode rail for activeShopping / postSave / idlePlanning / storeContext
+- separate task strip for recommendation pool / decision rules / decision copy / preview
+- selected mode should remain visible in header, meta strip, and preview at the same time
+- preview should always be mode-bound, never visually ambiguous about which app state it reflects
+
 ---
 
 ## 3. Content
@@ -380,6 +393,12 @@ Content should stop being a raw key list and become screen-based content operati
 - connected screens
 - live preview snapshot
 
+### Current direction update
+- Content should move forward as an operator-friendly structured editor, not as a Push-style campaign console
+- the primary win is predictability: screen-based grouping, stable edit scope, clear preview linkage, and low-risk save behavior
+- avoid turning Content into a hyper-dense action surface where many unrelated copy decisions compete at once
+- operators should feel they are editing a known surface with controlled scope, not spelunking through raw field inventories or runtime internals
+
 ### Why this works
 Operators think:
 - "Home > Explore Entry 문구 바꾸자"
@@ -427,6 +446,7 @@ Split product-runtime settings from infra/system.
 - Runtime Config now shares the Push compact shell as well: compact header, summary strip, meta strip, then pane-driven operator surfaces
 - pane switching should not introduce separate visual density rules; overview, smoke, runtime, my-page, and Coupang panes should all inherit the same compact console baseline
 - my-page and Coupang should not fall back to tall one-column forms; keep operator controls grouped into compact subcards, with long JSON/note/history blocks visually secondary
+- the next meaningful Config step is language, not layout: reduce developer phrasing, make state/risk/action clearer, and help operators know whether something is safe to change now, needs coordination, or is only informational
 - avoid server/client pane mismatch for query-param-driven tabs; the served runtime must render the selected pane cleanly without hydration drift
 
 ---
@@ -486,6 +506,66 @@ Current direction update:
 - the next concrete Ads shape is now table first plus one selected-slot editor, instead of rendering every slot as a full live/reserved editor stack at once
 - live and reserved editing can stay side-by-side inside the selected slot sheet, but selection should happen from the inventory table above
 - after Push reaches a stable operator pattern, Ads should inherit the same Growth grammar
+- the next veteran-level concern is confidence, not just layout: the operator must be able to answer "what is live now, where does it show, how is it performing, and what should I stop or increase"
+- Ads should evolve into a placement-and-performance console with three first-class views: exposure map, selected slot editing, and slot/creative performance summaries
+- efficiency data should not stay abstract; slot-level impressions, clicks, CTR, and downstream action signals should be visible in a way that supports keep/stop/replace decisions
+
+### Ads P0 target shape
+- top exposure inventory with live creative, reserved creative, slot, surface, position, status, updatedAt, and filtered-period metrics
+- selected-slot workspace with live/reserved preview, schedule controls, save/publish actions, and recent campaign history
+- lower performance zone with slot-level and creative-level summaries plus low-signal / no-signal review rows
+
+### Ads implementation contract
+
+Current live contracts already available:
+- `GET /admin/ads/slots`
+- `PUT /admin/ads/slots/{slotKey}`
+- `GET /admin/ads/campaigns`
+- `POST /v1/ads/impressions`
+- `POST /v1/ads/clicks`
+
+What they already cover:
+- slot identity and config
+- live/reserved campaign history linkage
+- campaign-level impressions, clicks, CTR
+- runtime impression/click tracking
+
+What they do not yet cover cleanly:
+- period-aware slot summary
+- explicit effective runtime state per slot
+- creative-level grouped performance
+- no-data / low-CTR operator queues
+- downstream post-click action metrics
+
+Recommended P0 additions:
+- `GET /admin/ads/performance/summary`
+  - returns header summary, slotRows, creativeRows, and reviewQueues for the selected date range
+- `GET /admin/ads/slots/{slotKey}/workspace`
+  - returns selected slot, live/reserved campaign summaries, history, preview metadata, and slot-scoped performance
+
+### Ads exposure inventory columns
+- slotKey
+- surfaceLabel
+- placementLabel
+- slotStatus
+- effectiveRuntimeState
+- liveCreativeTitle
+- livePeriod
+- reservedCreativeTitle
+- reservedPeriod
+- updatedAt
+- impressions
+- clicks
+- ctr
+- downstreamActions if available
+- reviewFlag
+
+### Ads decision rules
+- `reviewFlag=no_data` when a live or reserved-ready slot has zero impressions in the selected period after exposure start
+- `reviewFlag=low_ctr` when impressions clear the minimum threshold but CTR is below the operator threshold
+- `reviewFlag=inactive_gap` when the slot is active but no effective live creative exists
+- `reviewFlag=reserved_mismatch` when reserved creative content exists without a valid schedule window
+- all table metrics must reflect the currently selected date range, not hidden lifetime totals
 
 ### Users
 Center grid columns:
@@ -512,15 +592,63 @@ Current direction update:
 - quick presets like recent 7d / recent 30d / visit 5+ / scan 10+ / scan under 3 are useful because they match operator questions better than raw field-by-field filtering alone
 - export should produce a Push-compatible sheet keyed by `userId` with `installId` left blank by default, because the backend should re-resolve live-ready devices during upload preview/send
 - legacy cleanup stays adjacent, but should not dominate the primary Users surface anymore
+- the next step is to strengthen Users as customer DB plus segmentation: lifecycle state, activity timeline, membership transition, push reachability, cart/scan behavior, and operator action context should become easier to inspect per person
+- a strong Users page should answer both "who should I target" and "what kind of customer is this" without forcing operators into separate disconnected tools
+
+### Users P0 target shape
+- keep the current segment filter bar and segment result table
+- add a per-user drilldown layer for lifecycle, recent activity, carts, scans, and push/device reachability
+- surface customer state and reachability signals directly in the main result table so segmentation and customer understanding are not split apart
 
 ---
 
-## 6. Scan Ops
+## 6. Carts / Scan Ops
+
+Carts and Scan Ops should now be treated as the evidence and triage loop for Explore operations.
+They are not just logs, and they are not just export pages.
+
+### Shared role
+
+The default questions should be:
+- what result data is accumulating in runtime
+- what pattern does that data suggest for Explore decisions
+- what broke or degraded today
+- what can the operator correct immediately
+
+In short:
+- accumulate evidence
+- inspect patterns
+- correct bad outcomes fast
+- feed the next Explore operating decision
+
+### Carts
+
+Carts should operate as saved-result evidence, not only as a history viewer.
+
+#### Primary jobs
+- understand what users actually saved
+- detect merchant/category/product patterns
+- inspect receipt-linked outcomes
+- identify cleanup/correction opportunities that affect downstream merchandising and Explore strategy
+
+#### Recommended emphasis
+- top summary strip for cart count, member/guest split, receipt coverage, average value, average items
+- insight blocks for top merchants, top categories, top final items, and recent notable shifts
+- filter/control row for time range, user type, category scope, receipt presence, and query
+- table-first saved cart history
+- category correction tools close to the visible result set, not isolated far away
+
+#### Current direction update
+- Carts should support both analysis and immediate intervention
+- the operator should be able to move from observed pattern to category correction without leaving the page
+- insights here should help explain what Explore should emphasize more, suppress, or revisit
+
+### Scan Ops
 
 Scan Ops should not be organized like a failure log viewer.
 It should be a queue-and-result operations surface.
 
-### Role
+#### Role
 
 The default question should be:
 - what jobs are moving through the queue
@@ -530,14 +658,14 @@ The default question should be:
 not:
 - which raw stack trace should fill the whole screen
 
-### Default layout
+#### Default layout
 
 - top summary strip for queue, worker, feedback, failures
 - compact queue control bar for filter, search, bulk category action, export
 - main jobs table first
 - row double-click opens a modal detail surface
 
-### Main table priority
+#### Main table priority
 
 Columns should bias toward:
 - image
@@ -552,7 +680,7 @@ Columns should bias toward:
 
 Failure detail still matters, but it should be downstream context, not the main organizing surface.
 
-### Detail interaction
+#### Detail interaction
 
 Job detail should open in modal form and carry:
 - image
@@ -563,7 +691,7 @@ Job detail should open in modal form and carry:
 
 This keeps the default page table-first while still allowing deep inspection.
 
-### Feedback placement
+#### Feedback placement
 
 `Recent Feedback` should not live as a detached hero card.
 Feedback belongs in:
@@ -571,9 +699,14 @@ Feedback belongs in:
 - row-level status context
 - job detail history
 
-### Category operations
+#### Category operations
 
 Because Scan Ops is now also a correction surface, row-level and bulk category override should stay close to the jobs table.
+
+#### Current direction update
+- Scan Ops should simultaneously support insight reading and immediate triage
+- failure, quarantine, worker health, and feedback correction signals should rise to the top when they need action
+- the page should help operators decide what Explore needs more of, what OCR/result quality is degrading, and what should be corrected right now before the next batch compounds the issue
 
 ---
 

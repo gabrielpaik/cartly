@@ -7,7 +7,7 @@ import { CampaignRow, fallbackSlots, SlotConfig, SlotEditorPanel, SlotHistory, S
 import { useAdminCopy } from '../../components/AdminCopyProvider'
 import PageHeader from '../../components/PageHeader'
 import { fetchJsonSafe, isUnauthorizedError, postFormData, putJson } from '../../lib/api'
-import { formatDate } from '../../lib/format'
+import { formatDate, formatNumber, formatPercent } from '../../lib/format'
 
 type UploadResponse = {
   ok: boolean
@@ -23,13 +23,193 @@ type UploadResponse = {
   }
 }
 
+type ReviewFlag = 'ok' | 'low_ctr' | 'no_data' | 'inactive_gap' | 'reserved_mismatch'
+
+type SlotPeriod = {
+  startAt: string | null
+  endAt: string | null
+}
+
+type SlotPerformanceRow = {
+  slotKey: string
+  surfaceLabel: string
+  placementLabel: string
+  slotStatus: string
+  effectiveRuntimeState: string
+  liveCreativeTitle: string
+  livePeriod: SlotPeriod
+  reservedCreativeTitle: string
+  reservedPeriod: SlotPeriod
+  updatedAt: string | null
+  impressions: number
+  clicks: number
+  ctr: number
+  downstreamActions: number | null
+  reviewFlag: ReviewFlag
+  lastImpressionAt: string | null
+}
+
+type CreativePerformanceRow = {
+  creativeKey: string
+  title: string
+  slotCount: number
+  slotKey: string | null
+  variant: 'live' | 'reserved'
+  status: string
+  impressions: number
+  clicks: number
+  ctr: number
+  downstreamActions: number | null
+  firstSeenAt: string | null
+  lastSeenAt: string | null
+}
+
+type AdsPerformanceData = {
+  summary: {
+    liveSlots: number
+    reservedPending: number
+    activeCreatives: number
+    lowCtrSlots: number
+    noDataSlots: number
+  }
+  slotRows: SlotPerformanceRow[]
+  creativeRows: CreativePerformanceRow[]
+  reviewQueues: {
+    noData: SlotPerformanceRow[]
+    lowCtr: SlotPerformanceRow[]
+    inactiveGap: SlotPerformanceRow[]
+    reservedMismatch: SlotPerformanceRow[]
+    clickNoDownstream: SlotPerformanceRow[]
+  }
+}
+
+type AdsWorkspaceData = {
+  slot: SlotRow
+  liveCampaign: CampaignRow | null
+  reservedCampaign: CampaignRow | null
+  history: CampaignRow[]
+  performance: SlotPerformanceRow | null
+}
+
+function buildFallbackSummary(slots: SlotRow[]): AdsPerformanceData {
+  const slotRows: SlotPerformanceRow[] = slots.map((slot) => {
+    const hasLive = Boolean(slot.config.title?.trim())
+    const hasReserved = Boolean(slot.config.reservedTitle?.trim())
+    const runtimeState = slot.status !== 'active'
+      ? 'inactive'
+      : hasLive
+        ? 'live_now'
+        : hasReserved
+          ? 'reserved_pending'
+          : 'inactive_gap'
+    const reviewFlag: ReviewFlag = slot.status !== 'active'
+      ? 'ok'
+      : hasLive || hasReserved
+        ? 'no_data'
+        : 'inactive_gap'
+    return {
+      slotKey: slot.slotKey,
+      surfaceLabel: [slot.config.screen, slot.config.position].filter(Boolean).join(' · ') || slot.slotKey,
+      placementLabel: slot.config.placementNote || slot.placementType,
+      slotStatus: slot.status,
+      effectiveRuntimeState: runtimeState,
+      liveCreativeTitle: slot.config.title?.trim() || '-',
+      livePeriod: {
+        startAt: slot.config.exposureStartAt ?? null,
+        endAt: slot.config.exposureEndAt ?? null,
+      },
+      reservedCreativeTitle: slot.config.reservedTitle?.trim() || '-',
+      reservedPeriod: {
+        startAt: slot.config.reservationStartAt ?? null,
+        endAt: slot.config.reservationEndAt ?? null,
+      },
+      updatedAt: slot.updatedAt ?? slot.createdAt,
+      impressions: 0,
+      clicks: 0,
+      ctr: 0,
+      downstreamActions: null,
+      reviewFlag,
+      lastImpressionAt: null,
+    }
+  })
+  return {
+    summary: {
+      liveSlots: slotRows.filter((row) => row.effectiveRuntimeState === 'live_now').length,
+      reservedPending: slotRows.filter((row) => row.effectiveRuntimeState === 'reserved_pending').length,
+      activeCreatives: slotRows.filter((row) => row.liveCreativeTitle !== '-').length,
+      lowCtrSlots: 0,
+      noDataSlots: slotRows.filter((row) => row.reviewFlag === 'no_data').length,
+    },
+    slotRows,
+    creativeRows: [],
+    reviewQueues: {
+      noData: slotRows.filter((row) => row.reviewFlag === 'no_data'),
+      lowCtr: [],
+      inactiveGap: slotRows.filter((row) => row.reviewFlag === 'inactive_gap'),
+      reservedMismatch: [],
+      clickNoDownstream: [],
+    },
+  }
+}
+
+function buildFallbackWorkspace(slot: SlotRow): AdsWorkspaceData {
+  return {
+    slot,
+    liveCampaign: null,
+    reservedCampaign: null,
+    history: [],
+    performance: buildFallbackSummary([slot]).slotRows[0] ?? null,
+  }
+}
+
+function formatPeriod(period: SlotPeriod | null | undefined) {
+  if (!period) return '-'
+  return `${formatDate(period.startAt)} → ${formatDate(period.endAt)}`
+}
+
+function reviewFlagLabel(flag: ReviewFlag) {
+  switch (flag) {
+    case 'low_ctr':
+      return 'low CTR'
+    case 'no_data':
+      return 'no data'
+    case 'inactive_gap':
+      return 'inactive gap'
+    case 'reserved_mismatch':
+      return 'reserved mismatch'
+    default:
+      return 'ok'
+  }
+}
+
+function runtimeStateLabel(value: string) {
+  switch (value) {
+    case 'live_now':
+      return 'live now'
+    case 'reserved_pending':
+      return 'reserved pending'
+    case 'inactive_gap':
+      return 'inactive gap'
+    case 'reserved_mismatch':
+      return 'reserved mismatch'
+    case 'inactive':
+      return 'inactive'
+    case 'expired':
+      return 'expired'
+    default:
+      return value || '-'
+  }
+}
+
 export default function AdsPage() {
   const router = useRouter()
   const { t } = useAdminCopy()
   const [slots, setSlots] = useState<SlotRow[]>(fallbackSlots)
-  const [campaigns, setCampaigns] = useState<CampaignRow[]>([])
+  const [performance, setPerformance] = useState<AdsPerformanceData>(buildFallbackSummary(fallbackSlots))
+  const [workspace, setWorkspace] = useState<AdsWorkspaceData | null>(null)
   const [usingFallback, setUsingFallback] = useState(true)
   const [loading, setLoading] = useState(true)
+  const [workspaceLoading, setWorkspaceLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [uploadingKey, setUploadingKey] = useState<string | null>(null)
@@ -43,87 +223,113 @@ export default function AdsPage() {
   const [slotStatusFilter, setSlotStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [selectedSlotKey, setSelectedSlotKey] = useState<string | null>(null)
 
-  const activeSlots = useMemo(() => slots.filter((slot) => slot.status === 'active').length, [slots])
-  const liveCampaigns = useMemo(() => campaigns.filter((campaign) => campaign.variant === 'live').length, [campaigns])
-  const reservedCampaigns = useMemo(() => campaigns.filter((campaign) => campaign.variant === 'reserved').length, [campaigns])
-  const liveStatusCampaigns = useMemo(() => campaigns.filter((campaign) => campaign.status === 'live').length, [campaigns])
-  const campaignsBySlot = useMemo(
-    () => campaigns.reduce<Record<string, CampaignRow[]>>((acc, campaign) => {
-      if (!acc[campaign.slotKey]) acc[campaign.slotKey] = []
-      acc[campaign.slotKey].push(campaign)
-      return acc
-    }, {}),
-    [campaigns],
-  )
-  const filteredSlots = useMemo(() => {
-    const query = slotQuery.trim().toLowerCase()
-    return slots.filter((slot) => {
-      const matchesStatus = slotStatusFilter === 'all' ? true : slot.status === slotStatusFilter
-      const haystacks = [slot.slotKey, slot.config.slotLabel, slot.config.slotDescription, slot.config.screen, slot.config.position, slot.placementType]
-      const matchesQuery = !query || haystacks.filter(Boolean).some((value) => String(value).toLowerCase().includes(query))
-      return matchesStatus && matchesQuery
-    })
-  }, [slotQuery, slotStatusFilter, slots])
+  const slotsByKey = useMemo(() => Object.fromEntries(slots.map((slot) => [slot.slotKey, slot])), [slots])
   const selectedSlot = useMemo(() => {
-    if (!selectedSlotKey) return filteredSlots[0] ?? null
-    return slots.find((slot) => slot.slotKey === selectedSlotKey) ?? filteredSlots[0] ?? null
-  }, [filteredSlots, selectedSlotKey, slots])
-  const selectedSlotCampaigns = useMemo(() => {
+    if (!selectedSlotKey) return null
+    return slotsByKey[selectedSlotKey] ?? null
+  }, [selectedSlotKey, slotsByKey])
+  const selectedPerformance = workspace?.performance ?? null
+  const selectedSlotHistory = useMemo(() => {
     if (!selectedSlot) return []
-    return (campaignsBySlot[selectedSlot.slotKey] ?? []).filter((campaign) => campaign.id !== selectedSlot.config.liveCampaignId && campaign.id !== selectedSlot.config.reservedCampaignId)
-  }, [campaignsBySlot, selectedSlot])
-
-  async function loadCampaigns() {
-    try {
-      const params = new URLSearchParams({ limit: '300' })
-      if (historyQuery.trim()) params.set('query', historyQuery.trim())
-      if (historyVariantFilter !== 'all') params.set('variant', historyVariantFilter)
-      if (historyStatusFilter !== 'all') params.set('status', historyStatusFilter)
-      if (historyPeriodFrom) params.set('periodFrom', historyPeriodFrom)
-      if (historyPeriodTo) params.set('periodTo', historyPeriodTo)
-      const res = await fetchJsonSafe<{ ok: boolean; data: { campaigns: CampaignRow[] } }>(`/admin/ads/campaigns?${params.toString()}`, { ok: true, data: { campaigns: [] } })
-      setCampaigns(res.data.data.campaigns)
-    } catch (err) {
-      if (isUnauthorizedError(err)) router.replace('/login?reason=expired')
-    }
-  }
+    return (workspace?.history ?? []).filter((campaign) => campaign.id !== selectedSlot.config.liveCampaignId && campaign.id !== selectedSlot.config.reservedCampaignId)
+  }, [selectedSlot, workspace])
 
   async function loadSlots() {
-    setLoading(true)
-    setError(null)
+    const res = await fetchJsonSafe<{ ok: boolean; data: { slots: SlotRow[] } }>('/admin/ads/slots', { ok: true, data: { slots: fallbackSlots } })
+    setSlots(res.data.data.slots)
+    setUsingFallback(res.usingFallback)
+    return res.data.data.slots
+  }
+
+  async function loadPerformanceSummary() {
+    const params = new URLSearchParams()
+    if (slotQuery.trim()) params.set('surface', slotQuery.trim())
+    if (slotStatusFilter !== 'all') params.set('status', slotStatusFilter)
+    if (historyVariantFilter !== 'all') params.set('variant', historyVariantFilter)
+    if (historyPeriodFrom) params.set('periodFrom', historyPeriodFrom)
+    if (historyPeriodTo) params.set('periodTo', historyPeriodTo)
+    const res = await fetchJsonSafe<{ ok: boolean; data: AdsPerformanceData }>(
+      `/admin/ads/performance/summary${params.toString() ? `?${params.toString()}` : ''}`,
+      { ok: true, data: buildFallbackSummary(fallbackSlots) },
+    )
+    setPerformance(res.data.data)
+    return res.data.data
+  }
+
+  async function loadWorkspace(slotKey: string) {
+    setWorkspaceLoading(true)
     try {
-      const res = await fetchJsonSafe<{ ok: boolean; data: { slots: SlotRow[] } }>('/admin/ads/slots', { ok: true, data: { slots: fallbackSlots } })
-      setSlots(res.data.data.slots)
-      setUsingFallback(res.usingFallback)
-      await loadCampaigns()
+      const params = new URLSearchParams()
+      if (historyPeriodFrom) params.set('periodFrom', historyPeriodFrom)
+      if (historyPeriodTo) params.set('periodTo', historyPeriodTo)
+      const fallbackSlot = slotsByKey[slotKey] ?? fallbackSlots.find((slot) => slot.slotKey === slotKey) ?? fallbackSlots[0]
+      const res = await fetchJsonSafe<{ ok: boolean; data: AdsWorkspaceData }>(
+        `/admin/ads/slots/${slotKey}/workspace${params.toString() ? `?${params.toString()}` : ''}`,
+        { ok: true, data: buildFallbackWorkspace(fallbackSlot) },
+      )
+      setWorkspace(res.data.data)
     } catch (err) {
       if (isUnauthorizedError(err)) {
         router.replace('/login?reason=expired')
         return
       }
-      setError(err instanceof Error ? err.message : '광고 슬롯을 불러오지 못했어')
+      setError(err instanceof Error ? err.message : '선택한 슬롯 작업공간을 불러오지 못했어')
+    } finally {
+      setWorkspaceLoading(false)
+    }
+  }
+
+  async function refreshAll() {
+    setLoading(true)
+    setError(null)
+    try {
+      const [, summary] = await Promise.all([loadSlots(), loadPerformanceSummary()])
+      const firstSlotKey = summary.slotRows[0]?.slotKey ?? null
+      setSelectedSlotKey((prev) => prev && summary.slotRows.some((row) => row.slotKey === prev) ? prev : firstSlotKey)
+    } catch (err) {
+      if (isUnauthorizedError(err)) {
+        router.replace('/login?reason=expired')
+        return
+      }
+      setError(err instanceof Error ? err.message : '광고 데이터를 불러오지 못했어')
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    void loadSlots()
+    void refreshAll()
   }, [])
 
   useEffect(() => {
-    if (!loading) void loadCampaigns()
-  }, [historyQuery, historyVariantFilter, historyStatusFilter, historyPeriodFrom, historyPeriodTo])
+    if (loading) return
+    void loadPerformanceSummary().catch((err) => {
+      if (isUnauthorizedError(err)) {
+        router.replace('/login?reason=expired')
+        return
+      }
+      setError(err instanceof Error ? err.message : '광고 성과 요약을 불러오지 못했어')
+    })
+  }, [slotQuery, slotStatusFilter, historyVariantFilter, historyPeriodFrom, historyPeriodTo])
 
   useEffect(() => {
-    if (filteredSlots.length === 0) {
+    const availableKeys = performance.slotRows.map((row) => row.slotKey)
+    if (availableKeys.length === 0) {
       if (selectedSlotKey !== null) setSelectedSlotKey(null)
       return
     }
-    if (!selectedSlotKey || !filteredSlots.some((slot) => slot.slotKey === selectedSlotKey)) {
-      setSelectedSlotKey(filteredSlots[0].slotKey)
+    if (!selectedSlotKey || !availableKeys.includes(selectedSlotKey)) {
+      setSelectedSlotKey(availableKeys[0])
     }
-  }, [filteredSlots, selectedSlotKey])
+  }, [performance.slotRows, selectedSlotKey])
+
+  useEffect(() => {
+    if (!selectedSlotKey) {
+      setWorkspace(null)
+      return
+    }
+    void loadWorkspace(selectedSlotKey)
+  }, [selectedSlotKey, historyPeriodFrom, historyPeriodTo, slotsByKey])
 
   function updateSlot(slotKey: string, patch: Partial<SlotRow>) {
     setSlots((prev) => prev.map((slot) => (slot.slotKey === slotKey ? { ...slot, ...patch } : slot)))
@@ -163,8 +369,8 @@ export default function AdsPage() {
           }
       const res = await putJson<{ ok: boolean; data: SlotRow }>(`/admin/ads/slots/${slot.slotKey}`, payload)
       updateSlot(slot.slotKey, res.data)
-      await loadCampaigns()
-      setMessage(`${slot.slotKey} ${variant === 'live' ? t('admin.ads.history.variant.live', '현재 광고 이력') : t('admin.ads.history.variant.reserved', '예약 광고 이력')} 저장 완료`)
+      await Promise.all([loadPerformanceSummary(), loadWorkspace(slot.slotKey)])
+      setMessage(`${slot.slotKey} ${variant === 'live' ? 'live' : 'reserved'} 저장 완료`)
     } catch (err) {
       if (isUnauthorizedError(err)) {
         router.replace('/login?reason=expired')
@@ -173,15 +379,6 @@ export default function AdsPage() {
       setError(err instanceof Error ? err.message : t('admin.ads.saveFailed', '광고 슬롯 저장 실패'))
     } finally {
       setSavingKey(null)
-    }
-  }
-
-  function openSlot(slotKey: string) {
-    setSelectedSlotKey(slotKey)
-    if (typeof window !== 'undefined') {
-      window.setTimeout(() => {
-        document.getElementById('selected-slot-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }, 0)
     }
   }
 
@@ -197,7 +394,7 @@ export default function AdsPage() {
         setError(res.error?.message ?? '배너 업로드 실패')
       } else {
         updateConfig(slotKey, { [field]: res.data.url } as Partial<SlotConfig>)
-        setMessage(`${slotKey} ${field === 'imageUrl' ? t('admin.ads.upload.liveDone', '현재') : t('admin.ads.upload.reservedDone', '예약')} ${t('admin.ads.upload.doneSuffix', '배너 업로드 완료')}`)
+        setMessage(`${slotKey} 배너 업로드 완료`)
       }
     } catch (err) {
       if (isUnauthorizedError(err)) {
@@ -210,144 +407,202 @@ export default function AdsPage() {
     }
   }
 
-  const exportParams = new URLSearchParams()
-  if (historyQuery.trim()) exportParams.set('query', historyQuery.trim())
-  if (historyVariantFilter !== 'all') exportParams.set('variant', historyVariantFilter)
-  if (historyStatusFilter !== 'all') exportParams.set('status', historyStatusFilter)
-  if (historyPeriodFrom) exportParams.set('periodFrom', historyPeriodFrom)
-  if (historyPeriodTo) exportParams.set('periodTo', historyPeriodTo)
-  const bulkExportHref = `/api/cartly-admin/admin/ads/campaigns/export.xlsx${exportParams.toString() ? `?${exportParams.toString()}` : ''}`
+  const bulkExportParams = new URLSearchParams()
+  if (historyQuery.trim()) bulkExportParams.set('query', historyQuery.trim())
+  if (historyVariantFilter !== 'all') bulkExportParams.set('variant', historyVariantFilter)
+  if (historyStatusFilter !== 'all') bulkExportParams.set('status', historyStatusFilter)
+  if (historyPeriodFrom) bulkExportParams.set('periodFrom', historyPeriodFrom)
+  if (historyPeriodTo) bulkExportParams.set('periodTo', historyPeriodTo)
+  const bulkExportHref = `/api/cartly-admin/admin/ads/campaigns/export.xlsx${bulkExportParams.toString() ? `?${bulkExportParams.toString()}` : ''}`
 
   return (
     <div className="exploreCompactPage">
       <PageHeader
         badge={usingFallback ? 'Fallback data' : loading ? 'Loading...' : 'Live data'}
         title={t('admin.ads.title', 'Ads')}
-        description={t('admin.ads.desc', '광고 슬롯과 배너 자산 관리')}
-        onRefresh={() => void loadSlots()}
-        refreshing={loading}
+        description={t('admin.ads.desc', '무엇이 어디에 live인지, 어떻게 반응하는지, 무엇을 stop/keep할지 바로 판단하는 광고 운영 콘솔')}
+        onRefresh={() => void refreshAll()}
+        refreshing={loading || workspaceLoading}
       />
 
       {error ? <div className="loginError" style={{ marginBottom: 16 }}>{error}</div> : null}
       {message ? <div className="saveMessage" style={{ marginBottom: 16 }}>{message}</div> : null}
       {usingFallback ? (
         <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
-          <strong>{t('admin.ads.warning.fallbackTitle', 'Live ads data unavailable.')}</strong>{' '}
-          {t('admin.ads.warning.fallbackBody', '지금 화면은 fallback/mock data일 수 있어서 슬롯 저장과 배너 업로드는 잠깐 막아둘게.')}
+          <strong>Live ads data unavailable.</strong> 지금 화면은 fallback/mock data일 수 있어서 저장과 배너 업로드는 잠깐 막아둘게.
         </div>
       ) : null}
 
       <div className="exploreSummaryGrid section" style={{ marginTop: 12 }}>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Slots</div>
-          <div className="exploreSummaryValue">{slots.length}</div>
-          <div className="exploreSummaryNote">active {activeSlots} · inactive {slots.length - activeSlots}</div>
+          <div className="exploreSummaryLabel">Live slots</div>
+          <div className="exploreSummaryValue">{performance.summary.liveSlots}</div>
+          <div className="exploreSummaryNote">runtime state = live_now</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Campaigns</div>
-          <div className="exploreSummaryValue">{campaigns.length}</div>
-          <div className="exploreSummaryNote">live {liveCampaigns} · reserved {reservedCampaigns}</div>
+          <div className="exploreSummaryLabel">Reserved pending</div>
+          <div className="exploreSummaryValue">{performance.summary.reservedPending}</div>
+          <div className="exploreSummaryNote">next queued creatives</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Live status</div>
-          <div className="exploreSummaryValue">{liveStatusCampaigns}</div>
-          <div className="exploreSummaryNote">status=live rows</div>
+          <div className="exploreSummaryLabel">Active creatives</div>
+          <div className="exploreSummaryValue">{performance.summary.activeCreatives}</div>
+          <div className="exploreSummaryNote">live creative attached</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Selected</div>
-          <div className="exploreSummaryValue">{selectedSlot ? 1 : 0}</div>
-          <div className="exploreSummaryNote">{selectedSlot?.slotKey ?? 'none'}</div>
+          <div className="exploreSummaryLabel">Low CTR</div>
+          <div className="exploreSummaryValue">{performance.summary.lowCtrSlots}</div>
+          <div className="exploreSummaryNote">review queue</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Export scope</div>
-          <div className="exploreSummaryValue">{historyQuery.trim() ? historyQuery.trim() : 'all'}</div>
-          <div className="exploreSummaryNote">{historyVariantFilter} · {historyStatusFilter}</div>
+          <div className="exploreSummaryLabel">No data</div>
+          <div className="exploreSummaryValue">{performance.summary.noDataSlots}</div>
+          <div className="exploreSummaryNote">period signal empty</div>
         </div>
       </div>
 
       <div className="metaRow section" style={{ marginTop: 8 }}>
-        <div className="metaPill">{t('admin.ads.meta.query', 'query')} {historyQuery.trim() || '-'}</div>
-        <div className="metaPill">{t('admin.ads.meta.variant', 'variant')} {historyVariantFilter}</div>
-        <div className="metaPill">{t('admin.ads.meta.status', 'status')} {historyStatusFilter}</div>
-        <div className="metaPill">{t('admin.ads.meta.period', 'period')} {historyPeriodFrom || '-'} → {historyPeriodTo || '-'}</div>
-        <div className="metaPill">{usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : t('admin.common.badge.live', 'Live data')}</div>
+        <div className="metaPill">surface {slotQuery.trim() || '-'}</div>
+        <div className="metaPill">slot status {slotStatusFilter}</div>
+        <div className="metaPill">variant {historyVariantFilter}</div>
+        <div className="metaPill">period {historyPeriodFrom || '-'} → {historyPeriodTo || '-'}</div>
+        <div className="metaPill">campaign status {historyStatusFilter}</div>
       </div>
 
-      <div className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 16, marginBottom: 16 }}>
+      <form className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 16, marginBottom: 16 }} onSubmit={(e) => e.preventDefault()}>
         <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 12 }}>
           <div>
-            <h2 className="panelTitle" style={{ marginBottom: 6 }}>Slot inventory</h2>
-            <p className="pageDesc" style={{ margin: 0 }}>slot, surface, live/reserved 상태를 먼저 표로 훑고 아래에서 깊게 수정하는 흐름으로 맞췄어.</p>
-          </div>
-          <div className="metaRow" style={{ marginTop: 0 }}>
-            <div className="metaPill">filtered {filteredSlots.length}</div>
-            <div className="metaPill">all {slots.length}</div>
+            <h2 className="panelTitle" style={{ marginBottom: 6 }}>Ads operator strip</h2>
+            <p className="pageDesc" style={{ margin: 0 }}>date range, slot/surface scope, variant, history export를 한 줄에서 맞추는 P0 필터 바야.</p>
           </div>
         </div>
-        <div className="exploreSheetFilterGrid" style={{ gridTemplateColumns: 'minmax(220px, 1fr) minmax(160px, 220px)' }}>
+        <div className="exploreSheetFilterGrid" style={{ gridTemplateColumns: 'minmax(220px, 2fr) repeat(5, minmax(140px, 1fr))' }}>
           <label className="field" style={{ margin: 0 }}>
-            <div className="exploreSheetFieldLabel">slot 검색</div>
-            <input className="textInput exploreSheetInput" value={slotQuery} onChange={(e) => setSlotQuery(e.target.value)} placeholder="slot / screen / position" />
+            <div className="exploreSheetFieldLabel">surface / slot 검색</div>
+            <input className="textInput exploreSheetInput" value={slotQuery} onChange={(e) => setSlotQuery(e.target.value)} placeholder="slot / screen / position / placement" />
           </label>
           <label className="field" style={{ margin: 0 }}>
-            <div className="exploreSheetFieldLabel">status</div>
+            <div className="exploreSheetFieldLabel">slot status</div>
             <select className="textInput exploreSheetInput" value={slotStatusFilter} onChange={(e) => setSlotStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}>
               <option value="all">all</option>
               <option value="active">active</option>
               <option value="inactive">inactive</option>
             </select>
           </label>
+          <label className="field" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">variant</div>
+            <select className="textInput exploreSheetInput" value={historyVariantFilter} onChange={(e) => setHistoryVariantFilter(e.target.value as 'all' | 'live' | 'reserved')}>
+              <option value="all">all</option>
+              <option value="live">live</option>
+              <option value="reserved">reserved</option>
+            </select>
+          </label>
+          <label className="field" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">campaign status</div>
+            <select className="textInput exploreSheetInput" value={historyStatusFilter} onChange={(e) => setHistoryStatusFilter(e.target.value as 'all' | 'ended' | 'cancelled' | 'scheduled' | 'live')}>
+              <option value="all">all</option>
+              <option value="ended">ended</option>
+              <option value="cancelled">cancelled</option>
+              <option value="scheduled">scheduled</option>
+              <option value="live">live</option>
+            </select>
+          </label>
+          <label className="field" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">period from</div>
+            <input className="textInput exploreSheetInput" type="date" value={historyPeriodFrom} onChange={(e) => setHistoryPeriodFrom(e.target.value)} />
+          </label>
+          <label className="field" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">period to</div>
+            <input className="textInput exploreSheetInput" type="date" value={historyPeriodTo} onChange={(e) => setHistoryPeriodTo(e.target.value)} />
+          </label>
         </div>
-        {filteredSlots.length === 0 ? (
-          <div className="emptyState" style={{ marginTop: 12 }}>조건에 맞는 slot이 없어.</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+          <label className="field" style={{ margin: 0, minWidth: 240 }}>
+            <div className="exploreSheetFieldLabel">history query</div>
+            <input className="textInput exploreSheetInput" value={historyQuery} onChange={(e) => setHistoryQuery(e.target.value)} placeholder="광고 제목, 문구, CTA" />
+          </label>
+          <a className="ghostBtn pageActionBtn" href={bulkExportHref}>기간내 지난광고 Excel 일괄 다운로드</a>
+        </div>
+      </form>
+
+      <div className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 12, marginBottom: 16 }}>
+        <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 12 }}>
+          <div>
+            <h2 className="panelTitle" style={{ marginBottom: 6 }}>Exposure inventory</h2>
+            <p className="pageDesc" style={{ margin: 0 }}>지금 무엇이 어느 surface에 live인지, review가 필요한 slot이 무엇인지 먼저 보는 truth table이야.</p>
+          </div>
+          <div className="metaRow" style={{ marginTop: 0 }}>
+            <div className="metaPill">rows {performance.slotRows.length}</div>
+            <div className="metaPill">low ctr {performance.reviewQueues.lowCtr.length}</div>
+            <div className="metaPill">no data {performance.reviewQueues.noData.length}</div>
+          </div>
+        </div>
+        {performance.slotRows.length === 0 ? (
+          <div className="emptyState">조건에 맞는 slot이 없어.</div>
         ) : (
-          <div className="tableWrap" style={{ marginTop: 12 }}>
+          <div className="tableWrap">
             <table className="dataTable">
               <thead>
                 <tr>
                   <th>Slot</th>
-                  <th>Surface</th>
-                  <th>Status</th>
-                  <th>Live / Reserved</th>
+                  <th>Surface / Placement</th>
+                  <th>Runtime</th>
+                  <th>Live creative</th>
+                  <th>Reserved creative</th>
+                  <th>Metrics</th>
+                  <th>Review</th>
                   <th>Updated</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredSlots.map((slot) => {
-                  const slotCampaigns = campaignsBySlot[slot.slotKey] ?? []
-                  const liveCount = slotCampaigns.filter((campaign) => campaign.variant === 'live').length
-                  const reservedCount = slotCampaigns.filter((campaign) => campaign.variant === 'reserved').length
-                  const isSelected = selectedSlot?.slotKey === slot.slotKey
+                {performance.slotRows.map((row) => {
+                  const slot = slotsByKey[row.slotKey]
+                  const isSelected = selectedSlotKey === row.slotKey
                   return (
-                    <tr key={`inventory-${slot.slotKey}`} onClick={() => openSlot(slot.slotKey)} style={{ cursor: 'pointer', background: isSelected ? 'rgba(227, 24, 55, 0.06)' : undefined }}>
+                    <tr key={row.slotKey} onClick={() => setSelectedSlotKey(row.slotKey)} style={{ cursor: 'pointer', background: isSelected ? 'rgba(227, 24, 55, 0.06)' : undefined }}>
                       <td>
-                        <div style={{ display: 'grid', gap: 4, minWidth: 220 }}>
-                          <strong>{slot.config.slotLabel || slot.slotKey}</strong>
-                          <span style={{ color: '#64748b', fontSize: 12 }}>{slot.slotKey}</span>
+                        <div style={{ display: 'grid', gap: 4, minWidth: 190 }}>
+                          <strong>{slot?.config.slotLabel || row.slotKey}</strong>
+                          <span style={{ color: '#64748b', fontSize: 12 }}>{row.slotKey}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'grid', gap: 4, minWidth: 180 }}>
+                          <span className="metaPill">{row.surfaceLabel}</span>
+                          <span style={{ color: '#64748b', fontSize: 12 }}>{row.placementLabel}</span>
                         </div>
                       </td>
                       <td>
                         <div style={{ display: 'grid', gap: 4 }}>
-                          <span className="metaPill">{slot.config.screen}</span>
-                          <span style={{ color: '#64748b', fontSize: 12 }}>{slot.config.position}</span>
+                          <span className="metaPill">{row.slotStatus}</span>
+                          <span style={{ color: '#64748b', fontSize: 12 }}>{runtimeStateLabel(row.effectiveRuntimeState)}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'grid', gap: 4, minWidth: 180 }}>
+                          <strong>{row.liveCreativeTitle}</strong>
+                          <span style={{ color: '#64748b', fontSize: 12 }}>{formatPeriod(row.livePeriod)}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'grid', gap: 4, minWidth: 180 }}>
+                          <strong>{row.reservedCreativeTitle}</strong>
+                          <span style={{ color: '#64748b', fontSize: 12 }}>{formatPeriod(row.reservedPeriod)}</span>
                         </div>
                       </td>
                       <td>
                         <div style={{ display: 'grid', gap: 4 }}>
-                          <span className="metaPill">{slot.status}</span>
-                          <span style={{ color: '#64748b', fontSize: 12 }}>{slot.placementType}</span>
+                          <span>{formatNumber(row.impressions)} imp</span>
+                          <span>{formatNumber(row.clicks)} click · {formatPercent(row.ctr)}</span>
                         </div>
                       </td>
                       <td>
-                        <div style={{ display: 'grid', gap: 4 }}>
-                          <span className="metaPill">live {liveCount}</span>
-                          <span className="metaPill">reserved {reservedCount}</span>
-                        </div>
+                        <span className="metaPill">{reviewFlagLabel(row.reviewFlag)}</span>
                       </td>
-                      <td>{formatDate(slot.updatedAt ?? slot.createdAt)}</td>
+                      <td>{formatDate(row.updatedAt)}</td>
                       <td>
-                        <button className="ghostBtn ghostBtnSmall" type="button" onClick={(event) => { event.stopPropagation(); openSlot(slot.slotKey) }}>
+                        <button className="ghostBtn ghostBtnSmall" type="button" onClick={(event) => { event.stopPropagation(); setSelectedSlotKey(row.slotKey) }}>
                           {isSelected ? 'selected' : 'open'}
                         </button>
                       </td>
@@ -359,50 +614,6 @@ export default function AdsPage() {
           </div>
         )}
       </div>
-
-      <form className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 12, marginBottom: 12 }} onSubmit={(e) => e.preventDefault()}>
-        <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
-          <div>
-            <h2 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.ads.filters.title', '지난 광고 필터')}</h2>
-            <p className="pageDesc">{t('admin.ads.filters.desc', '유형/상태/검색어와 기간으로 지난 광고를 좁혀보고, 같은 조건으로 일괄 다운로드')}</p>
-          </div>
-        </div>
-        <div className="exploreSheetFilterGrid" style={{ gridTemplateColumns: 'minmax(220px, 2fr) repeat(4, minmax(140px, 1fr))' }}>
-          <label className="field" style={{ margin: 0 }}>
-            <div className="exploreSheetFieldLabel">{t('admin.ads.filters.search', '검색')}</div>
-            <input className="textInput exploreSheetInput" value={historyQuery} onChange={(e) => setHistoryQuery(e.target.value)} placeholder="광고 제목, 문구, CTA" />
-          </label>
-          <label className="field" style={{ margin: 0 }}>
-            <div className="exploreSheetFieldLabel">{t('admin.ads.filters.variant', '유형')}</div>
-            <select className="textInput exploreSheetInput" value={historyVariantFilter} onChange={(e) => setHistoryVariantFilter(e.target.value as 'all' | 'live' | 'reserved')}>
-              <option value="all">{t('admin.ads.filters.option.all', '전체')}</option>
-              <option value="live">{t('admin.ads.history.variant.live', '현재 광고 이력')}</option>
-              <option value="reserved">{t('admin.ads.history.variant.reserved', '예약 광고 이력')}</option>
-            </select>
-          </label>
-          <label className="field" style={{ margin: 0 }}>
-            <div className="exploreSheetFieldLabel">{t('admin.ads.filters.status', '상태')}</div>
-            <select className="textInput exploreSheetInput" value={historyStatusFilter} onChange={(e) => setHistoryStatusFilter(e.target.value as 'all' | 'ended' | 'cancelled' | 'scheduled' | 'live')}>
-              <option value="all">{t('admin.ads.filters.option.all', '전체')}</option>
-              <option value="ended">{t('admin.ads.status.ended', '종료됨')}</option>
-              <option value="cancelled">{t('admin.ads.status.cancelled', '취소됨')}</option>
-              <option value="scheduled">{t('admin.ads.status.scheduled', '예약됨')}</option>
-              <option value="live">{t('admin.ads.filters.option.live', '라이브')}</option>
-            </select>
-          </label>
-          <label className="field" style={{ margin: 0 }}>
-            <div className="exploreSheetFieldLabel">{t('admin.ads.filters.periodFrom', '시작일')}</div>
-            <input className="textInput exploreSheetInput" type="date" value={historyPeriodFrom} onChange={(e) => setHistoryPeriodFrom(e.target.value)} />
-          </label>
-          <label className="field" style={{ margin: 0 }}>
-            <div className="exploreSheetFieldLabel">{t('admin.ads.filters.periodTo', '종료일')}</div>
-            <input className="textInput exploreSheetInput" type="date" value={historyPeriodTo} onChange={(e) => setHistoryPeriodTo(e.target.value)} />
-          </label>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-          <a className="ghostBtn pageActionBtn" href={bulkExportHref}>{t('admin.ads.filters.bulkExport', '기간내 지난광고 Excel 일괄 다운로드')}</a>
-        </div>
-      </form>
 
       {selectedSlot ? (
         <div className="card exploreDenseCard exploreSheetCard" id="selected-slot-editor">
@@ -419,9 +630,11 @@ export default function AdsPage() {
               </div>
             </div>
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <div className="metaPill">selected slot</div>
-              <div className="metaPill">history {selectedSlotCampaigns.length}</div>
-              <div className="metaPill">updated {formatDate(selectedSlot.updatedAt ?? selectedSlot.createdAt)}</div>
+              <div className="metaPill">{selectedPerformance ? runtimeStateLabel(selectedPerformance.effectiveRuntimeState) : 'loading'}</div>
+              <div className="metaPill">imp {formatNumber(selectedPerformance?.impressions ?? 0)}</div>
+              <div className="metaPill">click {formatNumber(selectedPerformance?.clicks ?? 0)}</div>
+              <div className="metaPill">ctr {formatPercent(selectedPerformance?.ctr ?? 0)}</div>
+              <div className="metaPill">{selectedPerformance ? reviewFlagLabel(selectedPerformance.reviewFlag) : '-'}</div>
             </div>
           </div>
 
@@ -452,18 +665,38 @@ export default function AdsPage() {
               onUpload={(file) => void uploadAsset(selectedSlot.slotKey, file, 'reservedImageUrl')}
               onSave={() => void saveSlot(selectedSlot, 'reserved')}
             />
-            <SlotPreview slot={selectedSlot} />
+            <div style={{ display: 'grid', gap: 12 }}>
+              <SlotPreview slot={selectedSlot} />
+              <div className="card exploreDenseCard" style={{ padding: 14 }}>
+                <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 8 }}>
+                  <div>
+                    <h3 className="panelTitle" style={{ marginBottom: 6 }}>Selected slot performance</h3>
+                    <p className="pageDesc" style={{ margin: 0 }}>현재 선택한 slot의 filtered-period 성과 요약이야.</p>
+                  </div>
+                </div>
+                <div className="metaRow" style={{ marginTop: 0 }}>
+                  <div className="metaPill">live {workspace?.liveCampaign?.title || '-'}</div>
+                  <div className="metaPill">reserved {workspace?.reservedCampaign?.title || '-'}</div>
+                </div>
+                <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span>Impressions</span><strong>{formatNumber(selectedPerformance?.impressions ?? 0)}</strong></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span>Clicks</span><strong>{formatNumber(selectedPerformance?.clicks ?? 0)}</strong></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span>CTR</span><strong>{formatPercent(selectedPerformance?.ctr ?? 0)}</strong></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span>Last impression</span><strong>{formatDate(selectedPerformance?.lastImpressionAt ?? null)}</strong></div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="section" style={{ marginTop: 12 }}>
             <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
               <div>
                 <h3 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.ads.history.title', '지난 광고 데이터')}</h3>
-                <p className="pageDesc">{t('admin.ads.history.desc', '이 슬롯에 연결되었던 지난 광고 성과 기록')}</p>
+                <p className="pageDesc">현재 history table의 imp/click/ctr는 campaign lifetime 기준이야. period-aware 판단은 아래 performance zone을 기준으로 보면 돼.</p>
               </div>
             </div>
             <SlotHistory
-              campaigns={selectedSlotCampaigns}
+              campaigns={selectedSlotHistory}
               variantFilter={historyVariantFilter}
               statusFilter={historyStatusFilter}
               query={historyQuery}
@@ -475,6 +708,147 @@ export default function AdsPage() {
       ) : (
         <div className="emptyState">선택된 slot이 없어.</div>
       )}
+
+      <div className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 16, marginBottom: 24 }}>
+        <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 12 }}>
+          <div>
+            <h2 className="panelTitle" style={{ marginBottom: 6 }}>Performance zone</h2>
+            <p className="pageDesc" style={{ margin: 0 }}>slot-level / creative-level summary와 needs-review queue를 한 곳에 모은 decision layer야.</p>
+          </div>
+        </div>
+
+        <div className="section" style={{ marginTop: 0 }}>
+          <h3 className="panelTitle" style={{ marginBottom: 10 }}>Slot performance</h3>
+          <div className="tableWrap">
+            <table className="dataTable">
+              <thead>
+                <tr>
+                  <th>Slot</th>
+                  <th>Surface</th>
+                  <th>Live creative</th>
+                  <th>Impressions</th>
+                  <th>Clicks</th>
+                  <th>CTR</th>
+                  <th>Review</th>
+                  <th>Last impression</th>
+                </tr>
+              </thead>
+              <tbody>
+                {performance.slotRows.map((row) => (
+                  <tr key={`perf-${row.slotKey}`}>
+                    <td>{row.slotKey}</td>
+                    <td>{row.surfaceLabel}</td>
+                    <td>{row.liveCreativeTitle}</td>
+                    <td>{formatNumber(row.impressions)}</td>
+                    <td>{formatNumber(row.clicks)}</td>
+                    <td>{formatPercent(row.ctr)}</td>
+                    <td>{reviewFlagLabel(row.reviewFlag)}</td>
+                    <td>{formatDate(row.lastImpressionAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="section" style={{ marginTop: 16 }}>
+          <h3 className="panelTitle" style={{ marginBottom: 10 }}>Creative performance</h3>
+          {performance.creativeRows.length === 0 ? (
+            <div className="emptyState">현재 조건에서는 creative-level row가 없어.</div>
+          ) : (
+            <div className="tableWrap">
+              <table className="dataTable">
+                <thead>
+                  <tr>
+                    <th>Creative</th>
+                    <th>Slot</th>
+                    <th>Variant</th>
+                    <th>Status</th>
+                    <th>Impressions</th>
+                    <th>Clicks</th>
+                    <th>CTR</th>
+                    <th>Seen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {performance.creativeRows.map((row) => (
+                    <tr key={row.creativeKey}>
+                      <td>{row.title}</td>
+                      <td>{row.slotKey || '-'}</td>
+                      <td>{row.variant}</td>
+                      <td>{row.status}</td>
+                      <td>{formatNumber(row.impressions)}</td>
+                      <td>{formatNumber(row.clicks)}</td>
+                      <td>{formatPercent(row.ctr)}</td>
+                      <td>{formatDate(row.firstSeenAt)} → {formatDate(row.lastSeenAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="section" style={{ marginTop: 16 }}>
+          <h3 className="panelTitle" style={{ marginBottom: 10 }}>Needs review</h3>
+          <div className="exploreSummaryGrid" style={{ marginTop: 0 }}>
+            <div className="exploreSummaryCell">
+              <div className="exploreSummaryLabel">No data</div>
+              <div className="exploreSummaryValue">{performance.reviewQueues.noData.length}</div>
+              <div className="exploreSummaryNote">live but signal empty</div>
+            </div>
+            <div className="exploreSummaryCell">
+              <div className="exploreSummaryLabel">Low CTR</div>
+              <div className="exploreSummaryValue">{performance.reviewQueues.lowCtr.length}</div>
+              <div className="exploreSummaryNote">below threshold</div>
+            </div>
+            <div className="exploreSummaryCell">
+              <div className="exploreSummaryLabel">Inactive gap</div>
+              <div className="exploreSummaryValue">{performance.reviewQueues.inactiveGap.length}</div>
+              <div className="exploreSummaryNote">active slot without live creative</div>
+            </div>
+            <div className="exploreSummaryCell">
+              <div className="exploreSummaryLabel">Reserved mismatch</div>
+              <div className="exploreSummaryValue">{performance.reviewQueues.reservedMismatch.length}</div>
+              <div className="exploreSummaryNote">reserved creative without valid schedule</div>
+            </div>
+          </div>
+          <div className="tableWrap" style={{ marginTop: 12 }}>
+            <table className="dataTable">
+              <thead>
+                <tr>
+                  <th>Slot</th>
+                  <th>Surface</th>
+                  <th>Issue</th>
+                  <th>Live</th>
+                  <th>Reserved</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ...performance.reviewQueues.noData,
+                  ...performance.reviewQueues.lowCtr,
+                  ...performance.reviewQueues.inactiveGap,
+                  ...performance.reviewQueues.reservedMismatch,
+                ].map((row) => (
+                  <tr key={`review-${row.slotKey}-${row.reviewFlag}`}>
+                    <td>{row.slotKey}</td>
+                    <td>{row.surfaceLabel}</td>
+                    <td>{reviewFlagLabel(row.reviewFlag)}</td>
+                    <td>{row.liveCreativeTitle}</td>
+                    <td>{row.reservedCreativeTitle}</td>
+                  </tr>
+                ))}
+                {performance.reviewQueues.noData.length + performance.reviewQueues.lowCtr.length + performance.reviewQueues.inactiveGap.length + performance.reviewQueues.reservedMismatch.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', color: '#64748b' }}>review queue 비어 있음</td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

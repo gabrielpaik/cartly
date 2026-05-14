@@ -1,5 +1,6 @@
 import io
 import json
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from openpyxl import Workbook
@@ -94,6 +95,134 @@ def update_ad_slot(db: OrmSession, slot_key: str, payload: Dict[str, Any]) -> Di
     return _serialize_slot(row, defaults[slot_key])
 
 
+def _parse_period_start(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(f'{value.strip()}T00:00:00')
+    except ValueError:
+        return None
+
+
+def _parse_period_end(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(f'{value.strip()}T23:59:59')
+    except ValueError:
+        return None
+
+
+def _slot_surface_label(slot: Dict[str, Any]) -> str:
+    config = slot.get('config') or {}
+    screen = str(config.get('screen') or '').strip()
+    position = str(config.get('position') or '').strip()
+    parts = [part for part in [screen, position] if part]
+    return ' · '.join(parts) if parts else slot.get('slotKey') or '-'
+
+
+def _slot_placement_label(slot: Dict[str, Any]) -> str:
+    config = slot.get('config') or {}
+    placement_note = str(config.get('placementNote') or '').strip()
+    if placement_note:
+        return placement_note
+    return str(slot.get('placementType') or '-').strip() or '-'
+
+
+def _effective_runtime_state(slot: Dict[str, Any]) -> str:
+    if slot.get('status') != 'active':
+        return 'inactive'
+
+    config = slot.get('config') or {}
+    now = datetime.utcnow()
+    live_title = str(config.get('title') or '').strip()
+    reserved_title = str(config.get('reservedTitle') or '').strip()
+    live_start = config.get('exposureStartAt')
+    live_end = config.get('exposureEndAt')
+    reserved_start = config.get('reservationStartAt')
+    reserved_end = config.get('reservationEndAt')
+
+    live_start_dt = datetime.fromisoformat(live_start) if isinstance(live_start, str) and live_start.strip() else None
+    live_end_dt = datetime.fromisoformat(live_end) if isinstance(live_end, str) and live_end.strip() else None
+    reserved_start_dt = datetime.fromisoformat(reserved_start) if isinstance(reserved_start, str) and reserved_start.strip() else None
+
+    live_window_ok = (live_start_dt is None or live_start_dt <= now) and (live_end_dt is None or live_end_dt >= now)
+    reserved_future = reserved_start_dt is not None and reserved_start_dt > now
+
+    if live_title and live_window_ok:
+        return 'live_now'
+    if live_title and live_end_dt is not None and live_end_dt < now:
+        return 'expired'
+    if reserved_title and reserved_future:
+        return 'reserved_pending'
+    if reserved_title and not reserved_start_dt:
+        return 'reserved_mismatch'
+    if not live_title and reserved_title:
+        return 'draft_gap'
+    if not live_title:
+        return 'inactive_gap'
+    return 'draft_gap'
+
+
+def _serialize_campaign_metrics(
+    db: OrmSession,
+    campaigns: List[AdCampaign],
+    slot_key_map: Dict[str, str],
+    *,
+    period_start: Optional[datetime] = None,
+    period_end: Optional[datetime] = None,
+) -> List[Dict[str, Any]]:
+    if not campaigns:
+        return []
+
+    campaign_ids = [campaign.id for campaign in campaigns]
+
+    impression_query = select(AdImpression.campaign_id, func.count(AdImpression.id)).where(AdImpression.campaign_id.in_(campaign_ids))
+    click_query = (
+        select(AdImpression.campaign_id, func.count(AdClick.id))
+        .join(AdClick, AdClick.impression_id == AdImpression.id)
+        .where(AdImpression.campaign_id.in_(campaign_ids))
+    )
+    if period_start is not None:
+        impression_query = impression_query.where(AdImpression.created_at >= period_start)
+        click_query = click_query.where(AdImpression.created_at >= period_start)
+    if period_end is not None:
+        impression_query = impression_query.where(AdImpression.created_at <= period_end)
+        click_query = click_query.where(AdImpression.created_at <= period_end)
+
+    impression_rows = db.execute(impression_query.group_by(AdImpression.campaign_id)).all()
+    click_rows = db.execute(click_query.group_by(AdImpression.campaign_id)).all()
+    impression_map = {campaign_id: count for campaign_id, count in impression_rows}
+    click_map = {campaign_id: count for campaign_id, count in click_rows}
+
+    result = []
+    for campaign in campaigns:
+        impressions = int(impression_map.get(campaign.id, 0) or 0)
+        clicks = int(click_map.get(campaign.id, 0) or 0)
+        ctr = 0.0 if impressions == 0 else round(clicks / impressions, 4)
+        result.append(
+            {
+                'id': campaign.id,
+                'slotKey': slot_key_map.get(campaign.slot_id),
+                'variant': campaign.variant,
+                'status': campaign.status,
+                'title': campaign.title,
+                'message': campaign.message,
+                'ctaLabel': campaign.cta_label,
+                'targetUrl': campaign.target_url,
+                'imageUrl': campaign.image_url,
+                'startAt': campaign.start_at.isoformat() if campaign.start_at else None,
+                'endAt': campaign.end_at.isoformat() if campaign.end_at else None,
+                'impressions': impressions,
+                'clicks': clicks,
+                'ctr': ctr,
+                'createdAt': campaign.created_at.isoformat() if campaign.created_at else None,
+                'updatedAt': campaign.updated_at.isoformat() if campaign.updated_at else None,
+            }
+        )
+    return result
+
+
 def list_ad_campaigns(
     db: OrmSession,
     slot_key: Optional[str] = None,
@@ -130,52 +259,199 @@ def list_ad_campaigns(
             period_to=period_to,
         )
     ][:limit]
-    if not campaigns:
-        return []
+    return _serialize_campaign_metrics(db, campaigns, slot_key_map)
 
-    campaign_ids = [campaign.id for campaign in campaigns]
 
-    impression_rows = db.execute(
-        select(AdImpression.campaign_id, func.count(AdImpression.id))
-        .where(AdImpression.campaign_id.in_(campaign_ids))
-        .group_by(AdImpression.campaign_id)
-    ).all()
-    impression_map = {campaign_id: count for campaign_id, count in impression_rows}
+def get_ad_performance_summary(
+    db: OrmSession,
+    *,
+    slot_key: Optional[str] = None,
+    surface: Optional[str] = None,
+    status: Optional[str] = None,
+    variant: Optional[str] = None,
+    period_from: Optional[str] = None,
+    period_to: Optional[str] = None,
+) -> Dict[str, Any]:
+    slots = list_ad_slots(db)
+    empty = {
+        'summary': {'liveSlots': 0, 'reservedPending': 0, 'activeCreatives': 0, 'lowCtrSlots': 0, 'noDataSlots': 0},
+        'slotRows': [],
+        'creativeRows': [],
+        'reviewQueues': {'noData': [], 'lowCtr': [], 'inactiveGap': [], 'reservedMismatch': [], 'clickNoDownstream': []},
+    }
+    if not slots:
+        return empty
 
-    click_rows = db.execute(
-        select(AdImpression.campaign_id, func.count(AdClick.id))
-        .join(AdClick, AdClick.impression_id == AdImpression.id)
-        .where(AdImpression.campaign_id.in_(campaign_ids))
-        .group_by(AdImpression.campaign_id)
-    ).all()
-    click_map = {campaign_id: count for campaign_id, count in click_rows}
+    filtered_slots = []
+    for slot in slots:
+        if slot_key and slot.get('slotKey') != slot_key:
+            continue
+        if status and status not in {'', 'all'} and status in {'active', 'inactive'} and slot.get('status') != status:
+            continue
+        surface_haystack = ' '.join(
+            str(part or '')
+            for part in [
+                slot.get('slotKey'),
+                (slot.get('config') or {}).get('screen'),
+                (slot.get('config') or {}).get('position'),
+                (slot.get('config') or {}).get('placementNote'),
+            ]
+        ).lower()
+        if surface and surface.strip() and surface.strip().lower() not in surface_haystack:
+            continue
+        filtered_slots.append(slot)
 
-    result = []
-    for campaign in campaigns:
-        impressions = int(impression_map.get(campaign.id, 0) or 0)
-        clicks = int(click_map.get(campaign.id, 0) or 0)
-        ctr = 0.0 if impressions == 0 else round(clicks / impressions, 4)
-        result.append(
-            {
-                'id': campaign.id,
-                'slotKey': slot_key_map.get(campaign.slot_id),
-                'variant': campaign.variant,
-                'status': campaign.status,
-                'title': campaign.title,
-                'message': campaign.message,
-                'ctaLabel': campaign.cta_label,
-                'targetUrl': campaign.target_url,
-                'imageUrl': campaign.image_url,
-                'startAt': campaign.start_at.isoformat() if campaign.start_at else None,
-                'endAt': campaign.end_at.isoformat() if campaign.end_at else None,
-                'impressions': impressions,
-                'clicks': clicks,
-                'ctr': ctr,
-                'createdAt': campaign.created_at.isoformat() if campaign.created_at else None,
-                'updatedAt': campaign.updated_at.isoformat() if campaign.updated_at else None,
-            }
+    if not filtered_slots:
+        return empty
+
+    slot_ids = [slot['id'] for slot in filtered_slots]
+    slot_key_map = {slot['id']: slot['slotKey'] for slot in filtered_slots}
+    period_start = _parse_period_start(period_from)
+    period_end = _parse_period_end(period_to)
+
+    campaign_query = select(AdCampaign).where(AdCampaign.slot_id.in_(slot_ids)).order_by(AdCampaign.created_at.desc())
+    campaigns = [
+        campaign
+        for campaign in db.scalars(campaign_query).all()
+        if _campaign_matches_filters(
+            campaign,
+            variant=variant,
+            status=status if status not in {None, '', 'all', 'active', 'inactive'} else None,
+            period_from=period_from,
+            period_to=period_to,
         )
-    return result
+    ]
+    campaign_rows = _serialize_campaign_metrics(db, campaigns, slot_key_map, period_start=period_start, period_end=period_end)
+    campaign_by_id = {row['id']: row for row in campaign_rows}
+
+    impression_query = select(AdImpression.slot_id, func.count(AdImpression.id), func.max(AdImpression.created_at)).where(AdImpression.slot_id.in_(slot_ids))
+    click_query = (
+        select(AdImpression.slot_id, func.count(AdClick.id))
+        .join(AdClick, AdClick.impression_id == AdImpression.id)
+        .where(AdImpression.slot_id.in_(slot_ids))
+    )
+    if campaign_by_id:
+        campaign_ids = list(campaign_by_id.keys())
+        impression_query = impression_query.where(AdImpression.campaign_id.in_(campaign_ids))
+        click_query = click_query.where(AdImpression.campaign_id.in_(campaign_ids))
+    if period_start is not None:
+        impression_query = impression_query.where(AdImpression.created_at >= period_start)
+        click_query = click_query.where(AdImpression.created_at >= period_start)
+    if period_end is not None:
+        impression_query = impression_query.where(AdImpression.created_at <= period_end)
+        click_query = click_query.where(AdImpression.created_at <= period_end)
+
+    slot_impression_rows = db.execute(impression_query.group_by(AdImpression.slot_id)).all()
+    slot_click_rows = db.execute(click_query.group_by(AdImpression.slot_id)).all()
+    slot_impressions = {slot_id: int(count or 0) for slot_id, count, _ in slot_impression_rows}
+    slot_last_impression = {slot_id: latest.isoformat() if latest else None for slot_id, _, latest in slot_impression_rows}
+    slot_clicks = {slot_id: int(count or 0) for slot_id, count in slot_click_rows}
+
+    creative_rows = [
+        {
+            'creativeKey': row['id'],
+            'title': row['title'] or '(제목 없음)',
+            'slotCount': 1,
+            'slotKey': row['slotKey'],
+            'variant': row['variant'],
+            'status': row['status'],
+            'impressions': row['impressions'],
+            'clicks': row['clicks'],
+            'ctr': row['ctr'],
+            'downstreamActions': None,
+            'firstSeenAt': row['startAt'] or row['createdAt'],
+            'lastSeenAt': row['updatedAt'] or row['endAt'],
+        }
+        for row in campaign_rows
+    ]
+
+    slot_rows = []
+    review_queues = {'noData': [], 'lowCtr': [], 'inactiveGap': [], 'reservedMismatch': [], 'clickNoDownstream': []}
+    for slot in filtered_slots:
+        config = slot.get('config') or {}
+        live_campaign = campaign_by_id.get(config.get('liveCampaignId'))
+        reserved_campaign = campaign_by_id.get(config.get('reservedCampaignId'))
+        impressions = slot_impressions.get(slot['id'], 0)
+        clicks = slot_clicks.get(slot['id'], 0)
+        ctr = 0.0 if impressions == 0 else round(clicks / impressions, 4)
+        runtime_state = _effective_runtime_state(slot)
+        review_flag = 'ok'
+        if runtime_state == 'reserved_mismatch':
+            review_flag = 'reserved_mismatch'
+        elif runtime_state == 'inactive_gap':
+            review_flag = 'inactive_gap'
+        elif runtime_state in {'live_now', 'reserved_pending', 'draft_gap'} and impressions == 0:
+            review_flag = 'no_data'
+        elif impressions >= 20 and ctr < 0.02:
+            review_flag = 'low_ctr'
+
+        slot_row = {
+            'slotKey': slot['slotKey'],
+            'surfaceLabel': _slot_surface_label(slot),
+            'placementLabel': _slot_placement_label(slot),
+            'slotStatus': slot['status'],
+            'effectiveRuntimeState': runtime_state,
+            'liveCreativeTitle': (live_campaign or {}).get('title') or config.get('title') or '-',
+            'livePeriod': {'startAt': config.get('exposureStartAt'), 'endAt': config.get('exposureEndAt')},
+            'reservedCreativeTitle': (reserved_campaign or {}).get('title') or config.get('reservedTitle') or '-',
+            'reservedPeriod': {'startAt': config.get('reservationStartAt'), 'endAt': config.get('reservationEndAt')},
+            'updatedAt': slot.get('updatedAt') or slot.get('createdAt'),
+            'impressions': impressions,
+            'clicks': clicks,
+            'ctr': ctr,
+            'downstreamActions': None,
+            'reviewFlag': review_flag,
+            'lastImpressionAt': slot_last_impression.get(slot['id']),
+        }
+        slot_rows.append(slot_row)
+
+        if review_flag == 'no_data':
+            review_queues['noData'].append(slot_row)
+        elif review_flag == 'low_ctr':
+            review_queues['lowCtr'].append(slot_row)
+        elif review_flag == 'inactive_gap':
+            review_queues['inactiveGap'].append(slot_row)
+        elif review_flag == 'reserved_mismatch':
+            review_queues['reservedMismatch'].append(slot_row)
+
+    summary = {
+        'liveSlots': sum(1 for row in slot_rows if row['effectiveRuntimeState'] == 'live_now'),
+        'reservedPending': sum(1 for row in slot_rows if row['effectiveRuntimeState'] == 'reserved_pending'),
+        'activeCreatives': sum(1 for row in slot_rows if row['liveCreativeTitle'] != '-'),
+        'lowCtrSlots': len(review_queues['lowCtr']),
+        'noDataSlots': len(review_queues['noData']),
+    }
+
+    slot_rows.sort(key=lambda row: (0 if row['reviewFlag'] != 'ok' else 1, row['slotKey']))
+    creative_rows.sort(key=lambda row: (-row['impressions'], row['title']))
+    return {'summary': summary, 'slotRows': slot_rows, 'creativeRows': creative_rows, 'reviewQueues': review_queues}
+
+
+def get_ad_slot_workspace(
+    db: OrmSession,
+    slot_key: str,
+    *,
+    period_from: Optional[str] = None,
+    period_to: Optional[str] = None,
+) -> Dict[str, Any]:
+    slots = list_ad_slots(db)
+    slot = next((row for row in slots if row.get('slotKey') == slot_key), None)
+    if slot is None:
+        raise ValueError('slot_not_found')
+
+    history = list_ad_campaigns(db, slot_key=slot_key, limit=100)
+    history_by_id = {row['id']: row for row in history}
+    config = slot.get('config') or {}
+    summary = get_ad_performance_summary(db, slot_key=slot_key, period_from=period_from, period_to=period_to)
+    performance = summary['slotRows'][0] if summary['slotRows'] else None
+
+    return {
+        'slot': slot,
+        'liveCampaign': history_by_id.get(config.get('liveCampaignId')),
+        'reservedCampaign': history_by_id.get(config.get('reservedCampaignId')),
+        'history': history,
+        'performance': performance,
+    }
 
 
 def record_ad_impression(

@@ -8,6 +8,158 @@ from ..db.models import AdImpression, AppEvent, Cart, PushDevice, ScanFailureLog
 from .cart_service import serialize_cart
 
 
+def _iso(value: Optional[datetime]) -> Optional[str]:
+    return value.isoformat() if value else None
+
+
+def _days_since(value: Optional[datetime]) -> Optional[int]:
+    if value is None:
+        return None
+    delta = datetime.utcnow() - value
+    return max(0, int(delta.total_seconds() // 86400))
+
+
+def _last_activity(last_seen_at: Optional[datetime], last_saved_at: Optional[datetime], last_scan_at: Optional[datetime]) -> tuple:
+    candidates = [
+        ('seen', last_seen_at),
+        ('saved', last_saved_at),
+        ('scan', last_scan_at),
+    ]
+    best = None
+    for activity_type, activity_at in candidates:
+        if activity_at is None:
+            continue
+        if best is None or activity_at > best[1]:
+            best = (activity_type, activity_at)
+    return best if best is not None else (None, None)
+
+
+def _customer_state(
+    *,
+    is_guest: bool,
+    status: str,
+    guest_key: Optional[str],
+    email: Optional[str],
+    created_at: Optional[datetime],
+    last_seen_at: Optional[datetime],
+    last_saved_at: Optional[datetime],
+    last_scan_at: Optional[datetime],
+    session_count: int,
+    scan_count: int,
+    saved_cart_count: int,
+    push_device_count: int,
+    ready_push_device_count: int,
+    merged_into_user_id: Optional[str] = None,
+) -> dict:
+    days_since_seen = _days_since(last_seen_at)
+    days_since_created = _days_since(created_at)
+    last_activity_type, last_activity_at = _last_activity(last_seen_at, last_saved_at, last_scan_at)
+
+    if status == 'merged' or merged_into_user_id:
+        lifecycle_stage = 'merged'
+        lifecycle_label = 'merged customer'
+    elif is_guest and guest_key is None and saved_cart_count > 0:
+        lifecycle_stage = 'legacy_guest_with_carts'
+        lifecycle_label = 'legacy guest with carts'
+    elif is_guest and guest_key is None:
+        lifecycle_stage = 'legacy_guest'
+        lifecycle_label = 'legacy guest'
+    elif is_guest:
+        if days_since_created is not None and days_since_created <= 7 and session_count <= 2 and saved_cart_count == 0:
+            lifecycle_stage = 'guest_new'
+            lifecycle_label = 'new guest'
+        elif days_since_seen is not None and days_since_seen > 30:
+            lifecycle_stage = 'guest_dormant'
+            lifecycle_label = 'dormant guest'
+        else:
+            lifecycle_stage = 'guest_active'
+            lifecycle_label = 'active guest'
+    else:
+        if days_since_created is not None and days_since_created <= 7 and session_count <= 3 and saved_cart_count == 0:
+            lifecycle_stage = 'member_new'
+            lifecycle_label = 'new member'
+        elif days_since_seen is not None and days_since_seen > 30:
+            lifecycle_stage = 'member_dormant'
+            lifecycle_label = 'dormant member'
+        elif saved_cart_count >= 3 or scan_count >= 10 or session_count >= 10:
+            lifecycle_stage = 'member_core'
+            lifecycle_label = 'core member'
+        else:
+            lifecycle_stage = 'member_active'
+            lifecycle_label = 'active member'
+
+    if ready_push_device_count > 0:
+        reachability_state = 'push_ready'
+        reachability_label = 'push ready'
+    elif push_device_count > 0:
+        reachability_state = 'push_blocked'
+        reachability_label = 'device exists, push blocked'
+    elif email:
+        reachability_state = 'account_only'
+        reachability_label = 'account only'
+    else:
+        reachability_state = 'unreachable'
+        reachability_label = 'no direct reachability'
+
+    if is_guest and guest_key is None and saved_cart_count > 0:
+        operator_action = 'merge_review'
+        operator_action_label = 'merge review'
+    elif ready_push_device_count > 0 and days_since_seen is not None and days_since_seen > 14 and saved_cart_count > 0:
+        operator_action = 'winback_push'
+        operator_action_label = 'win-back push candidate'
+    elif ready_push_device_count == 0 and push_device_count > 0:
+        operator_action = 'recover_push_optin'
+        operator_action_label = 'recover push opt-in'
+    elif not is_guest and saved_cart_count == 0 and scan_count > 0:
+        operator_action = 'nudge_first_save'
+        operator_action_label = 'nudge first saved cart'
+    elif days_since_seen is not None and days_since_seen > 30:
+        operator_action = 'dormant_review'
+        operator_action_label = 'dormant review'
+    elif days_since_created is not None and days_since_created <= 7:
+        operator_action = 'onboarding_watch'
+        operator_action_label = 'onboarding watch'
+    else:
+        operator_action = 'monitor'
+        operator_action_label = 'monitor'
+
+    return {
+        'lifecycleStage': lifecycle_stage,
+        'lifecycleLabel': lifecycle_label,
+        'reachabilityState': reachability_state,
+        'reachabilityLabel': reachability_label,
+        'operatorAction': operator_action,
+        'operatorActionLabel': operator_action_label,
+        'daysSinceSeen': days_since_seen,
+        'daysSinceCreated': days_since_created,
+        'lastActivityType': last_activity_type,
+        'lastActivityAt': _iso(last_activity_at),
+    }
+
+
+def _serialize_push_device(device: PushDevice) -> dict:
+    ready = bool(
+        device.status == 'active'
+        and device.notifications_enabled
+        and (device.push_token or '').strip()
+    )
+    return {
+        'id': device.id,
+        'installId': device.install_id,
+        'platform': device.platform,
+        'provider': device.push_provider,
+        'status': device.status,
+        'notificationsEnabled': bool(device.notifications_enabled),
+        'hasPushToken': bool((device.push_token or '').strip()),
+        'isReady': ready,
+        'appVersion': device.app_version,
+        'locale': device.locale,
+        'lastRegisteredAt': _iso(device.last_registered_at),
+        'lastSeenAt': _iso(device.last_seen_at),
+        'createdAt': _iso(device.created_at),
+    }
+
+
 def list_users_for_admin(
     db: OrmSession,
     *,
@@ -87,6 +239,8 @@ def list_users_for_admin(
             User.guest_key,
             User.last_device_platform,
             User.last_app_version,
+            User.status,
+            User.merged_into_user_id,
             func.coalesce(cart_count.c.saved_cart_count, 0).label('saved_cart_count'),
             func.coalesce(session_count.c.session_count, 0).label('session_count'),
             func.coalesce(scan_count.c.scan_count, 0).label('scan_count'),
@@ -141,30 +295,50 @@ def list_users_for_admin(
         ).all()
     )
 
-    users = [
-        {
+    users = []
+    for row in rows:
+        user = {
             'id': row[0],
             'displayName': row[1],
             'email': row[2],
             'provider': row[3],
             'isGuest': row[4],
             'guestCode': row[5],
-            'createdAt': row[6].isoformat() if row[6] else None,
-            'lastSeenAt': row[7].isoformat() if row[7] else None,
+            'createdAt': _iso(row[6]),
+            'lastSeenAt': _iso(row[7]),
             'guestKey': row[8],
             'lastDevicePlatform': row[9],
             'lastAppVersion': row[10],
-            'cartCount': int(row[11] or 0),
-            'savedCartCount': int(row[11] or 0),
-            'sessionCount': int(row[12] or 0),
-            'scanCount': int(row[13] or 0),
-            'pushDeviceCount': int(row[14] or 0),
-            'readyPushDeviceCount': int(row[15] or 0),
-            'lastSavedAt': row[16].isoformat() if row[16] else None,
-            'lastScanAt': row[17].isoformat() if row[17] else None,
+            'status': row[11],
+            'mergedIntoUserId': row[12],
+            'cartCount': int(row[13] or 0),
+            'savedCartCount': int(row[13] or 0),
+            'sessionCount': int(row[14] or 0),
+            'scanCount': int(row[15] or 0),
+            'pushDeviceCount': int(row[16] or 0),
+            'readyPushDeviceCount': int(row[17] or 0),
+            'lastSavedAt': _iso(row[18]),
+            'lastScanAt': _iso(row[19]),
         }
-        for row in rows
-    ]
+        user.update(
+            _customer_state(
+                is_guest=bool(user['isGuest']),
+                status=str(user.get('status') or 'active'),
+                guest_key=user.get('guestKey'),
+                email=user.get('email'),
+                created_at=row[6],
+                last_seen_at=row[7],
+                last_saved_at=row[18],
+                last_scan_at=row[19],
+                session_count=int(user['sessionCount']),
+                scan_count=int(user['scanCount']),
+                saved_cart_count=int(user['savedCartCount']),
+                push_device_count=int(user['pushDeviceCount']),
+                ready_push_device_count=int(user['readyPushDeviceCount']),
+                merged_into_user_id=user.get('mergedIntoUserId'),
+            )
+        )
+        users.append(user)
 
     return {
         'summary': {
@@ -195,12 +369,132 @@ def get_user_detail_with_carts(db: OrmSession, user_id: str, limit: int = 200) -
             .limit(limit)
         ).all()
     )
+    session_rows = list(
+        db.scalars(
+            select(Session)
+            .where(Session.user_id == user_id)
+            .order_by(Session.last_seen_at.desc(), Session.created_at.desc())
+            .limit(12)
+        ).all()
+    )
+    scan_rows = list(
+        db.scalars(
+            select(ScanJob)
+            .where(ScanJob.user_id == user_id)
+            .order_by(ScanJob.created_at.desc())
+            .limit(12)
+        ).all()
+    )
+    push_rows = list(
+        db.scalars(
+            select(PushDevice)
+            .where(PushDevice.user_id == user_id)
+            .order_by(PushDevice.last_seen_at.desc(), PushDevice.updated_at.desc())
+            .limit(8)
+        ).all()
+    )
+    app_event_rows = list(
+        db.scalars(
+            select(AppEvent)
+            .where(AppEvent.user_id == user_id)
+            .order_by(func.coalesce(AppEvent.client_timestamp, AppEvent.created_at).desc())
+            .limit(12)
+        ).all()
+    )
 
     total_carts = len(carts)
-    total_items = sum(cart.total_count_cached for cart in carts)
-    total_value = sum(cart.total_price_cached for cart in carts)
-    last_saved_at = carts[0].created_at.isoformat() if carts else None
-    first_saved_at = carts[-1].created_at.isoformat() if carts else None
+    total_items = sum((cart.total_count_cached or 0) for cart in carts)
+    total_value = sum((cart.total_price_cached or 0) for cart in carts)
+    last_saved_at = carts[0].created_at if carts else None
+    first_saved_at = carts[-1].created_at if carts else None
+    total_sessions = db.scalar(select(func.count(Session.id)).where(Session.user_id == user_id)) or 0
+    total_scans = db.scalar(select(func.count(ScanJob.id)).where(ScanJob.user_id == user_id)) or 0
+    total_push_devices = db.scalar(select(func.count(PushDevice.id)).where(PushDevice.user_id == user_id)) or 0
+    ready_push_devices = db.scalar(
+        select(func.count(PushDevice.id)).where(
+            PushDevice.user_id == user_id,
+            PushDevice.status == 'active',
+            PushDevice.notifications_enabled.is_(True),
+            PushDevice.push_token.is_not(None),
+        )
+    ) or 0
+    accepted_feedback_count = db.scalar(
+        select(func.count(ScanFeedback.id)).where(ScanFeedback.user_id == user_id, ScanFeedback.accepted.is_(True))
+    ) or 0
+    feedback_count = db.scalar(select(func.count(ScanFeedback.id)).where(ScanFeedback.user_id == user_id)) or 0
+    failure_count = db.scalar(select(func.count(ScanFailureLog.id)).where(ScanFailureLog.user_id == user_id)) or 0
+
+    status_rows = list(
+        db.execute(
+            select(ScanJob.status, func.count(ScanJob.id))
+            .where(ScanJob.user_id == user_id)
+            .group_by(ScanJob.status)
+            .order_by(func.count(ScanJob.id).desc(), ScanJob.status.asc())
+        ).all()
+    )
+    event_rows = list(
+        db.execute(
+            select(AppEvent.event_name, AppEvent.screen_name, func.count(AppEvent.id))
+            .where(AppEvent.user_id == user_id)
+            .group_by(AppEvent.event_name, AppEvent.screen_name)
+            .order_by(func.count(AppEvent.id).desc(), AppEvent.event_name.asc())
+            .limit(8)
+        ).all()
+    )
+    latest_failure = db.execute(
+        select(ScanFailureLog)
+        .where(ScanFailureLog.user_id == user_id)
+        .order_by(ScanFailureLog.created_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+
+    lifecycle = _customer_state(
+        is_guest=bool(user.is_guest),
+        status=user.status or 'active',
+        guest_key=user.guest_key,
+        email=user.email,
+        created_at=user.created_at,
+        last_seen_at=user.last_seen_at,
+        last_saved_at=last_saved_at,
+        last_scan_at=scan_rows[0].created_at if scan_rows else None,
+        session_count=int(total_sessions),
+        scan_count=int(total_scans),
+        saved_cart_count=int(total_carts),
+        push_device_count=int(total_push_devices),
+        ready_push_device_count=int(ready_push_devices),
+        merged_into_user_id=user.merged_into_user_id,
+    )
+
+    timeline = []
+    for session in session_rows[:6]:
+        timeline.append({
+            'kind': 'session',
+            'at': _iso(session.last_seen_at or session.created_at),
+            'title': 'Session active',
+            'note': f"expires {_iso(session.expires_at) or '-'} · {'guest' if session.is_guest else 'member'}",
+        })
+    for scan in scan_rows[:6]:
+        timeline.append({
+            'kind': 'scan',
+            'at': _iso(scan.finished_at or scan.created_at),
+            'title': f"Scan {scan.status}",
+            'note': scan.error_code or scan.error_message or 'scan job',
+        })
+    for cart in carts[:6]:
+        timeline.append({
+            'kind': 'cart',
+            'at': _iso(cart.created_at),
+            'title': f"Saved cart {cart.title or cart.id}",
+            'note': f"{int(cart.total_count_cached or 0)} items · ₩{int(cart.total_price_cached or 0):,}",
+        })
+    for event in app_event_rows[:6]:
+        timeline.append({
+            'kind': 'event',
+            'at': _iso(event.client_timestamp or event.created_at),
+            'title': event.event_name,
+            'note': event.screen_name or event.device_platform or 'app event',
+        })
+    timeline.sort(key=lambda item: item.get('at') or '', reverse=True)
 
     return {
         'user': {
@@ -213,18 +507,71 @@ def get_user_detail_with_carts(db: OrmSession, user_id: str, limit: int = 200) -
             'isGuest': user.is_guest,
             'guestKey': user.guest_key,
             'mergedIntoUserId': user.merged_into_user_id,
-            'mergedAt': user.merged_at.isoformat() if user.merged_at else None,
+            'mergedAt': _iso(user.merged_at),
             'lastDevicePlatform': user.last_device_platform,
             'lastAppVersion': user.last_app_version,
-            'createdAt': user.created_at.isoformat() if user.created_at else None,
-            'lastSeenAt': user.last_seen_at.isoformat() if user.last_seen_at else None,
+            'createdAt': _iso(user.created_at),
+            'lastSeenAt': _iso(user.last_seen_at),
         },
         'summary': {
             'totalCarts': total_carts,
             'totalItems': total_items,
             'totalValue': total_value,
-            'firstSavedAt': first_saved_at,
-            'lastSavedAt': last_saved_at,
+            'firstSavedAt': _iso(first_saved_at),
+            'lastSavedAt': _iso(last_saved_at),
+            'totalSessions': int(total_sessions),
+            'totalScans': int(total_scans),
+            'pushDeviceCount': int(total_push_devices),
+            'readyPushDeviceCount': int(ready_push_devices),
+        },
+        'lifecycle': lifecycle,
+        'push': {
+            'reachabilityState': lifecycle['reachabilityState'],
+            'reachabilityLabel': lifecycle['reachabilityLabel'],
+            'deviceCount': int(total_push_devices),
+            'readyDeviceCount': int(ready_push_devices),
+            'devices': [_serialize_push_device(device) for device in push_rows],
+        },
+        'scan': {
+            'totalScans': int(total_scans),
+            'feedbackCount': int(feedback_count),
+            'acceptedFeedbackCount': int(accepted_feedback_count),
+            'failureCount': int(failure_count),
+            'lastScanAt': _iso(scan_rows[0].created_at) if scan_rows else None,
+            'latestFailure': {
+                'at': _iso(latest_failure.created_at) if latest_failure else None,
+                'stage': latest_failure.stage if latest_failure else None,
+                'errorCode': latest_failure.error_code if latest_failure else None,
+                'errorMessage': latest_failure.error_message if latest_failure else None,
+            },
+            'statusSummary': [
+                {'status': row[0], 'count': int(row[1] or 0)}
+                for row in status_rows
+            ],
+            'recent': [
+                {
+                    'id': scan.id,
+                    'status': scan.status,
+                    'createdAt': _iso(scan.created_at),
+                    'finishedAt': _iso(scan.finished_at),
+                    'errorCode': scan.error_code,
+                    'errorMessage': scan.error_message,
+                }
+                for scan in scan_rows[:6]
+            ],
+        },
+        'activity': {
+            'lastActivityType': lifecycle['lastActivityType'],
+            'lastActivityAt': lifecycle['lastActivityAt'],
+            'timeline': timeline[:12],
+            'eventSummary': [
+                {
+                    'eventName': row[0],
+                    'screenName': row[1],
+                    'count': int(row[2] or 0),
+                }
+                for row in event_rows
+            ],
         },
         'carts': [serialize_cart(cart) for cart in carts],
     }
@@ -278,8 +625,8 @@ def list_legacy_guests(db: OrmSession) -> dict:
             {
                 'id': row[0],
                 'displayName': row[1],
-                'createdAt': row[2].isoformat() if row[2] else None,
-                'lastSeenAt': row[3].isoformat() if row[3] else None,
+                'createdAt': _iso(row[2]),
+                'lastSeenAt': _iso(row[3]),
                 'lastDevicePlatform': row[4],
                 'lastAppVersion': row[5],
                 'cartCount': int(row[6] or 0),

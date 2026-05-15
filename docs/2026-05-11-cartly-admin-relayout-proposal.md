@@ -606,6 +606,12 @@ Current direction update:
 - add a per-user drilldown layer for lifecycle, recent activity, carts, scans, and push/device reachability
 - surface customer state and reachability signals directly in the main result table so segmentation and customer understanding are not split apart
 
+### Users implementation checkpoint
+- served `/users` now keeps the segment console, but the result table also exposes lifecycle, reachability, and operator-action signals so targeting and customer understanding happen in one surface
+- the per-user drilldown at `/users/{id}` now behaves more like a compact customer DB: profile, operator context, push reachability, recent activity timeline, scan summary, saved-cart summary, and event summary are available together
+- the current backend source remains live runtime evidence only, derived from users + sessions + scan jobs + carts + push devices + app events, with no schema migration required for this phase
+- next Users work should deepen customer suggestions and cross-customer analysis, not revert to a plain directory or split customer-state inspection back into disconnected pages
+
 ---
 
 ## 6. Carts / Scan Ops

@@ -20,6 +20,8 @@ type UserRow = {
   createdAt?: string | null
   lastSeenAt?: string | null
   lastActiveAt?: string | null
+  lastActivityAt?: string | null
+  lastActivityType?: string | null
   lastDevicePlatform?: string | null
   lastAppVersion?: string | null
   cartCount?: number | null
@@ -30,6 +32,16 @@ type UserRow = {
   readyPushDeviceCount?: number | null
   lastSavedAt?: string | null
   lastScanAt?: string | null
+  status?: string | null
+  mergedIntoUserId?: string | null
+  lifecycleStage?: string | null
+  lifecycleLabel?: string | null
+  reachabilityState?: string | null
+  reachabilityLabel?: string | null
+  operatorAction?: string | null
+  operatorActionLabel?: string | null
+  daysSinceSeen?: number | null
+  daysSinceCreated?: number | null
 }
 
 type UsersSummary = {
@@ -110,6 +122,22 @@ function parseOptionalNumber(value: string) {
   return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : undefined
 }
 
+function lifecycleTone(stage: string | null | undefined) {
+  if (!stage) return '#475569'
+  if (stage.includes('dormant')) return '#92400e'
+  if (stage.includes('legacy')) return '#9f1239'
+  if (stage.includes('core')) return '#1d4ed8'
+  if (stage.includes('new')) return '#0f766e'
+  return '#475569'
+}
+
+function reachabilityTone(state: string | null | undefined) {
+  if (state === 'push_ready') return '#166534'
+  if (state === 'push_blocked') return '#92400e'
+  if (state === 'unreachable') return '#9f1239'
+  return '#475569'
+}
+
 export default function UsersPage() {
   const { t } = useAdminCopy()
   const [query, setQuery] = useState('')
@@ -166,6 +194,9 @@ export default function UsersPage() {
   const membersWithEmail = useMemo(() => memberUsers.filter((user) => Boolean(user.email)).length, [memberUsers])
   const guestUsersWithCarts = useMemo(() => guestUsers.filter((user) => savedCartCount(user) > 0).length, [guestUsers])
   const readyPushUsers = summary?.readyPushUsers ?? users.filter((user) => (user.readyPushDeviceCount ?? 0) > 0).length
+  const pushBlockedUsers = useMemo(() => users.filter((user) => user.reachabilityState === 'push_blocked').length, [users])
+  const dormantUsers = useMemo(() => users.filter((user) => (user.lifecycleStage ?? '').includes('dormant')).length, [users])
+  const mergeReviewUsers = useMemo(() => users.filter((user) => user.operatorAction === 'merge_review').length, [users])
 
   const totalLegacy = legacySummary?.count ?? 0
   const legacyWithCarts = legacySummary?.withCarts ?? 0
@@ -247,8 +278,11 @@ export default function UsersPage() {
         userId: user.id ?? '',
         installId: '',
         name: displayUserName(user),
-        memo: `users segment | visits ${user.sessionCount ?? 0} | scans ${user.scanCount ?? 0} | carts ${savedCartCount(user)}`,
+        memo: `users segment | ${user.lifecycleLabel ?? '-'} | visits ${user.sessionCount ?? 0} | scans ${user.scanCount ?? 0} | carts ${savedCartCount(user)}`,
         accountType: user.isGuest ? 'guest' : 'member',
+        lifecycleStage: user.lifecycleStage ?? '',
+        reachabilityState: user.reachabilityState ?? '',
+        operatorAction: user.operatorAction ?? '',
         email: user.email ?? '',
         provider: providerLabel(user),
         lastSeenAt: user.lastSeenAt ?? '',
@@ -276,7 +310,7 @@ export default function UsersPage() {
       <PageHeader
         badge={usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : loading ? t('admin.common.badge.loading', 'Loading...') : t('admin.common.badge.live', 'Live data')}
         title={t('admin.users.title', 'Users')}
-        description={t('admin.users.desc', 'segment extraction, push audience export, guest cleanup routing')}
+        description={t('admin.users.desc', 'customer DB, segmentation, push audience export, guest cleanup routing')}
         onRefresh={() => void reloadAll()}
         refreshing={loading}
         inlineRefresh
@@ -311,19 +345,19 @@ export default function UsersPage() {
           <div className="exploreSummaryNote">live device ready</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Visits</div>
-          <div className="exploreSummaryValue">{formatNumber(summary?.totalSessions ?? 0)}</div>
-          <div className="exploreSummaryNote">session count in segment</div>
+          <div className="exploreSummaryLabel">Push blocked</div>
+          <div className="exploreSummaryValue">{formatNumber(pushBlockedUsers)}</div>
+          <div className="exploreSummaryNote">device exists, reachability blocked</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Scans</div>
-          <div className="exploreSummaryValue">{formatNumber(summary?.totalScans ?? 0)}</div>
-          <div className="exploreSummaryNote">scan jobs in segment</div>
+          <div className="exploreSummaryLabel">Dormant</div>
+          <div className="exploreSummaryValue">{formatNumber(dormantUsers)}</div>
+          <div className="exploreSummaryNote">customer reactivation candidates</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Saved carts</div>
-          <div className="exploreSummaryValue">{formatNumber(summary?.totalSavedCarts ?? 0)}</div>
-          <div className="exploreSummaryNote">cart history in segment</div>
+          <div className="exploreSummaryLabel">Merge review</div>
+          <div className="exploreSummaryValue">{formatNumber(mergeReviewUsers)}</div>
+          <div className="exploreSummaryNote">legacy guests with carts</div>
         </div>
         <div className="exploreSummaryCell">
           <div className="exploreSummaryLabel">Legacy queue</div>
@@ -396,6 +430,7 @@ export default function UsersPage() {
             </label>
             <div className="metaPill">export uses userId, installId blank</div>
             <div className="metaPill">Push upload re-resolves live device state</div>
+            <div className="metaPill">customer state is derived from live metrics</div>
           </div>
         </div>
       </div>
@@ -419,10 +454,10 @@ export default function UsersPage() {
               <thead>
                 <tr>
                   <th>User</th>
+                  <th>Lifecycle</th>
                   <th>Visits / Scans</th>
-                  <th>Push</th>
-                  <th>Device</th>
-                  <th>Cleanup</th>
+                  <th>Reachability</th>
+                  <th>Device / Identity</th>
                   <th>Last active</th>
                   <th>Action</th>
                 </tr>
@@ -431,13 +466,20 @@ export default function UsersPage() {
                 {users.map((user, index) => (
                   <tr key={user.id ?? index}>
                     <td>
-                      <div style={{ display: 'grid', gap: 4, minWidth: 200 }}>
+                      <div style={{ display: 'grid', gap: 4, minWidth: 220 }}>
                         <strong>{displayUserName(user)}</strong>
                         <span style={{ color: '#64748b', fontSize: 12 }}>{user.id ?? '-'}</span>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           <span className="metaPill">{userTypeLabel(user, t)}</span>
                           <span className="metaPill">{providerLabel(user)}</span>
                         </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'grid', gap: 4, minWidth: 180 }}>
+                        <strong style={{ color: lifecycleTone(user.lifecycleStage) }}>{user.lifecycleLabel ?? cleanupLabel(user)}</strong>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>{user.operatorActionLabel ?? 'monitor'}</span>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>joined {formatDate(user.createdAt)}</span>
                       </div>
                     </td>
                     <td>
@@ -448,36 +490,34 @@ export default function UsersPage() {
                       </div>
                     </td>
                     <td>
-                      <div style={{ display: 'grid', gap: 4, minWidth: 120 }}>
-                        <strong>{formatNumber(user.readyPushDeviceCount ?? 0)} ready</strong>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>devices {formatNumber(user.pushDeviceCount ?? 0)}</span>
+                      <div style={{ display: 'grid', gap: 4, minWidth: 170 }}>
+                        <strong style={{ color: reachabilityTone(user.reachabilityState) }}>{user.reachabilityLabel ?? 'reachability -'}</strong>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>{formatNumber(user.readyPushDeviceCount ?? 0)} ready / {formatNumber(user.pushDeviceCount ?? 0)} devices</span>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>action {user.operatorAction ?? '-'}</span>
                       </div>
                     </td>
                     <td>
-                      <div style={{ display: 'grid', gap: 4, minWidth: 160 }}>
+                      <div style={{ display: 'grid', gap: 4, minWidth: 170 }}>
                         <strong>{platformLabel(user.lastDevicePlatform)}</strong>
                         <span style={{ color: '#64748b', fontSize: 12 }}>{user.lastAppVersion ?? '-'}</span>
                         <span style={{ color: '#64748b', fontSize: 12 }}>{user.email ?? user.guestKey ?? 'no account detail'}</span>
                       </div>
                     </td>
                     <td>
-                      <div style={{ display: 'grid', gap: 4, minWidth: 120 }}>
-                        <strong>{cleanupLabel(user)}</strong>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>{user.isGuest ? 'guest routing' : 'no cleanup'}</span>
-                      </div>
-                    </td>
-                    <td>
                       <div style={{ display: 'grid', gap: 4, minWidth: 160 }}>
-                        <strong>{formatDate(user.lastSeenAt ?? user.lastActiveAt)}</strong>
+                        <strong>{formatDate(user.lastActivityAt ?? user.lastSeenAt ?? user.lastActiveAt)}</strong>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>type {user.lastActivityType ?? 'seen'}</span>
                         <span style={{ color: '#64748b', fontSize: 12 }}>last scan {formatDate(user.lastScanAt)}</span>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>joined {formatDate(user.createdAt)}</span>
                       </div>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minWidth: 232 }}>
-                        <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}`}>Profile</Link>
-                        <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}/history`}>History</Link>
-                        <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}/cleanup`}>Cleanup</Link>
+                      <div style={{ display: 'grid', gap: 8, minWidth: 240 }}>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}`}>Profile</Link>
+                          <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}/history`}>History</Link>
+                          <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}/cleanup`}>Cleanup</Link>
+                        </div>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>{user.operatorActionLabel ?? 'monitor'}</span>
                       </div>
                     </td>
                   </tr>

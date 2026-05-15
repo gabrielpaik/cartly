@@ -1,6 +1,7 @@
 // ignore_for_file: unused_element, unused_element_parameter
 
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -49,6 +50,14 @@ String _receiptSupportingLineItemLabel(ReceiptLineItemModel item) {
     default:
       return '참고';
   }
+}
+
+String _normalizeReceiptCompareName(String value) {
+  final normalized = value
+      .replaceAll(RegExp(r'[^0-9A-Za-z가-힣]+'), ' ')
+      .trim()
+      .toLowerCase();
+  return normalized.replaceAll(RegExp(r'\s+'), ' ');
 }
 
 bool _isReceiptItemLinkedAdjustment(ReceiptLineItemModel item) {
@@ -579,6 +588,284 @@ class _ReceiptCompareErrorCard extends StatelessWidget {
   }
 }
 
+class _ReceiptCompareAggregate {
+  String displayName;
+  int quantity;
+  int amount;
+  int linkedDiscountAmount;
+
+  _ReceiptCompareAggregate({
+    required this.displayName,
+    this.quantity = 0,
+    this.amount = 0,
+    this.linkedDiscountAmount = 0,
+  });
+
+  void add({
+    required String nextLabel,
+    required int nextQuantity,
+    required int nextAmount,
+    int nextLinkedDiscountAmount = 0,
+  }) {
+    if (displayName.trim().isEmpty && nextLabel.trim().isNotEmpty) {
+      displayName = nextLabel.trim();
+    }
+    quantity += nextQuantity;
+    amount += nextAmount;
+    linkedDiscountAmount += nextLinkedDiscountAmount;
+  }
+
+  _ReceiptCompareEntry toEntry(String normalizedName) {
+    return _ReceiptCompareEntry(
+      displayName: displayName.trim().isNotEmpty ? displayName.trim() : normalizedName,
+      normalizedName: normalizedName,
+      quantity: quantity,
+      amount: amount,
+      linkedDiscountAmount: linkedDiscountAmount,
+    );
+  }
+}
+
+class _ReceiptCompareEntry {
+  final String displayName;
+  final String normalizedName;
+  final int quantity;
+  final int amount;
+  final int linkedDiscountAmount;
+
+  const _ReceiptCompareEntry({
+    required this.displayName,
+    required this.normalizedName,
+    required this.quantity,
+    required this.amount,
+    this.linkedDiscountAmount = 0,
+  });
+
+  String get compactName => normalizedName.replaceAll(' ', '');
+  List<String> get tokens => normalizedName
+      .split(' ')
+      .map((token) => token.trim())
+      .where((token) => token.isNotEmpty)
+      .toList(growable: false);
+  List<String> get numericTokens => RegExp(r'[0-9]+[a-z가-힣]*|[a-z가-힣]*[0-9]+')
+      .allMatches(normalizedName)
+      .map((match) => match.group(0) ?? '')
+      .where((token) => token.isNotEmpty)
+      .toList(growable: false);
+  bool get hasLinkedDiscount => linkedDiscountAmount < 0;
+}
+
+class _ReceiptCandidateMatch {
+  final int cartIndex;
+  final int receiptIndex;
+  final double score;
+  final bool inferredNameMatch;
+
+  const _ReceiptCandidateMatch({
+    required this.cartIndex,
+    required this.receiptIndex,
+    required this.score,
+    required this.inferredNameMatch,
+  });
+}
+
+class _ReceiptItemDiffRow {
+  final String displayName;
+  final int cartQuantity;
+  final int receiptQuantity;
+  final int cartAmount;
+  final int receiptAmount;
+  final String? cartLabel;
+  final String? receiptLabel;
+  final bool inferredNameMatch;
+
+  const _ReceiptItemDiffRow({
+    required this.displayName,
+    required this.cartQuantity,
+    required this.receiptQuantity,
+    required this.cartAmount,
+    required this.receiptAmount,
+    this.cartLabel,
+    this.receiptLabel,
+    this.inferredNameMatch = false,
+  });
+
+  bool get isCartOnly => receiptQuantity == 0 && receiptAmount == 0;
+  bool get isReceiptOnly => cartQuantity == 0 && cartAmount == 0;
+  bool get hasQuantityMismatch => cartQuantity != receiptQuantity;
+  bool get hasAmountMismatch => cartAmount != receiptAmount;
+  bool get hasDifferentNames =>
+      (cartLabel?.trim().isNotEmpty == true) &&
+      (receiptLabel?.trim().isNotEmpty == true) &&
+      cartLabel!.trim() != receiptLabel!.trim();
+
+  String get badgeLabel {
+    if (isCartOnly) return '카트만';
+    if (isReceiptOnly) return '영수증만';
+    if (hasQuantityMismatch && hasAmountMismatch) return '수량·금액 차이';
+    if (hasQuantityMismatch) return '수량 차이';
+    if (hasAmountMismatch) return '금액 차이';
+    return '동일';
+  }
+
+  String get helperText {
+    final prefix = inferredNameMatch
+        ? '이름이 달라도 같은 상품으로 추정했어요. '
+        : '';
+    if (isCartOnly) {
+      return '$prefix저장 카트에는 있지만 영수증에서는 아직 못 찾았어요.';
+    }
+    if (isReceiptOnly) {
+      return '$prefix영수증에는 있는데 저장 카트에는 없어요.';
+    }
+    if (hasQuantityMismatch && hasAmountMismatch) {
+      return '$prefix수량과 금액이 모두 달라요.';
+    }
+    if (hasQuantityMismatch) {
+      return '$prefix수량이 달라요.';
+    }
+    if (hasAmountMismatch) {
+      return '$prefix금액이 달라요.';
+    }
+    return '$prefix차이가 없어요.';
+  }
+
+  int get priority {
+    if (isCartOnly || isReceiptOnly) {
+      return 0;
+    }
+    if (hasQuantityMismatch && hasAmountMismatch) {
+      return 1;
+    }
+    if (hasQuantityMismatch) {
+      return 2;
+    }
+    if (hasAmountMismatch) {
+      return 3;
+    }
+    return 4;
+  }
+}
+
+double _receiptTokenScore(List<String> left, List<String> right) {
+  if (left.isEmpty || right.isEmpty) {
+    return 0;
+  }
+  final leftSet = left.toSet();
+  final rightSet = right.toSet();
+  final overlap = leftSet.intersection(rightSet).length;
+  return overlap / math.max(leftSet.length, rightSet.length);
+}
+
+Set<String> _receiptBigrams(String value) {
+  final compact = value.replaceAll(' ', '');
+  if (compact.isEmpty) {
+    return const <String>{};
+  }
+  if (compact.length == 1) {
+    return {compact};
+  }
+  final grams = <String>{};
+  for (var i = 0; i < compact.length - 1; i += 1) {
+    grams.add(compact.substring(i, i + 2));
+  }
+  return grams;
+}
+
+double _receiptBigramScore(String left, String right) {
+  final leftSet = _receiptBigrams(left);
+  final rightSet = _receiptBigrams(right);
+  if (leftSet.isEmpty || rightSet.isEmpty) {
+    return 0;
+  }
+  final overlap = leftSet.intersection(rightSet).length;
+  return (2 * overlap) / (leftSet.length + rightSet.length);
+}
+
+double _receiptNameScore(_ReceiptCompareEntry cart, _ReceiptCompareEntry receipt) {
+  if (cart.normalizedName == receipt.normalizedName) {
+    return 1;
+  }
+
+  var score = math.max(
+    _receiptTokenScore(cart.tokens, receipt.tokens),
+    _receiptBigramScore(cart.compactName, receipt.compactName),
+  );
+
+  if (cart.compactName.isNotEmpty && receipt.compactName.isNotEmpty) {
+    if (cart.compactName.contains(receipt.compactName) ||
+        receipt.compactName.contains(cart.compactName)) {
+      score = math.max(score, 0.82);
+    }
+  }
+
+  final cartNumbers = cart.numericTokens.toSet();
+  final receiptNumbers = receipt.numericTokens.toSet();
+  if (cartNumbers.isNotEmpty && receiptNumbers.isNotEmpty) {
+    final overlaps = cartNumbers.intersection(receiptNumbers);
+    if (overlaps.isNotEmpty) {
+      score += 0.08;
+    } else {
+      score -= 0.16;
+    }
+  }
+
+  return score.clamp(0, 1.1);
+}
+
+double _receiptMatchScore(
+  _ReceiptCompareEntry cart,
+  _ReceiptCompareEntry receipt,
+  int totalDiscount,
+) {
+  var score = _receiptNameScore(cart, receipt);
+  if (score < 0.42) {
+    return score;
+  }
+
+  if (cart.quantity == receipt.quantity) {
+    score += 0.14;
+  } else if ((cart.quantity - receipt.quantity).abs() == 1) {
+    score += 0.04;
+  }
+
+  final amountGap = (cart.amount - receipt.amount).abs();
+  final discountSlack = totalDiscount > 0 ? totalDiscount.abs() : 0;
+  if (amountGap == 0) {
+    score += 0.08;
+  } else if (amountGap <= math.max(1200, discountSlack)) {
+    score += 0.04;
+  }
+
+  return score;
+}
+
+bool _shouldSuppressAmountDiff(
+  _ReceiptCompareEntry cart,
+  _ReceiptCompareEntry receipt,
+  int totalDiscount,
+) {
+  if (cart.amount == receipt.amount) {
+    return true;
+  }
+  if (cart.quantity != receipt.quantity) {
+    return false;
+  }
+  final amountGap = cart.amount - receipt.amount;
+  if (amountGap <= 0) {
+    return false;
+  }
+
+  final tolerance = math.max(
+    0,
+    math.max(totalDiscount.abs(), receipt.linkedDiscountAmount.abs()),
+  );
+  if (tolerance <= 0) {
+    return false;
+  }
+  return amountGap <= tolerance + 400;
+}
+
 class _ReceiptSimpleViewData {
   final String merchantName;
   final String purchasedAtText;
@@ -591,6 +878,8 @@ class _ReceiptSimpleViewData {
   final String? rawText;
   final List<_ReceiptPurchasedEntry> purchasedEntries;
   final List<ReceiptLineItemModel> supportingLineItems;
+  final List<_ReceiptItemDiffRow> diffRows;
+  final int exactMatchCount;
 
   const _ReceiptSimpleViewData({
     required this.merchantName,
@@ -604,6 +893,8 @@ class _ReceiptSimpleViewData {
     required this.rawText,
     required this.purchasedEntries,
     required this.supportingLineItems,
+    required this.diffRows,
+    required this.exactMatchCount,
   });
 
   factory _ReceiptSimpleViewData.fromResult(
@@ -613,13 +904,36 @@ class _ReceiptSimpleViewData {
     final receipt = result.receipt;
     final purchasedEntries = <_ReceiptPurchasedEntry>[];
     final supportingLineItems = <ReceiptLineItemModel>[];
+    final cartGroups = <String, _ReceiptCompareAggregate>{};
+    final receiptGroups = <String, _ReceiptCompareAggregate>{};
     var canLinkAdjustmentToLastItem = false;
+
+    for (final cartItem in cart.items) {
+      final label = cartItem.originalName?.trim().isNotEmpty == true
+          ? cartItem.originalName!.trim()
+          : cartItem.name.trim();
+      final key = _normalizeReceiptCompareName(label);
+      if (key.isEmpty) {
+        continue;
+      }
+      final aggregate = cartGroups.putIfAbsent(
+        key,
+        () => _ReceiptCompareAggregate(displayName: label),
+      );
+      aggregate.add(
+        nextLabel: label,
+        nextQuantity: cartItem.quantity,
+        nextAmount: cartItem.total,
+      );
+    }
 
     for (final lineItem in result.lineItems) {
       if (_isReceiptPurchasableLineItem(lineItem)) {
-        purchasedEntries.add(
-          _ReceiptPurchasedEntry(item: lineItem, linkedAdjustments: []),
+        final purchasedEntry = _ReceiptPurchasedEntry(
+          item: lineItem,
+          linkedAdjustments: [],
         );
+        purchasedEntries.add(purchasedEntry);
         canLinkAdjustmentToLastItem = true;
         continue;
       }
@@ -634,6 +948,159 @@ class _ReceiptSimpleViewData {
       supportingLineItems.add(lineItem);
       canLinkAdjustmentToLastItem = false;
     }
+
+    for (final entry in purchasedEntries) {
+      final lineItem = entry.item;
+      final label = lineItem.rawName.trim().isNotEmpty
+          ? lineItem.rawName.trim()
+          : lineItem.normalizedName.trim();
+      final key = lineItem.normalizedName.trim().isNotEmpty
+          ? lineItem.normalizedName.trim()
+          : _normalizeReceiptCompareName(label);
+      if (key.isEmpty) {
+        continue;
+      }
+      final aggregate = receiptGroups.putIfAbsent(
+        key,
+        () => _ReceiptCompareAggregate(displayName: label),
+      );
+      final linkedDiscountAmount = entry.linkedAdjustments.fold<int>(
+        0,
+        (sum, adjustment) => sum + (adjustment.finalAmount ?? adjustment.lineAmount),
+      );
+      aggregate.add(
+        nextLabel: label,
+        nextQuantity: (lineItem.quantity ?? 1) > 0 ? (lineItem.quantity ?? 1) : 1,
+        nextAmount: (lineItem.finalAmount ?? lineItem.lineAmount) + linkedDiscountAmount,
+        nextLinkedDiscountAmount: linkedDiscountAmount,
+      );
+    }
+
+    final cartEntries = cartGroups.entries
+        .map((entry) => entry.value.toEntry(entry.key))
+        .toList(growable: false);
+    final receiptEntries = receiptGroups.entries
+        .map((entry) => entry.value.toEntry(entry.key))
+        .toList(growable: false);
+
+    final matchedCartIndexes = <int>{};
+    final matchedReceiptIndexes = <int>{};
+    final candidateMatches = <_ReceiptCandidateMatch>[];
+    final totalDiscount = receipt.totalDiscountAmount ?? 0;
+
+    for (var cartIndex = 0; cartIndex < cartEntries.length; cartIndex += 1) {
+      for (var receiptIndex = 0; receiptIndex < receiptEntries.length; receiptIndex += 1) {
+        final cartEntry = cartEntries[cartIndex];
+        final receiptEntry = receiptEntries[receiptIndex];
+        final score = _receiptMatchScore(cartEntry, receiptEntry, totalDiscount);
+        final inferred = cartEntry.normalizedName != receiptEntry.normalizedName;
+        final threshold = inferred ? 0.8 : 0.55;
+        if (score >= threshold) {
+          candidateMatches.add(
+            _ReceiptCandidateMatch(
+              cartIndex: cartIndex,
+              receiptIndex: receiptIndex,
+              score: score,
+              inferredNameMatch: inferred,
+            ),
+          );
+        }
+      }
+    }
+
+    candidateMatches.sort((a, b) => b.score.compareTo(a.score));
+
+    final acceptedMatches = <_ReceiptCandidateMatch>[];
+    for (final match in candidateMatches) {
+      if (matchedCartIndexes.contains(match.cartIndex) ||
+          matchedReceiptIndexes.contains(match.receiptIndex)) {
+        continue;
+      }
+      matchedCartIndexes.add(match.cartIndex);
+      matchedReceiptIndexes.add(match.receiptIndex);
+      acceptedMatches.add(match);
+    }
+
+    final diffRows = <_ReceiptItemDiffRow>[];
+    var exactMatchCount = 0;
+
+    for (final match in acceptedMatches) {
+      final cartEntry = cartEntries[match.cartIndex];
+      final receiptEntry = receiptEntries[match.receiptIndex];
+      final quantityMismatch = cartEntry.quantity != receiptEntry.quantity;
+      final amountMismatch = !_shouldSuppressAmountDiff(
+            cartEntry,
+            receiptEntry,
+            totalDiscount,
+          ) &&
+          cartEntry.amount != receiptEntry.amount;
+
+      if (!quantityMismatch && !amountMismatch) {
+        exactMatchCount += 1;
+        continue;
+      }
+
+      diffRows.add(
+        _ReceiptItemDiffRow(
+          displayName: receiptEntry.displayName,
+          cartQuantity: cartEntry.quantity,
+          receiptQuantity: receiptEntry.quantity,
+          cartAmount: cartEntry.amount,
+          receiptAmount: receiptEntry.amount,
+          cartLabel: cartEntry.displayName,
+          receiptLabel: receiptEntry.displayName,
+          inferredNameMatch: match.inferredNameMatch,
+        ),
+      );
+    }
+
+    for (var index = 0; index < cartEntries.length; index += 1) {
+      if (matchedCartIndexes.contains(index)) {
+        continue;
+      }
+      final cartEntry = cartEntries[index];
+      diffRows.add(
+        _ReceiptItemDiffRow(
+          displayName: cartEntry.displayName,
+          cartQuantity: cartEntry.quantity,
+          receiptQuantity: 0,
+          cartAmount: cartEntry.amount,
+          receiptAmount: 0,
+          cartLabel: cartEntry.displayName,
+        ),
+      );
+    }
+
+    for (var index = 0; index < receiptEntries.length; index += 1) {
+      if (matchedReceiptIndexes.contains(index)) {
+        continue;
+      }
+      final receiptEntry = receiptEntries[index];
+      diffRows.add(
+        _ReceiptItemDiffRow(
+          displayName: receiptEntry.displayName,
+          cartQuantity: 0,
+          receiptQuantity: receiptEntry.quantity,
+          cartAmount: 0,
+          receiptAmount: receiptEntry.amount,
+          receiptLabel: receiptEntry.displayName,
+        ),
+      );
+    }
+
+    diffRows.sort((a, b) {
+      final priorityCompare = a.priority.compareTo(b.priority);
+      if (priorityCompare != 0) {
+        return priorityCompare;
+      }
+      final amountGapA = (a.receiptAmount - a.cartAmount).abs();
+      final amountGapB = (b.receiptAmount - b.cartAmount).abs();
+      final amountCompare = amountGapB.compareTo(amountGapA);
+      if (amountCompare != 0) {
+        return amountCompare;
+      }
+      return a.displayName.compareTo(b.displayName);
+    });
 
     final purchasedItemCount = purchasedEntries.fold<int>(
       0,
@@ -657,11 +1124,13 @@ class _ReceiptSimpleViewData {
       actualTotal: actualTotal,
       cartTotal: cartTotal,
       totalDelta: actualTotal - cartTotal,
-      totalDiscount: receipt.totalDiscountAmount ?? 0,
+      totalDiscount: totalDiscount,
       hasStoredImage: receipt.imageUrl?.trim().isNotEmpty == true,
       rawText: receipt.rawText?.trim(),
       purchasedEntries: purchasedEntries,
       supportingLineItems: supportingLineItems,
+      diffRows: diffRows,
+      exactMatchCount: exactMatchCount,
     );
   }
 }
@@ -743,57 +1212,338 @@ class _ReceiptFinalPriceCompareCard extends StatelessWidget {
         : delta > 0
         ? '영수증 총액이 ${_receiptFmt(delta)}원 더 커요'
         : '카트 총액이 ${_receiptFmt(delta.abs())}원 더 커요';
+    final hasDiffRows = data.diffRows.isNotEmpty;
 
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(CartlyRadii.card),
+        onTap: hasDiffRows
+            ? () {
+                showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => _ReceiptDiffSheet(data: data),
+                );
+              }
+            : null,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: CartlyColors.onBrandPrimary,
+            borderRadius: BorderRadius.circular(CartlyRadii.card),
+            border: Border.all(color: CartlyColors.line, width: 0.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '최종 가격 비교',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ReceiptAmountBox(label: '내 카트', amount: data.cartTotal),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _ReceiptAmountBox(
+                      label: '영수증',
+                      amount: data.actualTotal,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                deltaText,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: delta == 0
+                      ? CartlyColors.semanticSuccess
+                      : CartlyColors.semanticWarning,
+                ),
+              ),
+              if (data.totalDiscount > 0) ...[
+                const SizedBox(height: 6),
+                Text(
+                  '할인/조정 합계 ${_receiptFmt(data.totalDiscount)}원',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: CartlyColors.textSecondary,
+                  ),
+                ),
+              ],
+              if (hasDiffRows) ...[
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 11,
+                  ),
+                  decoration: BoxDecoration(
+                    color: CartlyColors.surface2,
+                    borderRadius: BorderRadius.circular(CartlyRadii.control),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '항목 차이 ${data.diffRows.length}건 보기',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: CartlyColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      const CartlySymbolIcon.sf(
+                        'chevron.right',
+                        size: 16,
+                        color: CartlyColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReceiptDiffSheet extends StatelessWidget {
+  final _ReceiptSimpleViewData data;
+
+  const _ReceiptDiffSheet({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: FractionallySizedBox(
+          heightFactor: 0.84,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: CartlyColors.surface1,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: CartlyColors.lineStrong,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  '카트와 영수증 차이',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '차이 ${data.diffRows.length}건${data.exactMatchCount > 0 ? ' · 동일 ${data.exactMatchCount}건' : ''}',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: CartlyColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const CartlySymbolIcon.sf('xmark', size: 18),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        '저장된 카트를 영수증 기준으로 정리하기 전에, 자동 비교가 잡아낸 차이만 먼저 빠르게 확인해보세요. 이름 인식 차이로 완벽히 매칭되지 않을 수 있어요.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.5,
+                          fontWeight: FontWeight.w500,
+                          color: CartlyColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      for (final row in data.diffRows) ...[
+                        _ReceiptDiffTile(row: row),
+                        const SizedBox(height: 12),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReceiptDiffTile extends StatelessWidget {
+  final _ReceiptItemDiffRow row;
+
+  const _ReceiptDiffTile({required this.row});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: CartlyColors.onBrandPrimary,
+        color: CartlyColors.surface2,
         borderRadius: BorderRadius.circular(CartlyRadii.card),
         border: Border.all(color: CartlyColors.line, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '최종 가격 비교',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  row.displayName,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              CartlyBadge(
+                label: row.badgeLabel,
+                backgroundColor: CartlyColors.surface1,
+                foregroundColor: CartlyColors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ],
           ),
+          const SizedBox(height: 8),
+          Text(
+            row.helperText,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: CartlyColors.textSecondary,
+              height: 1.45,
+            ),
+          ),
+          if (row.hasDifferentNames) ...[
+            const SizedBox(height: 8),
+            Text(
+              '카트: ${row.cartLabel} · 영수증: ${row.receiptLabel}',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: CartlyColors.textTertiary,
+                height: 1.45,
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: _ReceiptAmountBox(label: '내 카트', amount: data.cartTotal),
+                child: _ReceiptDiffSideBox(
+                  label: '카트',
+                  quantity: row.cartQuantity,
+                  amount: row.cartAmount,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _ReceiptAmountBox(
+                child: _ReceiptDiffSideBox(
                   label: '영수증',
-                  amount: data.actualTotal,
+                  quantity: row.receiptQuantity,
+                  amount: row.receiptAmount,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReceiptDiffSideBox extends StatelessWidget {
+  final String label;
+  final int quantity;
+  final int amount;
+
+  const _ReceiptDiffSideBox({
+    required this.label,
+    required this.quantity,
+    required this.amount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: CartlyColors.surface1,
+        borderRadius: BorderRadius.circular(CartlyRadii.control),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-            deltaText,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: delta == 0
-                  ? CartlyColors.semanticSuccess
-                  : CartlyColors.semanticWarning,
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: CartlyColors.textSecondary,
             ),
           ),
-          if (data.totalDiscount > 0) ...[
-            const SizedBox(height: 6),
-            Text(
-              '할인/조정 합계 ${_receiptFmt(data.totalDiscount)}원',
-              style: const TextStyle(
-                fontSize: 13,
-                color: CartlyColors.textSecondary,
-              ),
+          const SizedBox(height: 6),
+          Text(
+            quantity > 0 ? '$quantity개' : '없음',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: CartlyColors.textPrimary,
             ),
-          ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            amount > 0 ? '${_receiptFmt(amount)}원' : '0원',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: CartlyColors.textSecondary,
+            ),
+          ),
         ],
       ),
     );

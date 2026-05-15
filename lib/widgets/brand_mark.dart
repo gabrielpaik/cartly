@@ -48,26 +48,35 @@ class BrandMark extends StatelessWidget {
 
   Widget _networkLogo(String url, {required String fallbackText}) {
     final trimmed = url.trim();
+    final height = fontSize + 14;
     final isSvg = trimmed.toLowerCase().split('?').first.endsWith('.svg');
     if (isSvg) {
-      return SvgPicture.network(
-        trimmed,
-        height: fontSize + 14,
-        fit: BoxFit.contain,
-        placeholderBuilder: (_) => SizedBox(
-          height: fontSize + 14,
-          child: Align(
+      return SizedBox(
+        width: double.infinity,
+        height: height,
+        child: SvgPicture.network(
+          trimmed,
+          fit: BoxFit.fitHeight,
+          alignment: Alignment.centerLeft,
+          placeholderBuilder: (_) => Align(
             alignment: Alignment.centerLeft,
             child: _textLogo(fallbackText),
           ),
         ),
       );
     }
-    return Image.network(
-      trimmed,
-      height: fontSize + 14,
-      fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) => _textLogo(fallbackText),
+    return SizedBox(
+      width: double.infinity,
+      height: height,
+      child: Image.network(
+        trimmed,
+        fit: BoxFit.fitHeight,
+        alignment: Alignment.centerLeft,
+        errorBuilder: (context, error, stackTrace) => Align(
+          alignment: Alignment.centerLeft,
+          child: _textLogo(fallbackText),
+        ),
+      ),
     );
   }
 

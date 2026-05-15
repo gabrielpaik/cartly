@@ -21,5 +21,11 @@ class AdCampaignUpsertRequest(BaseModel):
     landingKey: Optional[str] = None
     landingParams: Optional[Dict[str, Any]] = None
     imageUrl: Optional[str] = None
+    audienceType: Optional[str] = None
+    targetRegionLevel: Optional[str] = None
+    targetCity: Optional[str] = None
+    targetDistrict: Optional[str] = None
+    targetNeighborhood: Optional[str] = None
+    targetRegionKeys: Optional[list[str]] = None
     startAt: Optional[str] = None
     endAt: Optional[str] = None

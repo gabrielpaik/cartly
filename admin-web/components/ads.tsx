@@ -64,6 +64,13 @@ export type CampaignRow = {
   landingKey: string | null
   landingParams: Record<string, string | number | boolean> | null
   imageUrl: string | null
+  audienceType?: string | null
+  targetRegionLevel?: string | null
+  targetCity?: string | null
+  targetDistrict?: string | null
+  targetNeighborhood?: string | null
+  targetRegionKeys?: string[] | null
+  targetLabel?: string | null
   startAt: string | null
   endAt: string | null
   impressions: number

@@ -8,6 +8,7 @@ import { useAdminCopy } from '../../components/AdminCopyProvider'
 import PageHeader from '../../components/PageHeader'
 import { deleteJson, fetchJsonSafe, isUnauthorizedError, postFormData, postJson, putJson } from '../../lib/api'
 import { formatDate, formatNumber, formatPercent } from '../../lib/format'
+import { KOREA_CITIES, KOREA_DISTRICTS_BY_CITY, KOREA_REGION_LOOKUP, RegionLevel, buildRegionKey, parseRegionTokens, regionKeysFromTokens, regionOptionsForLevel, regionSummaryFromKeys } from '../../lib/koreaRegions'
 
 type UploadResponse = {
   ok: boolean
@@ -94,6 +95,12 @@ type AdsWorkspaceData = {
 type CampaignSheetDraft = {
   slotKey: string
   sortOrder: string
+  audienceType: string
+  targetRegionLevel: string
+  targetCity: string
+  targetDistrict: string
+  targetNeighborhood: string
+  targetRegionKeys: string[]
   startDate: string
   endDate: string
   title: string
@@ -132,6 +139,28 @@ type BannerUploadModalState = {
   presetId: string
   file: File | null
 }
+
+type RegionPickerModalState = {
+  rowId: string
+  isNew: boolean
+  level: RegionLevel
+  city: string
+  district: string
+  workingKeys: string[]
+}
+
+const AUDIENCE_OPTIONS = [
+  { value: 'all', label: '전체' },
+  { value: 'member', label: '회원' },
+  { value: 'guest', label: '게스트' },
+] as const
+
+const REGION_LEVEL_OPTIONS = [
+  { value: 'all', label: '전체' },
+  { value: 'city', label: '시' },
+  { value: 'district', label: '구' },
+  { value: 'neighborhood', label: '동' },
+] as const
 
 const LANDING_PRESETS: LandingPreset[] = [
   { value: '', label: '없음', landingType: '', landingKey: '' },
@@ -273,7 +302,14 @@ function runtimeStateLabel(value: string) {
 }
 
 function normalizeSheetDate(value: string | null | undefined) {
-  return (value ?? '').trim().slice(0, 10)
+  const raw = (value ?? '').trim()
+  if (!raw) return ''
+  const normalized = raw.replace('T', ' ').replace(/\./g, '-').replace(/\/+?/g, '-').replace(/\s+/g, ' ')
+  const match = normalized.match(/^(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?/) 
+  if (!match) return raw
+  const day = match[1]
+  const time = match[2] ?? '00:00'
+  return `${day} ${time}`
 }
 
 function landingCodeFromCampaign(campaign: CampaignRow) {
@@ -310,6 +346,61 @@ function composeTargetUrl(draft: CampaignSheetDraft) {
   return targetUrl || null
 }
 
+function normalizeAudienceType(value: string) {
+  const trimmed = value.trim().toLowerCase()
+  if (trimmed === 'member' || trimmed === '회원') return 'member'
+  if (trimmed === 'guest' || trimmed === '게스트') return 'guest'
+  return 'all'
+}
+
+function normalizeTargetRegionLevel(value: string) {
+  const trimmed = value.trim().toLowerCase()
+  if (trimmed === 'city' || trimmed === '시') return 'city'
+  if (trimmed === 'district' || trimmed === '구') return 'district'
+  if (trimmed === 'neighborhood' || trimmed === '동') return 'neighborhood'
+  return 'all'
+}
+
+function legacyRegionKeysFromDraft(draft: Pick<CampaignSheetDraft, 'targetRegionLevel' | 'targetCity' | 'targetDistrict' | 'targetNeighborhood'>) {
+  const level = normalizeTargetRegionLevel(draft.targetRegionLevel)
+  const city = draft.targetCity.trim()
+  const district = draft.targetDistrict.trim()
+  const neighborhood = draft.targetNeighborhood.trim()
+  if (level === 'city' && city) return [buildRegionKey('city', city)]
+  if (level === 'district' && city && district) return [buildRegionKey('district', city, district)]
+  if (level === 'neighborhood' && city && neighborhood) return [buildRegionKey('neighborhood', city, district || null, neighborhood)]
+  return []
+}
+
+function normalizeRegionKeysForDraft(draft: Pick<CampaignSheetDraft, 'targetRegionKeys' | 'targetRegionLevel' | 'targetCity' | 'targetDistrict' | 'targetNeighborhood'>) {
+  const explicitKeys = Array.isArray(draft.targetRegionKeys) ? draft.targetRegionKeys.filter((key) => Boolean(KOREA_REGION_LOOKUP[key])) : []
+  return explicitKeys.length > 0 ? explicitKeys : legacyRegionKeysFromDraft(draft)
+}
+
+function summarizeRegionSelection(draft: Pick<CampaignSheetDraft, 'targetRegionLevel' | 'targetRegionKeys' | 'targetCity' | 'targetDistrict' | 'targetNeighborhood'>) {
+  const level = normalizeTargetRegionLevel(draft.targetRegionLevel)
+  if (level === 'all') return '전체지역'
+  const keys = normalizeRegionKeysForDraft(draft)
+  return keys.length > 0 ? regionSummaryFromKeys(keys) : '선택 필요'
+}
+
+function regionTargetSummary(draft: CampaignSheetDraft) {
+  const audienceLabel = AUDIENCE_OPTIONS.find((option) => option.value === draft.audienceType)?.label ?? '전체'
+  const regionLabel = REGION_LEVEL_OPTIONS.find((option) => option.value === draft.targetRegionLevel)?.label ?? '전체'
+  return [audienceLabel, regionLabel, summarizeRegionSelection(draft)].filter(Boolean).join(' ')
+}
+
+function firstRegionParts(keys: string[]) {
+  const first = keys.find((key) => Boolean(KOREA_REGION_LOOKUP[key]))
+  if (!first) return { city: '', district: '', neighborhood: '' }
+  const option = KOREA_REGION_LOOKUP[first]
+  return {
+    city: option.cityName ?? '',
+    district: option.districtName ?? '',
+    neighborhood: option.neighborhoodName ?? '',
+  }
+}
+
 function landingSelectOptions(code: string) {
   if (!code.trim()) return LANDING_PRESETS
   const exists = LANDING_PRESETS.some((preset) => preset.value === code)
@@ -326,13 +417,26 @@ function bannerPresetsForSlot(slotKey: string) {
 
 function composeDateTime(value: string) {
   const trimmed = value.trim()
-  return trimmed ? `${trimmed}T00:00:00` : ''
+  if (!trimmed) return ''
+  const normalized = trimmed.replace('T', ' ').replace(/\./g, '-').replace(/\/+?/g, '-').replace(/\s+/g, ' ')
+  const match = normalized.match(/^(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}):(\d{2}))?$/)
+  if (!match) return trimmed
+  const day = match[1]
+  const hour = match[2] ?? '00'
+  const minute = match[3] ?? '00'
+  return `${day}T${hour}:${minute}:00`
 }
 
 function emptyCampaignDraft(slotKey = ''): CampaignSheetDraft {
   return {
     slotKey,
     sortOrder: '1',
+    audienceType: 'all',
+    targetRegionLevel: 'all',
+    targetCity: '',
+    targetDistrict: '',
+    targetNeighborhood: '',
+    targetRegionKeys: [],
     startDate: '',
     endDate: '',
     title: '',
@@ -348,6 +452,17 @@ function draftFromCampaign(campaign: CampaignRow): CampaignSheetDraft {
   return {
     slotKey: campaign.slotKey,
     sortOrder: String(campaign.sortOrder ?? 1),
+    audienceType: normalizeAudienceType(campaign.audienceType ?? 'all'),
+    targetRegionLevel: normalizeTargetRegionLevel(campaign.targetRegionLevel ?? 'all'),
+    targetCity: campaign.targetCity ?? '',
+    targetDistrict: campaign.targetDistrict ?? '',
+    targetNeighborhood: campaign.targetNeighborhood ?? '',
+    targetRegionKeys: Array.isArray(campaign.targetRegionKeys) ? campaign.targetRegionKeys.filter((key) => Boolean(KOREA_REGION_LOOKUP[key])) : legacyRegionKeysFromDraft({
+      targetRegionLevel: normalizeTargetRegionLevel(campaign.targetRegionLevel ?? 'all'),
+      targetCity: campaign.targetCity ?? '',
+      targetDistrict: campaign.targetDistrict ?? '',
+      targetNeighborhood: campaign.targetNeighborhood ?? '',
+    }),
     startDate: normalizeSheetDate(campaign.startAt),
     endDate: normalizeSheetDate(campaign.endAt),
     title: campaign.title ?? '',
@@ -389,6 +504,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
   const [setupUploadModalOpen, setSetupUploadModalOpen] = useState(false)
   const [setupUploadFile, setSetupUploadFile] = useState<File | null>(null)
   const [bannerUploadModal, setBannerUploadModal] = useState<BannerUploadModalState | null>(null)
+  const [regionPickerModal, setRegionPickerModal] = useState<RegionPickerModalState | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [historyVariantFilter, setHistoryVariantFilter] = useState<'all' | 'live' | 'reserved'>('all')
   const [historyStatusFilter, setHistoryStatusFilter] = useState<'all' | 'ended' | 'cancelled' | 'scheduled' | 'live'>('all')
@@ -421,8 +537,8 @@ export default function AdsConsole({ view }: { view: AdsView }) {
     const periodFrom = setupPeriodFrom.trim()
     const periodTo = setupPeriodTo.trim()
     const matchesPeriod = (draft: CampaignSheetDraft) => {
-      const start = draft.startDate
-      const end = draft.endDate
+      const start = draft.startDate.trim().slice(0, 10)
+      const end = draft.endDate.trim().slice(0, 10)
       if (periodFrom && end && end < periodFrom) return false
       if (periodTo && start && start > periodTo) return false
       return true
@@ -432,7 +548,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
       const slotLabel = slotsByKey[draft.slotKey]?.config.slotLabel ?? draft.slotKey
       const landingLabel = landingLabelFromCode(draft.landingCode)
       const values: Record<SetupSearchField, string> = {
-        all: [slotLabel, draft.title, draft.message, draft.ctaLabel, draft.targetUrl, landingLabel].join(' ').toLowerCase(),
+        all: [slotLabel, draft.title, draft.message, draft.ctaLabel, draft.targetUrl, landingLabel, regionTargetSummary(draft)].join(' ').toLowerCase(),
         title: draft.title.toLowerCase(),
         message: draft.message.toLowerCase(),
         cta: draft.ctaLabel.toLowerCase(),
@@ -591,6 +707,50 @@ export default function AdsConsole({ view }: { view: AdsView }) {
     setNewRows((prev) => prev.map((row) => (row.id === id ? { ...row, draft: { ...row.draft, ...patch } } : row)))
   }
 
+  function patchRowDraft(rowId: string, isNew: boolean, patch: Partial<CampaignSheetDraft>) {
+    if (isNew) updateNewRow(rowId, patch)
+    else updateCampaignDraft(rowId, patch)
+  }
+
+  function openRegionPicker(rowId: string, isNew: boolean, draft: CampaignSheetDraft) {
+    const level = normalizeTargetRegionLevel(draft.targetRegionLevel) as RegionLevel
+    const normalizedKeys = normalizeRegionKeysForDraft(draft)
+    const firstParts = firstRegionParts(normalizedKeys)
+    setRegionPickerModal({
+      rowId,
+      isNew,
+      level,
+      city: firstParts.city || KOREA_CITIES[0]?.cityName || '',
+      district: firstParts.district || '',
+      workingKeys: normalizedKeys,
+    })
+  }
+
+  function toggleRegionPickerKey(key: string) {
+    setRegionPickerModal((prev) => {
+      if (!prev) return prev
+      const exists = prev.workingKeys.includes(key)
+      return {
+        ...prev,
+        workingKeys: exists ? prev.workingKeys.filter((item) => item !== key) : [...prev.workingKeys, key],
+      }
+    })
+  }
+
+  function applyRegionPickerSelection() {
+    if (!regionPickerModal) return
+    const nextKeys = Array.from(new Set(regionPickerModal.workingKeys.filter((key) => Boolean(KOREA_REGION_LOOKUP[key])))).sort()
+    const primary = firstRegionParts(nextKeys)
+    patchRowDraft(regionPickerModal.rowId, regionPickerModal.isNew, {
+      targetRegionLevel: regionPickerModal.level,
+      targetRegionKeys: nextKeys,
+      targetCity: primary.city,
+      targetDistrict: primary.district,
+      targetNeighborhood: primary.neighborhood,
+    })
+    setRegionPickerModal(null)
+  }
+
   function updateSlotStatus(slotKey: string, next: 'active' | 'inactive') {
     setSlotStatusDrafts((prev) => ({ ...prev, [slotKey]: next }))
   }
@@ -646,11 +806,15 @@ export default function AdsConsole({ view }: { view: AdsView }) {
   async function downloadSetupTemplate() {
     const XLSX = await import('xlsx')
     const workbook = XLSX.utils.book_new()
-    const sheet = XLSX.utils.json_to_sheet([
+    const availableSlots = slots.length > 0 ? slots : fallbackSlots
+    const templateSheet = XLSX.utils.json_to_sheet([
       {
         정렬: '1',
-        슬롯종류: slots[0]?.slotKey ?? fallbackSlots[0]?.slotKey ?? '',
+        슬롯종류: availableSlots[0]?.slotKey ?? '',
         연결상태: 'active',
+        고객구분: 'all',
+        지역단위: 'all',
+        지역선택: '',
         시작일: '',
         종료일: '',
         제목: '',
@@ -661,7 +825,18 @@ export default function AdsConsole({ view }: { view: AdsView }) {
         배너: '',
       },
     ])
-    XLSX.utils.book_append_sheet(workbook, sheet, 'AdsSetupTemplate')
+    const slotGuideSheet = XLSX.utils.json_to_sheet(
+      availableSlots.map((slot) => ({
+        슬롯종류: slot.slotKey,
+        슬롯이름: slot.config.slotLabel?.trim() || slot.slotKey,
+        위치: slot.config.placementNote?.trim() || '-',
+        화면: slot.config.screen ?? '',
+        포지션: slot.config.position ?? '',
+        날짜입력예시: 'YYYY-MM-DD 00:00',
+      })),
+    )
+    XLSX.utils.book_append_sheet(workbook, templateSheet, 'AdsSetupTemplate')
+    XLSX.utils.book_append_sheet(workbook, slotGuideSheet, 'SlotGuide')
     XLSX.writeFile(workbook, 'cartly-ads-setup-template.xlsx')
   }
 
@@ -732,6 +907,12 @@ export default function AdsConsole({ view }: { view: AdsView }) {
         await postJson<{ ok: boolean; data: CampaignRow }>('/admin/ads/campaigns', {
           slotKey: draft.slotKey,
           sortOrder: Number.parseInt(draft.sortOrder || '1', 10) || 1,
+          audienceType: draft.audienceType,
+          targetRegionLevel: draft.targetRegionLevel,
+          targetRegionKeys: normalizeRegionKeysForDraft(draft),
+          targetCity: draft.targetCity.trim() || null,
+          targetDistrict: draft.targetDistrict.trim() || null,
+          targetNeighborhood: draft.targetNeighborhood.trim() || null,
           startAt: composeDateTime(draft.startDate),
           endAt: composeDateTime(draft.endDate),
           title: draft.title,
@@ -751,6 +932,12 @@ export default function AdsConsole({ view }: { view: AdsView }) {
         await putJson<{ ok: boolean; data: CampaignRow }>(`/admin/ads/campaigns/${campaignId}`, {
           slotKey: draft.slotKey,
           sortOrder: Number.parseInt(draft.sortOrder || '1', 10) || 1,
+          audienceType: draft.audienceType,
+          targetRegionLevel: draft.targetRegionLevel,
+          targetRegionKeys: normalizeRegionKeysForDraft(draft),
+          targetCity: draft.targetCity.trim() || null,
+          targetDistrict: draft.targetDistrict.trim() || null,
+          targetNeighborhood: draft.targetNeighborhood.trim() || null,
           startAt: composeDateTime(draft.startDate),
           endAt: composeDateTime(draft.endDate),
           title: draft.title,
@@ -785,10 +972,14 @@ export default function AdsConsole({ view }: { view: AdsView }) {
 
   async function downloadSetupSheet() {
     const XLSX = await import('xlsx')
-    const rows = visibleSetupRows.map((row, index) => ({
+    const rows = visibleSetupRows.map((row) => ({
       정렬: row.draft.sortOrder,
       슬롯종류: row.draft.slotKey,
       연결상태: slotStatusDrafts[row.draft.slotKey] ?? slotsByKey[row.draft.slotKey]?.status ?? 'active',
+      고객구분: row.draft.audienceType,
+      지역단위: row.draft.targetRegionLevel,
+      지역선택: normalizeRegionKeysForDraft(row.draft).join(', '),
+      지역요약: summarizeRegionSelection(row.draft),
       시작일: row.draft.startDate,
       종료일: row.draft.endDate,
       제목: row.draft.title,
@@ -820,19 +1011,47 @@ export default function AdsConsole({ view }: { view: AdsView }) {
           const rawStatus = String(row['연결상태'] || row['slotStatus'] || '').trim().toLowerCase()
           if (rawStatus === 'inactive' || rawStatus === '중지') nextSlotStatuses[slotKey] = 'inactive'
           else if (rawStatus === 'active' || rawStatus === '연결') nextSlotStatuses[slotKey] = 'active'
+          const audienceType = normalizeAudienceType(String(row['고객구분'] || row['audienceType'] || 'all'))
+          const targetRegionLevel = normalizeTargetRegionLevel(String(row['지역단위'] || row['targetRegionLevel'] || 'all'))
+          const rawRegionSelection = String(row['지역선택'] || row['targetRegionKeys'] || '').trim()
+          let targetRegionKeys = regionKeysFromTokens(parseRegionTokens(rawRegionSelection))
+          const targetCity = String(row['시'] || row['targetCity'] || '').trim()
+          const targetDistrict = String(row['구'] || row['targetDistrict'] || '').trim()
+          const targetNeighborhood = String(row['동'] || row['targetNeighborhood'] || '').trim()
+          if (targetRegionKeys.length === 0) {
+            targetRegionKeys = legacyRegionKeysFromDraft({ targetRegionLevel, targetCity, targetDistrict, targetNeighborhood })
+          }
+          const primary = firstRegionParts(targetRegionKeys)
+          const startDate = normalizeSheetDate(String(row['시작일'] || row['startDate'] || ''))
+          const endDate = normalizeSheetDate(String(row['종료일'] || row['endDate'] || ''))
+          const title = String(row['제목'] || row['title'] || '').trim()
+          const message = String(row['문구'] || row['message'] || '').trim()
+          const ctaLabel = String(row['CTA'] || row['ctaLabel'] || '').trim()
+          const targetUrl = String(row['링크URL'] || row['targetUrl'] || '').trim()
+          const landingCode = String(row['랜딩페이지'] || row['landingPage'] || '').trim()
+          const imageUrl = String(row['배너'] || row['imageUrl'] || '').trim()
+          if (!startDate && !endDate && !title && !message && !ctaLabel && !targetUrl && !landingCode && !imageUrl && targetRegionKeys.length === 0 && audienceType === 'all' && targetRegionLevel === 'all') {
+            return null
+          }
           return {
             id: `draft-import-${Date.now()}-${index}`,
             draft: {
               slotKey,
               sortOrder: String(row['정렬'] || row['sortOrder'] || '1').trim() || '1',
-              startDate: normalizeSheetDate(String(row['시작일'] || row['startDate'] || '')),
-              endDate: normalizeSheetDate(String(row['종료일'] || row['endDate'] || '')),
-              title: String(row['제목'] || row['title'] || '').trim(),
-              message: String(row['문구'] || row['message'] || '').trim(),
-              ctaLabel: String(row['CTA'] || row['ctaLabel'] || '').trim(),
-              targetUrl: String(row['링크URL'] || row['targetUrl'] || '').trim(),
-              landingCode: String(row['랜딩페이지'] || row['landingPage'] || '').trim(),
-              imageUrl: String(row['배너'] || row['imageUrl'] || '').trim(),
+              audienceType,
+              targetRegionLevel,
+              targetCity: primary.city || targetCity,
+              targetDistrict: primary.district || targetDistrict,
+              targetNeighborhood: primary.neighborhood || targetNeighborhood,
+              targetRegionKeys,
+              startDate,
+              endDate,
+              title,
+              message,
+              ctaLabel,
+              targetUrl,
+              landingCode,
+              imageUrl,
             },
           }
         })
@@ -1177,7 +1396,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
           </div>
 
           <div className="exploreSheetViewport adsSetupSheetViewport">
-            <table className="exploreSimpleSheet adsSetupSheet adsSetupUnifiedSheet adsTightSetupSheet" style={{ width: 2860, minWidth: 2860 }}>
+            <table className="exploreSimpleSheet adsSetupSheet adsSetupUnifiedSheet adsTightSetupSheet" style={{ width: 3360, minWidth: 3360 }}>
               <thead>
                 <tr>
                   <th>
@@ -1191,6 +1410,9 @@ export default function AdsConsole({ view }: { view: AdsView }) {
                   <th>정렬</th>
                   <th>슬롯종류</th>
                   <th>연결상태</th>
+                  <th>고객구분</th>
+                  <th>지역단위</th>
+                  <th>지역선택</th>
                   <th>시작일</th>
                   <th>종료일</th>
                   <th>제목</th>
@@ -1250,10 +1472,41 @@ export default function AdsConsole({ view }: { view: AdsView }) {
                         </select>
                       </td>
                       <td>
-                        <input type="date" className="textInput exploreSheetInput adsSheetDateInput" value={row.draft.startDate} disabled={usingFallback} onChange={(e) => row.isNew ? updateNewRow(row.id, { startDate: e.target.value }) : updateCampaignDraft(row.id, { startDate: e.target.value })} />
+                        <select className="textInput exploreSheetInput adsSheetSmallSelect" value={row.draft.audienceType} disabled={usingFallback} onChange={(e) => row.isNew ? updateNewRow(row.id, { audienceType: e.target.value }) : updateCampaignDraft(row.id, { audienceType: e.target.value })}>
+                          {AUDIENCE_OPTIONS.map((option) => (
+                            <option key={`${row.id}-audience-${option.value}`} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
                       </td>
                       <td>
-                        <input type="date" className="textInput exploreSheetInput adsSheetDateInput" value={row.draft.endDate} disabled={usingFallback} onChange={(e) => row.isNew ? updateNewRow(row.id, { endDate: e.target.value }) : updateCampaignDraft(row.id, { endDate: e.target.value })} />
+                        <select className="textInput exploreSheetInput adsSheetSmallSelect" value={row.draft.targetRegionLevel} disabled={usingFallback} onChange={(e) => patchRowDraft(row.id, row.isNew, {
+                          targetRegionLevel: e.target.value,
+                          targetRegionKeys: [],
+                          targetCity: '',
+                          targetDistrict: '',
+                          targetNeighborhood: '',
+                        })}>
+                          {REGION_LEVEL_OPTIONS.map((option) => (
+                            <option key={`${row.id}-region-${option.value}`} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="ghostBtn ghostBtnSmall adsRegionPickerBtn"
+                          disabled={usingFallback || row.draft.targetRegionLevel === 'all'}
+                          onClick={() => openRegionPicker(row.id, row.isNew, row.draft)}
+                        >
+                          <span className="adsRegionPickerBtnLabel">{summarizeRegionSelection(row.draft)}</span>
+                          <span className="adsRegionPickerBtnMeta">선택</span>
+                        </button>
+                      </td>
+                      <td>
+                        <input className="textInput exploreSheetInput adsSheetDateInput" value={row.draft.startDate} disabled={usingFallback} placeholder="YYYY-MM-DD 00:00" onChange={(e) => row.isNew ? updateNewRow(row.id, { startDate: e.target.value }) : updateCampaignDraft(row.id, { startDate: e.target.value })} />
+                      </td>
+                      <td>
+                        <input className="textInput exploreSheetInput adsSheetDateInput" value={row.draft.endDate} disabled={usingFallback} placeholder="YYYY-MM-DD 00:00" onChange={(e) => row.isNew ? updateNewRow(row.id, { endDate: e.target.value }) : updateCampaignDraft(row.id, { endDate: e.target.value })} />
                       </td>
                       <td><input className="textInput exploreSheetInput adsSheetTextInput" value={row.draft.title} disabled={usingFallback} onChange={(e) => row.isNew ? updateNewRow(row.id, { title: e.target.value }) : updateCampaignDraft(row.id, { title: e.target.value })} /></td>
                       <td><input className="textInput exploreSheetInput adsSheetTextInput" value={row.draft.message} disabled={usingFallback} onChange={(e) => row.isNew ? updateNewRow(row.id, { message: e.target.value }) : updateCampaignDraft(row.id, { message: e.target.value })} /></td>
@@ -1300,7 +1553,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
                 })}
                 {visibleSetupRows.length === 0 ? (
                   <tr>
-                    <td colSpan={13} style={{ textAlign: 'center', color: '#64748b' }}>조건에 맞는 campaign row가 없어.</td>
+                    <td colSpan={16} style={{ textAlign: 'center', color: '#64748b' }}>조건에 맞는 campaign row가 없어.</td>
                   </tr>
                 ) : null}
               </tbody>
@@ -1341,6 +1594,93 @@ export default function AdsConsole({ view }: { view: AdsView }) {
             <div className="adsModalFooter">
               <button className="ghostBtn ghostBtnSmall" type="button" onClick={() => { setSetupUploadModalOpen(false); setSetupUploadFile(null) }}>취소</button>
               <button className="primaryBtn ghostBtnSmall" type="button" onClick={() => void confirmSetupUpload()}>시트 넣기</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {regionPickerModal ? (
+        <div className="adsModalBackdrop" onClick={() => setRegionPickerModal(null)}>
+          <div className="adsModalCard adsRegionPickerModal" onClick={(event) => event.stopPropagation()}>
+            <div className="adsModalHeader">
+              <div>
+                <h3 className="panelTitle" style={{ marginBottom: 6 }}>지역 선택</h3>
+                <p className="pageDesc" style={{ margin: 0 }}>공식 행정구역 기준으로 좁혀서 여러 개를 선택해. 저장은 같은 row 안에서 유지돼.</p>
+              </div>
+              <button className="ghostBtn ghostBtnSmall adsModalCloseBtn" type="button" onClick={() => setRegionPickerModal(null)}>닫기</button>
+            </div>
+            <div className="adsModalBody">
+              <div className="adsRegionPickerFilters">
+                <div className="adsModalInfoCard">
+                  <strong>지역단위</strong>
+                  <span>{REGION_LEVEL_OPTIONS.find((option) => option.value === regionPickerModal.level)?.label ?? regionPickerModal.level}</span>
+                </div>
+                {(regionPickerModal.level === 'district' || regionPickerModal.level === 'neighborhood') ? (
+                  <label className="field" style={{ margin: 0 }}>
+                    <span className="fieldLabel">시</span>
+                    <select
+                      className="textInput"
+                      value={regionPickerModal.city}
+                      onChange={(e) => setRegionPickerModal((prev) => prev ? { ...prev, city: e.target.value, district: '' } : prev)}
+                    >
+                      {KOREA_CITIES.map((option) => (
+                        <option key={option.key} value={option.cityName}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+                {regionPickerModal.level === 'neighborhood' ? (
+                  <label className="field" style={{ margin: 0 }}>
+                    <span className="fieldLabel">구</span>
+                    <select
+                      className="textInput"
+                      value={regionPickerModal.district}
+                      onChange={(e) => setRegionPickerModal((prev) => prev ? { ...prev, district: e.target.value } : prev)}
+                    >
+                      <option value="">전체 구/직속동</option>
+                      {(KOREA_DISTRICTS_BY_CITY[regionPickerModal.city] ?? []).map((option) => (
+                        <option key={option.key} value={option.districtName ?? ''}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+              </div>
+              <div className="adsRegionPickerSelectionRow">
+                <div className="adsModalInfoCard">
+                  <strong>선택요약</strong>
+                  <span>{regionPickerModal.workingKeys.length > 0 ? regionSummaryFromKeys(regionPickerModal.workingKeys) : '선택된 지역 없음'}</span>
+                </div>
+                <button className="ghostBtn ghostBtnSmall" type="button" onClick={() => setRegionPickerModal((prev) => prev ? { ...prev, workingKeys: [] } : prev)}>선택 비우기</button>
+              </div>
+              <div className="adsRegionPickerList">
+                {regionOptionsForLevel(regionPickerModal.level, regionPickerModal.city, regionPickerModal.district).map((option) => (
+                  <label key={option.key} className="adsRegionPickerOption">
+                    <input
+                      type="checkbox"
+                      checked={regionPickerModal.workingKeys.includes(option.key)}
+                      onChange={() => toggleRegionPickerKey(option.key)}
+                    />
+                    <span>{option.label}</span>
+                    <small>{option.fullLabel}</small>
+                  </label>
+                ))}
+                {regionOptionsForLevel(regionPickerModal.level, regionPickerModal.city, regionPickerModal.district).length === 0 ? (
+                  <div className="adsRegionPickerEmpty">선택 가능한 지역이 아직 없어. 시/구 필터를 먼저 골라줘.</div>
+                ) : null}
+              </div>
+              {regionPickerModal.workingKeys.length > 0 ? (
+                <div className="adsRegionPickerChips">
+                  {regionPickerModal.workingKeys.map((key) => (
+                    <button key={key} type="button" className="adsRegionChip" onClick={() => toggleRegionPickerKey(key)}>
+                      {KOREA_REGION_LOOKUP[key]?.fullLabel ?? key} ×
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <div className="adsModalFooter">
+              <button className="ghostBtn ghostBtnSmall" type="button" onClick={() => setRegionPickerModal(null)}>취소</button>
+              <button className="primaryBtn ghostBtnSmall" type="button" onClick={applyRegionPickerSelection}>적용</button>
             </div>
           </div>
         </div>

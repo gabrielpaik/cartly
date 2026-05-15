@@ -30,10 +30,15 @@ class _CartlyAppState extends State<CartlyApp> with WidgetsBindingObserver {
     AppConfigStore.instance.runtime,
   ]);
 
+  void _handleLocationSnapshotChanged() {
+    unawaited(AppConfigStore.instance.refresh());
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    AppLocationService.instance.snapshot.addListener(_handleLocationSnapshotChanged);
     unawaited(AppConfigStore.instance.load());
     unawaited(AppAttentionService.instance.load());
     unawaited(PushNavigationService.instance.initialize());
@@ -49,6 +54,7 @@ class _CartlyAppState extends State<CartlyApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    AppLocationService.instance.snapshot.removeListener(_handleLocationSnapshotChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

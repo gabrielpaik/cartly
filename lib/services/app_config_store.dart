@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 
 import '../models/app_ad_slot.dart';
 import '../models/app_branding.dart';
+import 'app_location_service.dart';
+import 'auth_store.dart';
 import 'my_page_insights.dart';
 
 class AppConfigStore {
@@ -135,6 +137,32 @@ class AppConfigStore {
       final client = HttpClient()
         ..connectionTimeout = const Duration(seconds: 4);
       final req = await client.getUrl(Uri.parse('$_baseUrl/v1/app-config'));
+      final session = AuthStore.instance.session.value;
+      if (session != null && session.authToken.trim().isNotEmpty) {
+        req.headers.set(
+          HttpHeaders.authorizationHeader,
+          'Bearer ${session.authToken}',
+        );
+      }
+      final snapshot = AppLocationService.instance.snapshot.value;
+      final city = snapshot?.normalizedCityName;
+      final district = snapshot?.normalizedDistrictName;
+      final neighborhood = snapshot?.normalizedNeighborhoodName;
+      if (city != null && city.isNotEmpty) {
+        req.headers.set('X-Cartly-City', Uri.encodeComponent(city));
+      }
+      if (district != null && district.isNotEmpty) {
+        req.headers.set('X-Cartly-District', Uri.encodeComponent(district));
+      }
+      if (neighborhood != null && neighborhood.isNotEmpty) {
+        req.headers.set('X-Cartly-Neighborhood', Uri.encodeComponent(neighborhood));
+      }
+      if (snapshot != null) {
+        req.headers.set(
+          'X-Cartly-Region-Captured-At',
+          snapshot.capturedAt.toIso8601String(),
+        );
+      }
       final res = await req.close();
       if (res.statusCode < 200 || res.statusCode >= 300) {
         client.close(force: true);

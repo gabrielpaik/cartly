@@ -1,11 +1,13 @@
 from datetime import datetime, timezone
+from typing import Optional
+from urllib.parse import unquote
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from sqlalchemy.orm import Session as OrmSession
 
 from ..core.settings import settings
-from ..deps import db_dep
-from ..services.ad_slot_service import app_ad_slots_config
+from ..deps import current_user_dep, db_dep
+from ..services.ad_slot_service import app_ad_slots_config, sync_user_region_context
 from ..services.app_copy_service import get_app_copy
 from ..services.branding_service import get_branding, project_branding
 from ..services.content_settings_service import apply_due_content_schedule
@@ -18,11 +20,45 @@ router = APIRouter()
 
 
 @router.get('/app-config')
-def app_config(db: OrmSession = Depends(db_dep)):
+def app_config(
+    db: OrmSession = Depends(db_dep),
+    current_user=Depends(current_user_dep),
+    x_cartly_city: Optional[str] = Header(default=None),
+    x_cartly_district: Optional[str] = Header(default=None),
+    x_cartly_neighborhood: Optional[str] = Header(default=None),
+    x_cartly_region_captured_at: Optional[str] = Header(default=None),
+):
     apply_due_content_schedule(db)
+    captured_at = None
+    if x_cartly_region_captured_at:
+        try:
+            captured_at = datetime.fromisoformat(x_cartly_region_captured_at.strip())
+        except ValueError:
+            captured_at = None
+    decoded_city = unquote(x_cartly_city.strip()) if x_cartly_city else None
+    decoded_district = unquote(x_cartly_district.strip()) if x_cartly_district else None
+    decoded_neighborhood = unquote(x_cartly_neighborhood.strip()) if x_cartly_neighborhood else None
+    sync_user_region_context(
+        db,
+        current_user,
+        city=decoded_city,
+        district=decoded_district,
+        neighborhood=decoded_neighborhood,
+        captured_at=captured_at,
+    )
+    if current_user is not None and any([decoded_city, decoded_district, decoded_neighborhood]):
+        db.commit()
+        db.refresh(current_user)
     raw_branding = get_branding(db)
     branding = project_branding(raw_branding)
-    ad_slots = app_ad_slots_config(db, settings.ads_enabled)
+    ad_slots = app_ad_slots_config(
+        db,
+        settings.ads_enabled,
+        current_user=current_user,
+        city=decoded_city,
+        district=decoded_district,
+        neighborhood=decoded_neighborhood,
+    )
     copy = get_app_copy(db, raw_branding)
     coupang_runtime = get_coupang_runtime_status(db)
     push_runtime = get_push_runtime_status(db)

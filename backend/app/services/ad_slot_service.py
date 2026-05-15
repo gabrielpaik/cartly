@@ -1,5 +1,6 @@
 import io
 import json
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -8,7 +9,7 @@ from openpyxl.styles import Font
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as OrmSession
 
-from ..db.models import AdCampaign, AdClick, AdImpression, AdSlot
+from ..db.models import AdCampaign, AdClick, AdImpression, AdSlot, User
 from .ad_slot_helpers import (
     DEFAULT_AD_SLOTS,
     _campaign_image_formula_url,
@@ -43,6 +44,366 @@ def ensure_default_ad_slots(db: OrmSession) -> None:
 
 def _defaults_by_key() -> Dict[str, Dict[str, Any]]:
     return {slot['slotKey']: slot for slot in DEFAULT_AD_SLOTS}
+
+
+AUDIENCE_TYPES = {'all', 'member', 'guest'}
+REGION_LEVELS = {'all', 'city', 'district', 'neighborhood'}
+REGION_LEVEL_SCORES = {'all': 0, 'city': 1, 'district': 2, 'neighborhood': 3}
+
+
+@dataclass
+class AdRuntimeContext:
+    audience_type: str = 'all'
+    city: Optional[str] = None
+    district: Optional[str] = None
+    neighborhood: Optional[str] = None
+
+
+def _clean_region_string(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    cleaned = str(value).strip()
+    if not cleaned:
+        return None
+    return ' '.join(cleaned.split())
+
+
+def _normalize_audience_type(value: Any) -> str:
+    cleaned = str(value or '').strip().lower()
+    aliases = {
+        '': 'all',
+        'all': 'all',
+        '전체': 'all',
+        'member': 'member',
+        '회원': 'member',
+        'guest': 'guest',
+        '게스트': 'guest',
+    }
+    return aliases.get(cleaned, 'all')
+
+
+def _normalize_region_level(value: Any) -> str:
+    cleaned = str(value or '').strip().lower()
+    aliases = {
+        '': 'all',
+        'all': 'all',
+        '전체': 'all',
+        'city': 'city',
+        '시': 'city',
+        'district': 'district',
+        '구': 'district',
+        'neighborhood': 'neighborhood',
+        '동': 'neighborhood',
+    }
+    return aliases.get(cleaned, 'all')
+
+
+def _resolve_region_label(city: Optional[str], district: Optional[str], neighborhood: Optional[str]) -> Optional[str]:
+    primary = neighborhood or district
+    if primary and city:
+        return f'{primary}, {city}'
+    return primary or city
+
+
+def _resolve_target_region_level(
+    level: Any,
+    city: Optional[str],
+    district: Optional[str],
+    neighborhood: Optional[str],
+) -> str:
+    normalized = _normalize_region_level(level)
+    if normalized != 'all':
+        return normalized
+    if neighborhood:
+        return 'neighborhood'
+    if district:
+        return 'district'
+    if city:
+        return 'city'
+    return 'all'
+
+
+def _region_key_from_values(
+    level: str,
+    city: Optional[str],
+    district: Optional[str] = None,
+    neighborhood: Optional[str] = None,
+) -> Optional[str]:
+    normalized_level = _normalize_region_level(level)
+    normalized_city = _clean_region_string(city)
+    normalized_district = _clean_region_string(district)
+    normalized_neighborhood = _clean_region_string(neighborhood)
+    if normalized_level == 'all':
+        return None
+    if normalized_level == 'city':
+        return f'city:{normalized_city}' if normalized_city else None
+    if normalized_level == 'district':
+        return f'district:{normalized_city}/{normalized_district or "_"}' if normalized_city else None
+    if normalized_level == 'neighborhood':
+        return f'neighborhood:{normalized_city}/{normalized_district or "_"}/{normalized_neighborhood or "_"}' if normalized_city else None
+    return None
+
+
+def _parse_region_key(value: Any) -> Optional[tuple[str, Optional[str], Optional[str], Optional[str]]]:
+    raw = str(value or '').strip()
+    if not raw or raw == 'all' or ':' not in raw:
+        return None
+    level_raw, remainder = raw.split(':', 1)
+    level = _normalize_region_level(level_raw)
+    if level == 'city':
+        city = _clean_region_string(remainder)
+        return (level, city, None, None) if city else None
+    if level == 'district':
+        city_raw, _, district_raw = remainder.partition('/')
+        city = _clean_region_string(city_raw)
+        district = _clean_region_string(district_raw)
+        if district == '_':
+            district = None
+        return (level, city, district, None) if city else None
+    if level == 'neighborhood':
+        parts = remainder.split('/')
+        if len(parts) < 3:
+            return None
+        city = _clean_region_string(parts[0])
+        district = _clean_region_string(parts[1])
+        neighborhood = _clean_region_string('/'.join(parts[2:]))
+        if district == '_':
+            district = None
+        if neighborhood == '_':
+            neighborhood = None
+        return (level, city, district, neighborhood) if city else None
+    return None
+
+
+def _normalize_region_keys(value: Any) -> List[str]:
+    if value is None:
+        raw_values: List[Any] = []
+    elif isinstance(value, (list, tuple, set)):
+        raw_values = list(value)
+    else:
+        raw_values = []
+        for chunk in str(value).replace(';', ',').split(','):
+            raw_values.extend(part for part in chunk.splitlines())
+    normalized: List[str] = []
+    seen: set[str] = set()
+    for raw in raw_values:
+        parsed = _parse_region_key(raw)
+        if not parsed:
+            continue
+        key = _region_key_from_values(parsed[0], parsed[1], parsed[2], parsed[3])
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        normalized.append(key)
+    return sorted(normalized)
+
+
+def _region_keys_from_legacy_fields(
+    level: str,
+    city: Optional[str],
+    district: Optional[str],
+    neighborhood: Optional[str],
+) -> List[str]:
+    key = _region_key_from_values(level, city, district, neighborhood)
+    return [key] if key else []
+
+
+def _campaign_audience_type(campaign: AdCampaign) -> str:
+    return _normalize_audience_type(getattr(campaign, 'audience_type', None))
+
+
+def _campaign_region_level(campaign: AdCampaign) -> str:
+    return _resolve_target_region_level(
+        getattr(campaign, 'target_region_level', None),
+        _clean_region_string(getattr(campaign, 'target_city', None)),
+        _clean_region_string(getattr(campaign, 'target_district', None)),
+        _clean_region_string(getattr(campaign, 'target_neighborhood', None)),
+    )
+
+
+def _campaign_region_keys(campaign: AdCampaign) -> List[str]:
+    stored = getattr(campaign, 'target_region_keys_json', None)
+    if stored and isinstance(stored, str):
+        try:
+            parsed = json.loads(stored)
+        except Exception:
+            parsed = None
+        keys = _normalize_region_keys(parsed)
+        if keys:
+            return keys
+    return _region_keys_from_legacy_fields(
+        _campaign_region_level(campaign),
+        getattr(campaign, 'target_city', None),
+        getattr(campaign, 'target_district', None),
+        getattr(campaign, 'target_neighborhood', None),
+    )
+
+
+def _campaign_target_bucket_from_values(
+    audience_type: str,
+    region_level: str,
+    region_keys: Optional[List[str]] = None,
+    city: Optional[str] = None,
+    district: Optional[str] = None,
+    neighborhood: Optional[str] = None,
+) -> tuple:
+    keys = _normalize_region_keys(region_keys) if region_keys is not None else _region_keys_from_legacy_fields(region_level, city, district, neighborhood)
+    return (
+        _normalize_audience_type(audience_type),
+        _normalize_region_level(region_level),
+        tuple(sorted(keys)),
+    )
+
+
+def _campaign_target_bucket(campaign: AdCampaign) -> tuple:
+    return _campaign_target_bucket_from_values(
+        _campaign_audience_type(campaign),
+        _campaign_region_level(campaign),
+        _campaign_region_keys(campaign),
+    )
+
+
+def _campaign_target_specificity(campaign: AdCampaign) -> tuple:
+    region_keys = _campaign_region_keys(campaign)
+    return (
+        REGION_LEVEL_SCORES.get(_campaign_region_level(campaign), 0),
+        1 if _campaign_audience_type(campaign) != 'all' else 0,
+        -len(region_keys),
+    )
+
+
+def build_ad_runtime_context(
+    current_user: Optional[User] = None,
+    *,
+    city: Optional[str] = None,
+    district: Optional[str] = None,
+    neighborhood: Optional[str] = None,
+) -> AdRuntimeContext:
+    resolved_city = _clean_region_string(city) or _clean_region_string(getattr(current_user, 'last_region_city', None))
+    resolved_district = _clean_region_string(district) or _clean_region_string(getattr(current_user, 'last_region_district', None))
+    resolved_neighborhood = _clean_region_string(neighborhood) or _clean_region_string(getattr(current_user, 'last_region_neighborhood', None))
+    audience_type = 'all'
+    if current_user is not None:
+        audience_type = 'guest' if bool(getattr(current_user, 'is_guest', False)) else 'member'
+    return AdRuntimeContext(
+        audience_type=audience_type,
+        city=resolved_city,
+        district=resolved_district,
+        neighborhood=resolved_neighborhood,
+    )
+
+
+def sync_user_region_context(
+    db: OrmSession,
+    user: Optional[User],
+    *,
+    city: Optional[str] = None,
+    district: Optional[str] = None,
+    neighborhood: Optional[str] = None,
+    captured_at: Optional[datetime] = None,
+) -> None:
+    if user is None:
+        return
+    next_city = _clean_region_string(city)
+    next_district = _clean_region_string(district)
+    next_neighborhood = _clean_region_string(neighborhood)
+    if not any([next_city, next_district, next_neighborhood]):
+        return
+    user.last_region_city = next_city
+    user.last_region_district = next_district
+    user.last_region_neighborhood = next_neighborhood
+    user.last_region_label = _resolve_region_label(next_city, next_district, next_neighborhood)
+    user.last_region_captured_at = captured_at or datetime.utcnow()
+    db.add(user)
+
+
+def _context_region_key(level: str, context: Optional[AdRuntimeContext]) -> Optional[str]:
+    if context is None:
+        return None
+    if level == 'city':
+        return _region_key_from_values('city', context.city)
+    if level == 'district':
+        return _region_key_from_values('district', context.city, context.district)
+    if level == 'neighborhood':
+        return _region_key_from_values('neighborhood', context.city, context.district, context.neighborhood)
+    return None
+
+
+def _campaign_matches_runtime_context(campaign: AdCampaign, context: Optional[AdRuntimeContext]) -> bool:
+    if context is None:
+        return True
+
+    audience_type = _campaign_audience_type(campaign)
+    if audience_type != 'all' and audience_type != context.audience_type:
+        return False
+
+    region_level = _campaign_region_level(campaign)
+    if region_level == 'all':
+        return True
+    runtime_key = _context_region_key(region_level, context)
+    if not runtime_key:
+        return False
+    return runtime_key in _campaign_region_keys(campaign)
+
+
+def _region_label_from_key(key: str) -> str:
+    parsed = _parse_region_key(key)
+    if not parsed:
+        return key
+    _, city, district, neighborhood = parsed
+    return ' / '.join([part for part in [city, district, neighborhood] if part]) or key
+
+
+def _campaign_target_label(
+    audience_type: str,
+    region_level: str,
+    region_keys: Optional[List[str]] = None,
+    city: Optional[str] = None,
+    district: Optional[str] = None,
+    neighborhood: Optional[str] = None,
+) -> str:
+    audience_labels = {'all': '전체', 'member': '회원', 'guest': '게스트'}
+    region_labels = {'all': '전체지역', 'city': '시', 'district': '구', 'neighborhood': '동'}
+    keys = _normalize_region_keys(region_keys) if region_keys is not None else _region_keys_from_legacy_fields(region_level, city, district, neighborhood)
+    if region_level == 'all':
+        region_detail = '-'
+    else:
+        labels = [_region_label_from_key(key) for key in keys]
+        if not labels:
+            region_detail = '-'
+        elif len(labels) == 1:
+            region_detail = labels[0]
+        else:
+            region_detail = f'{labels[0]} 외 {len(labels) - 1}'
+    return f"{audience_labels.get(audience_type, '전체')} · {region_labels.get(region_level, '전체지역')} · {region_detail}"
+
+
+def _resolve_primary_region_fields(level: str, region_keys: List[str]) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    parsed = [entry for entry in (_parse_region_key(key) for key in region_keys) if entry]
+    if not parsed:
+        return (None, None, None)
+    cities = sorted({entry[1] for entry in parsed if entry[1]})
+    districts = sorted({entry[2] for entry in parsed if entry[2]})
+    neighborhoods = sorted({entry[3] for entry in parsed if entry[3]})
+    city = cities[0] if len(cities) == 1 else None
+    district = districts[0] if len(districts) == 1 and level in {'district', 'neighborhood'} else None
+    neighborhood = neighborhoods[0] if len(neighborhoods) == 1 and level == 'neighborhood' else None
+    return city, district, neighborhood
+
+
+def _campaign_targets_overlap(
+    left_audience: str,
+    left_level: str,
+    left_keys: List[str],
+    right_audience: str,
+    right_level: str,
+    right_keys: List[str],
+) -> bool:
+    if left_audience != right_audience or left_level != right_level:
+        return False
+    if left_level == 'all':
+        return True
+    return bool(set(left_keys) & set(right_keys))
 
 
 def _base_slot_config(row: AdSlot, fallback: Dict[str, Any]) -> Dict[str, Any]:
@@ -148,6 +509,12 @@ def _primary_campaign_from_group(group: List[AdCampaign]) -> Optional[AdCampaign
 
 def _serialize_runtime_creative(campaign: AdCampaign) -> Dict[str, Any]:
     landing = _serialize_campaign_landing(campaign) or {}
+    audience_type = _campaign_audience_type(campaign)
+    region_level = _campaign_region_level(campaign)
+    region_keys = _campaign_region_keys(campaign)
+    target_city = _clean_region_string(campaign.target_city)
+    target_district = _clean_region_string(campaign.target_district)
+    target_neighborhood = _clean_region_string(campaign.target_neighborhood)
     return {
         'campaignId': campaign.id,
         'creativeId': campaign.id,
@@ -162,21 +529,39 @@ def _serialize_runtime_creative(campaign: AdCampaign) -> Dict[str, Any]:
         'landingType': landing.get('type'),
         'landingKey': landing.get('key'),
         'landingParams': landing.get('params'),
+        'audienceType': audience_type,
+        'targetRegionLevel': region_level,
+        'targetCity': target_city,
+        'targetDistrict': target_district,
+        'targetNeighborhood': target_neighborhood,
+        'targetRegionKeys': region_keys,
+        'targetLabel': _campaign_target_label(audience_type, region_level, region_keys, target_city, target_district, target_neighborhood),
     }
 
 
-def _derive_runtime_groups(campaigns: List[AdCampaign]) -> tuple[List[AdCampaign], List[AdCampaign]]:
+def _best_matching_campaign_groups(campaigns: List[AdCampaign], target_context: Optional[AdRuntimeContext]) -> List[List[AdCampaign]]:
+    if target_context is None:
+        return _group_campaigns_by_window(campaigns)
+    matching_campaigns = [campaign for campaign in campaigns if _campaign_matches_runtime_context(campaign, target_context)]
+    if not matching_campaigns:
+        return []
+    best_campaign = max(matching_campaigns, key=_campaign_target_specificity)
+    best_bucket = _campaign_target_bucket(best_campaign)
+    return _group_campaigns_by_window([campaign for campaign in matching_campaigns if _campaign_target_bucket(campaign) == best_bucket])
+
+
+def _derive_runtime_groups(campaigns: List[AdCampaign], target_context: Optional[AdRuntimeContext] = None) -> tuple[List[AdCampaign], List[AdCampaign]]:
     active_campaigns = [campaign for campaign in campaigns if _campaign_runtime_status(campaign) != 'cancelled']
     live_candidates = [campaign for campaign in active_campaigns if _campaign_runtime_status(campaign) == 'live']
     scheduled_candidates = [campaign for campaign in active_campaigns if _campaign_runtime_status(campaign) == 'scheduled']
 
-    live_groups = _group_campaigns_by_window(live_candidates)
-    scheduled_groups = _group_campaigns_by_window(scheduled_candidates)
+    live_groups = _best_matching_campaign_groups(live_candidates, target_context)
+    scheduled_groups = _best_matching_campaign_groups(scheduled_candidates, target_context)
     return (live_groups[0] if live_groups else []), (scheduled_groups[0] if scheduled_groups else [])
 
 
-def _derive_runtime_campaigns(campaigns: List[AdCampaign]) -> tuple[Optional[AdCampaign], Optional[AdCampaign]]:
-    live_group, next_group = _derive_runtime_groups(campaigns)
+def _derive_runtime_campaigns(campaigns: List[AdCampaign], target_context: Optional[AdRuntimeContext] = None) -> tuple[Optional[AdCampaign], Optional[AdCampaign]]:
+    live_group, next_group = _derive_runtime_groups(campaigns, target_context=target_context)
     return _primary_campaign_from_group(live_group), _primary_campaign_from_group(next_group)
 
 
@@ -240,9 +625,14 @@ def _campaign_fields(campaign: Optional[AdCampaign], *, include_reserved: bool =
     }
 
 
-def _project_slot_config_from_campaigns(base_config: Dict[str, Any], campaigns: List[AdCampaign]) -> Dict[str, Any]:
+def _project_slot_config_from_campaigns(
+    base_config: Dict[str, Any],
+    campaigns: List[AdCampaign],
+    *,
+    target_context: Optional[AdRuntimeContext] = None,
+) -> Dict[str, Any]:
     projected = base_config.copy()
-    live_group, next_group = _derive_runtime_groups(campaigns)
+    live_group, next_group = _derive_runtime_groups(campaigns, target_context=target_context)
     live_campaign = _primary_campaign_from_group(live_group)
     next_campaign = _primary_campaign_from_group(next_group)
     projected.update(_campaign_fields(live_campaign))
@@ -283,6 +673,24 @@ def _normalize_campaign_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     title = _clean_optional(payload.get('title')) or ''
     message = _clean_optional(payload.get('message')) or ''
+    target_city = _clean_region_string(payload.get('targetCity'))
+    target_district = _clean_region_string(payload.get('targetDistrict'))
+    target_neighborhood = _clean_region_string(payload.get('targetNeighborhood'))
+    target_region_keys = _normalize_region_keys(payload.get('targetRegionKeys'))
+    target_region_level = _normalize_region_level(payload.get('targetRegionLevel'))
+    if target_region_level == 'all' and target_region_keys:
+        parsed = _parse_region_key(target_region_keys[0])
+        if parsed:
+            target_region_level = parsed[0]
+    if target_region_level == 'all':
+        target_region_level = _resolve_target_region_level(
+            payload.get('targetRegionLevel'),
+            target_city,
+            target_district,
+            target_neighborhood,
+        )
+    if not target_region_keys and target_region_level != 'all':
+        target_region_keys = _region_keys_from_legacy_fields(target_region_level, target_city, target_district, target_neighborhood)
     return {
         'slotKey': _clean_optional(payload.get('slotKey')),
         'sortOrder': sort_order,
@@ -294,6 +702,12 @@ def _normalize_campaign_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         'landingKey': _clean_optional(payload.get('landingKey')),
         'landingParams': _clean_landing_params(payload.get('landingParams')),
         'imageUrl': _clean_optional(payload.get('imageUrl')),
+        'audienceType': _normalize_audience_type(payload.get('audienceType')),
+        'targetRegionLevel': target_region_level,
+        'targetCity': target_city,
+        'targetDistrict': target_district,
+        'targetNeighborhood': target_neighborhood,
+        'targetRegionKeys': target_region_keys,
         'startAt': _clean_optional(payload.get('startAt')),
         'endAt': _clean_optional(payload.get('endAt')),
     }
@@ -321,6 +735,9 @@ def _campaign_identity_signature(payload: Dict[str, Any]) -> tuple:
         payload.get('landingKey') or '',
         json.dumps(landing_params, ensure_ascii=False, sort_keys=True),
         payload.get('imageUrl') or '',
+        payload.get('audienceType') or 'all',
+        payload.get('targetRegionLevel') or 'all',
+        json.dumps(sorted(payload.get('targetRegionKeys') or []), ensure_ascii=False),
     )
 
 
@@ -352,6 +769,32 @@ def _validate_campaign_payload(db: OrmSession, slot_row: AdSlot, payload: Dict[s
     if normalized.get('targetUrl') and landing_type:
         raise ValueError('링크URL 과 랜딩페이지 중 하나만 써줘')
 
+    audience_type = _normalize_audience_type(normalized.get('audienceType'))
+    if audience_type not in AUDIENCE_TYPES:
+        raise ValueError('고객구분은 전체, 회원, 게스트 중 하나여야 해')
+
+    target_region_level = _normalize_region_level(normalized.get('targetRegionLevel'))
+    target_region_keys = _normalize_region_keys(normalized.get('targetRegionKeys'))
+    if target_region_level not in REGION_LEVELS:
+        raise ValueError('지역단위는 전체, 시, 구, 동 중 하나여야 해')
+    if target_region_level == 'all':
+        target_region_keys = []
+    else:
+        if not target_region_keys:
+            raise ValueError('지역 타겟팅에는 최소 1개 이상 선택이 필요해')
+        key_levels = {(_parse_region_key(key) or ('all', None, None, None))[0] for key in target_region_keys}
+        if len(key_levels) != 1 or target_region_level not in key_levels:
+            raise ValueError('선택한 지역키와 지역단위가 맞지 않아')
+
+    target_city, target_district, target_neighborhood = _resolve_primary_region_fields(target_region_level, target_region_keys)
+
+    normalized['audienceType'] = audience_type
+    normalized['targetRegionLevel'] = target_region_level
+    normalized['targetRegionKeys'] = target_region_keys
+    normalized['targetCity'] = target_city
+    normalized['targetDistrict'] = target_district
+    normalized['targetNeighborhood'] = target_neighborhood
+
     existing_campaigns = db.scalars(select(AdCampaign).where(AdCampaign.slot_id == slot_row.id)).all()
     target_signature = _campaign_identity_signature(normalized)
     for campaign in existing_campaigns:
@@ -359,6 +802,7 @@ def _validate_campaign_payload(db: OrmSession, slot_row: AdSlot, payload: Dict[s
             continue
         if _campaign_runtime_status(campaign) == 'cancelled':
             continue
+        existing_keys = _campaign_region_keys(campaign)
         existing_payload = {
             'slotKey': normalized['slotKey'],
             'startAt': campaign.start_at.isoformat() if campaign.start_at else None,
@@ -371,22 +815,36 @@ def _validate_campaign_payload(db: OrmSession, slot_row: AdSlot, payload: Dict[s
             'landingKey': campaign.landing_key or '',
             'landingParams': _deserialize_landing_params(campaign.landing_params_json) or {},
             'imageUrl': campaign.image_url or '',
+            'audienceType': _campaign_audience_type(campaign),
+            'targetRegionLevel': _campaign_region_level(campaign),
+            'targetRegionKeys': existing_keys,
         }
         if target_signature == _campaign_identity_signature(existing_payload):
-            raise ValueError('같은 슬롯, 시간, 소재 row가 이미 있어')
+            raise ValueError('같은 슬롯, 시간, 타겟, 소재 row가 이미 있어')
+
+        if not _campaign_targets_overlap(
+            audience_type,
+            target_region_level,
+            target_region_keys,
+            _campaign_audience_type(campaign),
+            _campaign_region_level(campaign),
+            existing_keys,
+        ):
+            continue
+
         exact_same_window = campaign.start_at == start_at and campaign.end_at == end_at
         if exact_same_window:
             existing_sort = int(campaign.sort_order or 1)
             next_sort = int(normalized.get('sortOrder') or 1)
             if (existing_sort == 999) != (next_sort == 999):
-                raise ValueError('같은 기간 묶음은 전부 순차 정렬이거나 전부 999 랜덤이어야 해')
+                raise ValueError('같은 타겟 기간 묶음은 전부 순차 정렬이거나 전부 999 랜덤이어야 해')
             if next_sort != 999 and existing_sort != 999 and next_sort == existing_sort:
-                raise ValueError(f'같은 기간 묶음 안에서 정렬 {next_sort} 이 중복돼')
+                raise ValueError(f'같은 타겟 기간 묶음 안에서 정렬 {next_sort} 이 중복돼')
         if _campaign_overlaps(start_at, end_at, campaign.start_at, campaign.end_at) and not exact_same_window:
             label = campaign.title or campaign.message or campaign.id
             existing_start = campaign.start_at.isoformat() if campaign.start_at else '-'
             existing_end = campaign.end_at.isoformat() if campaign.end_at else '-'
-            raise ValueError(f'같은 슬롯 시간대가 일부 겹쳐. 동일 기간 묶음만 함께 둘 수 있어. existing={label} ({existing_start} ~ {existing_end})')
+            raise ValueError(f'같은 타겟 슬롯 시간대가 일부 겹쳐. 동일 기간 묶음만 함께 둘 수 있어. existing={label} ({existing_start} ~ {existing_end})')
 
     normalized['startAt'] = start_at
     normalized['endAt'] = end_at
@@ -460,6 +918,12 @@ def create_ad_campaign(db: OrmSession, payload: Dict[str, Any]) -> Dict[str, Any
         landing_key=validated['landingKey'],
         landing_params_json=json.dumps(validated['landingParams'], ensure_ascii=False) if validated.get('landingParams') else None,
         image_url=validated['imageUrl'],
+        audience_type=validated['audienceType'],
+        target_region_level=validated['targetRegionLevel'],
+        target_city=validated['targetCity'],
+        target_district=validated['targetDistrict'],
+        target_neighborhood=validated['targetNeighborhood'],
+        target_region_keys_json=json.dumps(validated['targetRegionKeys'], ensure_ascii=False) if validated.get('targetRegionKeys') else None,
         sort_order=int(validated.get('sortOrder') or 1),
         start_at=validated['startAt'],
         end_at=validated['endAt'],
@@ -498,6 +962,12 @@ def update_ad_campaign(db: OrmSession, campaign_id: str, payload: Dict[str, Any]
     campaign.landing_key = validated['landingKey']
     campaign.landing_params_json = json.dumps(validated['landingParams'], ensure_ascii=False) if validated.get('landingParams') else None
     campaign.image_url = validated['imageUrl']
+    campaign.audience_type = validated['audienceType']
+    campaign.target_region_level = validated['targetRegionLevel']
+    campaign.target_city = validated['targetCity']
+    campaign.target_district = validated['targetDistrict']
+    campaign.target_neighborhood = validated['targetNeighborhood']
+    campaign.target_region_keys_json = json.dumps(validated['targetRegionKeys'], ensure_ascii=False) if validated.get('targetRegionKeys') else None
     campaign.sort_order = int(validated.get('sortOrder') or 1)
     campaign.start_at = validated['startAt']
     campaign.end_at = validated['endAt']
@@ -655,6 +1125,12 @@ def _serialize_campaign_metrics(
         clicks = int(click_map.get(campaign.id, 0) or 0)
         ctr = 0.0 if impressions == 0 else round(clicks / impressions, 4)
         landing = _serialize_campaign_landing(campaign) or {}
+        audience_type = _campaign_audience_type(campaign)
+        region_level = _campaign_region_level(campaign)
+        region_keys = _campaign_region_keys(campaign)
+        target_city = _clean_region_string(campaign.target_city)
+        target_district = _clean_region_string(campaign.target_district)
+        target_neighborhood = _clean_region_string(campaign.target_neighborhood)
         result.append(
             {
                 'id': campaign.id,
@@ -669,6 +1145,13 @@ def _serialize_campaign_metrics(
                 'landingKey': landing.get('key'),
                 'landingParams': landing.get('params'),
                 'imageUrl': campaign.image_url,
+                'audienceType': audience_type,
+                'targetRegionLevel': region_level,
+                'targetCity': target_city,
+                'targetDistrict': target_district,
+                'targetNeighborhood': target_neighborhood,
+                'targetRegionKeys': region_keys,
+                'targetLabel': _campaign_target_label(audience_type, region_level, region_keys, target_city, target_district, target_neighborhood),
                 'sortOrder': int(campaign.sort_order or 1),
                 'startAt': campaign.start_at.isoformat() if campaign.start_at else None,
                 'endAt': campaign.end_at.isoformat() if campaign.end_at else None,
@@ -1006,6 +1489,13 @@ def export_ad_campaign_xlsx(db: OrmSession, campaign_id: str) -> tuple[bytes, st
         ('cta_label', campaign.cta_label or ''),
         ('target_url', campaign.target_url or ''),
         ('image_url', campaign.image_url or ''),
+        ('audience_type', _campaign_audience_type(campaign)),
+        ('target_region_level', _campaign_region_level(campaign)),
+        ('target_city', _clean_region_string(campaign.target_city) or ''),
+        ('target_district', _clean_region_string(campaign.target_district) or ''),
+        ('target_neighborhood', _clean_region_string(campaign.target_neighborhood) or ''),
+        ('target_region_keys', ', '.join(_campaign_region_keys(campaign))),
+        ('target_label', _campaign_target_label(_campaign_audience_type(campaign), _campaign_region_level(campaign), _campaign_region_keys(campaign), _clean_region_string(campaign.target_city), _clean_region_string(campaign.target_district), _clean_region_string(campaign.target_neighborhood))),
         ('start_at', campaign.start_at.isoformat() if campaign.start_at else ''),
         ('end_at', campaign.end_at.isoformat() if campaign.end_at else ''),
         ('created_at', campaign.created_at.isoformat() if campaign.created_at else ''),
@@ -1109,6 +1599,13 @@ def export_ad_campaigns_xlsx(
         'target_url',
         'image_url',
         'image_preview',
+        'audience_type',
+        'target_region_level',
+        'target_city',
+        'target_district',
+        'target_neighborhood',
+        'target_region_keys',
+        'target_label',
         'start_at',
         'end_at',
         'impressions',
@@ -1172,6 +1669,13 @@ def export_ad_campaigns_xlsx(
                 campaign.get('targetUrl'),
                 campaign.get('imageUrl'),
                 f'=IMAGE("{image_url}")' if image_url else '',
+                campaign.get('audienceType'),
+                campaign.get('targetRegionLevel'),
+                campaign.get('targetCity'),
+                campaign.get('targetDistrict'),
+                campaign.get('targetNeighborhood'),
+                ', '.join(campaign.get('targetRegionKeys') or []),
+                campaign.get('targetLabel'),
                 campaign.get('startAt'),
                 campaign.get('endAt'),
                 campaign.get('impressions'),
@@ -1195,25 +1699,70 @@ def export_ad_campaigns_xlsx(
     return output.getvalue(), filename
 
 
-def app_ad_slots_config(db: OrmSession, ads_enabled: bool) -> List[Dict[str, Any]]:
-    slots = list_ad_slots(db)
+def app_ad_slots_config(
+    db: OrmSession,
+    ads_enabled: bool,
+    *,
+    current_user: Optional[User] = None,
+    city: Optional[str] = None,
+    district: Optional[str] = None,
+    neighborhood: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    ensure_default_ad_slots(db)
+    rows = db.scalars(select(AdSlot).order_by(AdSlot.created_at.asc())).all()
+    defaults = _defaults_by_key()
+    dirty = False
+    for row in rows:
+        if row.slot_key in defaults:
+            before = row.config_json
+            _sync_slot_runtime_config(db, row, defaults[row.slot_key])
+            if row.config_json != before:
+                dirty = True
+    if dirty:
+        db.commit()
+        for row in rows:
+            db.refresh(row)
+
+    slot_ids = [row.id for row in rows if row.slot_key in defaults]
+    campaign_rows = db.scalars(
+        select(AdCampaign).where(AdCampaign.slot_id.in_(slot_ids)).order_by(AdCampaign.created_at.asc())
+    ).all() if slot_ids else []
+    campaigns_by_slot: Dict[str, List[AdCampaign]] = {}
+    for campaign in campaign_rows:
+        campaigns_by_slot.setdefault(campaign.slot_id, []).append(campaign)
+
+    runtime_context = build_ad_runtime_context(
+        current_user,
+        city=city,
+        district=district,
+        neighborhood=neighborhood,
+    )
+
     result = []
-    for slot in slots:
-        live_creatives = list((slot.get('config') or {}).get('liveCreatives') or [])
-        enabled = ads_enabled and slot['status'] == 'active' and len(live_creatives) > 0
+    for row in rows:
+        fallback = defaults.get(row.slot_key)
+        if fallback is None:
+            continue
+        projected = _project_slot_config_from_campaigns(
+            _base_slot_config(row, fallback),
+            campaigns_by_slot.get(row.id, []),
+            target_context=runtime_context,
+        )
+        live_creatives = list(projected.get('liveCreatives') or [])
+        enabled = ads_enabled and row.status == 'active' and len(live_creatives) > 0
         result.append(
             {
-                'slotKey': slot['slotKey'],
-                'placementType': slot['placementType'],
+                'slotKey': row.slot_key,
+                'placementType': row.placement_type,
                 'enabled': enabled,
                 'config': {
-                    **_normalize_slot_config(slot['config']),
-                    'campaignId': slot['config'].get('liveCampaignId'),
+                    **_normalize_slot_config(projected),
+                    'campaignId': projected.get('liveCampaignId'),
                     'creatives': live_creatives,
-                    'rotationMode': (slot.get('config') or {}).get('liveRotationMode') or ('single' if len(live_creatives) <= 1 else 'ordered'),
-                    'landingType': (slot.get('config') or {}).get('landingType'),
-                    'landingKey': (slot.get('config') or {}).get('landingKey'),
-                    'landingParams': (slot.get('config') or {}).get('landingParams'),
+                    'rotationMode': projected.get('liveRotationMode') or ('single' if len(live_creatives) <= 1 else 'ordered'),
+                    'landingType': projected.get('landingType'),
+                    'landingKey': projected.get('landingKey'),
+                    'landingParams': projected.get('landingParams'),
                 },
             }
         )

@@ -1845,14 +1845,10 @@ export default function ExploreAdminPage() {
                   ↻
                 </button>
               </div>
-              <label className="exploreHeaderMiniField">
-                <span>미리보기 상태</span>
-                <select className="textInput exploreHeaderMiniSelect" value={previewScenario} onChange={(e) => setActiveExploreState(e.target.value as ExploreStateId)}>
-                  {EXPLORE_STATE_OPTIONS.map((state) => (
-                    <option key={state.id} value={state.id}>{state.label}</option>
-                  ))}
-                </select>
-              </label>
+              <div className="exploreHeaderMiniField">
+                <span>미리보기 기준</span>
+                <strong style={{ fontSize: 11, color: '#111827' }}>{activeStateOption.label}</strong>
+              </div>
             </div>
             <span className="exploreHeaderActionDivider" aria-hidden="true" />
             <div className="exploreHeaderActionGroup">
@@ -1924,7 +1920,6 @@ export default function ExploreAdminPage() {
       <div className="metaRow compactMetaRow section" style={{ marginTop: 8 }}>
         <span className="metaPill">mode {activeStateOption.label}</span>
         <span className="metaPill">task {activeWorkspaceOption.label}</span>
-        <span className="metaPill">preview {EXPLORE_STATE_OPTIONS.find((state) => state.id === previewScenario)?.label}</span>
         <span className="metaPill">state mode {form.stateMode === 'auto' ? 'runtime auto' : `forced ${form.stateMode}`}</span>
         <span className="metaPill">{isDirty ? 'unsaved changes' : 'saved'}</span>
         <span className="metaPill">{res.usingFallback ? 'fallback runtime' : 'live runtime'}</span>
@@ -1935,121 +1930,81 @@ export default function ExploreAdminPage() {
           <div className="card exploreRailCard">
             <div className="sectionHeader" style={{ marginBottom: 8 }}>
               <div>
-                <h2 className="panelTitle" style={{ marginBottom: 0 }}>Mode rail</h2>
+                <h2 className="panelTitle" style={{ marginBottom: 0 }}>Explore rail</h2>
               </div>
             </div>
-            <div className="exploreRailStack">
-              {EXPLORE_STATE_OPTIONS.map((state) => {
-                const stateRules = form.stateRules[state.id]
-                const stateOrder = parseSectionList(form[stateOrderKey(state.id)]).filter((item) => enabledSections.includes(item))
-                return (
-                  <button
-                    key={state.id}
-                    className={`exploreRailButton${layoutState === state.id ? ' active' : ''}`}
-                    type="button"
-                    onClick={() => setActiveExploreState(state.id)}
-                  >
-                    <span className="exploreRailButtonLabel">{state.label}</span>
-                    <span className="exploreRailButtonText">{state.description}</span>
-                    <span className="exploreRailButtonMeta">sections {stateOrder.length} · offers {stateRules.offerMaxSlots}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
 
-          <div className="card exploreRailCard">
-            <div className="sectionHeader" style={{ marginBottom: 8 }}>
-              <div>
-                <h2 className="panelTitle" style={{ marginBottom: 0 }}>Task strip</h2>
+            <div className="exploreRailSection">
+              <div className="exploreRailSectionTitle">Mode</div>
+              <div className="exploreRailStack">
+                {EXPLORE_STATE_OPTIONS.map((state) => {
+                  const stateRules = form.stateRules[state.id]
+                  const stateOrder = parseSectionList(form[stateOrderKey(state.id)]).filter((item) => enabledSections.includes(item))
+                  return (
+                    <button
+                      key={state.id}
+                      className={`exploreRailButton${layoutState === state.id ? ' active' : ''}`}
+                      type="button"
+                      onClick={() => setActiveExploreState(state.id)}
+                    >
+                      <span className="exploreRailButtonLabel">{state.label}</span>
+                      <span className="exploreRailButtonText">{state.description}</span>
+                      <span className="exploreRailButtonMeta">sections {stateOrder.length} · offers {stateRules.offerMaxSlots}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
-            <div className="exploreRailStack">
-              {EXPLORE_WORKSPACE_OPTIONS.map((option) => {
-                const statValue = (() => {
-                  switch (option.id) {
-                    case 'layout':
-                      return `${enabledSections.length}`
-                    case 'recommendations':
-                      return `${editorialPoolPreview.length}`
-                    case 'rules':
-                      return `${STATE_RULE_FIELDS.length + PROMO_POLICY_FIELDS.length + DECISION_FIELDS.length}`
-                    case 'copy':
-                      return `${DECISION_COPY_MESSAGE_FIELDS.length + 1}`
-                    case 'store':
-                      return `${storePromoPreview.length}`
-                    default:
-                      return '-'
-                  }
-                })()
-                return (
-                  <button
-                    key={option.id}
-                    className={`exploreRailButton exploreTaskButton${activeWorkspace === option.id ? ' active' : ''}`}
-                    type="button"
-                    onClick={() => selectWorkspace(option.id)}
-                  >
-                    <span className="exploreRailButtonLabel">{option.label}</span>
-                    <span className="exploreRailButtonText">{option.description}</span>
-                    <span className="exploreRailButtonMeta">{option.statLabel} {statValue}</span>
-                  </button>
-                )
-              })}
+
+            <div className="exploreRailSection">
+              <div className="exploreRailSectionTitle">Task</div>
+              <div className="exploreRailStack">
+                {EXPLORE_WORKSPACE_OPTIONS.map((option) => {
+                  const statValue = (() => {
+                    switch (option.id) {
+                      case 'layout':
+                        return `${enabledSections.length}`
+                      case 'recommendations':
+                        return `${editorialPoolPreview.length}`
+                      case 'rules':
+                        return `${STATE_RULE_FIELDS.length + PROMO_POLICY_FIELDS.length + DECISION_FIELDS.length}`
+                      case 'copy':
+                        return `${DECISION_COPY_MESSAGE_FIELDS.length + 1}`
+                      case 'store':
+                        return `${storePromoPreview.length}`
+                      default:
+                        return '-'
+                    }
+                  })()
+                  return (
+                    <button
+                      key={option.id}
+                      className={`exploreRailButton exploreTaskButton${activeWorkspace === option.id ? ' active' : ''}`}
+                      type="button"
+                      onClick={() => selectWorkspace(option.id)}
+                    >
+                      <span className="exploreRailButtonLabel">{option.label}</span>
+                      <span className="exploreRailButtonText">{option.description}</span>
+                      <span className="exploreRailButtonMeta">{option.statLabel} {statValue}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </div>
 
         <div className="exploreWorkbenchMain">
-          <div className="exploreActionBar exploreActionBarSingle">
-            <div className="exploreActionPanel exploreActionPanelTight">
-              <div className="exploreActionLabel">Current focus</div>
-              <div className="exploreActionTitle">{activeStateOption.label} · {activeWorkspaceOption.label}</div>
-              <div className="exploreActionMeta">
-                <span className="metaPill">mode-bound preview</span>
-                <span className="metaPill">{modePreviewHeadline}</span>
-              </div>
-            </div>
-          </div>
-
           <div className="exploreWorkbenchCenter">
-          {activeWorkspace === 'store' ? (
-            <div className="exploreActionBar exploreActionBarSingle">
-              <div className="exploreActionPanel exploreActionPanelTight">
-                <div className="exploreActionLabel">편집 기준</div>
-                <div className="exploreActionMeta">
-                  <span className="metaPill">{activeWorkspaceOption.label}</span>
-                  <span className="metaPill">{EXPLORE_STATE_OPTIONS.find((state) => state.id === layoutState)?.label}</span>
-                </div>
-                <div className="exploreActionSplit">
-                  <label className="field">
-                    <div className="fieldLabel">편집 상태</div>
-                    <select className="textInput" value={layoutState} onChange={(e) => setActiveExploreState(e.target.value as ExploreStateId)}>
-                      {EXPLORE_STATE_OPTIONS.map((state) => (
-                        <option key={state.id} value={state.id}>{state.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-              </div>
-            </div>
-          ) : null}
           <div className="card" style={{ marginBottom: activeWorkspace === 'layout' ? 16 : 0, display: activeWorkspace === 'layout' ? 'block' : 'none' }}>
             <div className="sectionHeader" style={{ marginBottom: 10 }}>
               <div>
                 <h2 className="panelTitle" style={{ marginBottom: 0 }}>Layout</h2>
               </div>
-            </div>
-            <div className="exploreLayoutStateTabs" style={{ marginBottom: 12 }}>
-              {EXPLORE_STATE_OPTIONS.map((state) => (
-                <button
-                  key={state.id}
-                  className={`editorSubtab${layoutState === state.id ? ' active' : ''}`}
-                  type="button"
-                  onClick={() => setActiveExploreState(state.id)}
-                >
-                  {state.label}
-                </button>
-              ))}
+              <div className="metaRow" style={{ marginTop: 0 }}>
+                <span className="metaPill">mode {activeStateOption.label}</span>
+                <span className="metaPill">left rail 기준 편집</span>
+              </div>
             </div>
             <div className="tableWrap">
               <table className="dataTable exploreDenseTable">
@@ -2425,18 +2380,10 @@ export default function ExploreAdminPage() {
               <div>
                 <h2 className="panelTitle" style={{ marginBottom: 0 }}>Decision Rules</h2>
               </div>
-            </div>
-            <div className="exploreLayoutStateTabs exploreRuleStateTabs" style={{ marginBottom: 10 }}>
-              {EXPLORE_STATE_OPTIONS.map((state) => (
-                <button
-                  key={state.id}
-                  className={`editorSubtab${layoutState === state.id ? ' active' : ''}`}
-                  type="button"
-                  onClick={() => setActiveExploreState(state.id)}
-                >
-                  {state.label}
-                </button>
-              ))}
+              <div className="metaRow" style={{ marginTop: 0 }}>
+                <span className="metaPill">mode {activeStateOption.label}</span>
+                <span className="metaPill">left rail 기준 편집</span>
+              </div>
             </div>
             <div className="tableWrap exploreRuleSheetWrap">
               <table className="dataTable exploreRuleSheetTable">
@@ -2609,18 +2556,6 @@ export default function ExploreAdminPage() {
               <strong>Offer copy</strong>
               <span className="metaPill">{EXPLORE_STATE_OPTIONS.find((state) => state.id === layoutState)?.label}</span>
             </div>
-            <div className="exploreLayoutStateTabs exploreRuleStateTabs exploreCopyStateTabs" style={{ marginBottom: 6 }}>
-              {EXPLORE_STATE_OPTIONS.map((state) => (
-                <button
-                  key={state.id}
-                  className={`editorSubtab${layoutState === state.id ? ' active' : ''}`}
-                  type="button"
-                  onClick={() => setActiveExploreState(state.id)}
-                >
-                  {state.label}
-                </button>
-              ))}
-            </div>
             <div className="exploreCopyOfferGrid">
               <label className="field exploreCopyMiniField">
                 <div className="fieldLabel">상태별 짧은 라벨</div>
@@ -2717,7 +2652,6 @@ export default function ExploreAdminPage() {
             </div>
             <div className="metaRow compactMetaRow" style={{ marginBottom: 8 }}>
               <span className="metaPill">{activeStateOption.label}</span>
-              <span className="metaPill">{activeWorkspaceOption.label}</span>
               <span className="metaPill">{res.usingFallback ? 'fallback' : 'live'}</span>
             </div>
             <div className="explorePreviewLead">{modePreviewHeadline}</div>
@@ -2780,9 +2714,8 @@ export default function ExploreAdminPage() {
               </div>
             </div>
 
-            <div className="explorePreviewActionRow">
-              <button className="primaryBtn exploreCompactBtn" type="button" onClick={openPreviewPopup}>Preview</button>
-              <button className="ghostBtnSmall exploreSheetBtn" type="button" onClick={() => setPreviewNonce((value) => value + 1)}>Reload</button>
+            <div className="metaRow compactMetaRow" style={{ marginTop: 12 }}>
+              <span className="metaPill">preview action은 상단에서 실행</span>
             </div>
           </div>
         </div>

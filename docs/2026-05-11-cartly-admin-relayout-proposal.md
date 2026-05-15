@@ -337,6 +337,7 @@ Purpose: full scenario preview
 - mode changes now move together across header preview selector, state tabs, meta strip, and preview context so the operator is not editing one state while previewing another
 - recommendation / rules / copy / store workspaces remain the same underlying operators, but the shell now makes the current mode and task explicit before deeper follow-up work
 - next Explore work should deepen the preview realism and task-specific decision guidance, not go back to a blended mega-settings surface
+- 2026-05-15 polish pass: removed the extra preview-state selector, collapsed mode/task control into a single left Explore rail, removed the old Mode rail / Task strip split, and stopped repeating preview actions inside the right preview card
 
 ---
 
@@ -454,6 +455,7 @@ Split product-runtime settings from infra/system.
 - my-page and Coupang should not fall back to tall one-column forms; keep operator controls grouped into compact subcards, with long JSON/note/history blocks visually secondary
 - the next meaningful Config step is language, not layout: reduce developer phrasing, make state/risk/action clearer, and help operators know whether something is safe to change now, needs coordination, or is only informational
 - avoid server/client pane mismatch for query-param-driven tabs; the served runtime must render the selected pane cleanly without hydration drift
+- 2026-05-15 polish pass: overview, smoke, my-page, and Coupang wording were rewritten toward operator language, removing visible developer phrases like `effective enabled`, `admin override`, `Runtime & startup`, and `Public landing`
 
 ---
 
@@ -520,6 +522,7 @@ Current direction update:
 - top exposure inventory with live creative, reserved creative, slot, surface, position, status, updatedAt, and filtered-period metrics
 - selected-slot workspace with live/reserved preview, schedule controls, save/publish actions, and recent campaign history
 - lower performance zone with slot-level and creative-level summaries plus low-signal / no-signal review rows
+- 2026-05-15 polish pass: the served page now declares an explicit three-step Ads flow and orders the page as runtime health first, quick slot setup second, and historical efficiency review third
 
 ### Ads implementation contract
 
@@ -611,6 +614,7 @@ Current direction update:
 - the per-user drilldown at `/users/{id}` now behaves more like a compact customer DB: profile, operator context, push reachability, recent activity timeline, scan summary, saved-cart summary, and event summary are available together
 - the current backend source remains live runtime evidence only, derived from users + sessions + scan jobs + carts + push devices + app events, with no schema migration required for this phase
 - next Users work should deepen customer suggestions and cross-customer analysis, not revert to a plain directory or split customer-state inspection back into disconnected pages
+- 2026-05-15 polish pass: the top filter bar now uses one horizontal compact row, recent-visit became a preset select, and scan filtering was collapsed from separate min/lt blocks into one operator-plus-value control
 
 ---
 
@@ -654,6 +658,7 @@ Carts should operate as saved-result evidence, not only as a history viewer.
 - Carts should support both analysis and immediate intervention
 - the operator should be able to move from observed pattern to category correction without leaving the page
 - insights here should help explain what Explore should emphasize more, suppress, or revisit
+- 2026-05-15 polish pass: the served filter bar was compacted into a single horizontal row with customer-type select plus date/query controls, replacing the larger tab-heavy search block
 
 ### Scan Ops
 

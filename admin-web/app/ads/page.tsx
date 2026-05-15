@@ -469,11 +469,38 @@ export default function AdsPage() {
         <div className="metaPill">campaign status {historyStatusFilter}</div>
       </div>
 
-      <form className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 16, marginBottom: 16 }} onSubmit={(e) => e.preventDefault()}>
+      <div className="adsWorkflowLayout section" style={{ marginTop: 8 }}>
+        <div className="card exploreRailCard adsWorkflowRail">
+          <div className="sectionHeader" style={{ marginBottom: 8 }}>
+            <div>
+              <h2 className="panelTitle" style={{ marginBottom: 0 }}>Ads flow</h2>
+            </div>
+          </div>
+          <div className="exploreRailStack">
+            <a className="exploreRailButton" href="#ads-runtime-health">
+              <span className="exploreRailButtonLabel">1. 지금 잘 돌아가나</span>
+              <span className="exploreRailButtonText">live slot, 빈 슬롯, review queue부터 확인</span>
+              <span className="exploreRailButtonMeta">health first</span>
+            </a>
+            <a className="exploreRailButton" href="#ads-quick-setup">
+              <span className="exploreRailButtonLabel">2. 빠르게 세팅</span>
+              <span className="exploreRailButtonText">선택한 slot의 현재/예약 광고를 바로 수정</span>
+              <span className="exploreRailButtonMeta">workspace second</span>
+            </a>
+            <a className="exploreRailButton" href="#ads-efficiency-review">
+              <span className="exploreRailButtonLabel">3. 지난 효율 보기</span>
+              <span className="exploreRailButtonText">기간별 성과, creative 비교, 지난 캠페인 기록</span>
+              <span className="exploreRailButtonMeta">history third</span>
+            </a>
+          </div>
+        </div>
+
+        <div className="adsWorkflowMain">
+      <form className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 0, marginBottom: 16 }} onSubmit={(e) => e.preventDefault()}>
         <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 12 }}>
           <div>
             <h2 className="panelTitle" style={{ marginBottom: 6 }}>Ads operator strip</h2>
-            <p className="pageDesc" style={{ margin: 0 }}>date range, slot/surface scope, variant, history export를 한 줄에서 맞추는 P0 필터 바야.</p>
+            <p className="pageDesc" style={{ margin: 0 }}>지금 slot 상태를 좁혀 보고, 아래 3단계에서 같은 범위 기준으로 세팅과 지난 효율까지 이어서 보는 공통 필터 바야.</p>
           </div>
         </div>
         <div className="exploreSheetFilterGrid" style={{ gridTemplateColumns: 'minmax(220px, 2fr) repeat(5, minmax(140px, 1fr))' }}>
@@ -525,7 +552,7 @@ export default function AdsPage() {
         </div>
       </form>
 
-      <div className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 12, marginBottom: 16 }}>
+      <div className="card exploreDenseCard exploreSheetCard" id="ads-runtime-health" style={{ marginTop: 12, marginBottom: 16 }}>
         <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 12 }}>
           <div>
             <h2 className="panelTitle" style={{ marginBottom: 6 }}>Exposure inventory</h2>
@@ -613,13 +640,72 @@ export default function AdsPage() {
             </table>
           </div>
         )}
+        <div className="section" style={{ marginTop: 16 }}>
+          <h3 className="panelTitle" style={{ marginBottom: 10 }}>Needs review</h3>
+          <div className="exploreSummaryGrid" style={{ marginTop: 0 }}>
+            <div className="exploreSummaryCell">
+              <div className="exploreSummaryLabel">No data</div>
+              <div className="exploreSummaryValue">{performance.reviewQueues.noData.length}</div>
+              <div className="exploreSummaryNote">live but signal empty</div>
+            </div>
+            <div className="exploreSummaryCell">
+              <div className="exploreSummaryLabel">Low CTR</div>
+              <div className="exploreSummaryValue">{performance.reviewQueues.lowCtr.length}</div>
+              <div className="exploreSummaryNote">below threshold</div>
+            </div>
+            <div className="exploreSummaryCell">
+              <div className="exploreSummaryLabel">Inactive gap</div>
+              <div className="exploreSummaryValue">{performance.reviewQueues.inactiveGap.length}</div>
+              <div className="exploreSummaryNote">active slot without live creative</div>
+            </div>
+            <div className="exploreSummaryCell">
+              <div className="exploreSummaryLabel">Reserved mismatch</div>
+              <div className="exploreSummaryValue">{performance.reviewQueues.reservedMismatch.length}</div>
+              <div className="exploreSummaryNote">reserved creative without valid schedule</div>
+            </div>
+          </div>
+          <div className="tableWrap" style={{ marginTop: 12 }}>
+            <table className="dataTable">
+              <thead>
+                <tr>
+                  <th>Slot</th>
+                  <th>Surface</th>
+                  <th>Issue</th>
+                  <th>Live</th>
+                  <th>Reserved</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ...performance.reviewQueues.noData,
+                  ...performance.reviewQueues.lowCtr,
+                  ...performance.reviewQueues.inactiveGap,
+                  ...performance.reviewQueues.reservedMismatch,
+                ].map((row) => (
+                  <tr key={`review-${row.slotKey}-${row.reviewFlag}`}>
+                    <td>{row.slotKey}</td>
+                    <td>{row.surfaceLabel}</td>
+                    <td>{reviewFlagLabel(row.reviewFlag)}</td>
+                    <td>{row.liveCreativeTitle}</td>
+                    <td>{row.reservedCreativeTitle}</td>
+                  </tr>
+                ))}
+                {performance.reviewQueues.noData.length + performance.reviewQueues.lowCtr.length + performance.reviewQueues.inactiveGap.length + performance.reviewQueues.reservedMismatch.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', color: '#64748b' }}>review queue 비어 있음</td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {selectedSlot ? (
-        <div className="card exploreDenseCard exploreSheetCard" id="selected-slot-editor">
+        <div className="card exploreDenseCard exploreSheetCard" id="ads-quick-setup">
           <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
             <div>
-              <h2 className="panelTitle" style={{ marginBottom: 6 }}>{selectedSlot.config.slotLabel || selectedSlot.slotKey}</h2>
+              <h2 className="panelTitle" style={{ marginBottom: 6 }}>Quick slot setup · {selectedSlot.config.slotLabel || selectedSlot.slotKey}</h2>
               <p className="pageDesc" style={{ marginBottom: 8 }}>{selectedSlot.config.slotDescription || '슬롯 설명 없음'}</p>
               <div className="metaRow" style={{ marginTop: 0 }}>
                 <div className="metaPill">{selectedSlot.slotKey}</div>
@@ -688,28 +774,12 @@ export default function AdsPage() {
             </div>
           </div>
 
-          <div className="section" style={{ marginTop: 12 }}>
-            <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
-              <div>
-                <h3 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.ads.history.title', '지난 광고 데이터')}</h3>
-                <p className="pageDesc">현재 history table의 imp/click/ctr는 campaign lifetime 기준이야. period-aware 판단은 아래 performance zone을 기준으로 보면 돼.</p>
-              </div>
-            </div>
-            <SlotHistory
-              campaigns={selectedSlotHistory}
-              variantFilter={historyVariantFilter}
-              statusFilter={historyStatusFilter}
-              query={historyQuery}
-              periodFrom={historyPeriodFrom}
-              periodTo={historyPeriodTo}
-            />
-          </div>
         </div>
       ) : (
         <div className="emptyState">선택된 slot이 없어.</div>
       )}
 
-      <div className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 16, marginBottom: 24 }}>
+      <div className="card exploreDenseCard exploreSheetCard" id="ads-efficiency-review" style={{ marginTop: 16, marginBottom: 24 }}>
         <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 12 }}>
           <div>
             <h2 className="panelTitle" style={{ marginBottom: 6 }}>Performance zone</h2>
@@ -790,63 +860,22 @@ export default function AdsPage() {
         </div>
 
         <div className="section" style={{ marginTop: 16 }}>
-          <h3 className="panelTitle" style={{ marginBottom: 10 }}>Needs review</h3>
-          <div className="exploreSummaryGrid" style={{ marginTop: 0 }}>
-            <div className="exploreSummaryCell">
-              <div className="exploreSummaryLabel">No data</div>
-              <div className="exploreSummaryValue">{performance.reviewQueues.noData.length}</div>
-              <div className="exploreSummaryNote">live but signal empty</div>
-            </div>
-            <div className="exploreSummaryCell">
-              <div className="exploreSummaryLabel">Low CTR</div>
-              <div className="exploreSummaryValue">{performance.reviewQueues.lowCtr.length}</div>
-              <div className="exploreSummaryNote">below threshold</div>
-            </div>
-            <div className="exploreSummaryCell">
-              <div className="exploreSummaryLabel">Inactive gap</div>
-              <div className="exploreSummaryValue">{performance.reviewQueues.inactiveGap.length}</div>
-              <div className="exploreSummaryNote">active slot without live creative</div>
-            </div>
-            <div className="exploreSummaryCell">
-              <div className="exploreSummaryLabel">Reserved mismatch</div>
-              <div className="exploreSummaryValue">{performance.reviewQueues.reservedMismatch.length}</div>
-              <div className="exploreSummaryNote">reserved creative without valid schedule</div>
+          <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
+            <div>
+              <h3 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.ads.history.title', '지난 광고 데이터')}</h3>
+              <p className="pageDesc">현재 history table의 imp/click/ctr는 campaign lifetime 기준이야. 기간 기준 판단은 위 표와 creative 비교를 같이 보면 돼.</p>
             </div>
           </div>
-          <div className="tableWrap" style={{ marginTop: 12 }}>
-            <table className="dataTable">
-              <thead>
-                <tr>
-                  <th>Slot</th>
-                  <th>Surface</th>
-                  <th>Issue</th>
-                  <th>Live</th>
-                  <th>Reserved</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  ...performance.reviewQueues.noData,
-                  ...performance.reviewQueues.lowCtr,
-                  ...performance.reviewQueues.inactiveGap,
-                  ...performance.reviewQueues.reservedMismatch,
-                ].map((row) => (
-                  <tr key={`review-${row.slotKey}-${row.reviewFlag}`}>
-                    <td>{row.slotKey}</td>
-                    <td>{row.surfaceLabel}</td>
-                    <td>{reviewFlagLabel(row.reviewFlag)}</td>
-                    <td>{row.liveCreativeTitle}</td>
-                    <td>{row.reservedCreativeTitle}</td>
-                  </tr>
-                ))}
-                {performance.reviewQueues.noData.length + performance.reviewQueues.lowCtr.length + performance.reviewQueues.inactiveGap.length + performance.reviewQueues.reservedMismatch.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', color: '#64748b' }}>review queue 비어 있음</td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
+          <SlotHistory
+            campaigns={selectedSlotHistory}
+            variantFilter={historyVariantFilter}
+            statusFilter={historyStatusFilter}
+            query={historyQuery}
+            periodFrom={historyPeriodFrom}
+            periodTo={historyPeriodTo}
+          />
+        </div>
+      </div>
         </div>
       </div>
     </div>

@@ -136,22 +136,26 @@ function ConfigPageInner() {
   const adsAssetsActual = cfg.adsAssetsDirActual ?? cfg.adsAssetsDir
   const storageErrorCount = cfg.storageErrors.length
   const noteDirty = coupangNoteDraft !== (cfg.coupangPartners.operatorNote || '')
-  const pathCompatibility = cfg.legacyPathCompatibilityActive ? t('admin.config.compat.on', '호환 경로 유지 중') : t('admin.config.compat.off', '호환 경로 없음')
+  const pathCompatibility = cfg.legacyPathCompatibilityActive ? t('admin.config.compat.on', '이전 경로 호환 유지 중') : t('admin.config.compat.off', '이전 경로 호환 없음')
+  const runtimeModeLabel = cfg.backendRunMode === 'terminal-login-session' || cfg.backendRunMode === 'terminal-login-session-supervised'
+    ? '로그인 연동 기동'
+    : cfg.backendRunMode
   const startupModeNote =
-    cfg.backendRunMode === 'terminal-login-session'
-      ? t('admin.config.runtime.startupNote', 'login-session supervisor 기준으로 부팅/로그인 후 따라 켜져야 해')
-      : t('admin.config.runtime.startupNoteUnexpected', '예상한 login-session runtime 모드와 다를 수 있어 확인이 필요해')
+    cfg.backendRunMode === 'terminal-login-session' || cfg.backendRunMode === 'terminal-login-session-supervised'
+      ? t('admin.config.runtime.startupNote', '이 머신에 로그인된 세션을 따라 서비스가 올라오는 구조야')
+      : t('admin.config.runtime.startupNoteUnexpected', '예상한 로그인 세션 기동 방식과 달라서 확인이 필요해')
   const paneParam = searchParams.get('pane')
   const activePane = paneParam === 'overview' || paneParam === 'smoke' || paneParam === 'runtime' || paneParam === 'my-page' || paneParam === 'coupang'
     ? paneParam
     : 'overview'
   const configPaneOptions = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'smoke', label: 'Smoke' },
-    { id: 'runtime', label: 'Runtime' },
-    { id: 'my-page', label: 'My' },
-    { id: 'coupang', label: 'Coupang' },
+    { id: 'overview', label: '전체 상태' },
+    { id: 'smoke', label: '운영 점검' },
+    { id: 'runtime', label: '저장소 / 기동' },
+    { id: 'my-page', label: '마이페이지' },
+    { id: 'coupang', label: '제휴 연동' },
   ] as const
+  const activePaneLabel = configPaneOptions.find((pane) => pane.id === activePane)?.label ?? activePane
 
   useEffect(() => {
     setCoupangNoteDraft(cfg.coupangPartners.operatorNote || '')
@@ -170,10 +174,10 @@ function ConfigPageInner() {
       const response = await fetchJsonSafe<SmokeDto>('/api/ops/smoke', mockConfig.smoke)
       setSmoke(response.data)
       if (response.usingFallback) {
-        setSmokeMessage(response.fallbackMessage ?? 'Smoke 결과를 live로 불러오지 못했어')
+        setSmokeMessage(response.fallbackMessage ?? '운영 점검 결과를 실시간으로 가져오지 못했어')
       }
     } catch (error) {
-      setSmokeMessage(error instanceof Error ? error.message : 'Smoke 결과를 불러오지 못했어')
+      setSmokeMessage(error instanceof Error ? error.message : '운영 점검 결과를 불러오지 못했어')
     } finally {
       setSmokeLoading(false)
     }
@@ -206,10 +210,10 @@ function ConfigPageInner() {
         myPageSectionOrder: parsedSectionOrder,
         myPageCategoryGroups: parsedGroups,
       })
-      setRuntimeMessage('My 요약 runtime 설정을 저장했어')
+      setRuntimeMessage('마이페이지 요약 운영값을 저장했어')
       await res.reload()
     } catch (error) {
-      setRuntimeMessage(error instanceof Error ? error.message : 'My 요약 runtime 설정 저장에 실패했어')
+      setRuntimeMessage(error instanceof Error ? error.message : '마이페이지 요약 운영값 저장에 실패했어')
     } finally {
       setSavingRuntime(false)
     }
@@ -223,11 +227,11 @@ function ConfigPageInner() {
         enabledOverride,
         operatorNote: coupangNoteDraft,
       })
-      setRuntimeMessage(enabledOverride === null ? 'Coupang admin override를 해제했어' : `Coupang admin override를 ${enabledOverride ? 'ON' : 'OFF'}으로 저장했어`)
+      setRuntimeMessage(enabledOverride === null ? '쿠팡 강제 설정을 해제했어' : `쿠팡 강제 설정을 ${enabledOverride ? '켜짐' : '꺼짐'}으로 저장했어`)
       setCoupangNoteDraft('')
       await res.reload()
     } catch (error) {
-      setRuntimeMessage(error instanceof Error ? error.message : 'Coupang runtime 설정 저장에 실패했어')
+      setRuntimeMessage(error instanceof Error ? error.message : '쿠팡 연동 설정 저장에 실패했어')
     } finally {
       setSavingCoupang(false)
     }
@@ -236,9 +240,9 @@ function ConfigPageInner() {
   return (
     <div className="exploreCompactPage">
       <PageHeader
-        badge={res.usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : res.loading ? t('admin.common.badge.loading', 'Loading...') : t('admin.common.badge.live', 'Live data')}
-        title={t('admin.config.title', 'Config')}
-        description={t('admin.config.desc', '런타임 설정')}
+        badge={res.usingFallback ? t('admin.common.badge.fallback', '대체 데이터') : res.loading ? t('admin.common.badge.loading', '불러오는 중') : t('admin.common.badge.live', '실시간')}
+        title={t('admin.config.title', 'System')}
+        description={t('admin.config.desc', '운영 상태와 앱 동작 기준')}
         onRefresh={() => {
           void Promise.allSettled([res.reload(), loadSmoke()])
         }}
@@ -248,25 +252,25 @@ function ConfigPageInner() {
       {res.error ? <div className="loginError" style={{ marginBottom: 16 }}>{res.error}</div> : null}
       {res.usingFallback ? (
         <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
-          <strong>{t('admin.config.warning.fallbackTitle', 'Live config unavailable.')}</strong>{' '}
-          {t('admin.config.warning.fallbackBody', '지금 보이는 설정은 fallback/mock data일 수 있어서 실제 runtime 상태와 다를 수 있어요.')}
+          <strong>{t('admin.config.warning.fallbackTitle', '실시간 System 상태를 불러오지 못했어.')}</strong>{' '}
+          {t('admin.config.warning.fallbackBody', '지금 보이는 값은 대체 데이터일 수 있어서 실제 운영 상태와 다를 수 있어요.')}
           {res.fallbackMessage ? ` (${res.fallbackMessage})` : ''}
         </div>
       ) : null}
 
       <div className="metaRow section" style={{ marginTop: 8, marginBottom: 12 }}>
-        <span className="metaPill">pane {activePane}</span>
-        <span className="metaPill">runtime {cfg.backendRunMode}</span>
-        <span className="metaPill">storage {cfg.storageWritable ? 'writable' : 'blocked'}</span>
-        <span className="metaPill">smoke {smoke.ok ? 'ok' : 'check needed'}</span>
+        <span className="metaPill">화면 {activePaneLabel}</span>
+        <span className="metaPill">기동 {runtimeModeLabel}</span>
+        <span className="metaPill">저장공간 {cfg.storageWritable ? '정상' : '확인 필요'}</span>
+        <span className="metaPill">운영 점검 {smoke.ok ? '정상' : '재확인'}</span>
       </div>
 
       <div className="exploreActionBar exploreActionBarSingle" style={{ marginBottom: 12 }}>
         <div className="exploreActionPanel exploreActionPanelTight configPaneBar">
-          <div className="exploreActionLabel">Pane</div>
+          <div className="exploreActionLabel">System 화면</div>
           <div className="exploreActionMeta">
-            <span className="metaPill">active {activePane}</span>
-            <span className="metaPill">smoke {smoke.results.length} checks</span>
+            <span className="metaPill">현재 {activePaneLabel}</span>
+            <span className="metaPill">점검 {smoke.results.length}개</span>
           </div>
           <div className="editorTabRow">
             {configPaneOptions.map((pane) => (
@@ -286,57 +290,57 @@ function ConfigPageInner() {
         <>
       <div className="exploreSummaryGrid section" style={{ marginTop: 12 }}>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Remote scan</div>
+          <div className="exploreSummaryLabel">원격 스캔</div>
           <div className="exploreSummaryValue">{cfg.remoteScan ? 'ON' : 'OFF'}</div>
-          <div className="exploreSummaryNote">remote scan API usage</div>
+          <div className="exploreSummaryNote">기기 대신 서버 쪽 판독 경로 사용</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Ads</div>
+          <div className="exploreSummaryLabel">광고 노출</div>
           <div className="exploreSummaryValue">{cfg.adsEnabled ? 'ON' : 'OFF'}</div>
-          <div className="exploreSummaryNote">slot runtime enable</div>
+          <div className="exploreSummaryNote">앱 광고 slot 운영 여부</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Storage</div>
-          <div className="exploreSummaryValue">{cfg.storageWritable ? 'Writable' : 'Blocked'}</div>
+          <div className="exploreSummaryLabel">저장 공간</div>
+          <div className="exploreSummaryValue">{cfg.storageWritable ? '정상' : '막힘'}</div>
           <div className="exploreSummaryNote">{storageRootDisplay}</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Runtime startup</div>
-          <div className="exploreSummaryValue">{cfg.backendRunMode}</div>
+          <div className="exploreSummaryLabel">기동 방식</div>
+          <div className="exploreSummaryValue">{runtimeModeLabel}</div>
           <div className="exploreSummaryNote">{startupModeNote}</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Path compatibility</div>
-          <div className="exploreSummaryValue">{cfg.legacyPathCompatibilityActive ? 'compat' : 'clean'}</div>
-          <div className="exploreSummaryNote">{cfg.legacyPathCompatibilityActive ? storageRootActual : t('admin.config.compat.noteClean', 'rename 이후 clean path 상태')}</div>
+          <div className="exploreSummaryLabel">이전 경로 호환</div>
+          <div className="exploreSummaryValue">{cfg.legacyPathCompatibilityActive ? '유지 중' : '정리됨'}</div>
+          <div className="exploreSummaryNote">{cfg.legacyPathCompatibilityActive ? storageRootActual : t('admin.config.compat.noteClean', '이전 이름 의존 없이 정리된 상태')}</div>
         </div>
       </div>
 
       <div className="metaRow section" style={{ marginTop: 8 }}>
-        <span className="metaPill">{t('admin.config.meta.apiBase', 'api base')} {cfg.apiBase}</span>
-        <span className="metaPill">{t('admin.config.meta.storageErrors', 'storage errors')} {storageErrorCount}</span>
-        <span className="metaPill">{t('admin.config.meta.logoMode', 'logo mode')} {cfg.branding.logoType}</span>
-        <span className="metaPill">{t('admin.config.meta.logoText', 'logo text')} {cfg.branding.logoText}</span>
-        <span className="metaPill">public site {cfg.publicSite.dynamicLandingEnabled ? 'dynamic' : 'static'}</span>
-        <span className="metaPill">coupang {cfg.coupangPartners.enabled ? 'enabled' : 'disabled'}</span>
-        <span className="metaPill">smoke {smoke.ok ? 'ok' : 'check needed'}</span>
+        <span className="metaPill">API {cfg.apiBase}</span>
+        <span className="metaPill">저장공간 경고 {storageErrorCount}</span>
+        <span className="metaPill">로고 방식 {cfg.branding.logoType}</span>
+        <span className="metaPill">로고 문구 {cfg.branding.logoText}</span>
+        <span className="metaPill">공개 랜딩 {cfg.publicSite.dynamicLandingEnabled ? '동적' : '정적'}</span>
+        <span className="metaPill">쿠팡 연동 {cfg.coupangPartners.enabled ? '켜짐' : '꺼짐'}</span>
+        <span className="metaPill">운영 점검 {smoke.ok ? '정상' : '재확인'}</span>
       </div>
 
       <div className="opsSignalGrid section configCompactSignalGrid" style={{ marginTop: 12 }}>
         <div className="opsSignalCard" style={{ borderColor: cfg.storageWritable ? 'rgba(34,197,94,0.18)' : 'rgba(225,29,72,0.22)', background: cfg.storageWritable ? 'rgba(240,253,244,0.7)' : 'rgba(255,241,242,0.82)' }}>
-          <div className="opsSignalLabel">Storage</div>
-          <div className="opsSignalValue">{cfg.storageWritable ? 'Writable' : 'Blocked'}</div>
+          <div className="opsSignalLabel">저장 공간</div>
+          <div className="opsSignalValue">{cfg.storageWritable ? '정상' : '막힘'}</div>
           <div className="opsSignalHint">{storageErrorCount === 0 ? storageRootDisplay : `${storageErrorCount}개 경고 · ${storageRootDisplay}`}</div>
         </div>
         <div className="opsSignalCard" style={{ borderColor: cfg.publicSite.dynamicLandingEnabled ? 'rgba(34,197,94,0.18)' : 'rgba(245,158,11,0.24)', background: cfg.publicSite.dynamicLandingEnabled ? 'rgba(240,253,244,0.7)' : 'rgba(255,247,237,0.9)' }}>
-          <div className="opsSignalLabel">Public landing</div>
-          <div className="opsSignalValue">{cfg.publicSite.dynamicLandingEnabled ? 'Dynamic' : 'Static'}</div>
-          <div className="opsSignalHint">landing {cfg.publicSite.landingRoutes.join(', ')} · privacy {cfg.publicSite.privacyRoutes.join(', ')}</div>
+          <div className="opsSignalLabel">공개 랜딩</div>
+          <div className="opsSignalValue">{cfg.publicSite.dynamicLandingEnabled ? '동적' : '정적'}</div>
+          <div className="opsSignalHint">랜딩 {cfg.publicSite.landingRoutes.join(', ')} · 약관 {cfg.publicSite.privacyRoutes.join(', ')}</div>
         </div>
         <div className="opsSignalCard" style={{ borderColor: cfg.coupangPartners.affiliateReady ? 'rgba(34,197,94,0.18)' : 'rgba(245,158,11,0.24)', background: cfg.coupangPartners.affiliateReady ? 'rgba(240,253,244,0.7)' : 'rgba(255,247,237,0.9)' }}>
-          <div className="opsSignalLabel">Coupang runtime</div>
-          <div className="opsSignalValue">{cfg.coupangPartners.enabled ? 'Enabled' : 'Disabled'}</div>
-          <div className="opsSignalHint">affiliate {cfg.coupangPartners.affiliateReady ? 'ready' : 'not ready'} · source {cfg.coupangPartners.configSource}</div>
+          <div className="opsSignalLabel">쿠팡 제휴</div>
+          <div className="opsSignalValue">{cfg.coupangPartners.enabled ? '켜짐' : '꺼짐'}</div>
+          <div className="opsSignalHint">제휴 준비 {cfg.coupangPartners.affiliateReady ? '완료' : '미완료'} · 기준 {cfg.coupangPartners.configSource}</div>
         </div>
       </div>
 
@@ -348,12 +352,12 @@ function ConfigPageInner() {
         <div className={`card exploreDenseCard exploreSheetCard configPaneCard ${smoke.ok ? 'successCard' : 'warnCard'}`}>
           <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
             <div>
-              <h2 className="panelTitle" style={{ marginBottom: 0 }}>Operator smoke</h2>
+              <h2 className="panelTitle" style={{ marginBottom: 0 }}>운영 점검</h2>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span className="metaPill">checkedAt {smoke.checkedAt}</span>
+              <span className="metaPill">점검 시각 {smoke.checkedAt}</span>
               <button className="ghostBtn ghostBtnSmall" onClick={() => void loadSmoke()} disabled={smokeLoading}>
-                {smokeLoading ? 'Checking...' : 'Run smoke'}
+                {smokeLoading ? '점검중...' : '점검 다시 실행'}
               </button>
             </div>
           </div>
@@ -369,18 +373,17 @@ function ConfigPageInner() {
                 }}
               >
                 <strong>{result.label}</strong>
-                <span className="metaPill">status {result.status ?? '-'}</span>
+                <span className="metaPill">응답 {result.status ?? '-'}</span>
                 <span className="metaPill">{result.durationMs}ms</span>
                 <a href={result.url} target="_blank" rel="noreferrer" style={{ color: '#2563eb', overflow: 'hidden', textOverflow: 'ellipsis' }}>{result.url}</a>
-                <span style={{ fontWeight: 700, color: result.ok ? '#166534' : '#be123c' }}>{result.ok ? 'OK' : (result.error ?? 'CHECK')}</span>
+                <span style={{ fontWeight: 700, color: result.ok ? '#166534' : '#be123c' }}>{result.ok ? '정상' : (result.error ?? '확인 필요')}</span>
               </div>
             ))}
           </div>
 
           <div className="configHistoryStack">
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <span className="metaPill">history {smoke.history?.length ?? 0}개</span>
-            </div>
+              <span className="metaPill">기록 {smoke.history?.length ?? 0}개</span>            </div>
             {(smoke.history?.length ?? 0) === 0 ? (
               <div className="metaPill">아직 저장된 smoke 기록이 없어</div>
             ) : (
@@ -397,9 +400,8 @@ function ConfigPageInner() {
                   >
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <span className="metaPill">{entry.checkedAt}</span>
-                      <span className="metaPill">result {entry.ok ? 'ok' : 'check needed'}</span>
-                      <span className="metaPill">failed {entry.failureCount}</span>
-                    </div>
+                      <span className="metaPill">결과 {entry.ok ? '정상' : '재확인'}</span>
+                      <span className="metaPill">실패 {entry.failureCount}</span>                    </div>
                     <div style={{ color: '#334155', fontSize: 13, fontWeight: 600 }}>
                       {failed.length === 0
                         ? '모든 점검 대상이 정상 응답했어'
@@ -417,40 +419,40 @@ function ConfigPageInner() {
       {activePane === 'runtime' ? (
       <div className="sectionGrid twoCol section configTwoColSection">
         <div className={`card exploreDenseCard exploreSheetCard configPaneCard ${cfg.storageWritable ? 'successCard' : 'warnCard'}`}>
-          <h2 className="panelTitle">{t('admin.config.storage.title', 'Storage health')}</h2>
+          <h2 className="panelTitle">{t('admin.config.storage.title', '저장 공간 상태')}</h2>
           <div className="tableWrap">
             <table className="dataTable">
               <tbody>
-                <tr><th>key</th><th>value</th></tr>
-                <tr><td>{t('admin.config.storage.root', 'storageRoot')}</td><td>{storageRootDisplay}</td></tr>
-                <tr><td>{t('admin.config.storage.writable', 'storageWritable')}</td><td>{String(cfg.storageWritable)}</td></tr>
-                <tr><td>{t('admin.config.storage.input', 'input')}</td><td>{cfg.storagePaths.input ?? '-'}</td></tr>
-                <tr><td>{t('admin.config.storage.feedbackLogs', 'feedbackLogs')}</td><td>{cfg.storagePaths.feedbackLogs ?? '-'}</td></tr>
-                <tr><td>{t('admin.config.storage.failureLogs', 'failureLogs')}</td><td>{cfg.storagePaths.failureLogs ?? '-'}</td></tr>
-                <tr><td>{t('admin.config.storage.failed', 'failed')}</td><td>{cfg.storagePaths.failed ?? '-'}</td></tr>
-                <tr><td>{t('admin.config.storage.errors', 'errors')}</td><td>{cfg.storageErrors.length === 0 ? t('admin.common.none', 'none') : cfg.storageErrors.join(' | ')}</td></tr>
-                {cfg.legacyPathCompatibilityActive ? <tr><td>{t('admin.config.storage.actualRoot', 'actualStorageRoot')}</td><td>{storageRootActual}</td></tr> : null}
-                {cfg.legacyPathCompatibilityActive ? <tr><td>{t('admin.config.storage.actualRuntimeAssets', 'actualRuntimeAssetsRoot')}</td><td>{runtimeAssetsActual}</td></tr> : null}
+                <tr><th>항목</th><th>현재값</th></tr>
+                <tr><td>{t('admin.config.storage.root', '기준 저장 루트')}</td><td>{storageRootDisplay}</td></tr>
+                <tr><td>{t('admin.config.storage.writable', '쓰기 가능')}</td><td>{cfg.storageWritable ? '예' : '아니오'}</td></tr>
+                <tr><td>{t('admin.config.storage.input', '입력 보관')}</td><td>{cfg.storagePaths.input ?? '-'}</td></tr>
+                <tr><td>{t('admin.config.storage.feedbackLogs', '피드백 로그')}</td><td>{cfg.storagePaths.feedbackLogs ?? '-'}</td></tr>
+                <tr><td>{t('admin.config.storage.failureLogs', '실패 로그')}</td><td>{cfg.storagePaths.failureLogs ?? '-'}</td></tr>
+                <tr><td>{t('admin.config.storage.failed', '실패 보관함')}</td><td>{cfg.storagePaths.failed ?? '-'}</td></tr>
+                <tr><td>{t('admin.config.storage.errors', '저장 공간 경고')}</td><td>{cfg.storageErrors.length === 0 ? t('admin.common.none', '없음') : cfg.storageErrors.join(' | ')}</td></tr>
+                {cfg.legacyPathCompatibilityActive ? <tr><td>{t('admin.config.storage.actualRoot', '실제 저장 루트')}</td><td>{storageRootActual}</td></tr> : null}
+                {cfg.legacyPathCompatibilityActive ? <tr><td>{t('admin.config.storage.actualRuntimeAssets', '실제 런타임 자산 루트')}</td><td>{runtimeAssetsActual}</td></tr> : null}
               </tbody>
             </table>
           </div>
         </div>
 
         <div className="card exploreDenseCard exploreSheetCard configPaneCard successCard">
-          <h2 className="panelTitle">{t('admin.config.runtime.title', 'Runtime & startup')}</h2>
+          <h2 className="panelTitle">{t('admin.config.runtime.title', '기동 / 자산 경로')}</h2>
           <div className="tableWrap">
             <table className="dataTable">
               <tbody>
-                <tr><th>key</th><th>value</th></tr>
-                <tr><td>{t('admin.config.runtime.backendRunMode', 'backendRunMode')}</td><td>{cfg.backendRunMode}</td></tr>
-                <tr><td>{t('admin.config.runtime.serviceName', 'serviceName')}</td><td>{cfg.serviceName ?? '-'}</td></tr>
-                <tr><td>{t('admin.config.runtime.apiBase', 'apiBase')}</td><td>{cfg.apiBase}</td></tr>
-                <tr><td>{t('admin.config.runtime.pathCompatibility', 'pathCompatibility')}</td><td>{pathCompatibility}</td></tr>
-                <tr><td>{t('admin.config.runtime.runtimeAssets', 'runtimeAssetsRoot')}</td><td>{runtimeAssetsDisplay}</td></tr>
-                <tr><td>{t('admin.config.runtime.brandingAssets', 'brandingAssetsDir')}</td><td>{brandingAssetsDisplay}</td></tr>
-                <tr><td>{t('admin.config.runtime.adsAssets', 'adsAssetsDir')}</td><td>{adsAssetsDisplay}</td></tr>
-                {cfg.legacyPathCompatibilityActive ? <tr><td>{t('admin.config.runtime.actualBrandingAssets', 'actualBrandingAssetsDir')}</td><td>{brandingAssetsActual}</td></tr> : null}
-                {cfg.legacyPathCompatibilityActive ? <tr><td>{t('admin.config.runtime.actualAdsAssets', 'actualAdsAssetsDir')}</td><td>{adsAssetsActual}</td></tr> : null}
+                <tr><th>항목</th><th>현재값</th></tr>
+                <tr><td>{t('admin.config.runtime.backendRunMode', '기동 방식')}</td><td>{runtimeModeLabel}</td></tr>
+                <tr><td>{t('admin.config.runtime.serviceName', '서비스 이름')}</td><td>{cfg.serviceName ?? '-'}</td></tr>
+                <tr><td>{t('admin.config.runtime.apiBase', 'API 기준 주소')}</td><td>{cfg.apiBase}</td></tr>
+                <tr><td>{t('admin.config.runtime.pathCompatibility', '이전 경로 호환')}</td><td>{pathCompatibility}</td></tr>
+                <tr><td>{t('admin.config.runtime.runtimeAssets', '런타임 자산 루트')}</td><td>{runtimeAssetsDisplay}</td></tr>
+                <tr><td>{t('admin.config.runtime.brandingAssets', '브랜딩 자산 폴더')}</td><td>{brandingAssetsDisplay}</td></tr>
+                <tr><td>{t('admin.config.runtime.adsAssets', '광고 자산 폴더')}</td><td>{adsAssetsDisplay}</td></tr>
+                {cfg.legacyPathCompatibilityActive ? <tr><td>{t('admin.config.runtime.actualBrandingAssets', '실제 브랜딩 자산 폴더')}</td><td>{brandingAssetsActual}</td></tr> : null}
+                {cfg.legacyPathCompatibilityActive ? <tr><td>{t('admin.config.runtime.actualAdsAssets', '실제 광고 자산 폴더')}</td><td>{adsAssetsActual}</td></tr> : null}
               </tbody>
             </table>
           </div>
@@ -463,23 +465,23 @@ function ConfigPageInner() {
         <div className="card exploreDenseCard exploreSheetCard configPaneCard configFormCard">
           <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 8 }}>
             <div>
-              <h2 className="panelTitle" style={{ marginBottom: 0 }}>My page monthly summary</h2>
+              <h2 className="panelTitle" style={{ marginBottom: 0 }}>마이페이지 요약 운영값</h2>
             </div>
             <div className="buttonRow configInlineButtonRow">
-              <button className="primaryBtn" onClick={() => void saveRuntimeSettings()} disabled={savingRuntime}>Save runtime</button>
+              <button className="primaryBtn" onClick={() => void saveRuntimeSettings()} disabled={savingRuntime}>저장</button>
               <button className="ghostBtn ghostBtnSmall" onClick={() => {
                 setRuntimeDraft(cfg.runtimeSettings)
                 setSectionOrderDraft(cfg.runtimeSettings.myPageSectionOrder.join(', '))
                 setCategoryGroupsDraft(JSON.stringify(cfg.runtimeSettings.myPageCategoryGroups, null, 2))
-              }} disabled={savingRuntime}>Reset</button>
+              }} disabled={savingRuntime}>되돌리기</button>
             </div>
           </div>
           <div className="metaRow" style={{ marginTop: 0, marginBottom: 10 }}>
-            <span className="metaPill">state {runtimeDraft.myPageInsightsEnabled ? 'enabled' : 'disabled'}</span>
-            <span className="metaPill">months {runtimeDraft.myPageSummaryMonths}</span>
-            <span className="metaPill">top categories {runtimeDraft.myPageTopCategoriesCount}</span>
-            <span className="metaPill">top items {runtimeDraft.myPageTopItemsCount}</span>
-            <span className="metaPill">order {runtimeDraft.myPageSectionOrder.join(' > ')}</span>
+            <span className="metaPill">상태 {runtimeDraft.myPageInsightsEnabled ? '켜짐' : '꺼짐'}</span>
+            <span className="metaPill">기간 {runtimeDraft.myPageSummaryMonths}개월</span>
+            <span className="metaPill">카테고리 {runtimeDraft.myPageTopCategoriesCount}개</span>
+            <span className="metaPill">자주 담은 상품 {runtimeDraft.myPageTopItemsCount}개</span>
+            <span className="metaPill">순서 {runtimeDraft.myPageSectionOrder.join(' > ')}</span>
           </div>
           <div className="configMiniControlGrid">
             <label className="field configMiniControlCard configToggleField">
@@ -505,21 +507,21 @@ function ConfigPageInner() {
           </div>
           <div className="configEditorGrid">
             <div className="configInlineSubcard">
-              <div className="configSubcardTitle">Section order</div>
+              <div className="configSubcardTitle">노출 순서</div>
               <label className="field">
-                <div className="fieldLabel">섹션 노출 순서 (comma)</div>
+                <div className="fieldLabel">섹션 순서 (쉼표로 구분)</div>
                 <input className="textInput" value={sectionOrderDraft} onChange={(e) => setSectionOrderDraft(e.target.value)} placeholder="recentSaved, monthlySummary, allSavedHistory" />
               </label>
-              <div className="saveMessage">available recentSaved, monthlySummary, allSavedHistory</div>
+              <div className="saveMessage">사용 가능값: recentSaved, monthlySummary, allSavedHistory</div>
               <div className="metaRow" style={{ marginTop: 0 }}>
-                <span className="metaPill">saved groups {cfg.runtimeSettings.myPageCategoryGroups.length}</span>
-                <span className="metaPill">section order {cfg.runtimeSettings.myPageSectionOrder.join(' > ')}</span>
+                <span className="metaPill">저장된 묶음 {cfg.runtimeSettings.myPageCategoryGroups.length}</span>
+                <span className="metaPill">현재 순서 {cfg.runtimeSettings.myPageSectionOrder.join(' > ')}</span>
               </div>
             </div>
             <div className="configInlineSubcard">
-              <div className="configSubcardTitle">Category groups</div>
+              <div className="configSubcardTitle">카테고리 묶음</div>
               <label className="field">
-                <div className="fieldLabel">카테고리 그룹(JSON 배열)</div>
+                <div className="fieldLabel">고급 규칙(JSON 배열)</div>
                 <textarea className="textInput configJsonEditor" rows={9} value={categoryGroupsDraft} onChange={(e) => setCategoryGroupsDraft(e.target.value)} />
               </label>
             </div>
@@ -528,33 +530,33 @@ function ConfigPageInner() {
         </div>
 
         <div className="card exploreDenseCard exploreSheetCard configPaneCard">
-          <h2 className="panelTitle">{t('admin.config.branding.title', '브랜딩')}</h2>
+          <h2 className="panelTitle">{t('admin.config.branding.title', '브랜딩 자산')}</h2>
           <div className="tableWrap">
             <table className="dataTable">
               <tbody>
                 <tr><th>key</th><th>value</th></tr>
-                <tr><td>{t('admin.config.branding.logoType', 'logoType')}</td><td>{cfg.branding.logoType}</td></tr>
-                <tr><td>{t('admin.config.branding.logoText', 'logoText')}</td><td>{cfg.branding.logoText}</td></tr>
-                <tr><td>{t('admin.config.branding.logoImageUrl', 'logoImageUrl')}</td><td>{cfg.branding.logoImageUrl ?? '-'}</td></tr>
-                <tr><td>{t('admin.config.branding.splashImageUrl', 'splashImageUrl')}</td><td>{cfg.branding.splashImageUrl ?? '-'}</td></tr>
-                <tr><td>{t('admin.config.branding.assetsDir', 'brandingAssetsDir')}</td><td>{brandingAssetsDisplay}</td></tr>
-                <tr><td>{t('admin.config.branding.adsAssetsDir', 'adsAssetsDir')}</td><td>{adsAssetsDisplay}</td></tr>
-                <tr><td>{t('admin.config.branding.runtimeAssetsDir', 'runtimeAssetsRoot')}</td><td>{runtimeAssetsDisplay}</td></tr>
+                <tr><td>{t('admin.config.branding.logoType', '로고 방식')}</td><td>{cfg.branding.logoType}</td></tr>
+                <tr><td>{t('admin.config.branding.logoText', '로고 문구')}</td><td>{cfg.branding.logoText}</td></tr>
+                <tr><td>{t('admin.config.branding.logoImageUrl', '로고 이미지')}</td><td>{cfg.branding.logoImageUrl ?? '-'}</td></tr>
+                <tr><td>{t('admin.config.branding.splashImageUrl', '스플래시 이미지')}</td><td>{cfg.branding.splashImageUrl ?? '-'}</td></tr>
+                <tr><td>{t('admin.config.branding.assetsDir', '브랜딩 자산 폴더')}</td><td>{brandingAssetsDisplay}</td></tr>
+                <tr><td>{t('admin.config.branding.adsAssetsDir', '광고 자산 폴더')}</td><td>{adsAssetsDisplay}</td></tr>
+                <tr><td>{t('admin.config.branding.runtimeAssetsDir', '공통 런타임 자산 루트')}</td><td>{runtimeAssetsDisplay}</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
         <div className="card exploreDenseCard exploreSheetCard configPaneCard successCard">
-          <h2 className="panelTitle">Public landing</h2>
+          <h2 className="panelTitle">공개 랜딩</h2>
           <div className="tableWrap">
             <table className="dataTable">
               <tbody>
                 <tr><th>key</th><th>value</th></tr>
-                <tr><td>mode</td><td>{cfg.publicSite.dynamicLandingEnabled ? 'dynamic app-config' : 'static'}</td></tr>
-                <tr><td>landing routes</td><td>{cfg.publicSite.landingRoutes.join(', ')}</td></tr>
-                <tr><td>privacy routes</td><td>{cfg.publicSite.privacyRoutes.join(', ')}</td></tr>
-                <tr><td>branding assets</td><td>{cfg.publicSite.assetsRoutePrefix}</td></tr>
+                <tr><td>동작 방식</td><td>{cfg.publicSite.dynamicLandingEnabled ? 'app-config 연동' : '정적 페이지'}</td></tr>
+                <tr><td>랜딩 경로</td><td>{cfg.publicSite.landingRoutes.join(', ')}</td></tr>
+                <tr><td>약관 경로</td><td>{cfg.publicSite.privacyRoutes.join(', ')}</td></tr>
+                <tr><td>브랜딩 자산 prefix</td><td>{cfg.publicSite.assetsRoutePrefix}</td></tr>
               </tbody>
             </table>
           </div>
@@ -567,40 +569,40 @@ function ConfigPageInner() {
         <div className={`card exploreDenseCard exploreSheetCard configPaneCard configFormCard ${cfg.coupangPartners.affiliateReady ? 'successCard' : 'warnCard'}`}>
           <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 8 }}>
             <div>
-              <h2 className="panelTitle" style={{ marginBottom: 0 }}>Coupang runtime</h2>
+              <h2 className="panelTitle" style={{ marginBottom: 0 }}>쿠팡 파트너 연동</h2>
             </div>
             <div className="buttonRow configInlineButtonRow">
-              <button className="primaryBtn" onClick={() => void saveCoupangOverride(true)} disabled={savingCoupang}>Force ON</button>
-              <button className="ghostBtn ghostBtnSmall" onClick={() => void saveCoupangOverride(false)} disabled={savingCoupang}>Force OFF</button>
-              <button className="ghostBtn ghostBtnSmall" onClick={() => void saveCoupangOverride(null)} disabled={savingCoupang}>Use env default</button>
+              <button className="primaryBtn" onClick={() => void saveCoupangOverride(true)} disabled={savingCoupang}>강제 켜기</button>
+              <button className="ghostBtn ghostBtnSmall" onClick={() => void saveCoupangOverride(false)} disabled={savingCoupang}>강제 끄기</button>
+              <button className="ghostBtn ghostBtnSmall" onClick={() => void saveCoupangOverride(null)} disabled={savingCoupang}>기본값 따르기</button>
             </div>
           </div>
           <div className="metaRow" style={{ marginTop: 0, marginBottom: 10 }}>
-            <span className="metaPill">state {cfg.coupangPartners.enabled ? 'enabled' : 'disabled'}</span>
-            <span className="metaPill">note {savingCoupang ? 'saving' : noteDirty ? 'unsaved' : 'saved'}</span>
-            <span className="metaPill">affiliate {cfg.coupangPartners.affiliateReady ? 'ready' : 'not ready'}</span>
+            <span className="metaPill">상태 {cfg.coupangPartners.enabled ? '켜짐' : '꺼짐'}</span>
+            <span className="metaPill">메모 {savingCoupang ? '저장중' : noteDirty ? '미저장' : '저장됨'}</span>
+            <span className="metaPill">제휴 준비 {cfg.coupangPartners.affiliateReady ? '완료' : '미완료'}</span>
           </div>
           <div className="configEditorGrid">
             <div className="configInlineSubcard">
-              <div className="configSubcardTitle">Runtime summary</div>
+              <div className="configSubcardTitle">연동 상태 요약</div>
               <div className="tableWrap">
                 <table className="dataTable">
                   <tbody>
                     <tr><th>key</th><th>value</th></tr>
-                    <tr><td>effective enabled</td><td>{String(cfg.coupangPartners.enabled)}</td></tr>
-                    <tr><td>env enabled default</td><td>{String(cfg.coupangPartners.envEnabled)}</td></tr>
-                    <tr><td>admin override</td><td>{cfg.coupangPartners.enabledOverride === null ? 'none' : String(cfg.coupangPartners.enabledOverride)}</td></tr>
-                    <tr><td>config source</td><td>{cfg.coupangPartners.configSource}</td></tr>
-                    <tr><td>access key configured</td><td>{String(cfg.coupangPartners.accessKeyConfigured)}</td></tr>
-                    <tr><td>secret key configured</td><td>{String(cfg.coupangPartners.secretKeyConfigured)}</td></tr>
-                    <tr><td>affiliate ready</td><td>{String(cfg.coupangPartners.affiliateReady)}</td></tr>
-                    <tr><td>last updated</td><td>{cfg.coupangPartners.updatedAt ?? '-'}</td></tr>
+                    <tr><td>현재 적용 상태</td><td>{cfg.coupangPartners.enabled ? '켜짐' : '꺼짐'}</td></tr>
+                    <tr><td>기본값</td><td>{cfg.coupangPartners.envEnabled ? '켜짐' : '꺼짐'}</td></tr>
+                    <tr><td>운영자 강제값</td><td>{cfg.coupangPartners.enabledOverride === null ? '없음' : String(cfg.coupangPartners.enabledOverride)}</td></tr>
+                    <tr><td>판단 기준</td><td>{cfg.coupangPartners.configSource}</td></tr>
+                    <tr><td>access key 준비</td><td>{cfg.coupangPartners.accessKeyConfigured ? '예' : '아니오'}</td></tr>
+                    <tr><td>secret key 준비</td><td>{cfg.coupangPartners.secretKeyConfigured ? '예' : '아니오'}</td></tr>
+                    <tr><td>제휴 사용 준비</td><td>{cfg.coupangPartners.affiliateReady ? '완료' : '미완료'}</td></tr>
+                    <tr><td>최근 갱신</td><td>{cfg.coupangPartners.updatedAt ?? '-'}</td></tr>
                   </tbody>
                 </table>
               </div>
             </div>
             <div className="configInlineSubcard">
-              <div className="configSubcardTitle">Override note</div>
+              <div className="configSubcardTitle">운영 메모</div>
               <label className="field">
                 <div className="fieldLabel">운영 메모</div>
                 <textarea
@@ -612,7 +614,7 @@ function ConfigPageInner() {
                 />
               </label>
               <div className="metaRow" style={{ marginTop: 0 }}>
-                <span className="metaPill">last note {cfg.coupangPartners.operatorNote ? 'saved' : 'none'}</span>
+                <span className="metaPill">최근 메모 {cfg.coupangPartners.operatorNote ? '저장됨' : '없음'}</span>
               </div>
               {cfg.coupangPartners.operatorNote ? <div className="saveMessage">{cfg.coupangPartners.operatorNote}</div> : null}
               <div className="buttonRow configInlineButtonRow">
@@ -624,7 +626,7 @@ function ConfigPageInner() {
 
           <div className="configHistoryStack">
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <span className="metaPill">history {cfg.coupangPartners.recentChanges.length}개</span>
+              <span className="metaPill">변경 기록 {cfg.coupangPartners.recentChanges.length}개</span>
             </div>
             {cfg.coupangPartners.recentChanges.length === 0 ? (
               <div className="metaPill">아직 변경 이력이 없어</div>
@@ -640,9 +642,9 @@ function ConfigPageInner() {
                 >
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <span className="metaPill">{change.changedAt}</span>
-                    <span className="metaPill">source {change.configSource}</span>
-                    <span className="metaPill">override {change.enabledOverride === null ? 'none' : String(change.enabledOverride)}</span>
-                    <span className="metaPill">effective {String(change.effectiveEnabled)}</span>
+                    <span className="metaPill">기준 {change.configSource}</span>
+                    <span className="metaPill">강제값 {change.enabledOverride === null ? '없음' : String(change.enabledOverride)}</span>
+                    <span className="metaPill">적용 결과 {change.effectiveEnabled ? '켜짐' : '꺼짐'}</span>
                   </div>
                   <div style={{ color: '#334155' }}>{change.operatorNote || '메모 없음'}</div>
                 </div>
@@ -652,12 +654,12 @@ function ConfigPageInner() {
         </div>
 
         <div className={`card exploreDenseCard exploreSheetCard configPaneCard ${cfg.storageWritable ? 'successCard' : 'warnCard'}`}>
-          <h2 className="panelTitle">{t('admin.config.operator.title', 'Operator notes')}</h2>
+          <h2 className="panelTitle">{t('admin.config.operator.title', '운영 메모')}</h2>
           <ul className="inlineList">
             <li>{startupModeNote}</li>
-            <li>{cfg.storageWritable ? 'storage writable' : 'storage blocked'}</li>
-            <li>{cfg.legacyPathCompatibilityActive ? 'legacy path compatibility on' : 'legacy path compatibility off'}</li>
-            <li>prefer canonical runtime refresh</li>
+            <li>{cfg.storageWritable ? '저장 공간은 현재 쓰기 가능 상태야' : '저장 공간 쓰기 상태를 먼저 확인해야 해'}</li>
+            <li>{cfg.legacyPathCompatibilityActive ? '이전 경로 호환이 아직 켜져 있어' : '이전 경로 의존성은 정리된 상태야'}</li>
+            <li>변경 후에는 정식 runtime refresh 경로를 우선 사용해</li>
           </ul>
         </div>
       </div>
@@ -668,7 +670,7 @@ function ConfigPageInner() {
 
 export default function ConfigPage() {
   return (
-    <Suspense fallback={<div className="exploreCompactPage"><div className="card">Loading...</div></div>}>
+    <Suspense fallback={<div className="exploreCompactPage"><div className="card">불러오는 중...</div></div>}>
       <ConfigPageInner />
     </Suspense>
   )

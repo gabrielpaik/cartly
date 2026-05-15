@@ -61,6 +61,7 @@ type LegacySummary = {
 }
 
 type AccountFilter = 'all' | 'member' | 'guest'
+type ScanFilterOperator = 'gte' | 'lt'
 type SegmentPreset = 'recent7' | 'recent30' | 'visit5' | 'scan10' | 'scanLow' | 'pushReady'
 
 const usersFallback = {
@@ -144,8 +145,8 @@ export default function UsersPage() {
   const [accountFilter, setAccountFilter] = useState<AccountFilter>('all')
   const [lastSeenWithinDays, setLastSeenWithinDays] = useState('')
   const [sessionCountMin, setSessionCountMin] = useState('')
-  const [scanCountMin, setScanCountMin] = useState('')
-  const [scanCountLt, setScanCountLt] = useState('')
+  const [scanFilterOperator, setScanFilterOperator] = useState<ScanFilterOperator>('gte')
+  const [scanFilterValue, setScanFilterValue] = useState('')
   const [savedCartCountMin, setSavedCartCountMin] = useState('')
   const [readyPushOnly, setReadyPushOnly] = useState(false)
 
@@ -159,19 +160,23 @@ export default function UsersPage() {
 
     const parsedLastSeenWithinDays = parseOptionalNumber(lastSeenWithinDays)
     const parsedSessionCountMin = parseOptionalNumber(sessionCountMin)
-    const parsedScanCountMin = parseOptionalNumber(scanCountMin)
-    const parsedScanCountLt = parseOptionalNumber(scanCountLt)
+    const parsedScanFilterValue = parseOptionalNumber(scanFilterValue)
     const parsedSavedCartCountMin = parseOptionalNumber(savedCartCountMin)
 
     if (parsedLastSeenWithinDays !== undefined) params.set('lastSeenWithinDays', String(parsedLastSeenWithinDays))
     if (parsedSessionCountMin !== undefined) params.set('sessionCountMin', String(parsedSessionCountMin))
-    if (parsedScanCountMin !== undefined) params.set('scanCountMin', String(parsedScanCountMin))
-    if (parsedScanCountLt !== undefined) params.set('scanCountLt', String(parsedScanCountLt))
+    if (parsedScanFilterValue !== undefined) {
+      if (scanFilterOperator === 'gte') {
+        params.set('scanCountMin', String(parsedScanFilterValue))
+      } else {
+        params.set('scanCountLt', String(parsedScanFilterValue))
+      }
+    }
     if (parsedSavedCartCountMin !== undefined) params.set('savedCartCountMin', String(parsedSavedCartCountMin))
     if (readyPushOnly) params.set('readyPushOnly', 'true')
 
     return `/admin/users?${params.toString()}`
-  }, [accountFilter, lastSeenWithinDays, query, readyPushOnly, savedCartCountMin, scanCountLt, scanCountMin, sessionCountMin])
+  }, [accountFilter, lastSeenWithinDays, query, readyPushOnly, savedCartCountMin, scanFilterOperator, scanFilterValue, sessionCountMin])
 
   const usersRes = useAdminData<{ ok: boolean; data: { summary?: UsersSummary; users?: UserRow[] } }>(usersPath, {
     ok: true,
@@ -214,12 +219,11 @@ export default function UsersPage() {
     ]
     if (lastSeenWithinDays.trim()) pills.push(`seen ${lastSeenWithinDays.trim()}d`)
     if (sessionCountMin.trim()) pills.push(`visits >= ${sessionCountMin.trim()}`)
-    if (scanCountMin.trim()) pills.push(`scans >= ${scanCountMin.trim()}`)
-    if (scanCountLt.trim()) pills.push(`scans < ${scanCountLt.trim()}`)
+    if (scanFilterValue.trim()) pills.push(`scans ${scanFilterOperator === 'gte' ? '>=' : '<'} ${scanFilterValue.trim()}`)
     if (savedCartCountMin.trim()) pills.push(`saved carts >= ${savedCartCountMin.trim()}`)
     if (readyPushOnly) pills.push('push ready only')
     return pills
-  }, [accountFilter, lastSeenWithinDays, query, readyPushOnly, savedCartCountMin, scanCountLt, scanCountMin, sessionCountMin])
+  }, [accountFilter, lastSeenWithinDays, query, readyPushOnly, savedCartCountMin, scanFilterOperator, scanFilterValue, sessionCountMin])
 
   function applyPreset(preset: SegmentPreset) {
     if (preset === 'recent7') {
@@ -235,11 +239,13 @@ export default function UsersPage() {
       return
     }
     if (preset === 'scan10') {
-      setScanCountMin('10')
+      setScanFilterOperator('gte')
+      setScanFilterValue('10')
       return
     }
     if (preset === 'scanLow') {
-      setScanCountLt('3')
+      setScanFilterOperator('lt')
+      setScanFilterValue('3')
       return
     }
     if (preset === 'pushReady') {
@@ -252,8 +258,8 @@ export default function UsersPage() {
     setAccountFilter('all')
     setLastSeenWithinDays('')
     setSessionCountMin('')
-    setScanCountMin('')
-    setScanCountLt('')
+    setScanFilterOperator('gte')
+    setScanFilterValue('')
     setSavedCartCountMin('')
     setReadyPushOnly(false)
   }
@@ -396,38 +402,49 @@ export default function UsersPage() {
             <button type="button" className="ghostBtn ghostBtnSmall" onClick={resetFilters}>Reset</button>
           </div>
 
-          <div className="exploreSheetFilterGrid" style={{ gridTemplateColumns: 'repeat(3, minmax(220px, 1fr))' }}>
+          <div className="exploreSheetFilterGrid compactFilterGrid" style={{ gridTemplateColumns: 'minmax(260px, 1.8fr) repeat(4, minmax(140px, 0.8fr)) minmax(180px, 1fr)' }}>
             <label className="field" style={{ margin: 0 }}>
               <div className="exploreSheetFieldLabel">검색</div>
               <input className="textInput exploreSheetInput" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.users.list.searchPlaceholder', 'name / email / id / device')} />
             </label>
             <label className="field" style={{ margin: 0 }}>
-              <div className="exploreSheetFieldLabel">최근 N일 방문</div>
-              <input className="textInput exploreSheetInput" inputMode="numeric" value={lastSeenWithinDays} onChange={(event) => setLastSeenWithinDays(event.target.value)} placeholder="7 / 30 / 90" />
+              <div className="exploreSheetFieldLabel">최근 방문</div>
+              <select className="textInput exploreSheetInput" value={lastSeenWithinDays} onChange={(event) => setLastSeenWithinDays(event.target.value)}>
+                <option value="">전체</option>
+                <option value="7">7일 이내</option>
+                <option value="30">30일 이내</option>
+                <option value="90">90일 이내</option>
+                <option value="180">180일 이내</option>
+              </select>
             </label>
             <label className="field" style={{ margin: 0 }}>
-              <div className="exploreSheetFieldLabel">방문 N회 이상</div>
-              <input className="textInput exploreSheetInput" inputMode="numeric" value={sessionCountMin} onChange={(event) => setSessionCountMin(event.target.value)} placeholder="5" />
+              <div className="exploreSheetFieldLabel">방문수</div>
+              <input className="textInput exploreSheetInput" inputMode="numeric" value={sessionCountMin} onChange={(event) => setSessionCountMin(event.target.value)} placeholder=">= 5" />
             </label>
             <label className="field" style={{ margin: 0 }}>
-              <div className="exploreSheetFieldLabel">스캔 N개 이상</div>
-              <input className="textInput exploreSheetInput" inputMode="numeric" value={scanCountMin} onChange={(event) => setScanCountMin(event.target.value)} placeholder="10" />
+              <div className="exploreSheetFieldLabel">스캔수</div>
+              <div className="compactInlineField">
+                <select className="textInput exploreSheetInput compactInlineSelect" value={scanFilterOperator} onChange={(event) => setScanFilterOperator(event.target.value as ScanFilterOperator)}>
+                  <option value="gte">이상</option>
+                  <option value="lt">미만</option>
+                </select>
+                <input className="textInput exploreSheetInput compactInlineInput" inputMode="numeric" value={scanFilterValue} onChange={(event) => setScanFilterValue(event.target.value)} placeholder="10" />
+              </div>
             </label>
             <label className="field" style={{ margin: 0 }}>
-              <div className="exploreSheetFieldLabel">스캔 N개 미만</div>
-              <input className="textInput exploreSheetInput" inputMode="numeric" value={scanCountLt} onChange={(event) => setScanCountLt(event.target.value)} placeholder="3" />
+              <div className="exploreSheetFieldLabel">저장 카트</div>
+              <input className="textInput exploreSheetInput" inputMode="numeric" value={savedCartCountMin} onChange={(event) => setSavedCartCountMin(event.target.value)} placeholder=">= 1" />
             </label>
             <label className="field" style={{ margin: 0 }}>
-              <div className="exploreSheetFieldLabel">저장 카트 N개 이상</div>
-              <input className="textInput exploreSheetInput" inputMode="numeric" value={savedCartCountMin} onChange={(event) => setSavedCartCountMin(event.target.value)} placeholder="1" />
+              <div className="exploreSheetFieldLabel">푸시 가능</div>
+              <div className="compactToggleCard">
+                <input type="checkbox" checked={readyPushOnly} onChange={(event) => setReadyPushOnly(event.target.checked)} />
+                <span>ready device만</span>
+              </div>
             </label>
           </div>
 
           <div className="metaRow" style={{ marginTop: 10, alignItems: 'center' }}>
-            <label style={{ display: 'inline-flex', gap: 8, alignItems: 'center', fontSize: 13, color: '#475569' }}>
-              <input type="checkbox" checked={readyPushOnly} onChange={(event) => setReadyPushOnly(event.target.checked)} />
-              push ready만 보기
-            </label>
             <div className="metaPill">export uses userId, installId blank</div>
             <div className="metaPill">Push upload re-resolves live device state</div>
             <div className="metaPill">customer state is derived from live metrics</div>

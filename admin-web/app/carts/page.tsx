@@ -468,17 +468,18 @@ export default function CartsPage() {
               <div className="metaPill">dblclick detail</div>
             </div>
           </div>
-          <div className="editorSubtabRow">
-            {filterButtons.map(([key, label]) => (
-              <button key={key} type="button" className={`editorSubtab ${userType === key ? 'active' : ''}`} onClick={() => setUserType(key)}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="exploreSheetFilterGrid" style={{ gridTemplateColumns: 'minmax(220px, 1fr) 140px 140px' }}>
+          <div className="exploreSheetFilterGrid compactFilterGrid" style={{ gridTemplateColumns: 'minmax(260px, 1.8fr) minmax(180px, 0.9fr) repeat(2, minmax(150px, 0.8fr)) auto' }}>
             <label className="field" style={{ margin: 0 }}>
               <div className="exploreSheetFieldLabel">검색</div>
               <input className="textInput exploreSheetInput" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('admin.carts.filters.searchPlaceholder', 'user / cart / merchant / item')} />
+            </label>
+            <label className="field" style={{ margin: 0 }}>
+              <div className="exploreSheetFieldLabel">고객 유형</div>
+              <select className="textInput exploreSheetInput" value={userType} onChange={(e) => setUserType(e.target.value as UserTypeFilter)}>
+                {filterButtons.map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
             </label>
             <label className="field" style={{ margin: 0 }}>
               <div className="exploreSheetFieldLabel">저장일 시작</div>
@@ -488,6 +489,20 @@ export default function CartsPage() {
               <div className="exploreSheetFieldLabel">저장일 종료</div>
               <input className="textInput exploreSheetInput" type="date" value={savedDateTo} onChange={(e) => setSavedDateTo(e.target.value)} />
             </label>
+            <div className="compactFilterActionCell">
+              <button
+                type="button"
+                className="ghostBtn ghostBtnSmall"
+                onClick={() => {
+                  setQuery('')
+                  setUserType('all')
+                  setSavedDateFrom('')
+                  setSavedDateTo('')
+                }}
+              >
+                Reset
+              </button>
+            </div>
           </div>
         </div>
       </div>

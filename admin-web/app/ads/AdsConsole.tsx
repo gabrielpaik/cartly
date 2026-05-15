@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { CampaignRow, fallbackSlots, SlotHistory, SlotRow } from '../../components/ads'
 import { useAdminCopy } from '../../components/AdminCopyProvider'
 import PageHeader from '../../components/PageHeader'
-import { fetchJsonSafe, isUnauthorizedError, postFormData, postJson, putJson } from '../../lib/api'
+import { deleteJson, fetchJsonSafe, isUnauthorizedError, postFormData, postJson, putJson } from '../../lib/api'
 import { formatDate, formatNumber, formatPercent } from '../../lib/format'
 
 type UploadResponse = {
@@ -93,13 +93,73 @@ type AdsWorkspaceData = {
 
 type CampaignSheetDraft = {
   slotKey: string
-  startAt: string
-  endAt: string
+  sortOrder: string
+  startDate: string
+  endDate: string
   title: string
   message: string
   ctaLabel: string
   targetUrl: string
+  landingCode: string
   imageUrl: string
+}
+
+type NewCampaignRow = {
+  id: string
+  draft: CampaignSheetDraft
+}
+
+type SetupSearchField = 'all' | 'title' | 'message' | 'cta' | 'url' | 'landing' | 'slot'
+
+type LandingPreset = {
+  value: string
+  label: string
+  landingType: string
+  landingKey: string
+  landingParams?: Record<string, string | number | boolean>
+}
+
+type BannerSizePreset = {
+  id: string
+  label: string
+  note: string
+}
+
+type BannerUploadModalState = {
+  rowId: string
+  isNew: boolean
+  slotKey: string
+  presetId: string
+  file: File | null
+}
+
+const LANDING_PRESETS: LandingPreset[] = [
+  { value: '', label: '없음', landingType: '', landingKey: '' },
+  { value: 'explore.recommended_products', label: 'Explore 추천상품', landingType: 'explore_section', landingKey: 'recommended_products' },
+  { value: 'saved.recent_saved', label: '지난 카트 최근 저장본', landingType: 'saved_flow', landingKey: 'recent_saved' },
+  { value: 'saved.all_saved', label: '지난 카트 전체보기', landingType: 'saved_flow', landingKey: 'all_saved' },
+  { value: 'my.benefits', label: 'My 혜택', landingType: 'my_section', landingKey: 'benefits' },
+  { value: 'auth.signup', label: '회원가입', landingType: 'auth_flow', landingKey: 'signup' },
+  { value: 'home.cart', label: '홈 현재 카트', landingType: 'home_tab', landingKey: 'cart' },
+]
+
+const BANNER_SIZE_PRESETS: Record<string, BannerSizePreset[]> = {
+  save_complete_sheet_1: [
+    { id: 'save-default', label: '기본 1200×176', note: '저장 완료 바텀시트용 기본 권장' },
+    { id: 'save-retina', label: '고해상도 2400×352', note: '@2x 업로드용' },
+  ],
+  saved_inline_1: [
+    { id: 'saved1-default', label: '기본 1200×208', note: '지난 카트 inline 1 권장' },
+    { id: 'saved1-retina', label: '고해상도 2400×416', note: '@2x 업로드용' },
+  ],
+  saved_inline_2: [
+    { id: 'saved2-default', label: '기본 1200×208', note: '지난 카트 inline 2 권장' },
+    { id: 'saved2-retina', label: '고해상도 2400×416', note: '@2x 업로드용' },
+  ],
+  my_perks_inline_1: [
+    { id: 'my-default', label: '기본 1200×192', note: 'My 혜택 배너 권장' },
+    { id: 'my-retina', label: '고해상도 2400×384', note: '@2x 업로드용' },
+  ],
 }
 
 function buildFallbackSummary(slots: SlotRow[]): AdsPerformanceData {
@@ -212,30 +272,74 @@ function runtimeStateLabel(value: string) {
   }
 }
 
-function campaignStatusLabel(value: string) {
-  switch (value) {
-    case 'live':
-      return '현재 노출'
-    case 'scheduled':
-      return '다음 예약'
-    case 'ended':
-      return '종료됨'
-    case 'cancelled':
-      return '취소됨'
-    default:
-      return value || '-'
+function normalizeSheetDate(value: string | null | undefined) {
+  return (value ?? '').trim().slice(0, 10)
+}
+
+function landingCodeFromCampaign(campaign: CampaignRow) {
+  const landingType = (campaign.landingType ?? '').trim()
+  const landingKey = (campaign.landingKey ?? '').trim()
+  if (!landingType || !landingKey) return ''
+  const matched = LANDING_PRESETS.find((preset) => preset.landingType === landingType && preset.landingKey === landingKey)
+  return matched?.value ?? `${landingType}:${landingKey}`
+}
+
+function landingPayloadFromCode(code: string) {
+  const trimmed = code.trim()
+  const matched = LANDING_PRESETS.find((preset) => preset.value === trimmed)
+  if (!matched || !matched.landingType || !matched.landingKey) {
+    return { landingType: null, landingKey: null, landingParams: null }
   }
+  return {
+    landingType: matched.landingType,
+    landingKey: matched.landingKey,
+    landingParams: matched.landingParams ?? null,
+  }
+}
+
+function landingLabelFromCode(code: string) {
+  const trimmed = code.trim()
+  if (!trimmed) return '-'
+  const matched = LANDING_PRESETS.find((preset) => preset.value === trimmed)
+  if (matched) return matched.label
+  return trimmed
+}
+
+function composeTargetUrl(draft: CampaignSheetDraft) {
+  const targetUrl = draft.targetUrl.trim()
+  return targetUrl || null
+}
+
+function landingSelectOptions(code: string) {
+  if (!code.trim()) return LANDING_PRESETS
+  const exists = LANDING_PRESETS.some((preset) => preset.value === code)
+  if (exists) return LANDING_PRESETS
+  return [...LANDING_PRESETS, { value: code, label: `custom · ${code}`, landingType: '', landingKey: '' }]
+}
+
+function bannerPresetsForSlot(slotKey: string) {
+  return BANNER_SIZE_PRESETS[slotKey] ?? [
+    { id: 'generic-default', label: '기본 1200×192', note: '공통 inline 권장' },
+    { id: 'generic-retina', label: '고해상도 2400×384', note: '@2x 업로드용' },
+  ]
+}
+
+function composeDateTime(value: string) {
+  const trimmed = value.trim()
+  return trimmed ? `${trimmed}T00:00:00` : ''
 }
 
 function emptyCampaignDraft(slotKey = ''): CampaignSheetDraft {
   return {
     slotKey,
-    startAt: '',
-    endAt: '',
+    sortOrder: '1',
+    startDate: '',
+    endDate: '',
     title: '',
     message: '',
     ctaLabel: '',
     targetUrl: '',
+    landingCode: '',
     imageUrl: '',
   }
 }
@@ -243,14 +347,20 @@ function emptyCampaignDraft(slotKey = ''): CampaignSheetDraft {
 function draftFromCampaign(campaign: CampaignRow): CampaignSheetDraft {
   return {
     slotKey: campaign.slotKey,
-    startAt: campaign.startAt?.slice(0, 16) ?? '',
-    endAt: campaign.endAt?.slice(0, 16) ?? '',
+    sortOrder: String(campaign.sortOrder ?? 1),
+    startDate: normalizeSheetDate(campaign.startAt),
+    endDate: normalizeSheetDate(campaign.endAt),
     title: campaign.title ?? '',
     message: campaign.message ?? '',
     ctaLabel: campaign.ctaLabel ?? '',
     targetUrl: campaign.targetUrl ?? '',
+    landingCode: landingCodeFromCampaign(campaign),
     imageUrl: campaign.imageUrl ?? '',
   }
+}
+
+function sameDraft(left: CampaignSheetDraft, right: CampaignSheetDraft) {
+  return JSON.stringify(left) === JSON.stringify(right)
 }
 
 export type AdsView = 'status' | 'setup' | 'efficiency'
@@ -263,13 +373,22 @@ export default function AdsConsole({ view }: { view: AdsView }) {
   const [workspace, setWorkspace] = useState<AdsWorkspaceData | null>(null)
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([])
   const [campaignDrafts, setCampaignDrafts] = useState<Record<string, CampaignSheetDraft>>({})
-  const [appendDraft, setAppendDraft] = useState<CampaignSheetDraft>(emptyCampaignDraft(fallbackSlots[0]?.slotKey ?? ''))
+  const [newRows, setNewRows] = useState<NewCampaignRow[]>([])
+  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([])
+  const [slotStatusDrafts, setSlotStatusDrafts] = useState<Record<string, 'active' | 'inactive'>>({})
+  const [setupPeriodFrom, setSetupPeriodFrom] = useState('')
+  const [setupPeriodTo, setSetupPeriodTo] = useState('')
+  const [setupSearchField, setSetupSearchField] = useState<SetupSearchField>('title')
+  const [setupSearchQuery, setSetupSearchQuery] = useState('')
   const [usingFallback, setUsingFallback] = useState(true)
   const [loading, setLoading] = useState(true)
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [uploadingKey, setUploadingKey] = useState<string | null>(null)
+  const [setupUploadModalOpen, setSetupUploadModalOpen] = useState(false)
+  const [setupUploadFile, setSetupUploadFile] = useState<File | null>(null)
+  const [bannerUploadModal, setBannerUploadModal] = useState<BannerUploadModalState | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [historyVariantFilter, setHistoryVariantFilter] = useState<'all' | 'live' | 'reserved'>('all')
   const [historyStatusFilter, setHistoryStatusFilter] = useState<'all' | 'ended' | 'cancelled' | 'scheduled' | 'live'>('all')
@@ -289,10 +408,62 @@ export default function AdsConsole({ view }: { view: AdsView }) {
     if (!selectedSlot) return []
     return (workspace?.history ?? []).filter((campaign) => campaign.id !== selectedSlot.config.liveCampaignId && campaign.id !== selectedSlot.config.reservedCampaignId)
   }, [selectedSlot, workspace])
+  const dirtyExistingIds = useMemo(
+    () => campaigns.filter((campaign) => !sameDraft(campaignDrafts[campaign.id] ?? draftFromCampaign(campaign), draftFromCampaign(campaign))).map((campaign) => campaign.id),
+    [campaignDrafts, campaigns],
+  )
+  const dirtySlotKeys = useMemo(
+    () => slots.filter((slot) => (slotStatusDrafts[slot.slotKey] ?? slot.status) !== slot.status).map((slot) => slot.slotKey),
+    [slotStatusDrafts, slots],
+  )
+  const visibleSetupRows = useMemo(() => {
+    const q = setupSearchQuery.trim().toLowerCase()
+    const periodFrom = setupPeriodFrom.trim()
+    const periodTo = setupPeriodTo.trim()
+    const matchesPeriod = (draft: CampaignSheetDraft) => {
+      const start = draft.startDate
+      const end = draft.endDate
+      if (periodFrom && end && end < periodFrom) return false
+      if (periodTo && start && start > periodTo) return false
+      return true
+    }
+    const matchesSearch = (draft: CampaignSheetDraft) => {
+      if (!q) return true
+      const slotLabel = slotsByKey[draft.slotKey]?.config.slotLabel ?? draft.slotKey
+      const landingLabel = landingLabelFromCode(draft.landingCode)
+      const values: Record<SetupSearchField, string> = {
+        all: [slotLabel, draft.title, draft.message, draft.ctaLabel, draft.targetUrl, landingLabel].join(' ').toLowerCase(),
+        title: draft.title.toLowerCase(),
+        message: draft.message.toLowerCase(),
+        cta: draft.ctaLabel.toLowerCase(),
+        url: draft.targetUrl.toLowerCase(),
+        landing: landingLabel.toLowerCase(),
+        slot: slotLabel.toLowerCase(),
+      }
+      return values[setupSearchField].includes(q)
+    }
+    const sortRows = (left: {id: string; draft: CampaignSheetDraft}, right: {id: string; draft: CampaignSheetDraft}) => {
+      const leftSort = Number.parseInt(left.draft.sortOrder || '1', 10) || 1
+      const rightSort = Number.parseInt(right.draft.sortOrder || '1', 10) || 1
+      const leftRank = leftSort === 999 ? 999999 : leftSort
+      const rightRank = rightSort === 999 ? 999999 : rightSort
+      return `${left.draft.startDate}|${leftRank.toString().padStart(6, '0')}|${left.id}`.localeCompare(`${right.draft.startDate}|${rightRank.toString().padStart(6, '0')}|${right.id}`)
+    }
+    const existing = campaigns
+      .map((campaign) => ({ id: campaign.id, isNew: false as const, draft: campaignDrafts[campaign.id] ?? draftFromCampaign(campaign), campaign }))
+      .filter((row) => matchesPeriod(row.draft) && matchesSearch(row.draft))
+      .sort(sortRows)
+    const drafts = newRows
+      .map((row) => ({ id: row.id, isNew: true as const, draft: row.draft, campaign: null }))
+      .filter((row) => matchesPeriod(row.draft) && matchesSearch(row.draft))
+      .sort(sortRows)
+    return [...drafts, ...existing]
+  }, [campaignDrafts, campaigns, newRows, setupPeriodFrom, setupPeriodTo, setupSearchField, setupSearchQuery, slotsByKey])
 
   async function loadSlots() {
     const res = await fetchJsonSafe<{ ok: boolean; data: { slots: SlotRow[] } }>('/admin/ads/slots', { ok: true, data: { slots: fallbackSlots } })
     setSlots(res.data.data.slots)
+    setSlotStatusDrafts(Object.fromEntries(res.data.data.slots.map((slot) => [slot.slotKey, slot.status as 'active' | 'inactive'])))
     setUsingFallback(res.usingFallback)
     return res.data.data.slots
   }
@@ -315,11 +486,13 @@ export default function AdsConsole({ view }: { view: AdsView }) {
   async function loadCampaigns() {
     const params = new URLSearchParams()
     params.set('limit', '500')
-    if (historyQuery.trim()) params.set('query', historyQuery.trim())
-    if (historyVariantFilter !== 'all') params.set('variant', historyVariantFilter)
-    if (historyStatusFilter !== 'all') params.set('status', historyStatusFilter)
-    if (historyPeriodFrom) params.set('periodFrom', historyPeriodFrom)
-    if (historyPeriodTo) params.set('periodTo', historyPeriodTo)
+    if (view !== 'setup') {
+      if (historyQuery.trim()) params.set('query', historyQuery.trim())
+      if (historyVariantFilter !== 'all') params.set('variant', historyVariantFilter)
+      if (historyStatusFilter !== 'all') params.set('status', historyStatusFilter)
+      if (historyPeriodFrom) params.set('periodFrom', historyPeriodFrom)
+      if (historyPeriodTo) params.set('periodTo', historyPeriodTo)
+    }
     const res = await fetchJsonSafe<{ ok: boolean; data: { campaigns: CampaignRow[] } }>(
       `/admin/ads/campaigns?${params.toString()}`,
       { ok: true, data: { campaigns: [] } },
@@ -359,7 +532,6 @@ export default function AdsConsole({ view }: { view: AdsView }) {
       const [, summary] = await Promise.all([loadSlots(), loadPerformanceSummary(), loadCampaigns()])
       const firstSlotKey = summary.slotRows[0]?.slotKey ?? null
       setSelectedSlotKey((prev) => prev && summary.slotRows.some((row) => row.slotKey === prev) ? prev : firstSlotKey)
-      setAppendDraft((prev) => ({ ...prev, slotKey: prev.slotKey || firstSlotKey || fallbackSlots[0]?.slotKey || '' }))
     } catch (err) {
       if (isUnauthorizedError(err)) {
         router.replace('/login?reason=expired')
@@ -415,8 +587,29 @@ export default function AdsConsole({ view }: { view: AdsView }) {
     }))
   }
 
-  function updateAppendDraft(patch: Partial<CampaignSheetDraft>) {
-    setAppendDraft((prev) => ({ ...prev, ...patch }))
+  function updateNewRow(id: string, patch: Partial<CampaignSheetDraft>) {
+    setNewRows((prev) => prev.map((row) => (row.id === id ? { ...row, draft: { ...row.draft, ...patch } } : row)))
+  }
+
+  function updateSlotStatus(slotKey: string, next: 'active' | 'inactive') {
+    setSlotStatusDrafts((prev) => ({ ...prev, [slotKey]: next }))
+  }
+
+  function toggleRowSelection(id: string, checked: boolean) {
+    setSelectedRowIds((prev) => (checked ? [...prev.filter((item) => item !== id), id] : prev.filter((item) => item !== id)))
+  }
+
+  function toggleAllVisibleRows(checked: boolean) {
+    setSelectedRowIds(checked ? visibleSetupRows.map((row) => row.id) : [])
+  }
+
+  function addNewRow() {
+    const nextId = `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const defaultSlotKey = slots[0]?.slotKey ?? fallbackSlots[0]?.slotKey ?? ''
+    const nextDraft = emptyCampaignDraft(defaultSlotKey)
+    if (setupPeriodFrom) nextDraft.startDate = setupPeriodFrom
+    if (setupPeriodTo) nextDraft.endDate = setupPeriodTo
+    setNewRows((prev) => [{ id: nextId, draft: nextDraft }, ...prev])
   }
 
   function showActionError(next: string) {
@@ -450,78 +643,207 @@ export default function AdsConsole({ view }: { view: AdsView }) {
     }
   }
 
-  async function createCampaign() {
-    setSavingKey('append')
+  async function downloadSetupTemplate() {
+    const XLSX = await import('xlsx')
+    const workbook = XLSX.utils.book_new()
+    const sheet = XLSX.utils.json_to_sheet([
+      {
+        정렬: '1',
+        슬롯종류: slots[0]?.slotKey ?? fallbackSlots[0]?.slotKey ?? '',
+        연결상태: 'active',
+        시작일: '',
+        종료일: '',
+        제목: '',
+        문구: '',
+        CTA: '',
+        링크URL: '',
+        랜딩페이지: '',
+        배너: '',
+      },
+    ])
+    XLSX.utils.book_append_sheet(workbook, sheet, 'AdsSetupTemplate')
+    XLSX.writeFile(workbook, 'cartly-ads-setup-template.xlsx')
+  }
+
+  function openBannerUploadModal(rowId: string, isNew: boolean, slotKey: string) {
+    const presets = bannerPresetsForSlot(slotKey)
+    setBannerUploadModal({ rowId, isNew, slotKey, presetId: presets[0]?.id ?? 'generic-default', file: null })
+  }
+
+  async function confirmBannerUpload() {
+    if (!bannerUploadModal?.file) {
+      showActionError('업로드할 배너 파일을 먼저 골라줘')
+      return
+    }
+    const rowId = bannerUploadModal.rowId
+    const url = await uploadAssetFile(bannerUploadModal.file, rowId)
+    if (!url) return
+    if (bannerUploadModal.isNew) updateNewRow(rowId, { imageUrl: url })
+    else updateCampaignDraft(rowId, { imageUrl: url })
+    setBannerUploadModal(null)
+  }
+
+  async function confirmSetupUpload() {
+    if (!setupUploadFile) {
+      showActionError('업로드할 시트 파일을 먼저 골라줘')
+      return
+    }
+    await uploadSetupSheet(setupUploadFile)
+    setSetupUploadFile(null)
+    setSetupUploadModalOpen(false)
+  }
+
+  async function deleteSelectedRows() {
+    if (selectedRowIds.length === 0) return
+    setSavingKey('bulk-delete')
     setMessage(null)
     try {
-      await postJson<{ ok: boolean; data: CampaignRow }>('/admin/ads/campaigns', {
-        slotKey: appendDraft.slotKey,
-        startAt: appendDraft.startAt,
-        endAt: appendDraft.endAt,
-        title: appendDraft.title,
-        message: appendDraft.message,
-        ctaLabel: appendDraft.ctaLabel || null,
-        targetUrl: appendDraft.targetUrl || null,
-        imageUrl: appendDraft.imageUrl || null,
-      })
-      setAppendDraft(emptyCampaignDraft(appendDraft.slotKey))
+      const draftIds = selectedRowIds.filter((id) => id.startsWith('draft-'))
+      const campaignIds = selectedRowIds.filter((id) => !id.startsWith('draft-'))
+      if (campaignIds.length > 0) {
+        for (const campaignId of campaignIds) {
+          await deleteJson<{ ok: boolean; data: { id: string } }>(`/admin/ads/campaigns/${campaignId}`)
+        }
+      }
+      if (draftIds.length > 0) {
+        setNewRows((prev) => prev.filter((row) => !draftIds.includes(row.id)))
+      }
+      setSelectedRowIds([])
       await refreshAll()
-      setMessage('campaign row 추가 완료')
+      setMessage('선택 행 삭제 완료')
     } catch (err) {
       if (isUnauthorizedError(err)) {
         router.replace('/login?reason=expired')
         return
       }
-      showActionError(err instanceof Error ? err.message : 'campaign row 추가 실패')
+      showActionError(err instanceof Error ? err.message : '선택 행 삭제 실패')
     } finally {
       setSavingKey(null)
     }
   }
 
-  async function saveCampaign(campaignId: string) {
-    const draft = campaignDrafts[campaignId]
-    if (!draft) return
-    setSavingKey(campaignId)
+  async function saveAllRows() {
+    setSavingKey('bulk-save')
     setMessage(null)
     try {
-      await putJson<{ ok: boolean; data: CampaignRow }>(`/admin/ads/campaigns/${campaignId}`, {
-        slotKey: draft.slotKey,
-        startAt: draft.startAt,
-        endAt: draft.endAt,
-        title: draft.title,
-        message: draft.message,
-        ctaLabel: draft.ctaLabel || null,
-        targetUrl: draft.targetUrl || null,
-        imageUrl: draft.imageUrl || null,
-      })
+      for (const row of newRows) {
+        const draft = row.draft
+        const landing = landingPayloadFromCode(draft.landingCode)
+        await postJson<{ ok: boolean; data: CampaignRow }>('/admin/ads/campaigns', {
+          slotKey: draft.slotKey,
+          sortOrder: Number.parseInt(draft.sortOrder || '1', 10) || 1,
+          startAt: composeDateTime(draft.startDate),
+          endAt: composeDateTime(draft.endDate),
+          title: draft.title,
+          message: draft.message,
+          ctaLabel: draft.ctaLabel || null,
+          targetUrl: composeTargetUrl(draft),
+          landingType: landing.landingType,
+          landingKey: landing.landingKey,
+          landingParams: landing.landingParams,
+          imageUrl: draft.imageUrl || null,
+        })
+      }
+      for (const campaignId of dirtyExistingIds) {
+        const draft = campaignDrafts[campaignId]
+        if (!draft) continue
+        const landing = landingPayloadFromCode(draft.landingCode)
+        await putJson<{ ok: boolean; data: CampaignRow }>(`/admin/ads/campaigns/${campaignId}`, {
+          slotKey: draft.slotKey,
+          sortOrder: Number.parseInt(draft.sortOrder || '1', 10) || 1,
+          startAt: composeDateTime(draft.startDate),
+          endAt: composeDateTime(draft.endDate),
+          title: draft.title,
+          message: draft.message,
+          ctaLabel: draft.ctaLabel || null,
+          targetUrl: composeTargetUrl(draft),
+          landingType: landing.landingType,
+          landingKey: landing.landingKey,
+          landingParams: landing.landingParams,
+          imageUrl: draft.imageUrl || null,
+        })
+      }
+      for (const slotKey of dirtySlotKeys) {
+        await putJson<{ ok: boolean; data: SlotRow }>(`/admin/ads/slots/${slotKey}`, {
+          status: slotStatusDrafts[slotKey],
+        })
+      }
+      setNewRows([])
+      setSelectedRowIds([])
       await refreshAll()
-      setMessage('campaign row 저장 완료')
+      setMessage('세팅 시트 저장 완료')
     } catch (err) {
       if (isUnauthorizedError(err)) {
         router.replace('/login?reason=expired')
         return
       }
-      showActionError(err instanceof Error ? err.message : 'campaign row 저장 실패')
+      showActionError(err instanceof Error ? err.message : '세팅 시트 저장 실패')
     } finally {
       setSavingKey(null)
     }
   }
 
-  async function cancelCampaign(campaignId: string) {
-    setSavingKey(`cancel:${campaignId}`)
-    setMessage(null)
+  async function downloadSetupSheet() {
+    const XLSX = await import('xlsx')
+    const rows = visibleSetupRows.map((row, index) => ({
+      정렬: row.draft.sortOrder,
+      슬롯종류: row.draft.slotKey,
+      연결상태: slotStatusDrafts[row.draft.slotKey] ?? slotsByKey[row.draft.slotKey]?.status ?? 'active',
+      시작일: row.draft.startDate,
+      종료일: row.draft.endDate,
+      제목: row.draft.title,
+      문구: row.draft.message,
+      CTA: row.draft.ctaLabel,
+      링크URL: row.draft.targetUrl,
+      랜딩페이지: row.draft.landingCode,
+      배너: row.draft.imageUrl,
+    }))
+    const workbook = XLSX.utils.book_new()
+    const sheet = XLSX.utils.json_to_sheet(rows)
+    XLSX.utils.book_append_sheet(workbook, sheet, 'AdsSetup')
+    XLSX.writeFile(workbook, 'cartly-ads-setup-sheet.xlsx')
+  }
+
+  async function uploadSetupSheet(file: File | null) {
+    if (!file) return
     try {
-      await postJson<{ ok: boolean; data: CampaignRow }>(`/admin/ads/campaigns/${campaignId}/cancel`)
-      await refreshAll()
-      setMessage('campaign row 취소 완료')
-    } catch (err) {
-      if (isUnauthorizedError(err)) {
-        router.replace('/login?reason=expired')
-        return
+      const XLSX = await import('xlsx')
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' })
+      const firstSheetName = workbook.SheetNames[0]
+      const worksheet = workbook.Sheets[firstSheetName]
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' })
+      const nextSlotStatuses: Record<string, 'active' | 'inactive'> = {}
+      const imported: NewCampaignRow[] = rows
+        .map((row, index) => {
+          const slotKey = String(row['슬롯종류'] || row['slotKey'] || '').trim()
+          if (!slotKey) return null
+          const rawStatus = String(row['연결상태'] || row['slotStatus'] || '').trim().toLowerCase()
+          if (rawStatus === 'inactive' || rawStatus === '중지') nextSlotStatuses[slotKey] = 'inactive'
+          else if (rawStatus === 'active' || rawStatus === '연결') nextSlotStatuses[slotKey] = 'active'
+          return {
+            id: `draft-import-${Date.now()}-${index}`,
+            draft: {
+              slotKey,
+              sortOrder: String(row['정렬'] || row['sortOrder'] || '1').trim() || '1',
+              startDate: normalizeSheetDate(String(row['시작일'] || row['startDate'] || '')),
+              endDate: normalizeSheetDate(String(row['종료일'] || row['endDate'] || '')),
+              title: String(row['제목'] || row['title'] || '').trim(),
+              message: String(row['문구'] || row['message'] || '').trim(),
+              ctaLabel: String(row['CTA'] || row['ctaLabel'] || '').trim(),
+              targetUrl: String(row['링크URL'] || row['targetUrl'] || '').trim(),
+              landingCode: String(row['랜딩페이지'] || row['landingPage'] || '').trim(),
+              imageUrl: String(row['배너'] || row['imageUrl'] || '').trim(),
+            },
+          }
+        })
+        .filter((row): row is NewCampaignRow => row !== null)
+      if (Object.keys(nextSlotStatuses).length > 0) {
+        setSlotStatusDrafts((prev) => ({ ...prev, ...nextSlotStatuses }))
       }
-      showActionError(err instanceof Error ? err.message : 'campaign row 취소 실패')
-    } finally {
-      setSavingKey(null)
+      setNewRows((prev) => [...imported, ...prev])
+      setMessage(`${imported.length}개 row 업로드 완료`)
+    } catch (err) {
+      showActionError(err instanceof Error ? err.message : '세팅 시트 업로드 실패')
     }
   }
 
@@ -551,6 +873,8 @@ export default function AdsConsole({ view }: { view: AdsView }) {
         </div>
       ) : null}
 
+      {view !== 'setup' ? (
+      <>
       <div className="exploreSummaryGrid section" style={{ marginTop: 12 }}>
         <div className="exploreSummaryCell">
           <div className="exploreSummaryLabel">Live slots</div>
@@ -586,7 +910,10 @@ export default function AdsConsole({ view }: { view: AdsView }) {
         <div className="metaPill">period {historyPeriodFrom || '-'} → {historyPeriodTo || '-'}</div>
         <div className="metaPill">campaign status {historyStatusFilter}</div>
       </div>
+      </>
+      ) : null}
 
+      {view !== 'setup' ? (
       <form className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 16, marginBottom: 16 }} onSubmit={(e) => e.preventDefault()}>
         <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
           <div>
@@ -642,6 +969,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
           </div>
         </div>
       </form>
+      ) : null}
 
       {view === 'status' ? (
         <div className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 12, marginBottom: 16 }}>
@@ -799,154 +1127,275 @@ export default function AdsConsole({ view }: { view: AdsView }) {
           <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
             <div>
               <h2 className="panelTitle" style={{ marginBottom: 6 }}>세팅 시트</h2>
-              <p className="pageDesc" style={{ marginBottom: 6 }}>맨 윗줄에서 row를 추가하고, 아래 row는 바로 수정해. 현재 / 다음 / 종료는 시간창에서 자동으로 판정해.</p>
+              <p className="pageDesc" style={{ marginBottom: 6 }}>진열기간 조회, 조건검색, 일괄 추가/삭제/저장으로 바로 운영하는 타이트한 광고 시트야.</p>
             </div>
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <div className="metaPill">append row 1</div>
-              <div className="metaPill">campaign rows {campaigns.length}</div>
+              <div className="metaPill">visible rows {visibleSetupRows.length}</div>
+              <div className="metaPill">selected {selectedRowIds.length}</div>
+              <div className="metaPill">dirty {newRows.length + dirtyExistingIds.length + dirtySlotKeys.length}</div>
+            </div>
+          </div>
+
+          <div className="adsSetupToolbar">
+            <div className="adsSetupToolbarLeft">
+              <label className="field compactInlineField adsSetupToolbarField" style={{ margin: 0 }}>
+                <div className="exploreSheetFieldLabel">진열기간</div>
+                <div className="adsCompactDateRange">
+                  <input className="textInput exploreSheetInput compactInlineInput" type="date" value={setupPeriodFrom} onChange={(e) => setSetupPeriodFrom(e.target.value)} />
+                  <span className="adsCompactDateDivider">~</span>
+                  <input className="textInput exploreSheetInput compactInlineInput" type="date" value={setupPeriodTo} onChange={(e) => setSetupPeriodTo(e.target.value)} />
+                </div>
+              </label>
+              <label className="field compactInlineField adsSetupToolbarField" style={{ margin: 0 }}>
+                <div className="exploreSheetFieldLabel">조건검색</div>
+                <div className="adsSetupSearchRow">
+                  <select className="textInput exploreSheetInput compactInlineSelect" value={setupSearchField} onChange={(e) => setSetupSearchField(e.target.value as SetupSearchField)}>
+                    <option value="title">제목</option>
+                    <option value="message">문구</option>
+                    <option value="cta">CTA</option>
+                    <option value="url">링크URL</option>
+                    <option value="landing">랜딩페이지</option>
+                    <option value="slot">슬롯종류</option>
+                    <option value="all">전체</option>
+                  </select>
+                  <input className="textInput exploreSheetInput compactInlineInput" value={setupSearchQuery} onChange={(e) => setSetupSearchQuery(e.target.value)} placeholder="검색어 입력" />
+                </div>
+              </label>
+            </div>
+            <div className="adsSetupToolbarActions">
+              <button className="ghostBtn ghostBtnSmall adsSetupActionBtn" type="button" onClick={() => void downloadSetupSheet()}>다운로드</button>
+              <button className="ghostBtn ghostBtnSmall adsSetupActionBtn" type="button" disabled={usingFallback} onClick={() => setSetupUploadModalOpen(true)}>업로드</button>
+              <button className="ghostBtn ghostBtnSmall adsSetupActionBtn" type="button" onClick={() => void downloadSetupTemplate()}>양식</button>
+              <button className="ghostBtn ghostBtnSmall adsSetupActionBtn" type="button" disabled={usingFallback} onClick={addNewRow}>추가</button>
+              <button className="ghostBtn ghostBtnSmall adsSetupActionBtn" type="button" disabled={selectedRowIds.length === 0 || usingFallback || savingKey === 'bulk-delete'} onClick={() => void deleteSelectedRows()}>
+                {savingKey === 'bulk-delete' ? '삭제중' : '삭제'}
+              </button>
+              <button className="primaryBtn ghostBtnSmall adsSetupActionBtn adsSetupSaveActionBtn" type="button" disabled={usingFallback || savingKey === 'bulk-save'} onClick={() => void saveAllRows()}>
+                {savingKey === 'bulk-save' ? '저장중' : '저장'}
+              </button>
             </div>
           </div>
 
           <div className="exploreSheetViewport adsSetupSheetViewport">
-            <table className="exploreSimpleSheet adsSetupSheet adsSetupUnifiedSheet" style={{ width: 2640, minWidth: 2640 }}>
+            <table className="exploreSimpleSheet adsSetupSheet adsSetupUnifiedSheet adsTightSetupSheet" style={{ width: 2860, minWidth: 2860 }}>
               <thead>
                 <tr>
-                  <th>구분</th>
-                  <th>슬롯</th>
-                  <th>상태</th>
-                  <th>시작</th>
-                  <th>종료</th>
+                  <th>
+                    <input
+                      type="checkbox"
+                      checked={visibleSetupRows.length > 0 && selectedRowIds.length === visibleSetupRows.length}
+                      onChange={(e) => toggleAllVisibleRows(e.target.checked)}
+                    />
+                  </th>
+                  <th></th>
+                  <th>정렬</th>
+                  <th>슬롯종류</th>
+                  <th>연결상태</th>
+                  <th>시작일</th>
+                  <th>종료일</th>
                   <th>제목</th>
                   <th>문구</th>
                   <th>CTA</th>
-                  <th>링크</th>
+                  <th>링크URL</th>
+                  <th>랜딩페이지</th>
                   <th>배너</th>
-                  <th>업로드</th>
-                  <th>저장</th>
-                  <th>취소</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td><strong>append</strong></td>
-                  <td>
-                    <select className="textInput exploreSheetInput" style={{ minWidth: 200, width: 200 }} value={appendDraft.slotKey} disabled={usingFallback} onChange={(e) => updateAppendDraft({ slotKey: e.target.value })}>
-                      {slots.map((slot) => (
-                        <option key={`append-slot-${slot.slotKey}`} value={slot.slotKey}>{slot.config.slotLabel || slot.slotKey}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td><span className="adsSetupCellSub">추가 예정</span></td>
-                  <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={appendDraft.startAt} disabled={usingFallback} onChange={(e) => updateAppendDraft({ startAt: e.target.value })} /></td>
-                  <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={appendDraft.endAt} disabled={usingFallback} onChange={(e) => updateAppendDraft({ endAt: e.target.value })} /></td>
-                  <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={appendDraft.title} disabled={usingFallback} onChange={(e) => updateAppendDraft({ title: e.target.value })} /></td>
-                  <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={appendDraft.message} disabled={usingFallback} onChange={(e) => updateAppendDraft({ message: e.target.value })} /></td>
-                  <td><input className="textInput exploreSheetInput" style={{ minWidth: 110, width: 110 }} value={appendDraft.ctaLabel} disabled={usingFallback} onChange={(e) => updateAppendDraft({ ctaLabel: e.target.value })} /></td>
-                  <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={appendDraft.targetUrl} disabled={usingFallback} placeholder="https://..." onChange={(e) => updateAppendDraft({ targetUrl: e.target.value })} /></td>
-                  <td>
-                    {appendDraft.imageUrl ? (
-                      <a href={appendDraft.imageUrl} target="_blank" rel="noreferrer" className="exploreMiniThumbLink">
-                        <img src={appendDraft.imageUrl} alt="append row" className="exploreMiniThumb adsSetupMiniThumb" />
-                      </a>
-                    ) : (
-                      <span className="adsSetupCellSub">없음</span>
-                    )}
-                  </td>
-                  <td>
-                    <label className={`ghostBtn ghostBtnSmall adsUploadBtn${usingFallback ? ' disabled' : ''}`}>
-                      {uploadingKey === 'append' ? '업로드중' : '파일'}
-                      <input
-                        type="file"
-                        accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
-                        className="hiddenInput"
-                        disabled={usingFallback}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (!file) return
-                          void uploadAssetFile(file, 'append').then((url) => {
-                            if (url) updateAppendDraft({ imageUrl: url })
-                          })
-                        }}
-                      />
-                    </label>
-                  </td>
-                  <td>
-                    <button className="primaryBtn ghostBtnSmall adsSetupSaveBtn" type="button" disabled={savingKey === 'append' || usingFallback} onClick={() => void createCampaign()}>
-                      {savingKey === 'append' ? '추가중' : '추가'}
-                    </button>
-                  </td>
-                  <td><span className="adsSetupCellSub">-</span></td>
-                </tr>
-                {campaigns.map((campaign) => {
-                  const draft = campaignDrafts[campaign.id] ?? draftFromCampaign(campaign)
-                  const slot = slotsByKey[draft.slotKey] ?? slotsByKey[campaign.slotKey] ?? fallbackSlots[0]
+                {visibleSetupRows.map((row, index) => {
+                  const slot = slotsByKey[row.draft.slotKey] ?? fallbackSlots[0]
+                  const slotStatus = slotStatusDrafts[row.draft.slotKey] ?? slot?.status ?? 'active'
                   return (
-                    <tr key={`campaign-row-${campaign.id}`}>
-                      <td><strong>{campaign.id.slice(0, 8)}</strong></td>
+                    <tr key={row.id} className={row.isNew ? 'adsSetupDraftRow' : undefined}>
                       <td>
-                        <div className="adsSetupCellStack">
-                          <select className="textInput exploreSheetInput" style={{ minWidth: 220, width: 220 }} value={draft.slotKey} disabled={usingFallback || campaign.status === 'cancelled'} onChange={(e) => updateCampaignDraft(campaign.id, { slotKey: e.target.value })}>
-                            {slots.map((item) => (
-                              <option key={`campaign-slot-${campaign.id}-${item.slotKey}`} value={item.slotKey}>{item.config.slotLabel || item.slotKey}</option>
-                            ))}
-                          </select>
-                          <span className="adsSetupCellSub">{slot?.config?.slotLabel || campaign.slotKey} · {slot?.placementType || '-'}</span>
+                        <input type="checkbox" checked={selectedRowIds.includes(row.id)} onChange={(e) => toggleRowSelection(row.id, e.target.checked)} />
+                      </td>
+                      <td>
+                        <span className={`adsSetupCue${row.isNew ? ' isDraft' : ''}`}>{row.isNew ? '+' : ''}</span>
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="1"
+                          className="textInput exploreSheetInput adsSheetOrderInput"
+                          value={row.draft.sortOrder}
+                          disabled={usingFallback}
+                          onChange={(e) => {
+                            const next = { sortOrder: e.target.value }
+                            if (row.isNew) updateNewRow(row.id, next)
+                            else updateCampaignDraft(row.id, next)
+                          }}
+                        />
+                      </td>
+                      <td>
+                        <select
+                          className="textInput exploreSheetInput adsSheetSelect"
+                          value={row.draft.slotKey}
+                          disabled={usingFallback}
+                          onChange={(e) => {
+                            const next = { slotKey: e.target.value }
+                            if (row.isNew) updateNewRow(row.id, next)
+                            else updateCampaignDraft(row.id, next)
+                          }}
+                        >
+                          {slots.map((item) => (
+                            <option key={`${row.id}-${item.slotKey}`} value={item.slotKey}>{item.config.slotLabel || item.slotKey}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        <select className="textInput exploreSheetInput adsSheetSmallSelect" value={slotStatus} disabled={usingFallback} onChange={(e) => updateSlotStatus(row.draft.slotKey, e.target.value as 'active' | 'inactive')}>
+                          <option value="active">연결</option>
+                          <option value="inactive">중지</option>
+                        </select>
+                      </td>
+                      <td>
+                        <input type="date" className="textInput exploreSheetInput adsSheetDateInput" value={row.draft.startDate} disabled={usingFallback} onChange={(e) => row.isNew ? updateNewRow(row.id, { startDate: e.target.value }) : updateCampaignDraft(row.id, { startDate: e.target.value })} />
+                      </td>
+                      <td>
+                        <input type="date" className="textInput exploreSheetInput adsSheetDateInput" value={row.draft.endDate} disabled={usingFallback} onChange={(e) => row.isNew ? updateNewRow(row.id, { endDate: e.target.value }) : updateCampaignDraft(row.id, { endDate: e.target.value })} />
+                      </td>
+                      <td><input className="textInput exploreSheetInput adsSheetTextInput" value={row.draft.title} disabled={usingFallback} onChange={(e) => row.isNew ? updateNewRow(row.id, { title: e.target.value }) : updateCampaignDraft(row.id, { title: e.target.value })} /></td>
+                      <td><input className="textInput exploreSheetInput adsSheetTextInput" value={row.draft.message} disabled={usingFallback} onChange={(e) => row.isNew ? updateNewRow(row.id, { message: e.target.value }) : updateCampaignDraft(row.id, { message: e.target.value })} /></td>
+                      <td><input className="textInput exploreSheetInput adsSheetCtaInput" value={row.draft.ctaLabel} disabled={usingFallback} onChange={(e) => row.isNew ? updateNewRow(row.id, { ctaLabel: e.target.value }) : updateCampaignDraft(row.id, { ctaLabel: e.target.value })} /></td>
+                      <td><input className="textInput exploreSheetInput adsSheetUrlInput" value={row.draft.targetUrl} disabled={usingFallback} placeholder="https://..." onChange={(e) => {
+                        const patch = { targetUrl: e.target.value, landingCode: e.target.value.trim() ? '' : row.draft.landingCode }
+                        if (row.isNew) updateNewRow(row.id, patch)
+                        else updateCampaignDraft(row.id, patch)
+                      }} /></td>
+                      <td>
+                        <select
+                          className="textInput exploreSheetInput adsSheetLandingInput"
+                          value={row.draft.landingCode}
+                          disabled={usingFallback}
+                          onChange={(e) => {
+                            const patch = { landingCode: e.target.value, targetUrl: e.target.value ? '' : row.draft.targetUrl }
+                            if (row.isNew) updateNewRow(row.id, patch)
+                            else updateCampaignDraft(row.id, patch)
+                          }}
+                        >
+                          {landingSelectOptions(row.draft.landingCode).map((option) => (
+                            <option key={`${row.id}-${option.value || 'empty'}`} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        <div className="adsBannerCell">
+                          <div className="adsBannerCellPreview">
+                            {row.draft.imageUrl ? (
+                              <a href={row.draft.imageUrl} target="_blank" rel="noreferrer" className="exploreMiniThumbLink">
+                                <img src={row.draft.imageUrl} alt={row.id} className="exploreMiniThumb adsSetupMiniThumb" />
+                              </a>
+                            ) : (
+                              <span className="adsSetupCellSub">-</span>
+                            )}
+                          </div>
+                          <button className={`adsUploadIconBtn${usingFallback ? ' disabled' : ''}`} type="button" title="배너 업로드" disabled={usingFallback} onClick={() => openBannerUploadModal(row.id, row.isNew, row.draft.slotKey)}>
+                            {uploadingKey === row.id ? '…' : '⤴'}
+                          </button>
                         </div>
-                      </td>
-                      <td><span className="adsSetupCellSub">{campaignStatusLabel(campaign.status)}</span></td>
-                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={draft.startAt} disabled={usingFallback || campaign.status === 'cancelled'} onChange={(e) => updateCampaignDraft(campaign.id, { startAt: e.target.value })} /></td>
-                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={draft.endAt} disabled={usingFallback || campaign.status === 'cancelled'} onChange={(e) => updateCampaignDraft(campaign.id, { endAt: e.target.value })} /></td>
-                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={draft.title} disabled={usingFallback || campaign.status === 'cancelled'} onChange={(e) => updateCampaignDraft(campaign.id, { title: e.target.value })} /></td>
-                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={draft.message} disabled={usingFallback || campaign.status === 'cancelled'} onChange={(e) => updateCampaignDraft(campaign.id, { message: e.target.value })} /></td>
-                      <td><input className="textInput exploreSheetInput" style={{ minWidth: 110, width: 110 }} value={draft.ctaLabel} disabled={usingFallback || campaign.status === 'cancelled'} onChange={(e) => updateCampaignDraft(campaign.id, { ctaLabel: e.target.value })} /></td>
-                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={draft.targetUrl} disabled={usingFallback || campaign.status === 'cancelled'} placeholder="https://..." onChange={(e) => updateCampaignDraft(campaign.id, { targetUrl: e.target.value })} /></td>
-                      <td>
-                        {draft.imageUrl ? (
-                          <a href={draft.imageUrl} target="_blank" rel="noreferrer" className="exploreMiniThumbLink">
-                            <img src={draft.imageUrl} alt={campaign.id} className="exploreMiniThumb adsSetupMiniThumb" />
-                          </a>
-                        ) : (
-                          <span className="adsSetupCellSub">없음</span>
-                        )}
-                      </td>
-                      <td>
-                        <label className={`ghostBtn ghostBtnSmall adsUploadBtn${usingFallback || campaign.status === 'cancelled' ? ' disabled' : ''}`}>
-                          {uploadingKey === campaign.id ? '업로드중' : '파일'}
-                          <input
-                            type="file"
-                            accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
-                            className="hiddenInput"
-                            disabled={usingFallback || campaign.status === 'cancelled'}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              if (!file) return
-                              void uploadAssetFile(file, campaign.id).then((url) => {
-                                if (url) updateCampaignDraft(campaign.id, { imageUrl: url })
-                              })
-                            }}
-                          />
-                        </label>
-                      </td>
-                      <td>
-                        <button className="primaryBtn ghostBtnSmall adsSetupSaveBtn" type="button" disabled={savingKey === campaign.id || usingFallback || campaign.status === 'cancelled'} onClick={() => void saveCampaign(campaign.id)}>
-                          {savingKey === campaign.id ? '저장중' : '저장'}
-                        </button>
-                      </td>
-                      <td>
-                        <button className="primaryBtn ghostBtnSmall" type="button" disabled={savingKey === `cancel:${campaign.id}` || usingFallback || campaign.status === 'cancelled'} onClick={() => void cancelCampaign(campaign.id)}>
-                          {campaign.status === 'cancelled' ? '취소됨' : savingKey === `cancel:${campaign.id}` ? '처리중' : '취소'}
-                        </button>
                       </td>
                     </tr>
                   )
                 })}
-                {campaigns.length === 0 ? (
+                {visibleSetupRows.length === 0 ? (
                   <tr>
                     <td colSpan={13} style={{ textAlign: 'center', color: '#64748b' }}>조건에 맞는 campaign row가 없어.</td>
                   </tr>
                 ) : null}
               </tbody>
             </table>
+          </div>
+        </div>
+      ) : null}
+
+      {setupUploadModalOpen ? (
+        <div className="adsModalBackdrop" onClick={() => { setSetupUploadModalOpen(false); setSetupUploadFile(null) }}>
+          <div className="adsModalCard" onClick={(event) => event.stopPropagation()}>
+            <div className="adsModalHeader">
+              <div>
+                <h3 className="panelTitle" style={{ marginBottom: 6 }}>세팅 시트 업로드</h3>
+                <p className="pageDesc" style={{ margin: 0 }}>파일을 바로 집어넣지 말고, 양식 확인 후 일괄 반입하는 팝업이야.</p>
+              </div>
+              <button className="ghostBtn ghostBtnSmall adsModalCloseBtn" type="button" onClick={() => { setSetupUploadModalOpen(false); setSetupUploadFile(null) }}>닫기</button>
+            </div>
+            <div className="adsModalBody">
+              <div className="adsModalInfoCard">
+                <strong>권장 순서</strong>
+                <span>1) 양식 받기 → 2) Excel/CSV 작성 → 3) 여기서 파일 선택 → 4) 시트 넣기</span>
+              </div>
+              <div className="adsModalActionRow">
+                <button className="ghostBtn ghostBtnSmall" type="button" onClick={() => void downloadSetupTemplate()}>양식 받기</button>
+                <label className="ghostBtn ghostBtnSmall adsModalFileBtn">
+                  파일 선택
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                    className="hiddenInput"
+                    onChange={(e) => setSetupUploadFile(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <span className="adsModalFileName">{setupUploadFile?.name ?? '선택된 파일 없음'}</span>
+              </div>
+            </div>
+            <div className="adsModalFooter">
+              <button className="ghostBtn ghostBtnSmall" type="button" onClick={() => { setSetupUploadModalOpen(false); setSetupUploadFile(null) }}>취소</button>
+              <button className="primaryBtn ghostBtnSmall" type="button" onClick={() => void confirmSetupUpload()}>시트 넣기</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {bannerUploadModal ? (
+        <div className="adsModalBackdrop" onClick={() => setBannerUploadModal(null)}>
+          <div className="adsModalCard" onClick={(event) => event.stopPropagation()}>
+            <div className="adsModalHeader">
+              <div>
+                <h3 className="panelTitle" style={{ marginBottom: 6 }}>배너 업로드</h3>
+                <p className="pageDesc" style={{ margin: 0 }}>{slotsByKey[bannerUploadModal.slotKey]?.config.slotLabel ?? bannerUploadModal.slotKey} 슬롯에 맞는 권장 사이즈를 보고 올리는 팝업이야.</p>
+              </div>
+              <button className="ghostBtn ghostBtnSmall adsModalCloseBtn" type="button" onClick={() => setBannerUploadModal(null)}>닫기</button>
+            </div>
+            <div className="adsModalBody">
+              <div className="adsModalGrid">
+                <div className="adsModalInfoCard">
+                  <strong>슬롯종류</strong>
+                  <span>{bannerUploadModal.slotKey}</span>
+                </div>
+                <label className="field" style={{ margin: 0 }}>
+                  <div className="exploreSheetFieldLabel">권장 사이즈</div>
+                  <select
+                    className="textInput exploreSheetInput"
+                    value={bannerUploadModal.presetId}
+                    onChange={(e) => setBannerUploadModal((prev) => prev ? { ...prev, presetId: e.target.value } : prev)}
+                  >
+                    {bannerPresetsForSlot(bannerUploadModal.slotKey).map((preset) => (
+                      <option key={preset.id} value={preset.id}>{preset.label}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="adsModalInfoCard">
+                <strong>업로드 가이드</strong>
+                <span>{bannerPresetsForSlot(bannerUploadModal.slotKey).find((preset) => preset.id === bannerUploadModal.presetId)?.note ?? '권장 사이즈를 확인하고 업로드해줘'}</span>
+              </div>
+              <div className="adsModalActionRow">
+                <label className="ghostBtn ghostBtnSmall adsModalFileBtn">
+                  파일 선택
+                  <input
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
+                    className="hiddenInput"
+                    onChange={(e) => setBannerUploadModal((prev) => prev ? { ...prev, file: e.target.files?.[0] ?? null } : prev)}
+                  />
+                </label>
+                <span className="adsModalFileName">{bannerUploadModal.file?.name ?? '선택된 파일 없음'}</span>
+              </div>
+            </div>
+            <div className="adsModalFooter">
+              <button className="ghostBtn ghostBtnSmall" type="button" onClick={() => setBannerUploadModal(null)}>취소</button>
+              <button className="primaryBtn ghostBtnSmall" type="button" onClick={() => void confirmBannerUpload()}>{uploadingKey === bannerUploadModal.rowId ? '업로드중' : '업로드 적용'}</button>
+            </div>
           </div>
         </div>
       ) : null}

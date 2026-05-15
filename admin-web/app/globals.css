@@ -157,10 +157,52 @@ a { color: inherit; text-decoration: none; }
 .adsSetupSheetViewport { margin-top: 4px; }
 .adsSetupSheet { width: 1640px; min-width: 1640px; }
 .adsSetupUnifiedSheet { width: 3660px; min-width: 3660px; }
-.adsSetupMiniThumb { width: 28px; height: 28px; border-radius: 4px; }
+.adsSetupMiniThumb { width: 24px; height: 24px; border-radius: 4px; }
 .adsUploadBtn { position: relative; overflow: hidden; cursor: pointer; }
 .adsUploadBtn.disabled { cursor: not-allowed; opacity: 0.5; }
 .adsSetupSaveBtn { min-width: 56px; }
+.adsSetupToolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.adsSetupToolbarLeft { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; flex: 1 1 auto; }
+.adsSetupToolbarField { min-width: 0; }
+.adsSetupSearchRow { display: grid; grid-template-columns: 92px minmax(140px, 1fr); gap: 4px; align-items: center; }
+.adsSetupToolbarActions { display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; justify-content: flex-end; flex: 0 0 auto; overflow-x: auto; }
+.adsSetupActionBtn { width: auto !important; min-width: fit-content; min-height: 26px; height: 26px; padding: 0 8px; border-radius: 8px; font-size: 11px; white-space: nowrap; line-height: 1; flex: 0 0 auto; }
+.adsSetupSaveActionBtn { padding: 0 10px; }
+.adsTightSetupSheet td, .adsTightSetupSheet th { padding: 2px 4px; font-size: 10px; }
+.adsTightSetupSheet .textInput { height: 24px; padding: 2px 4px; font-size: 10.5px; }
+.adsTightSetupSheet th:nth-child(1), .adsTightSetupSheet td:nth-child(1) { width: 24px; min-width: 24px; max-width: 24px; padding-left: 2px; padding-right: 2px; }
+.adsTightSetupSheet th:nth-child(2), .adsTightSetupSheet td:nth-child(2) { width: 18px; min-width: 18px; max-width: 18px; padding-left: 1px; padding-right: 1px; }
+.adsTightSetupSheet th:nth-child(3), .adsTightSetupSheet td:nth-child(3) { width: 44px; min-width: 44px; max-width: 44px; }
+.adsSheetOrderInput { min-width: 40px; width: 40px; }
+.adsSheetSelect { min-width: 160px; width: 160px; }
+.adsSheetSmallSelect { min-width: 72px; width: 72px; }
+.adsSheetDateInput { min-width: 118px; width: 118px; }
+.adsSheetTextInput { min-width: 160px; width: 160px; }
+.adsSheetCtaInput { min-width: 72px; width: 72px; }
+.adsSheetUrlInput { min-width: 190px; width: 190px; }
+.adsSheetLandingInput { min-width: 140px; width: 140px; }
+.adsSetupCue { display: inline-flex; align-items: center; justify-content: center; width: 10px; height: 10px; border-radius: 2px; color: transparent; font-size: 9px; line-height: 1; }
+.adsSetupCue.isDraft { background: #dcfce7; color: #15803d; font-weight: 800; }
+.adsSetupDraftRow td { background: #f8fff8; }
+.adsBannerCell { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 70px; }
+.adsBannerCellPreview { display: inline-flex; align-items: center; min-width: 0; }
+.adsUploadIconBtn { position: relative; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: 1px solid #d0d7e2; border-radius: 4px; background: #fff; color: #475467; font-size: 9px; cursor: pointer; flex: 0 0 auto; }
+.adsUploadIconBtn.disabled { cursor: not-allowed; opacity: 0.5; }
+.adsModalBackdrop { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15, 23, 42, 0.42); }
+.adsModalCard { width: min(560px, 100%); display: grid; gap: 14px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 16px; background: #fff; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2); }
+.adsModalHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.adsModalCloseBtn { white-space: nowrap; }
+.adsModalBody { display: grid; gap: 12px; }
+.adsModalGrid { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 12px; }
+.adsModalInfoCard { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid #eceff3; border-radius: 12px; background: #fbfcfd; font-size: 12px; color: #475467; }
+.adsModalInfoCard strong { font-size: 11px; font-weight: 800; color: #111827; letter-spacing: 0.04em; text-transform: uppercase; }
+.adsModalActionRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.adsModalFileBtn { position: relative; overflow: hidden; width: auto !important; }
+.adsModalFileName { min-width: 0; font-size: 12px; font-weight: 600; color: #475467; word-break: break-all; }
+.adsModalFooter { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.adsModalFooter .ghostBtn,
+.adsModalFooter .primaryBtn,
+.adsModalActionRow .ghostBtn { width: auto !important; }
 .exploreActionBar { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 8px; }
 .exploreActionBarSingle { grid-template-columns: minmax(0, 1fr); }
 .exploreActionSplit { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session as OrmSession
 
 from ..core.storage_paths import ads_assets_dir
@@ -9,6 +9,7 @@ from ..schemas.ad_slot import AdCampaignUpsertRequest, AdSlotUpdateRequest
 from ..services.ad_slot_service import (
     cancel_ad_campaign,
     create_ad_campaign,
+    delete_ad_campaign,
     export_ad_campaign_xlsx,
     export_ad_campaigns_xlsx,
     get_ad_performance_summary,
@@ -57,6 +58,16 @@ def update_ad_campaign_route(campaign_id: str, payload: AdCampaignUpsertRequest,
 def cancel_ad_campaign_route(campaign_id: str, db: OrmSession = Depends(db_dep)):
     try:
         return {'ok': True, 'data': cancel_ad_campaign(db, campaign_id)}
+    except ValueError as error:
+        detail = str(error)
+        status_code = 404 if detail == 'campaign_not_found' else 400
+        raise HTTPException(status_code=status_code, detail=detail)
+
+
+@router.delete('/ads/campaigns/{campaign_id}', status_code=status.HTTP_200_OK)
+def delete_ad_campaign_route(campaign_id: str, db: OrmSession = Depends(db_dep)):
+    try:
+        return {'ok': True, 'data': delete_ad_campaign(db, campaign_id)}
     except ValueError as error:
         detail = str(error)
         status_code = 404 if detail == 'campaign_not_found' else 400

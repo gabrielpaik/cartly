@@ -525,6 +525,8 @@ Current direction update:
 - lower efficiency zone with slot-level and creative-level summaries plus low-signal / no-signal review rows
 - 2026-05-15 follow-up simplification: the explicit three-step operator flow remains, but it now lives as separate Ads routes under the main sidebar with short sublabels `현황 / 세팅 / 효율` instead of anchor jumps or a nested in-page rail, and the page body itself no longer wastes width on duplicate navigation
 - 2026-05-15 implementation checkpoint: `/ads/setup` is now a true campaign-row sheet. Row 1 is append, saved rows are editable below, and overlap/duplicate validation is enforced by backend before runtime derivation.
+- 2026-05-15 operator pass extension: the top-right actions are now compact fixed-width controls (`다운로드 / 업로드 / 양식 / 추가 / 삭제 / 저장`), setup import moved to a guided popup with `양식 받기`, and banner upload moved from immediate Finder open into a slot-aware popup that exposes recommended image sizes before file selection.
+- 2026-05-15 runtime extension: landing is no longer treated as an `internal:*` string hack in `targetUrl` for new rows. Admin now writes structured `landingType + landingKey (+ landingParams)` metadata, and `/v1/app-config` now emits grouped `creatives[] + rotationMode` so same-window campaign groups can become ordered carousel or `999` random sets in the app runtime.
 
 ### Ads implementation contract
 
@@ -544,6 +546,8 @@ What they already cover:
 - runtime current / next derivation back into slot config for admin + app-config consumption
 - campaign-level impressions, clicks, CTR
 - runtime impression/click tracking
+- structured landing metadata on campaign rows (`landingType`, `landingKey`, optional `landingParams`)
+- grouped live creatives in app-config via `creatives[]` and `rotationMode`
 
 What they do not yet cover cleanly:
 - creative-level grouping that survives repeated copy swaps of the same concept

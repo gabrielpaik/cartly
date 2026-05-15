@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../pages/home_page.dart';
 import '../services/app_attention_service.dart';
 import '../services/app_config_store.dart';
+import '../services/app_navigation_service.dart';
 import '../services/push_navigation_service.dart';
 import '../services/push_registration_service.dart';
 import '../services/shopping_nudge_service.dart';
@@ -70,6 +71,7 @@ class _CartlyAppState extends State<CartlyApp> with WidgetsBindingObserver {
       animation: _runtimeListenable,
       builder: (context, _) {
         return MaterialApp(
+          navigatorKey: AppNavigationService.instance.navigatorKey,
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             fontFamily: 'Pretendard',

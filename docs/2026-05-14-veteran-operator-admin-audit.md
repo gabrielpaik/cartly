@@ -153,6 +153,8 @@ Right / lower selected area:
 - current / next derived from time windows instead of fixed live/reserved pair fields
 - live/reserved preview
 - recent campaign history
+- guided import popup with `양식 받기` + file select instead of naked file input
+- slot-aware banner upload popup that shows recommended asset sizes before upload
 
 Lower decision area:
 - performance table by slot
@@ -183,6 +185,8 @@ Behavior:
 - row click selects slot workspace
 - current performance range is reflected directly in row metrics
 - `reviewFlag` is derived and color-coded: `ok`, `low_ctr`, `no_data`, `inactive_gap`, `reserved_mismatch`
+- exact same slot + exact same time window rows may coexist as one serving group; partial overlaps are still blocked
+- same-window groups use persisted `sortOrder`; numeric order means ordered carousel, and `999` grouped rows mean random rotation mode for app runtime
 
 #### B. Selected-slot workspace
 Required blocks:
@@ -265,6 +269,11 @@ Review queue buckets:
     - `performance`
 
 The page can ship in one endpoint if needed, but these two response shapes are the minimum operator contract.
+
+Implementation checkpoint on 2026-05-15:
+- admin setup now uses a structured landing contract instead of relying on `internal:*` targetUrl encoding for new edits
+- app-config now emits grouped `creatives[]` plus `rotationMode`, while still keeping legacy single-creative top fields for compatibility
+- Flutter inline promo runtime now consumes grouped creatives, rotates them as ordered carousel or random group, and routes taps through the structured landing contract
 
 ### Ads data requirements
 

@@ -16,11 +16,17 @@ export type SlotConfig = {
   message: string
   ctaLabel: string | null
   targetUrl: string | null
+  landingType?: string | null
+  landingKey?: string | null
+  landingParams?: Record<string, string | number | boolean> | null
   imageUrl: string | null
   reservedTitle?: string | null
   reservedMessage?: string | null
   reservedCtaLabel?: string | null
   reservedTargetUrl?: string | null
+  reservedLandingType?: string | null
+  reservedLandingKey?: string | null
+  reservedLandingParams?: Record<string, string | number | boolean> | null
   reservedImageUrl?: string | null
   exposureStartAt?: string | null
   exposureEndAt?: string | null
@@ -28,6 +34,10 @@ export type SlotConfig = {
   reservationEndAt?: string | null
   liveCampaignId?: string | null
   reservedCampaignId?: string | null
+  liveCreatives?: Array<Record<string, unknown>>
+  liveRotationMode?: string | null
+  reservedCreatives?: Array<Record<string, unknown>>
+  reservedRotationMode?: string | null
 }
 
 export type SlotRow = {
@@ -45,10 +55,14 @@ export type CampaignRow = {
   slotKey: string
   variant: 'live' | 'reserved'
   status: string
+  sortOrder: number
   title: string
   message: string
   ctaLabel: string | null
   targetUrl: string | null
+  landingType: string | null
+  landingKey: string | null
+  landingParams: Record<string, string | number | boolean> | null
   imageUrl: string | null
   startAt: string | null
   endAt: string | null

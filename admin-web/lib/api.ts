@@ -92,6 +92,18 @@ export async function postJson<T>(path: string, body?: unknown): Promise<T> {
   return res.json()
 }
 
+export async function deleteJson<T>(path: string): Promise<T> {
+  const res = await fetch(`/api/cartly-admin${path}`, {
+    method: 'DELETE',
+    cache: 'no-store',
+    credentials: 'same-origin',
+  })
+  if (!res.ok) {
+    throw new ApiError(await parseErrorMessage(res), res.status)
+  }
+  return res.json()
+}
+
 export async function loginAdmin(password: string): Promise<void> {
   const res = await fetch('/api/admin-auth/login', {
     method: 'POST',

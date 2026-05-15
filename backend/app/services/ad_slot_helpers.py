@@ -102,7 +102,12 @@ def _normalize_slot_config(config: Dict[str, Any], *, include_reserved: bool = F
         'message': _clean_string(config.get('message')),
         'ctaLabel': _clean_string(config.get('ctaLabel'), empty_as_none=True),
         'targetUrl': _clean_string(config.get('targetUrl'), empty_as_none=True),
+        'landingType': _clean_string(config.get('landingType'), empty_as_none=True),
+        'landingKey': _clean_string(config.get('landingKey'), empty_as_none=True),
+        'landingParams': config.get('landingParams') if isinstance(config.get('landingParams'), dict) else None,
         'imageUrl': _clean_string(config.get('imageUrl'), empty_as_none=True),
+        'liveCreatives': config.get('liveCreatives') if isinstance(config.get('liveCreatives'), list) else [],
+        'liveRotationMode': _clean_string(config.get('liveRotationMode'), empty_as_none=True) or 'single',
     }
     if include_reserved:
         merged.update(
@@ -111,6 +116,9 @@ def _normalize_slot_config(config: Dict[str, Any], *, include_reserved: bool = F
                 'reservedMessage': _clean_string(config.get('reservedMessage')),
                 'reservedCtaLabel': _clean_string(config.get('reservedCtaLabel'), empty_as_none=True),
                 'reservedTargetUrl': _clean_string(config.get('reservedTargetUrl'), empty_as_none=True),
+                'reservedLandingType': _clean_string(config.get('reservedLandingType'), empty_as_none=True),
+                'reservedLandingKey': _clean_string(config.get('reservedLandingKey'), empty_as_none=True),
+                'reservedLandingParams': config.get('reservedLandingParams') if isinstance(config.get('reservedLandingParams'), dict) else None,
                 'reservedImageUrl': _clean_string(config.get('reservedImageUrl'), empty_as_none=True),
                 'exposureStartAt': _clean_string(config.get('exposureStartAt'), empty_as_none=True),
                 'exposureEndAt': _clean_string(config.get('exposureEndAt'), empty_as_none=True),
@@ -118,6 +126,8 @@ def _normalize_slot_config(config: Dict[str, Any], *, include_reserved: bool = F
                 'reservationEndAt': _clean_string(config.get('reservationEndAt'), empty_as_none=True),
                 'liveCampaignId': _clean_string(config.get('liveCampaignId'), empty_as_none=True),
                 'reservedCampaignId': _clean_string(config.get('reservedCampaignId'), empty_as_none=True),
+                'reservedCreatives': config.get('reservedCreatives') if isinstance(config.get('reservedCreatives'), list) else [],
+                'reservedRotationMode': _clean_string(config.get('reservedRotationMode'), empty_as_none=True) or 'single',
             }
         )
     return merged

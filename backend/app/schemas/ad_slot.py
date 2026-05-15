@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel
 
@@ -12,10 +12,14 @@ class AdSlotUpdateRequest(BaseModel):
 
 class AdCampaignUpsertRequest(BaseModel):
     slotKey: str
+    sortOrder: Optional[int] = None
     title: Optional[str] = None
     message: Optional[str] = None
     ctaLabel: Optional[str] = None
     targetUrl: Optional[str] = None
+    landingType: Optional[str] = None
+    landingKey: Optional[str] = None
+    landingParams: Optional[Dict[str, Any]] = None
     imageUrl: Optional[str] = None
     startAt: Optional[str] = None
     endAt: Optional[str] = None

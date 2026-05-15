@@ -57,6 +57,10 @@ def _run_runtime_migrations() -> None:
         "CREATE INDEX IF NOT EXISTS ix_push_devices_user_id ON push_devices (user_id)",
         "CREATE UNIQUE INDEX IF NOT EXISTS uq_category_overrides_target ON category_overrides (target_type, target_id)",
         "CREATE INDEX IF NOT EXISTS ix_category_overrides_target_type ON category_overrides (target_type)",
+        "ALTER TABLE ad_campaigns ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 1",
+        "ALTER TABLE ad_campaigns ADD COLUMN IF NOT EXISTS landing_type VARCHAR(40) NULL",
+        "ALTER TABLE ad_campaigns ADD COLUMN IF NOT EXISTS landing_key VARCHAR(120) NULL",
+        "ALTER TABLE ad_campaigns ADD COLUMN IF NOT EXISTS landing_params_json TEXT NULL",
     ]
     with engine.begin() as conn:
         for statement in statements:

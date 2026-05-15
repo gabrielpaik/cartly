@@ -57,20 +57,127 @@ def _base_slot_config(row: AdSlot, fallback: Dict[str, Any]) -> Dict[str, Any]:
 
 def _campaign_sort_key(campaign: AdCampaign) -> tuple:
     return (
+        int(campaign.sort_order or 1),
         campaign.start_at or datetime.min,
         campaign.created_at or datetime.min,
         campaign.id or '',
     )
 
 
-def _derive_runtime_campaigns(campaigns: List[AdCampaign]) -> tuple[Optional[AdCampaign], Optional[AdCampaign]]:
+def _clean_landing_params(value: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(value, dict):
+        return None
+    cleaned: Dict[str, Any] = {}
+    for raw_key, raw_value in value.items():
+        key = str(raw_key or '').strip()
+        if not key:
+            continue
+        if isinstance(raw_value, str):
+            normalized = raw_value.strip()
+            if not normalized:
+                continue
+            cleaned[key] = normalized
+            continue
+        if isinstance(raw_value, (int, float, bool)):
+            cleaned[key] = raw_value
+    return cleaned or None
+
+
+def _deserialize_landing_params(value: Optional[str]) -> Optional[Dict[str, Any]]:
+    if not value or not isinstance(value, str):
+        return None
+    try:
+        parsed = json.loads(value)
+    except Exception:
+        return None
+    return _clean_landing_params(parsed)
+
+
+def _serialize_campaign_landing(campaign: Optional[AdCampaign]) -> Optional[Dict[str, Any]]:
+    if campaign is None:
+        return None
+    landing_type = str(campaign.landing_type or '').strip()
+    landing_key = str(campaign.landing_key or '').strip()
+    if not landing_type or not landing_key:
+        return None
+    return {
+        'type': landing_type,
+        'key': landing_key,
+        'params': _deserialize_landing_params(campaign.landing_params_json),
+    }
+
+
+def _campaign_window_key(campaign: AdCampaign) -> tuple:
+    return (
+        campaign.start_at.isoformat() if campaign.start_at else '',
+        campaign.end_at.isoformat() if campaign.end_at else '',
+    )
+
+
+def _runtime_group_sort_key(group: List[AdCampaign]) -> tuple:
+    lead = sorted(group, key=_campaign_sort_key)[0]
+    return (
+        lead.start_at or datetime.max,
+        lead.end_at or datetime.max,
+        int(lead.sort_order or 1),
+        lead.created_at or datetime.max,
+        lead.id or '',
+    )
+
+
+def _group_campaigns_by_window(campaigns: List[AdCampaign]) -> List[List[AdCampaign]]:
+    grouped: Dict[tuple, List[AdCampaign]] = {}
+    for campaign in campaigns:
+        grouped.setdefault(_campaign_window_key(campaign), []).append(campaign)
+    groups = [sorted(group, key=_campaign_sort_key) for group in grouped.values()]
+    groups.sort(key=_runtime_group_sort_key)
+    return groups
+
+
+def _campaign_group_rotation_mode(group: List[AdCampaign]) -> str:
+    if len(group) <= 1:
+        return 'single'
+    if all(int(campaign.sort_order or 1) == 999 for campaign in group):
+        return 'random'
+    return 'ordered'
+
+
+def _primary_campaign_from_group(group: List[AdCampaign]) -> Optional[AdCampaign]:
+    return sorted(group, key=_campaign_sort_key)[0] if group else None
+
+
+def _serialize_runtime_creative(campaign: AdCampaign) -> Dict[str, Any]:
+    landing = _serialize_campaign_landing(campaign) or {}
+    return {
+        'campaignId': campaign.id,
+        'creativeId': campaign.id,
+        'title': campaign.title or '',
+        'message': campaign.message or '',
+        'ctaLabel': campaign.cta_label,
+        'targetUrl': campaign.target_url,
+        'imageUrl': campaign.image_url,
+        'sortOrder': int(campaign.sort_order or 1),
+        'startAt': campaign.start_at.isoformat() if campaign.start_at else None,
+        'endAt': campaign.end_at.isoformat() if campaign.end_at else None,
+        'landingType': landing.get('type'),
+        'landingKey': landing.get('key'),
+        'landingParams': landing.get('params'),
+    }
+
+
+def _derive_runtime_groups(campaigns: List[AdCampaign]) -> tuple[List[AdCampaign], List[AdCampaign]]:
     active_campaigns = [campaign for campaign in campaigns if _campaign_runtime_status(campaign) != 'cancelled']
     live_candidates = [campaign for campaign in active_campaigns if _campaign_runtime_status(campaign) == 'live']
     scheduled_candidates = [campaign for campaign in active_campaigns if _campaign_runtime_status(campaign) == 'scheduled']
 
-    live_campaign = sorted(live_candidates, key=_campaign_sort_key, reverse=True)[0] if live_candidates else None
-    next_campaign = sorted(scheduled_candidates, key=_campaign_sort_key)[0] if scheduled_candidates else None
-    return live_campaign, next_campaign
+    live_groups = _group_campaigns_by_window(live_candidates)
+    scheduled_groups = _group_campaigns_by_window(scheduled_candidates)
+    return (live_groups[0] if live_groups else []), (scheduled_groups[0] if scheduled_groups else [])
+
+
+def _derive_runtime_campaigns(campaigns: List[AdCampaign]) -> tuple[Optional[AdCampaign], Optional[AdCampaign]]:
+    live_group, next_group = _derive_runtime_groups(campaigns)
+    return _primary_campaign_from_group(live_group), _primary_campaign_from_group(next_group)
 
 
 def _campaign_fields(campaign: Optional[AdCampaign], *, include_reserved: bool = False) -> Dict[str, Any]:
@@ -81,6 +188,9 @@ def _campaign_fields(campaign: Optional[AdCampaign], *, include_reserved: bool =
                 'reservedMessage': '',
                 'reservedCtaLabel': None,
                 'reservedTargetUrl': None,
+                'reservedLandingType': None,
+                'reservedLandingKey': None,
+                'reservedLandingParams': None,
                 'reservedImageUrl': None,
                 'reservationStartAt': None,
                 'reservationEndAt': None,
@@ -91,18 +201,25 @@ def _campaign_fields(campaign: Optional[AdCampaign], *, include_reserved: bool =
             'message': '',
             'ctaLabel': None,
             'targetUrl': None,
+            'landingType': None,
+            'landingKey': None,
+            'landingParams': None,
             'imageUrl': None,
             'exposureStartAt': None,
             'exposureEndAt': None,
             'liveCampaignId': None,
         }
 
+    landing = _serialize_campaign_landing(campaign) or {}
     if include_reserved:
         return {
             'reservedTitle': campaign.title or '',
             'reservedMessage': campaign.message or '',
             'reservedCtaLabel': campaign.cta_label,
             'reservedTargetUrl': campaign.target_url,
+            'reservedLandingType': landing.get('type'),
+            'reservedLandingKey': landing.get('key'),
+            'reservedLandingParams': landing.get('params'),
             'reservedImageUrl': campaign.image_url,
             'reservationStartAt': campaign.start_at.isoformat() if campaign.start_at else None,
             'reservationEndAt': campaign.end_at.isoformat() if campaign.end_at else None,
@@ -113,6 +230,9 @@ def _campaign_fields(campaign: Optional[AdCampaign], *, include_reserved: bool =
         'message': campaign.message or '',
         'ctaLabel': campaign.cta_label,
         'targetUrl': campaign.target_url,
+        'landingType': landing.get('type'),
+        'landingKey': landing.get('key'),
+        'landingParams': landing.get('params'),
         'imageUrl': campaign.image_url,
         'exposureStartAt': campaign.start_at.isoformat() if campaign.start_at else None,
         'exposureEndAt': campaign.end_at.isoformat() if campaign.end_at else None,
@@ -122,9 +242,15 @@ def _campaign_fields(campaign: Optional[AdCampaign], *, include_reserved: bool =
 
 def _project_slot_config_from_campaigns(base_config: Dict[str, Any], campaigns: List[AdCampaign]) -> Dict[str, Any]:
     projected = base_config.copy()
-    live_campaign, next_campaign = _derive_runtime_campaigns(campaigns)
+    live_group, next_group = _derive_runtime_groups(campaigns)
+    live_campaign = _primary_campaign_from_group(live_group)
+    next_campaign = _primary_campaign_from_group(next_group)
     projected.update(_campaign_fields(live_campaign))
     projected.update(_campaign_fields(next_campaign, include_reserved=True))
+    projected['liveCreatives'] = [_serialize_runtime_creative(campaign) for campaign in live_group]
+    projected['liveRotationMode'] = _campaign_group_rotation_mode(live_group)
+    projected['reservedCreatives'] = [_serialize_runtime_creative(campaign) for campaign in next_group]
+    projected['reservedRotationMode'] = _campaign_group_rotation_mode(next_group)
     return _normalize_slot_config(projected, include_reserved=True)
 
 
@@ -147,14 +273,26 @@ def _normalize_campaign_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         cleaned = value.strip()
         return cleaned or None
 
+    sort_order_raw = payload.get('sortOrder')
+    try:
+        sort_order = int(sort_order_raw) if sort_order_raw is not None else 1
+    except (TypeError, ValueError):
+        sort_order = 1
+    if sort_order <= 0:
+        sort_order = 1
+
     title = _clean_optional(payload.get('title')) or ''
     message = _clean_optional(payload.get('message')) or ''
     return {
         'slotKey': _clean_optional(payload.get('slotKey')),
+        'sortOrder': sort_order,
         'title': title,
         'message': message,
         'ctaLabel': _clean_optional(payload.get('ctaLabel')),
         'targetUrl': _clean_optional(payload.get('targetUrl')),
+        'landingType': _clean_optional(payload.get('landingType')),
+        'landingKey': _clean_optional(payload.get('landingKey')),
+        'landingParams': _clean_landing_params(payload.get('landingParams')),
         'imageUrl': _clean_optional(payload.get('imageUrl')),
         'startAt': _clean_optional(payload.get('startAt')),
         'endAt': _clean_optional(payload.get('endAt')),
@@ -170,6 +308,7 @@ def _campaign_overlaps(start_at: Optional[datetime], end_at: Optional[datetime],
 
 
 def _campaign_identity_signature(payload: Dict[str, Any]) -> tuple:
+    landing_params = payload.get('landingParams') or {}
     return (
         payload.get('slotKey'),
         payload.get('startAt'),
@@ -178,6 +317,9 @@ def _campaign_identity_signature(payload: Dict[str, Any]) -> tuple:
         payload.get('message') or '',
         payload.get('ctaLabel') or '',
         payload.get('targetUrl') or '',
+        payload.get('landingType') or '',
+        payload.get('landingKey') or '',
+        json.dumps(landing_params, ensure_ascii=False, sort_keys=True),
         payload.get('imageUrl') or '',
     )
 
@@ -198,6 +340,18 @@ def _validate_campaign_payload(db: OrmSession, slot_row: AdSlot, payload: Dict[s
     if not any([normalized.get('title'), normalized.get('message'), normalized.get('imageUrl')]):
         raise ValueError('title, message, image 중 하나는 채워야 해')
 
+    landing_type = normalized.get('landingType')
+    landing_key = normalized.get('landingKey')
+    allowed_landing_types = {'explore_section', 'my_section', 'auth_flow', 'saved_flow', 'home_tab'}
+    if landing_type and landing_type not in allowed_landing_types:
+        raise ValueError('지원하지 않는 landingType 이야')
+    if landing_type and not landing_key:
+        raise ValueError('landingKey 가 필요해')
+    if landing_key and not landing_type:
+        raise ValueError('landingType 이 필요해')
+    if normalized.get('targetUrl') and landing_type:
+        raise ValueError('링크URL 과 랜딩페이지 중 하나만 써줘')
+
     existing_campaigns = db.scalars(select(AdCampaign).where(AdCampaign.slot_id == slot_row.id)).all()
     target_signature = _campaign_identity_signature(normalized)
     for campaign in existing_campaigns:
@@ -213,15 +367,26 @@ def _validate_campaign_payload(db: OrmSession, slot_row: AdSlot, payload: Dict[s
             'message': campaign.message or '',
             'ctaLabel': campaign.cta_label or '',
             'targetUrl': campaign.target_url or '',
+            'landingType': campaign.landing_type or '',
+            'landingKey': campaign.landing_key or '',
+            'landingParams': _deserialize_landing_params(campaign.landing_params_json) or {},
             'imageUrl': campaign.image_url or '',
         }
         if target_signature == _campaign_identity_signature(existing_payload):
             raise ValueError('같은 슬롯, 시간, 소재 row가 이미 있어')
-        if _campaign_overlaps(start_at, end_at, campaign.start_at, campaign.end_at):
+        exact_same_window = campaign.start_at == start_at and campaign.end_at == end_at
+        if exact_same_window:
+            existing_sort = int(campaign.sort_order or 1)
+            next_sort = int(normalized.get('sortOrder') or 1)
+            if (existing_sort == 999) != (next_sort == 999):
+                raise ValueError('같은 기간 묶음은 전부 순차 정렬이거나 전부 999 랜덤이어야 해')
+            if next_sort != 999 and existing_sort != 999 and next_sort == existing_sort:
+                raise ValueError(f'같은 기간 묶음 안에서 정렬 {next_sort} 이 중복돼')
+        if _campaign_overlaps(start_at, end_at, campaign.start_at, campaign.end_at) and not exact_same_window:
             label = campaign.title or campaign.message or campaign.id
             existing_start = campaign.start_at.isoformat() if campaign.start_at else '-'
             existing_end = campaign.end_at.isoformat() if campaign.end_at else '-'
-            raise ValueError(f'같은 슬롯 시간대가 겹쳐. existing={label} ({existing_start} ~ {existing_end})')
+            raise ValueError(f'같은 슬롯 시간대가 일부 겹쳐. 동일 기간 묶음만 함께 둘 수 있어. existing={label} ({existing_start} ~ {existing_end})')
 
     normalized['startAt'] = start_at
     normalized['endAt'] = end_at
@@ -291,7 +456,11 @@ def create_ad_campaign(db: OrmSession, payload: Dict[str, Any]) -> Dict[str, Any
         message=validated['message'] or '',
         cta_label=validated['ctaLabel'],
         target_url=validated['targetUrl'],
+        landing_type=validated['landingType'],
+        landing_key=validated['landingKey'],
+        landing_params_json=json.dumps(validated['landingParams'], ensure_ascii=False) if validated.get('landingParams') else None,
         image_url=validated['imageUrl'],
+        sort_order=int(validated.get('sortOrder') or 1),
         start_at=validated['startAt'],
         end_at=validated['endAt'],
     )
@@ -325,7 +494,11 @@ def update_ad_campaign(db: OrmSession, campaign_id: str, payload: Dict[str, Any]
     campaign.message = validated['message'] or ''
     campaign.cta_label = validated['ctaLabel']
     campaign.target_url = validated['targetUrl']
+    campaign.landing_type = validated['landingType']
+    campaign.landing_key = validated['landingKey']
+    campaign.landing_params_json = json.dumps(validated['landingParams'], ensure_ascii=False) if validated.get('landingParams') else None
     campaign.image_url = validated['imageUrl']
+    campaign.sort_order = int(validated.get('sortOrder') or 1)
     campaign.start_at = validated['startAt']
     campaign.end_at = validated['endAt']
     campaign.variant = 'reserved' if validated['startAt'] > now else 'live'
@@ -358,6 +531,22 @@ def cancel_ad_campaign(db: OrmSession, campaign_id: str) -> Dict[str, Any]:
     if slot_row is not None:
         return _serialize_campaign_metrics(db, [campaign], {slot_row.id: slot_row.slot_key})[0]
     return {'id': campaign.id, 'status': 'cancelled'}
+
+
+def delete_ad_campaign(db: OrmSession, campaign_id: str) -> Dict[str, Any]:
+    ensure_default_ad_slots(db)
+    campaign = db.get(AdCampaign, campaign_id)
+    if campaign is None:
+        raise ValueError('campaign_not_found')
+
+    slot_row = db.get(AdSlot, campaign.slot_id)
+    result = {'id': campaign.id, 'slotKey': slot_row.slot_key if slot_row is not None else None, 'deleted': True}
+    db.delete(campaign)
+    defaults = _defaults_by_key()
+    if slot_row is not None and slot_row.slot_key in defaults:
+        _sync_slot_runtime_config(db, slot_row, defaults[slot_row.slot_key])
+    db.commit()
+    return result
 
 
 def _parse_period_start(value: Optional[str]) -> Optional[datetime]:
@@ -465,6 +654,7 @@ def _serialize_campaign_metrics(
         impressions = int(impression_map.get(campaign.id, 0) or 0)
         clicks = int(click_map.get(campaign.id, 0) or 0)
         ctr = 0.0 if impressions == 0 else round(clicks / impressions, 4)
+        landing = _serialize_campaign_landing(campaign) or {}
         result.append(
             {
                 'id': campaign.id,
@@ -475,7 +665,11 @@ def _serialize_campaign_metrics(
                 'message': campaign.message,
                 'ctaLabel': campaign.cta_label,
                 'targetUrl': campaign.target_url,
+                'landingType': landing.get('type'),
+                'landingKey': landing.get('key'),
+                'landingParams': landing.get('params'),
                 'imageUrl': campaign.image_url,
+                'sortOrder': int(campaign.sort_order or 1),
                 'startAt': campaign.start_at.isoformat() if campaign.start_at else None,
                 'endAt': campaign.end_at.isoformat() if campaign.end_at else None,
                 'impressions': impressions,
@@ -1005,14 +1199,21 @@ def app_ad_slots_config(db: OrmSession, ads_enabled: bool) -> List[Dict[str, Any
     slots = list_ad_slots(db)
     result = []
     for slot in slots:
+        live_creatives = list((slot.get('config') or {}).get('liveCreatives') or [])
+        enabled = ads_enabled and slot['status'] == 'active' and len(live_creatives) > 0
         result.append(
             {
                 'slotKey': slot['slotKey'],
                 'placementType': slot['placementType'],
-                'enabled': ads_enabled and slot['status'] == 'active' and bool(slot['config'].get('liveCampaignId')),
+                'enabled': enabled,
                 'config': {
                     **_normalize_slot_config(slot['config']),
                     'campaignId': slot['config'].get('liveCampaignId'),
+                    'creatives': live_creatives,
+                    'rotationMode': (slot.get('config') or {}).get('liveRotationMode') or ('single' if len(live_creatives) <= 1 else 'ordered'),
+                    'landingType': (slot.get('config') or {}).get('landingType'),
+                    'landingKey': (slot.get('config') or {}).get('landingKey'),
+                    'landingParams': (slot.get('config') or {}).get('landingParams'),
                 },
             }
         )

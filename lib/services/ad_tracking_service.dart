@@ -15,19 +15,24 @@ class AdTrackingService {
 
   Uri _uri(String path) => Uri.parse('${getCartlyApiBaseUrl()}$path');
 
-  String _trackKey(AppAdSlot slot) {
-    final campaignId = slot.config.campaignId ?? '';
+  String _trackKey(AppAdSlot slot, {AppAdCreative? creative}) {
+    final campaignId = creative?.campaignId.trim().isNotEmpty == true
+        ? creative!.campaignId.trim()
+        : (slot.config.campaignId ?? '');
     return '${slot.slotKey}:$campaignId';
   }
 
   Future<String?> recordImpression({
     required AppAdSlot slot,
     required String screenName,
+    AppAdCreative? creative,
   }) async {
-    final campaignId = slot.config.campaignId?.trim();
+    final campaignId = creative?.campaignId.trim().isNotEmpty == true
+        ? creative!.campaignId.trim()
+        : slot.config.campaignId?.trim();
     if (campaignId == null || campaignId.isEmpty || !slot.enabled) return null;
 
-    final key = _trackKey(slot);
+    final key = _trackKey(slot, creative: creative);
     final cached = _impressionIds[key];
     if (cached != null && cached.isNotEmpty) return cached;
     if (_inflightImpressions.contains(key)) return null;
@@ -42,6 +47,9 @@ class AdTrackingService {
           'slotKey': slot.slotKey,
           'campaignId': campaignId,
           'screenName': screenName,
+          'creativeId': creative?.creativeId.trim().isNotEmpty == true
+              ? creative!.creativeId.trim()
+              : campaignId,
         }),
       );
 
@@ -67,10 +75,12 @@ class AdTrackingService {
   Future<void> recordClick({
     required AppAdSlot slot,
     required String screenName,
+    AppAdCreative? creative,
   }) async {
     final impressionId = await recordImpression(
       slot: slot,
       screenName: screenName,
+      creative: creative,
     );
     if (impressionId == null || impressionId.isEmpty) return;
 

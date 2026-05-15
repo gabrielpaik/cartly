@@ -9,7 +9,9 @@ import '../config/cartly_runtime_config.dart';
 import '../pages/home_page_cart_controller.dart';
 import '../pages/home_page_cart_save_controller.dart';
 import '../pages/home_tab_view.dart';
+import '../pages/login_page.dart';
 import '../pages/saved_tab_view.dart';
+import '../services/app_navigation_service.dart';
 import '../services/cart_title_suggester.dart';
 import '../services/current_cart_store.dart';
 import '../pages/my_page.dart';
@@ -71,6 +73,11 @@ class _HomePageState extends State<HomePage> {
       _handlePendingTargetTab,
     );
     AuthStore.instance.session.addListener(_handleSessionChanged);
+    AppNavigationService.instance.bind(
+      selectTab: _selectTab,
+      openSaved: _openSavedCartsList,
+      openLogin: _openLoginPage,
+    );
     unawaited(_restoreCurrentCartState());
     _syncAttentionDots();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -86,6 +93,7 @@ class _HomePageState extends State<HomePage> {
       _handlePendingTargetTab,
     );
     AuthStore.instance.session.removeListener(_handleSessionChanged);
+    AppNavigationService.instance.unbind();
     super.dispose();
   }
 
@@ -262,6 +270,15 @@ class _HomePageState extends State<HomePage> {
     await Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => const _SavedCartsPage()));
+  }
+
+  Future<void> _openLoginPage({bool preferSignup = false}) async {
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LoginPage(preferSignup: preferSignup),
+      ),
+    );
   }
 
   Future<void> _saveCurrentCart() async {

@@ -8,6 +8,7 @@ import '../app_support.dart';
 import '../models/recognized_item.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/scan_repository.dart';
+import '../widgets/brand_mark.dart';
 import '../widgets/cartly_action_tile.dart';
 import '../widgets/cartly_symbol_icon.dart';
 import '../widgets/current_cart_section.dart';
@@ -50,10 +51,7 @@ class HomeTabView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
       children: [
-        Text(
-          AppRuntimeCopy.text(['home', 'pageTitle'], 'Cartly'),
-          style: CartlyText.pageHero,
-        ),
+        const BrandMark(fontSize: 28),
         const SizedBox(height: 8),
         Text(
           AppRuntimeCopy.text(['home', 'subtitle'], '지금 담은 상품과 합계를 한눈에 확인해보세요'),

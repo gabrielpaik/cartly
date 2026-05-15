@@ -415,16 +415,19 @@ not
 ### My page compliance/footer contract (2026-05-15)
 - My page bottom area should always expose an easy path to privacy and support information.
 - The compliance/support section itself should be hardwired into the app surface, not removable by content operators.
+- Current accepted UI direction is a compact gray inline footer, not a card.
+- Privacy policy should open inside the app, and support email should stay as lightweight inline text/copy action.
 - Operator-editable values should live in Content > My copy fields:
   - compliance section title/body
   - privacy policy label + URL
   - support email label + value
-  - support phone label + value
-  - support hours label + value
-  - business/operator info label + value
   - support note
 - Runtime fallback should always keep a valid privacy-policy path even when admin fields are empty.
 - Missing operator contact values should fail soft in app UI with a visible warning prompt rather than silently hiding the compliance area.
+- Customer-facing location should not appear as a bottom history/sample section.
+- If a latest location exists, show one compact secondary-text line below the account identity row and above the My body copy, with a manual refresh action.
+- Preferred display shape is customer-friendly area text such as `양평동, 서울특별시에서 접속중`, while internal targeting/storage should continue to use normalized city/district/neighborhood keys and keep raw coordinates/history local/internal only.
+- Future ads/explore targeting should use normalized city/district/neighborhood keys, not raw coordinates.
 
 ---
 

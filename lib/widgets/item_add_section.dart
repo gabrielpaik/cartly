@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../models/recognized_item.dart';
 import '../models/recognized_item_candidate.dart';
 import '../models/scan_job.dart';
+import '../services/app_location_service.dart';
 import '../services/remote_scan_repository.dart';
 import '../services/scan_repository.dart';
 import 'cartly_symbol_icon.dart';
@@ -157,6 +158,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
       _capturedPath = null;
       _statusMessage = null;
     });
+    unawaited(AppLocationService.instance.refreshForScanStart());
   }
 
   Future<void> _closeScanner() async {

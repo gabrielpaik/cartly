@@ -606,7 +606,7 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
         'myAdFallbackMessage',
         '마이에서는 계정과 잘 맞는 혜택만 보여드릴 예정이에요.',
       ),
-      'complianceTitle': text('myComplianceTitle', '개인정보'),
+      'complianceTitle': text('myComplianceTitle', ''),
       'complianceBody': text('myComplianceBody', ''),
       'privacyPolicyLabel': text(
         'myPrivacyPolicyLabel',

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 
 import '../app/cartly_ui.dart';
 import '../models/saved_cart.dart';
 import '../pages/cart_detail_page.dart';
 import '../pages/login_page.dart';
 import '../services/app_config_store.dart';
+import '../services/app_location_service.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
@@ -23,14 +24,14 @@ class MyPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
       children: const [
         _AccountHubCard(),
         SizedBox(height: CartlySpacing.section),
         _MyPageOrderedSections(),
         SizedBox(height: CartlySpacing.lg),
         _MySecondarySections(),
-        SizedBox(height: CartlySpacing.section),
+        SizedBox(height: 28),
         _MyComplianceSection(),
       ],
     );
@@ -152,11 +153,9 @@ class _AccountHubCard extends StatelessWidget {
                 ? (session.displayName.trim().isNotEmpty
                       ? session.displayName.trim()
                       : session.badgeLabel)
-                : isGuestMode
-                ? ((session?.displayName.trim().isNotEmpty ?? false)
+                : ((session?.displayName.trim().isNotEmpty ?? false)
                       ? session?.displayName.trim() ?? 'Guest'
-                      : 'Guest')
-                : AppRuntimeCopy.text(['my', 'guestModeLabel'], '게스트로 사용 중이에요');
+                      : 'Guest');
 
             Future<void> handlePrimaryAction() async {
               if (memberSignedIn) {
@@ -222,84 +221,186 @@ class _AccountHubCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 14),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              AppRuntimeCopy.text(['my', 'pageTitle'], '마이'),
-                              style: CartlyText.pageHeroCompact,
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        displayName,
-                                        style: const TextStyle(
-                                          fontSize: 21,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: -0.4,
-                                          color: CartlyColors.textPrimary,
-                                        ),
-                                      ),
-                                      if (memberSignedIn &&
-                                          session.email.isNotEmpty) ...[
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          session.email,
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
-                                            color: CartlyColors.textSecondary,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
+                        child: ValueListenableBuilder<AppLocationSnapshot?>(
+                          valueListenable: AppLocationService.instance.snapshot,
+                          builder: (context, locationSnapshot, _) {
+                            final locationLabel =
+                                locationSnapshot?.customerFacingRegionLabel
+                                    ?.trim() ??
+                                '';
+
+                            Future<void> handleLocationRefresh() async {
+                              final refreshed = await AppLocationService
+                                  .instance
+                                  .refreshForUserAction();
+                              if (!context.mounted) return;
+                              final refreshedLabel =
+                                  refreshed?.customerFacingRegionLabel
+                                      ?.trim() ??
+                                  '';
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    refreshedLabel.isNotEmpty
+                                        ? '$refreshedLabel 기준으로 위치를 다시 확인했어요'
+                                        : '위치를 다시 확인하지 못했어요. 잠시 후 다시 시도해 주세요.',
                                   ),
                                 ),
-                                if (memberSignedIn) ...[
-                                  const SizedBox(width: 12),
-                                  OutlinedButton(
-                                    style:
-                                        CartlyButtonStyles.secondaryOutline(
-                                          foregroundColor:
-                                              CartlyColors.textSecondary,
-                                          borderColor: CartlyColors.line,
-                                          radius: CartlyRadii.pill,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 14,
-                                            vertical: 10,
+                              );
+                            }
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  AppRuntimeCopy.text([
+                                    'my',
+                                    'pageTitle',
+                                  ], '마이'),
+                                  style: CartlyText.pageHeroCompact,
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            displayName,
+                                            style: const TextStyle(
+                                              fontSize: 21,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: -0.4,
+                                              color: CartlyColors.textPrimary,
+                                            ),
                                           ),
-                                        ).copyWith(
-                                          minimumSize:
-                                              const WidgetStatePropertyAll(
-                                                Size(0, 36),
+                                          if (memberSignedIn &&
+                                              session.email.isNotEmpty) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              session.email,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w500,
+                                                color:
+                                                    CartlyColors.textSecondary,
                                               ),
-                                          tapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
-                                          visualDensity: VisualDensity.compact,
-                                        ),
-                                    onPressed: handlePrimaryAction,
-                                    child: Text(
-                                      AppRuntimeCopy.text([
-                                        'my',
-                                        'logoutAction',
-                                      ], '로그아웃'),
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
+                                            ),
+                                          ],
+                                          if (!memberSignedIn) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              AppRuntimeCopy.text([
+                                                'my',
+                                                'guestModeLabel',
+                                              ], '게스트로 사용 중이에요'),
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w500,
+                                                color:
+                                                    CartlyColors.textSecondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                     ),
-                                  ),
-                                ],
+                                    if (memberSignedIn) ...[
+                                      const SizedBox(width: 12),
+                                      OutlinedButton(
+                                        style:
+                                            CartlyButtonStyles.secondaryOutline(
+                                              foregroundColor:
+                                                  CartlyColors.textSecondary,
+                                              borderColor: CartlyColors.line,
+                                              radius: CartlyRadii.pill,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 14,
+                                                    vertical: 10,
+                                                  ),
+                                            ).copyWith(
+                                              minimumSize:
+                                                  const WidgetStatePropertyAll(
+                                                    Size(0, 36),
+                                                  ),
+                                              tapTargetSize:
+                                                  MaterialTapTargetSize
+                                                      .shrinkWrap,
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                            ),
+                                        onPressed: handlePrimaryAction,
+                                        child: Text(
+                                          AppRuntimeCopy.text([
+                                            'my',
+                                            'logoutAction',
+                                          ], '로그아웃'),
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        locationLabel.isNotEmpty
+                                            ? '$locationLabel에서 접속중'
+                                            : '현재 위치를 확인해 주세요',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                          color: CartlyColors.textSecondary,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    InkWell(
+                                      borderRadius: BorderRadius.circular(8),
+                                      onTap: handleLocationRefresh,
+                                      child: const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 2,
+                                          vertical: 2,
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            CartlySymbolIcon.sf(
+                                              'arrow.clockwise',
+                                              size: 12,
+                                              color: CartlyColors.textSecondary,
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              '새로고침',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color:
+                                                    CartlyColors.textSecondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ],
-                            ),
-                          ],
+                            );
+                          },
                         ),
                       ),
                     ],
@@ -1290,43 +1391,44 @@ class _MyComplianceSection extends StatelessWidget {
     return ValueListenableBuilder<Map<String, dynamic>>(
       valueListenable: AppConfigStore.instance.copy,
       builder: (context, _, child) {
-        final privacyLabel = AppRuntimeCopy.text(
-          ['my', 'privacyPolicyLabel'],
-          '개인정보 처리방침',
-        );
-        final privacyUrl = AppRuntimeCopy.text(
-          ['my', 'privacyPolicyUrl'],
-          'https://scan-api.seoa-nas.com/privacy',
-        ).trim();
-        final supportEmailLabel = AppRuntimeCopy.text(
-          ['my', 'supportEmailLabel'],
-          '문의',
-        );
-        final supportEmail = AppRuntimeCopy.text(['my', 'supportEmail'], '')
-            .trim();
-        final supportNote = AppRuntimeCopy.text(['my', 'supportNote'], '')
-            .trim();
-        final title = AppRuntimeCopy.text(
-          ['my', 'complianceTitle'],
-          '개인정보',
-        ).trim();
+        final privacyLabel = AppRuntimeCopy.text([
+          'my',
+          'privacyPolicyLabel',
+        ], '개인정보 처리방침');
+        final supportEmailLabel = AppRuntimeCopy.text([
+          'my',
+          'supportEmailLabel',
+        ], '문의');
+        final supportEmail = AppRuntimeCopy.text([
+          'my',
+          'supportEmail',
+        ], '').trim();
+        final supportNote = AppRuntimeCopy.text([
+          'my',
+          'supportNote',
+        ], '').trim();
+        final title = AppRuntimeCopy.text(['my', 'complianceTitle'], '').trim();
         final body = AppRuntimeCopy.text(['my', 'complianceBody'], '').trim();
 
-        return CartlySurfaceCard(
-          backgroundColor: CartlyColors.surface1,
-          border: Border.all(color: CartlyColors.line, width: 0.5),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        return Container(
+          padding: const EdgeInsets.only(top: 16, bottom: 12),
+          decoration: const BoxDecoration(
+            border: Border(
+              top: BorderSide(color: CartlyColors.line, width: 0.5),
+            ),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: CartlyText.cardMeta.copyWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: CartlyColors.textPrimary,
+              if (title.isNotEmpty)
+                Text(
+                  title,
+                  style: CartlyText.cardMeta.copyWith(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: CartlyColors.textSecondary,
+                  ),
                 ),
-              ),
               if (body.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
@@ -1339,30 +1441,37 @@ class _MyComplianceSection extends StatelessWidget {
                   ),
                 ),
               ],
-              const SizedBox(height: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              if (title.isNotEmpty || body.isNotEmpty)
+                const SizedBox(height: 8),
+              Wrap(
+                spacing: 14,
+                runSpacing: 8,
                 children: [
-                  _MyComplianceRow(
-                    iconName: 'lock',
+                  _MyFooterTextLink(
                     label: privacyLabel,
-                    value: privacyUrl,
-                    emphasized: true,
-                    compact: true,
-                    onTap: () => _openUri(context, privacyUrl),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const _MyPrivacyPolicyPage(),
+                        ),
+                      );
+                    },
                   ),
-                  if (supportEmail.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    _MyComplianceRow(
-                      iconName: 'envelope',
-                      label: supportEmailLabel,
-                      value: supportEmail,
-                      compact: true,
-                      onTap: () => _openUri(context, 'mailto:$supportEmail'),
+                  if (supportEmail.isNotEmpty)
+                    _MyFooterTextLink(
+                      label: '$supportEmailLabel $supportEmail',
+                      onTap: () async {
+                        await Clipboard.setData(
+                          ClipboardData(text: supportEmail),
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('이메일을 복사했어요')),
+                          );
+                        }
+                      },
                     ),
-                  ],
-                  if (supportEmail.isEmpty) ...[
-                    const SizedBox(height: 8),
+                  if (supportEmail.isEmpty)
                     const Text(
                       '문의 이메일은 admin에서 입력해 주세요.',
                       style: TextStyle(
@@ -1372,9 +1481,7 @@ class _MyComplianceSection extends StatelessWidget {
                         height: 1.4,
                       ),
                     ),
-                  ],
-                  if (supportNote.isNotEmpty) ...[
-                    const SizedBox(height: 8),
+                  if (supportNote.isNotEmpty)
                     Text(
                       supportNote,
                       style: const TextStyle(
@@ -1384,7 +1491,6 @@ class _MyComplianceSection extends StatelessWidget {
                         height: 1.4,
                       ),
                     ),
-                  ],
                 ],
               ),
             ],
@@ -1393,99 +1499,33 @@ class _MyComplianceSection extends StatelessWidget {
       },
     );
   }
-
-  Future<void> _openUri(BuildContext context, String rawValue) async {
-    final value = rawValue.trim();
-    final uri = Uri.tryParse(value);
-    if (uri == null) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('링크를 열 수 없어요')),
-        );
-      }
-      return;
-    }
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('링크를 열 수 없어요')),
-      );
-    }
-  }
 }
 
-class _MyComplianceRow extends StatelessWidget {
-  final String iconName;
+class _MyFooterTextLink extends StatelessWidget {
   final String label;
-  final String value;
-  final bool emphasized;
-  final bool compact;
   final VoidCallback? onTap;
 
-  const _MyComplianceRow({
-    required this.iconName,
-    required this.label,
-    required this.value,
-    this.emphasized = false,
-    this.compact = false,
-    this.onTap,
-  });
+  const _MyFooterTextLink({required this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final iconBox = compact ? 20.0 : 24.0;
-    final iconSize = compact ? 11.0 : 13.0;
-    final labelStyle = TextStyle(
-      fontSize: compact ? 11 : 12,
-      fontWeight: FontWeight.w700,
-      color: CartlyColors.textPrimary,
-      height: compact ? 1.3 : null,
-    );
-    final valueStyle = TextStyle(
-      fontSize: compact ? 11 : 12,
-      fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
-      color: emphasized
-          ? CartlyColors.brandTextOnLight
-          : CartlyColors.textSecondary,
-      height: compact ? 1.35 : 1.45,
-    );
-
-    final rowChild = Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final child = Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: iconBox,
-          height: iconBox,
-          decoration: BoxDecoration(
-            color: emphasized
-                ? CartlyColors.softPink
-                : CartlyColors.surfaceNeutral,
-            borderRadius: BorderRadius.circular(CartlyRadii.pill),
-          ),
-          child: CartlySymbolIcon.sf(
-            iconName,
-            size: iconSize,
-            color: emphasized
-                ? CartlyColors.brand
-                : CartlyColors.textSecondary,
-          ),
-        ),
-        SizedBox(width: compact ? 8 : 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: labelStyle),
-              SizedBox(height: compact ? 2 : 3),
-              Text(value, style: valueStyle),
-            ],
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: CartlyColors.textSecondary,
+            height: 1.35,
           ),
         ),
         if (onTap != null) ...[
-          const SizedBox(width: 8),
-          CartlySymbolIcon.sf(
+          const SizedBox(width: 3),
+          const CartlySymbolIcon.sf(
             'chevron.right',
-            size: compact ? 12 : 14,
+            size: 11,
             color: CartlyColors.textTertiary,
           ),
         ],
@@ -1493,18 +1533,193 @@ class _MyComplianceRow extends StatelessWidget {
     );
 
     if (onTap == null) {
-      return rowChild;
+      return child;
     }
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(CartlyRadii.control),
+        borderRadius: BorderRadius.circular(6),
         onTap: onTap,
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: compact ? 1 : 2),
-          child: rowChild,
+          padding: const EdgeInsets.symmetric(vertical: 1, horizontal: 1),
+          child: child,
         ),
+      ),
+    );
+  }
+}
+
+class _MyPrivacyPolicyPage extends StatelessWidget {
+  const _MyPrivacyPolicyPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<Map<String, dynamic>>(
+      valueListenable: AppConfigStore.instance.copy,
+      builder: (context, _, child) {
+        final title = AppRuntimeCopy.text([
+          'publicSite',
+          'privacyTitle',
+        ], '개인정보 안내');
+        final intro = AppRuntimeCopy.text([
+          'publicSite',
+          'privacyIntro',
+        ], 'Cartly는 장보기 기록과 스캔 정보를 바탕으로 현재 카트와 저장 기록, 대체안 탐색 흐름을 제공합니다.');
+        final collectionTitle = AppRuntimeCopy.text([
+          'publicSite',
+          'privacyCollectionTitle',
+        ], '수집 및 사용');
+        final collectionPoints = AppRuntimeCopy.text(
+          ['publicSite', 'privacyCollectionPoints'],
+          '상품명, 가격, 수량, 저장 카트 제목 등 장보기 기록\n스캔 기능 사용 시 업로드한 이미지와 인식 결과\n앱 기능 개선을 위한 최소 운영 로그',
+        );
+        final externalTitle = AppRuntimeCopy.text([
+          'publicSite',
+          'privacyExternalTitle',
+        ], '외부 링크');
+        final externalBody = AppRuntimeCopy.text([
+          'publicSite',
+          'privacyExternalBody',
+        ], '외부 쇼핑 링크는 사용자가 특정 대체안을 선택했을 때만 열립니다.');
+        final statusTitle = AppRuntimeCopy.text([
+          'publicSite',
+          'privacyStatusTitle',
+        ], '문의');
+        final supportEmail = AppRuntimeCopy.text([
+          'my',
+          'supportEmail',
+        ], 'scancart.wimc@gmail.com').trim();
+
+        return Scaffold(
+          backgroundColor: CartlyColors.surface0,
+          appBar: AppBar(
+            backgroundColor: CartlyColors.surface0,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            foregroundColor: CartlyColors.textPrimary,
+            title: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: CartlyColors.textPrimary,
+              ),
+            ),
+          ),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            children: [
+              Text(
+                intro,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: CartlyColors.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+              _PrivacyPolicyBlock(
+                title: collectionTitle,
+                body: collectionPoints,
+                bulletLines: true,
+              ),
+              const SizedBox(height: 16),
+              _PrivacyPolicyBlock(title: externalTitle, body: externalBody),
+              const SizedBox(height: 16),
+              _PrivacyPolicyBlock(
+                title: statusTitle,
+                body: supportEmail.isEmpty
+                    ? '문의 이메일은 admin에서 입력해 주세요.'
+                    : supportEmail,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PrivacyPolicyBlock extends StatelessWidget {
+  final String title;
+  final String body;
+  final bool bulletLines;
+
+  const _PrivacyPolicyBlock({
+    required this.title,
+    required this.body,
+    this.bulletLines = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final lines = body
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F7F8),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: CartlyColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (bulletLines)
+            ...lines.map(
+              (line) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: CircleAvatar(
+                        radius: 1.5,
+                        backgroundColor: CartlyColors.textTertiary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        line,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: CartlyColors.textSecondary,
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            Text(
+              body,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: CartlyColors.textSecondary,
+                height: 1.45,
+              ),
+            ),
+        ],
       ),
     );
   }

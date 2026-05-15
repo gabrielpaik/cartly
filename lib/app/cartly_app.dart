@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../pages/home_page.dart';
 import '../services/app_attention_service.dart';
 import '../services/app_config_store.dart';
+import '../services/app_location_service.dart';
 import '../services/app_navigation_service.dart';
 import '../services/push_navigation_service.dart';
 import '../services/push_registration_service.dart';
@@ -42,6 +43,7 @@ class _CartlyAppState extends State<CartlyApp> with WidgetsBindingObserver {
         ShoppingNudgeService.instance.syncHomeAttentionFromReminderStatus(),
       );
       unawaited(PushRegistrationService.instance.initialize());
+      unawaited(AppLocationService.instance.initializeOnLaunch());
     });
   }
 
@@ -62,6 +64,7 @@ class _CartlyAppState extends State<CartlyApp> with WidgetsBindingObserver {
         ShoppingNudgeService.instance.syncHomeAttentionFromReminderStatus(),
       );
       unawaited(PushRegistrationService.instance.refreshRegistration());
+      unawaited(AppLocationService.instance.refreshIfAuthorized());
     }
   }
 

@@ -1,18 +1,21 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Query, Response, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from sqlalchemy.orm import Session as OrmSession
 
 from ..core.storage_paths import ads_assets_dir
 from ..deps import db_dep
-from ..schemas.ad_slot import AdSlotUpdateRequest
+from ..schemas.ad_slot import AdCampaignUpsertRequest, AdSlotUpdateRequest
 from ..services.ad_slot_service import (
+    cancel_ad_campaign,
+    create_ad_campaign,
     export_ad_campaign_xlsx,
     export_ad_campaigns_xlsx,
     get_ad_performance_summary,
     get_ad_slot_workspace,
     list_ad_campaigns,
     list_ad_slots,
+    update_ad_campaign,
     update_ad_slot,
 )
 from .admin_common import ADMIN_ROUTE_DEP, save_asset
@@ -28,6 +31,36 @@ def list_ad_slots_route(db: OrmSession = Depends(db_dep)):
 @router.put('/ads/slots/{slot_key}')
 def update_ad_slot_route(slot_key: str, payload: AdSlotUpdateRequest, db: OrmSession = Depends(db_dep)):
     return {'ok': True, 'data': update_ad_slot(db, slot_key, payload.model_dump(exclude_none=True))}
+
+
+@router.post('/ads/campaigns')
+def create_ad_campaign_route(payload: AdCampaignUpsertRequest, db: OrmSession = Depends(db_dep)):
+    try:
+        return {'ok': True, 'data': create_ad_campaign(db, payload.model_dump())}
+    except ValueError as error:
+        detail = str(error)
+        status_code = 404 if detail == 'slot_not_found' else 400
+        raise HTTPException(status_code=status_code, detail=detail)
+
+
+@router.put('/ads/campaigns/{campaign_id}')
+def update_ad_campaign_route(campaign_id: str, payload: AdCampaignUpsertRequest, db: OrmSession = Depends(db_dep)):
+    try:
+        return {'ok': True, 'data': update_ad_campaign(db, campaign_id, payload.model_dump())}
+    except ValueError as error:
+        detail = str(error)
+        status_code = 404 if detail in {'slot_not_found', 'campaign_not_found'} else 400
+        raise HTTPException(status_code=status_code, detail=detail)
+
+
+@router.post('/ads/campaigns/{campaign_id}/cancel')
+def cancel_ad_campaign_route(campaign_id: str, db: OrmSession = Depends(db_dep)):
+    try:
+        return {'ok': True, 'data': cancel_ad_campaign(db, campaign_id)}
+    except ValueError as error:
+        detail = str(error)
+        status_code = 404 if detail == 'campaign_not_found' else 400
+        raise HTTPException(status_code=status_code, detail=detail)
 
 
 @router.get('/ads/performance/summary')

@@ -13,11 +13,13 @@ from .ad_slot_helpers import (
     DEFAULT_AD_SLOTS,
     _campaign_image_formula_url,
     _campaign_matches_filters,
+    _campaign_runtime_status,
+    _campaign_runtime_variant,
     _ensure_campaign_links_for_row,
     _normalize_slot_config,
+    _parse_optional_datetime,
     _safe_xlsx_filename,
     _serialize_slot,
-    _upsert_campaign_history,
 )
 
 
@@ -39,15 +41,202 @@ def ensure_default_ad_slots(db: OrmSession) -> None:
         db.commit()
 
 
+def _defaults_by_key() -> Dict[str, Dict[str, Any]]:
+    return {slot['slotKey']: slot for slot in DEFAULT_AD_SLOTS}
+
+
+def _base_slot_config(row: AdSlot, fallback: Dict[str, Any]) -> Dict[str, Any]:
+    base_config = fallback['config'].copy()
+    if row.config_json:
+        try:
+            base_config.update(json.loads(row.config_json) or {})
+        except Exception:
+            pass
+    return _normalize_slot_config(base_config, include_reserved=True)
+
+
+def _campaign_sort_key(campaign: AdCampaign) -> tuple:
+    return (
+        campaign.start_at or datetime.min,
+        campaign.created_at or datetime.min,
+        campaign.id or '',
+    )
+
+
+def _derive_runtime_campaigns(campaigns: List[AdCampaign]) -> tuple[Optional[AdCampaign], Optional[AdCampaign]]:
+    active_campaigns = [campaign for campaign in campaigns if _campaign_runtime_status(campaign) != 'cancelled']
+    live_candidates = [campaign for campaign in active_campaigns if _campaign_runtime_status(campaign) == 'live']
+    scheduled_candidates = [campaign for campaign in active_campaigns if _campaign_runtime_status(campaign) == 'scheduled']
+
+    live_campaign = sorted(live_candidates, key=_campaign_sort_key, reverse=True)[0] if live_candidates else None
+    next_campaign = sorted(scheduled_candidates, key=_campaign_sort_key)[0] if scheduled_candidates else None
+    return live_campaign, next_campaign
+
+
+def _campaign_fields(campaign: Optional[AdCampaign], *, include_reserved: bool = False) -> Dict[str, Any]:
+    if campaign is None:
+        if include_reserved:
+            return {
+                'reservedTitle': '',
+                'reservedMessage': '',
+                'reservedCtaLabel': None,
+                'reservedTargetUrl': None,
+                'reservedImageUrl': None,
+                'reservationStartAt': None,
+                'reservationEndAt': None,
+                'reservedCampaignId': None,
+            }
+        return {
+            'title': '',
+            'message': '',
+            'ctaLabel': None,
+            'targetUrl': None,
+            'imageUrl': None,
+            'exposureStartAt': None,
+            'exposureEndAt': None,
+            'liveCampaignId': None,
+        }
+
+    if include_reserved:
+        return {
+            'reservedTitle': campaign.title or '',
+            'reservedMessage': campaign.message or '',
+            'reservedCtaLabel': campaign.cta_label,
+            'reservedTargetUrl': campaign.target_url,
+            'reservedImageUrl': campaign.image_url,
+            'reservationStartAt': campaign.start_at.isoformat() if campaign.start_at else None,
+            'reservationEndAt': campaign.end_at.isoformat() if campaign.end_at else None,
+            'reservedCampaignId': campaign.id,
+        }
+    return {
+        'title': campaign.title or '',
+        'message': campaign.message or '',
+        'ctaLabel': campaign.cta_label,
+        'targetUrl': campaign.target_url,
+        'imageUrl': campaign.image_url,
+        'exposureStartAt': campaign.start_at.isoformat() if campaign.start_at else None,
+        'exposureEndAt': campaign.end_at.isoformat() if campaign.end_at else None,
+        'liveCampaignId': campaign.id,
+    }
+
+
+def _project_slot_config_from_campaigns(base_config: Dict[str, Any], campaigns: List[AdCampaign]) -> Dict[str, Any]:
+    projected = base_config.copy()
+    live_campaign, next_campaign = _derive_runtime_campaigns(campaigns)
+    projected.update(_campaign_fields(live_campaign))
+    projected.update(_campaign_fields(next_campaign, include_reserved=True))
+    return _normalize_slot_config(projected, include_reserved=True)
+
+
+def _sync_slot_runtime_config(db: OrmSession, row: AdSlot, fallback: Dict[str, Any]) -> None:
+    _ensure_campaign_links_for_row(db, row, fallback)
+    campaigns = db.scalars(select(AdCampaign).where(AdCampaign.slot_id == row.id).order_by(AdCampaign.created_at.asc())).all()
+    next_config = _project_slot_config_from_campaigns(_base_slot_config(row, fallback), campaigns)
+    current_config = _base_slot_config(row, fallback)
+    if current_config != next_config:
+        row.config_json = json.dumps(next_config, ensure_ascii=False)
+        db.add(row)
+
+
+def _normalize_campaign_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+    def _clean_optional(value: Any) -> Optional[str]:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            value = str(value)
+        cleaned = value.strip()
+        return cleaned or None
+
+    title = _clean_optional(payload.get('title')) or ''
+    message = _clean_optional(payload.get('message')) or ''
+    return {
+        'slotKey': _clean_optional(payload.get('slotKey')),
+        'title': title,
+        'message': message,
+        'ctaLabel': _clean_optional(payload.get('ctaLabel')),
+        'targetUrl': _clean_optional(payload.get('targetUrl')),
+        'imageUrl': _clean_optional(payload.get('imageUrl')),
+        'startAt': _clean_optional(payload.get('startAt')),
+        'endAt': _clean_optional(payload.get('endAt')),
+    }
+
+
+def _campaign_overlaps(start_at: Optional[datetime], end_at: Optional[datetime], other_start_at: Optional[datetime], other_end_at: Optional[datetime]) -> bool:
+    left_start = start_at or datetime.min
+    left_end = end_at or datetime.max
+    right_start = other_start_at or datetime.min
+    right_end = other_end_at or datetime.max
+    return left_start <= right_end and right_start <= left_end
+
+
+def _campaign_identity_signature(payload: Dict[str, Any]) -> tuple:
+    return (
+        payload.get('slotKey'),
+        payload.get('startAt'),
+        payload.get('endAt'),
+        payload.get('title') or '',
+        payload.get('message') or '',
+        payload.get('ctaLabel') or '',
+        payload.get('targetUrl') or '',
+        payload.get('imageUrl') or '',
+    )
+
+
+def _validate_campaign_payload(db: OrmSession, slot_row: AdSlot, payload: Dict[str, Any], *, exclude_campaign_id: Optional[str] = None) -> Dict[str, Any]:
+    normalized = _normalize_campaign_payload(payload)
+    if not normalized.get('slotKey'):
+        raise ValueError('slotKey is required')
+    if not normalized.get('startAt') or not normalized.get('endAt'):
+        raise ValueError('startAt and endAt are required')
+
+    start_at = _parse_optional_datetime(normalized.get('startAt'))
+    end_at = _parse_optional_datetime(normalized.get('endAt'))
+    if start_at is None or end_at is None:
+        raise ValueError('startAt/endAt must be valid ISO datetime values')
+    if end_at <= start_at:
+        raise ValueError('endAt must be later than startAt')
+    if not any([normalized.get('title'), normalized.get('message'), normalized.get('imageUrl')]):
+        raise ValueError('title, message, image 중 하나는 채워야 해')
+
+    existing_campaigns = db.scalars(select(AdCampaign).where(AdCampaign.slot_id == slot_row.id)).all()
+    target_signature = _campaign_identity_signature(normalized)
+    for campaign in existing_campaigns:
+        if exclude_campaign_id and campaign.id == exclude_campaign_id:
+            continue
+        if _campaign_runtime_status(campaign) == 'cancelled':
+            continue
+        existing_payload = {
+            'slotKey': normalized['slotKey'],
+            'startAt': campaign.start_at.isoformat() if campaign.start_at else None,
+            'endAt': campaign.end_at.isoformat() if campaign.end_at else None,
+            'title': campaign.title or '',
+            'message': campaign.message or '',
+            'ctaLabel': campaign.cta_label or '',
+            'targetUrl': campaign.target_url or '',
+            'imageUrl': campaign.image_url or '',
+        }
+        if target_signature == _campaign_identity_signature(existing_payload):
+            raise ValueError('같은 슬롯, 시간, 소재 row가 이미 있어')
+        if _campaign_overlaps(start_at, end_at, campaign.start_at, campaign.end_at):
+            label = campaign.title or campaign.message or campaign.id
+            existing_start = campaign.start_at.isoformat() if campaign.start_at else '-'
+            existing_end = campaign.end_at.isoformat() if campaign.end_at else '-'
+            raise ValueError(f'같은 슬롯 시간대가 겹쳐. existing={label} ({existing_start} ~ {existing_end})')
+
+    normalized['startAt'] = start_at
+    normalized['endAt'] = end_at
+    return normalized
+
+
 def list_ad_slots(db: OrmSession) -> List[Dict[str, Any]]:
     ensure_default_ad_slots(db)
     rows = db.scalars(select(AdSlot).order_by(AdSlot.created_at.asc())).all()
-    defaults = {slot['slotKey']: slot for slot in DEFAULT_AD_SLOTS}
+    defaults = _defaults_by_key()
     dirty = False
     for row in rows:
         if row.slot_key in defaults:
             before = row.config_json
-            _ensure_campaign_links_for_row(db, row, defaults[row.slot_key])
+            _sync_slot_runtime_config(db, row, defaults[row.slot_key])
             if row.config_json != before:
                 dirty = True
     if dirty:
@@ -63,36 +252,112 @@ def update_ad_slot(db: OrmSession, slot_key: str, payload: Dict[str, Any]) -> Di
     if row is None:
         raise ValueError('slot_not_found')
 
-    defaults = {slot['slotKey']: slot for slot in DEFAULT_AD_SLOTS}
-    base_config = defaults[slot_key]['config'].copy()
-    if row.config_json:
-        try:
-            base_config.update(json.loads(row.config_json) or {})
-        except Exception:
-            pass
-
-    previous_config = _normalize_slot_config(base_config, include_reserved=True)
-    merged = previous_config.copy()
-    merged.update(payload or {})
-    variant = (
-        'reserved'
-        if any(
-            key in (payload or {})
-            for key in ['reservedTitle', 'reservedMessage', 'reservedCtaLabel', 'reservedTargetUrl', 'reservedImageUrl', 'reservationStartAt', 'reservationEndAt']
-        )
-        else 'live'
-    )
-    next_config = _normalize_slot_config(merged, include_reserved=True)
-    next_config = _upsert_campaign_history(db, row, previous_config, next_config, variant)
+    defaults = _defaults_by_key()
+    base_config = _base_slot_config(row, defaults[slot_key])
+    next_config = base_config.copy()
+    for key in ['slotLabel', 'slotDescription', 'placementNote']:
+        if key in (payload or {}):
+            next_config[key] = payload.get(key)
 
     if 'status' in (payload or {}):
         row.status = str((payload or {}).get('status') or row.status or 'active').strip() or 'active'
 
-    row.config_json = json.dumps(next_config, ensure_ascii=False)
+    row.config_json = json.dumps(_normalize_slot_config(next_config, include_reserved=True), ensure_ascii=False)
     db.add(row)
+    _sync_slot_runtime_config(db, row, defaults[slot_key])
     db.commit()
     db.refresh(row)
     return _serialize_slot(row, defaults[slot_key])
+
+
+def create_ad_campaign(db: OrmSession, payload: Dict[str, Any]) -> Dict[str, Any]:
+    ensure_default_ad_slots(db)
+    normalized = _normalize_campaign_payload(payload)
+    slot_key = normalized.get('slotKey')
+    slot_row = db.scalar(select(AdSlot).where(AdSlot.slot_key == slot_key)) if slot_key else None
+    if slot_row is None:
+        raise ValueError('slot_not_found')
+
+    validated = _validate_campaign_payload(db, slot_row, normalized)
+    now = datetime.utcnow()
+    campaign = AdCampaign(
+        slot_id=slot_row.id,
+        variant='reserved' if validated['startAt'] > now else 'live',
+        status=_campaign_runtime_status(
+            AdCampaign(start_at=validated['startAt'], end_at=validated['endAt']),
+            now=now,
+        ),
+        title=validated['title'] or '',
+        message=validated['message'] or '',
+        cta_label=validated['ctaLabel'],
+        target_url=validated['targetUrl'],
+        image_url=validated['imageUrl'],
+        start_at=validated['startAt'],
+        end_at=validated['endAt'],
+    )
+    db.add(campaign)
+    db.flush()
+    defaults = _defaults_by_key()
+    _sync_slot_runtime_config(db, slot_row, defaults[slot_key])
+    db.commit()
+    db.refresh(campaign)
+    return _serialize_campaign_metrics(db, [campaign], {slot_row.id: slot_key})[0]
+
+
+def update_ad_campaign(db: OrmSession, campaign_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    ensure_default_ad_slots(db)
+    campaign = db.get(AdCampaign, campaign_id)
+    if campaign is None:
+        raise ValueError('campaign_not_found')
+
+    normalized = _normalize_campaign_payload(payload)
+    slot_key = normalized.get('slotKey')
+    target_slot_row = db.scalar(select(AdSlot).where(AdSlot.slot_key == slot_key)) if slot_key else None
+    if target_slot_row is None:
+        raise ValueError('slot_not_found')
+
+    previous_slot_row = db.get(AdSlot, campaign.slot_id)
+    validated = _validate_campaign_payload(db, target_slot_row, normalized, exclude_campaign_id=campaign.id)
+    now = datetime.utcnow()
+
+    campaign.slot_id = target_slot_row.id
+    campaign.title = validated['title'] or ''
+    campaign.message = validated['message'] or ''
+    campaign.cta_label = validated['ctaLabel']
+    campaign.target_url = validated['targetUrl']
+    campaign.image_url = validated['imageUrl']
+    campaign.start_at = validated['startAt']
+    campaign.end_at = validated['endAt']
+    campaign.variant = 'reserved' if validated['startAt'] > now else 'live'
+    campaign.status = _campaign_runtime_status(campaign, now=now)
+    db.add(campaign)
+
+    defaults = _defaults_by_key()
+    if previous_slot_row is not None and previous_slot_row.slot_key in defaults:
+        _sync_slot_runtime_config(db, previous_slot_row, defaults[previous_slot_row.slot_key])
+    _sync_slot_runtime_config(db, target_slot_row, defaults[target_slot_row.slot_key])
+    db.commit()
+    db.refresh(campaign)
+    return _serialize_campaign_metrics(db, [campaign], {target_slot_row.id: target_slot_row.slot_key})[0]
+
+
+def cancel_ad_campaign(db: OrmSession, campaign_id: str) -> Dict[str, Any]:
+    ensure_default_ad_slots(db)
+    campaign = db.get(AdCampaign, campaign_id)
+    if campaign is None:
+        raise ValueError('campaign_not_found')
+
+    campaign.status = 'cancelled'
+    db.add(campaign)
+    slot_row = db.get(AdSlot, campaign.slot_id)
+    defaults = _defaults_by_key()
+    if slot_row is not None and slot_row.slot_key in defaults:
+        _sync_slot_runtime_config(db, slot_row, defaults[slot_row.slot_key])
+    db.commit()
+    db.refresh(campaign)
+    if slot_row is not None:
+        return _serialize_campaign_metrics(db, [campaign], {slot_row.id: slot_row.slot_key})[0]
+    return {'id': campaign.id, 'status': 'cancelled'}
 
 
 def _parse_period_start(value: Optional[str]) -> Optional[datetime]:
@@ -204,8 +469,8 @@ def _serialize_campaign_metrics(
             {
                 'id': campaign.id,
                 'slotKey': slot_key_map.get(campaign.slot_id),
-                'variant': campaign.variant,
-                'status': campaign.status,
+                'variant': _campaign_runtime_variant(campaign),
+                'status': _campaign_runtime_status(campaign),
                 'title': campaign.title,
                 'message': campaign.message,
                 'ctaLabel': campaign.cta_label,
@@ -744,7 +1009,7 @@ def app_ad_slots_config(db: OrmSession, ads_enabled: bool) -> List[Dict[str, Any
             {
                 'slotKey': slot['slotKey'],
                 'placementType': slot['placementType'],
-                'enabled': ads_enabled and slot['status'] == 'active',
+                'enabled': ads_enabled and slot['status'] == 'active' and bool(slot['config'].get('liveCampaignId')),
                 'config': {
                     **_normalize_slot_config(slot['config']),
                     'campaignId': slot['config'].get('liveCampaignId'),

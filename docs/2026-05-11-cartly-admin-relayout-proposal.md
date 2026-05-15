@@ -517,12 +517,14 @@ Current direction update:
 - the next veteran-level concern is confidence, not just layout: the operator must be able to answer "what is live now, where does it show, how is it performing, and what should I stop or increase"
 - Ads should evolve into a placement-and-performance console with three first-class views: exposure map, selected slot editing, and slot/creative performance summaries
 - efficiency data should not stay abstract; slot-level impressions, clicks, CTR, and downstream action signals should be visible in a way that supports keep/stop/replace decisions
+- 2026-05-15 승인 후 방향은 더 명확해졌다: slot config의 `live + reserved` 1쌍 편집이 아니라 `campaign row`가 source of truth이고, runtime의 current / next는 시간창에서 파생 계산되어야 한다
 
 ### Ads P0 target shape
 - top exposure inventory with live creative, reserved creative, slot, surface, position, status, updatedAt, and filtered-period metrics
 - setup page should now collapse into one horizontally scrollable sheet where `slot` is the primary discriminator, the old separate slot-picker block is removed, and current / reserved operations are handled inline with immediate save/upload controls rather than oversized form cards
 - lower efficiency zone with slot-level and creative-level summaries plus low-signal / no-signal review rows
 - 2026-05-15 follow-up simplification: the explicit three-step operator flow remains, but it now lives as separate Ads routes under the main sidebar with short sublabels `현황 / 세팅 / 효율` instead of anchor jumps or a nested in-page rail, and the page body itself no longer wastes width on duplicate navigation
+- 2026-05-15 implementation checkpoint: `/ads/setup` is now a true campaign-row sheet. Row 1 is append, saved rows are editable below, and overlap/duplicate validation is enforced by backend before runtime derivation.
 
 ### Ads implementation contract
 
@@ -530,18 +532,22 @@ Current live contracts already available:
 - `GET /admin/ads/slots`
 - `PUT /admin/ads/slots/{slotKey}`
 - `GET /admin/ads/campaigns`
+- `POST /admin/ads/campaigns`
+- `PUT /admin/ads/campaigns/{campaignId}`
+- `POST /admin/ads/campaigns/{campaignId}/cancel`
 - `POST /v1/ads/impressions`
 - `POST /v1/ads/clicks`
 
 What they already cover:
 - slot identity and config
-- live/reserved campaign history linkage
+- campaign-row create/update/cancel as the operator source of truth
+- runtime current / next derivation back into slot config for admin + app-config consumption
 - campaign-level impressions, clicks, CTR
 - runtime impression/click tracking
 
 What they do not yet cover cleanly:
-- period-aware slot summary
-- explicit effective runtime state per slot
+- creative-level grouping that survives repeated copy swaps of the same concept
+- downstream action signal after click
 - creative-level grouped performance
 - no-data / low-CTR operator queues
 - downstream post-click action metrics

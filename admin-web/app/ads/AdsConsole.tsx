@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-import { CampaignRow, fallbackSlots, SlotConfig, SlotHistory, SlotRow } from '../../components/ads'
+import { CampaignRow, fallbackSlots, SlotHistory, SlotRow } from '../../components/ads'
 import { useAdminCopy } from '../../components/AdminCopyProvider'
 import PageHeader from '../../components/PageHeader'
-import { fetchJsonSafe, isUnauthorizedError, postFormData, putJson } from '../../lib/api'
+import { fetchJsonSafe, isUnauthorizedError, postFormData, postJson, putJson } from '../../lib/api'
 import { formatDate, formatNumber, formatPercent } from '../../lib/format'
 
 type UploadResponse = {
@@ -89,6 +89,17 @@ type AdsWorkspaceData = {
   reservedCampaign: CampaignRow | null
   history: CampaignRow[]
   performance: SlotPerformanceRow | null
+}
+
+type CampaignSheetDraft = {
+  slotKey: string
+  startAt: string
+  endAt: string
+  title: string
+  message: string
+  ctaLabel: string
+  targetUrl: string
+  imageUrl: string
 }
 
 function buildFallbackSummary(slots: SlotRow[]): AdsPerformanceData {
@@ -201,6 +212,47 @@ function runtimeStateLabel(value: string) {
   }
 }
 
+function campaignStatusLabel(value: string) {
+  switch (value) {
+    case 'live':
+      return '현재 노출'
+    case 'scheduled':
+      return '다음 예약'
+    case 'ended':
+      return '종료됨'
+    case 'cancelled':
+      return '취소됨'
+    default:
+      return value || '-'
+  }
+}
+
+function emptyCampaignDraft(slotKey = ''): CampaignSheetDraft {
+  return {
+    slotKey,
+    startAt: '',
+    endAt: '',
+    title: '',
+    message: '',
+    ctaLabel: '',
+    targetUrl: '',
+    imageUrl: '',
+  }
+}
+
+function draftFromCampaign(campaign: CampaignRow): CampaignSheetDraft {
+  return {
+    slotKey: campaign.slotKey,
+    startAt: campaign.startAt?.slice(0, 16) ?? '',
+    endAt: campaign.endAt?.slice(0, 16) ?? '',
+    title: campaign.title ?? '',
+    message: campaign.message ?? '',
+    ctaLabel: campaign.ctaLabel ?? '',
+    targetUrl: campaign.targetUrl ?? '',
+    imageUrl: campaign.imageUrl ?? '',
+  }
+}
+
 export type AdsView = 'status' | 'setup' | 'efficiency'
 
 export default function AdsConsole({ view }: { view: AdsView }) {
@@ -209,6 +261,9 @@ export default function AdsConsole({ view }: { view: AdsView }) {
   const [slots, setSlots] = useState<SlotRow[]>(fallbackSlots)
   const [performance, setPerformance] = useState<AdsPerformanceData>(buildFallbackSummary(fallbackSlots))
   const [workspace, setWorkspace] = useState<AdsWorkspaceData | null>(null)
+  const [campaigns, setCampaigns] = useState<CampaignRow[]>([])
+  const [campaignDrafts, setCampaignDrafts] = useState<Record<string, CampaignSheetDraft>>({})
+  const [appendDraft, setAppendDraft] = useState<CampaignSheetDraft>(emptyCampaignDraft(fallbackSlots[0]?.slotKey ?? ''))
   const [usingFallback, setUsingFallback] = useState(true)
   const [loading, setLoading] = useState(true)
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
@@ -257,6 +312,23 @@ export default function AdsConsole({ view }: { view: AdsView }) {
     return res.data.data
   }
 
+  async function loadCampaigns() {
+    const params = new URLSearchParams()
+    params.set('limit', '500')
+    if (historyQuery.trim()) params.set('query', historyQuery.trim())
+    if (historyVariantFilter !== 'all') params.set('variant', historyVariantFilter)
+    if (historyStatusFilter !== 'all') params.set('status', historyStatusFilter)
+    if (historyPeriodFrom) params.set('periodFrom', historyPeriodFrom)
+    if (historyPeriodTo) params.set('periodTo', historyPeriodTo)
+    const res = await fetchJsonSafe<{ ok: boolean; data: { campaigns: CampaignRow[] } }>(
+      `/admin/ads/campaigns?${params.toString()}`,
+      { ok: true, data: { campaigns: [] } },
+    )
+    setCampaigns(res.data.data.campaigns)
+    setCampaignDrafts(Object.fromEntries(res.data.data.campaigns.map((campaign) => [campaign.id, draftFromCampaign(campaign)])))
+    return res.data.data.campaigns
+  }
+
   async function loadWorkspace(slotKey: string) {
     setWorkspaceLoading(true)
     try {
@@ -284,9 +356,10 @@ export default function AdsConsole({ view }: { view: AdsView }) {
     setLoading(true)
     setError(null)
     try {
-      const [, summary] = await Promise.all([loadSlots(), loadPerformanceSummary()])
+      const [, summary] = await Promise.all([loadSlots(), loadPerformanceSummary(), loadCampaigns()])
       const firstSlotKey = summary.slotRows[0]?.slotKey ?? null
       setSelectedSlotKey((prev) => prev && summary.slotRows.some((row) => row.slotKey === prev) ? prev : firstSlotKey)
+      setAppendDraft((prev) => ({ ...prev, slotKey: prev.slotKey || firstSlotKey || fallbackSlots[0]?.slotKey || '' }))
     } catch (err) {
       if (isUnauthorizedError(err)) {
         router.replace('/login?reason=expired')
@@ -304,14 +377,14 @@ export default function AdsConsole({ view }: { view: AdsView }) {
 
   useEffect(() => {
     if (loading) return
-    void loadPerformanceSummary().catch((err) => {
+    void Promise.all([loadPerformanceSummary(), loadCampaigns()]).catch((err) => {
       if (isUnauthorizedError(err)) {
         router.replace('/login?reason=expired')
         return
       }
-      setError(err instanceof Error ? err.message : '광고 성과 요약을 불러오지 못했어')
+      setError(err instanceof Error ? err.message : '광고 데이터를 다시 불러오지 못했어')
     })
-  }, [slotQuery, slotStatusFilter, historyVariantFilter, historyPeriodFrom, historyPeriodTo])
+  }, [slotQuery, slotStatusFilter, historyVariantFilter, historyStatusFilter, historyPeriodFrom, historyPeriodTo, historyQuery])
 
   useEffect(() => {
     const availableKeys = performance.slotRows.map((row) => row.slotKey)
@@ -332,59 +405,28 @@ export default function AdsConsole({ view }: { view: AdsView }) {
     void loadWorkspace(selectedSlotKey)
   }, [selectedSlotKey, historyPeriodFrom, historyPeriodTo, slotsByKey])
 
-  function updateSlot(slotKey: string, patch: Partial<SlotRow>) {
-    setSlots((prev) => prev.map((slot) => (slot.slotKey === slotKey ? { ...slot, ...patch } : slot)))
+  function updateCampaignDraft(id: string, patch: Partial<CampaignSheetDraft>) {
+    setCampaignDrafts((prev) => ({
+      ...prev,
+      [id]: {
+        ...(prev[id] ?? emptyCampaignDraft()),
+        ...patch,
+      },
+    }))
   }
 
-  function updateConfig(slotKey: string, patch: Partial<SlotConfig>) {
-    setSlots((prev) => prev.map((slot) => (slot.slotKey === slotKey ? { ...slot, config: { ...slot.config, ...patch } } : slot)))
+  function updateAppendDraft(patch: Partial<CampaignSheetDraft>) {
+    setAppendDraft((prev) => ({ ...prev, ...patch }))
   }
 
-  async function saveSlot(slot: SlotRow, variant: 'live' | 'reserved') {
-    const saveId = `${slot.slotKey}:${variant}`
-    setSavingKey(saveId)
-    setMessage(null)
-    try {
-      const payload = variant === 'live'
-        ? {
-            status: slot.status,
-            slotLabel: slot.config.slotLabel,
-            slotDescription: slot.config.slotDescription,
-            placementNote: slot.config.placementNote,
-            title: slot.config.title,
-            message: slot.config.message,
-            ctaLabel: slot.config.ctaLabel,
-            targetUrl: slot.config.targetUrl,
-            imageUrl: slot.config.imageUrl,
-            exposureStartAt: slot.config.exposureStartAt,
-            exposureEndAt: slot.config.exposureEndAt,
-          }
-        : {
-            reservedTitle: slot.config.reservedTitle,
-            reservedMessage: slot.config.reservedMessage,
-            reservedCtaLabel: slot.config.reservedCtaLabel,
-            reservedTargetUrl: slot.config.reservedTargetUrl,
-            reservedImageUrl: slot.config.reservedImageUrl,
-            reservationStartAt: slot.config.reservationStartAt,
-            reservationEndAt: slot.config.reservationEndAt,
-          }
-      const res = await putJson<{ ok: boolean; data: SlotRow }>(`/admin/ads/slots/${slot.slotKey}`, payload)
-      updateSlot(slot.slotKey, res.data)
-      await Promise.all([loadPerformanceSummary(), loadWorkspace(slot.slotKey)])
-      setMessage(`${slot.slotKey} ${variant === 'live' ? 'live' : 'reserved'} 저장 완료`)
-    } catch (err) {
-      if (isUnauthorizedError(err)) {
-        router.replace('/login?reason=expired')
-        return
-      }
-      setError(err instanceof Error ? err.message : t('admin.ads.saveFailed', '광고 슬롯 저장 실패'))
-    } finally {
-      setSavingKey(null)
+  function showActionError(next: string) {
+    setError(next)
+    if (typeof window !== 'undefined') {
+      window.alert(next)
     }
   }
 
-  async function uploadAsset(slotKey: string, file: File, field: 'imageUrl' | 'reservedImageUrl') {
-    const uploadId = `${slotKey}:${field}`
+  async function uploadAssetFile(file: File, uploadId: string) {
     setUploadingKey(uploadId)
     setMessage(null)
     try {
@@ -392,19 +434,94 @@ export default function AdsConsole({ view }: { view: AdsView }) {
       formData.append('file', file)
       const res = await postFormData<UploadResponse>('/admin/ads/assets', formData)
       if (!res.ok || !res.data) {
-        setError(res.error?.message ?? '배너 업로드 실패')
-      } else {
-        updateConfig(slotKey, { [field]: res.data.url } as Partial<SlotConfig>)
-        setMessage(`${slotKey} 배너 업로드 완료`)
+        throw new Error(res.error?.message ?? '배너 업로드 실패')
       }
+      setMessage('배너 업로드 완료')
+      return res.data.url
+    } catch (err) {
+      if (isUnauthorizedError(err)) {
+        router.replace('/login?reason=expired')
+        return null
+      }
+      showActionError(err instanceof Error ? err.message : '배너 업로드 실패')
+      return null
+    } finally {
+      setUploadingKey(null)
+    }
+  }
+
+  async function createCampaign() {
+    setSavingKey('append')
+    setMessage(null)
+    try {
+      await postJson<{ ok: boolean; data: CampaignRow }>('/admin/ads/campaigns', {
+        slotKey: appendDraft.slotKey,
+        startAt: appendDraft.startAt,
+        endAt: appendDraft.endAt,
+        title: appendDraft.title,
+        message: appendDraft.message,
+        ctaLabel: appendDraft.ctaLabel || null,
+        targetUrl: appendDraft.targetUrl || null,
+        imageUrl: appendDraft.imageUrl || null,
+      })
+      setAppendDraft(emptyCampaignDraft(appendDraft.slotKey))
+      await refreshAll()
+      setMessage('campaign row 추가 완료')
     } catch (err) {
       if (isUnauthorizedError(err)) {
         router.replace('/login?reason=expired')
         return
       }
-      setError(err instanceof Error ? err.message : '배너 업로드 실패')
+      showActionError(err instanceof Error ? err.message : 'campaign row 추가 실패')
     } finally {
-      setUploadingKey(null)
+      setSavingKey(null)
+    }
+  }
+
+  async function saveCampaign(campaignId: string) {
+    const draft = campaignDrafts[campaignId]
+    if (!draft) return
+    setSavingKey(campaignId)
+    setMessage(null)
+    try {
+      await putJson<{ ok: boolean; data: CampaignRow }>(`/admin/ads/campaigns/${campaignId}`, {
+        slotKey: draft.slotKey,
+        startAt: draft.startAt,
+        endAt: draft.endAt,
+        title: draft.title,
+        message: draft.message,
+        ctaLabel: draft.ctaLabel || null,
+        targetUrl: draft.targetUrl || null,
+        imageUrl: draft.imageUrl || null,
+      })
+      await refreshAll()
+      setMessage('campaign row 저장 완료')
+    } catch (err) {
+      if (isUnauthorizedError(err)) {
+        router.replace('/login?reason=expired')
+        return
+      }
+      showActionError(err instanceof Error ? err.message : 'campaign row 저장 실패')
+    } finally {
+      setSavingKey(null)
+    }
+  }
+
+  async function cancelCampaign(campaignId: string) {
+    setSavingKey(`cancel:${campaignId}`)
+    setMessage(null)
+    try {
+      await postJson<{ ok: boolean; data: CampaignRow }>(`/admin/ads/campaigns/${campaignId}/cancel`)
+      await refreshAll()
+      setMessage('campaign row 취소 완료')
+    } catch (err) {
+      if (isUnauthorizedError(err)) {
+        router.replace('/login?reason=expired')
+        return
+      }
+      showActionError(err instanceof Error ? err.message : 'campaign row 취소 실패')
+    } finally {
+      setSavingKey(null)
     }
   }
 
@@ -682,134 +799,150 @@ export default function AdsConsole({ view }: { view: AdsView }) {
           <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
             <div>
               <h2 className="panelTitle" style={{ marginBottom: 6 }}>세팅 시트</h2>
-              <p className="pageDesc" style={{ marginBottom: 6 }}>slot이 구분값이고, 현재 / 예약은 각 시작시간과 종료시간 기준으로 바로 읽게 한 운영 시트야.</p>
+              <p className="pageDesc" style={{ marginBottom: 6 }}>맨 윗줄에서 row를 추가하고, 아래 row는 바로 수정해. 현재 / 다음 / 종료는 시간창에서 자동으로 판정해.</p>
             </div>
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <div className="metaPill">rows {performance.slotRows.length}</div>
-              <div className="metaPill">sheet only</div>
+              <div className="metaPill">append row 1</div>
+              <div className="metaPill">campaign rows {campaigns.length}</div>
             </div>
           </div>
 
           <div className="exploreSheetViewport adsSetupSheetViewport">
-            <table className="exploreSimpleSheet adsSetupSheet adsSetupUnifiedSheet">
+            <table className="exploreSimpleSheet adsSetupSheet adsSetupUnifiedSheet" style={{ width: 2640, minWidth: 2640 }}>
               <thead>
                 <tr>
+                  <th>구분</th>
                   <th>슬롯</th>
                   <th>상태</th>
-                  <th>현재 시작</th>
-                  <th>현재 종료</th>
-                  <th>예약 시작</th>
-                  <th>예약 종료</th>
-                  <th>현재 제목</th>
-                  <th>현재 문구</th>
-                  <th>현재 CTA</th>
-                  <th>현재 링크</th>
-                  <th>현재 배너</th>
-                  <th>현재 업로드</th>
-                  <th>현재 저장</th>
-                  <th>예약 제목</th>
-                  <th>예약 문구</th>
-                  <th>예약 CTA</th>
-                  <th>예약 링크</th>
-                  <th>예약 배너</th>
-                  <th>예약 업로드</th>
-                  <th>예약 저장</th>
+                  <th>시작</th>
+                  <th>종료</th>
+                  <th>제목</th>
+                  <th>문구</th>
+                  <th>CTA</th>
+                  <th>링크</th>
+                  <th>배너</th>
+                  <th>업로드</th>
+                  <th>저장</th>
+                  <th>취소</th>
                 </tr>
               </thead>
               <tbody>
-                {performance.slotRows.map((row) => {
-                  const slot = slotsByKey[row.slotKey] ?? fallbackSlots.find((item) => item.slotKey === row.slotKey) ?? fallbackSlots[0]
+                <tr>
+                  <td><strong>append</strong></td>
+                  <td>
+                    <select className="textInput exploreSheetInput" style={{ minWidth: 200, width: 200 }} value={appendDraft.slotKey} disabled={usingFallback} onChange={(e) => updateAppendDraft({ slotKey: e.target.value })}>
+                      {slots.map((slot) => (
+                        <option key={`append-slot-${slot.slotKey}`} value={slot.slotKey}>{slot.config.slotLabel || slot.slotKey}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td><span className="adsSetupCellSub">추가 예정</span></td>
+                  <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={appendDraft.startAt} disabled={usingFallback} onChange={(e) => updateAppendDraft({ startAt: e.target.value })} /></td>
+                  <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={appendDraft.endAt} disabled={usingFallback} onChange={(e) => updateAppendDraft({ endAt: e.target.value })} /></td>
+                  <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={appendDraft.title} disabled={usingFallback} onChange={(e) => updateAppendDraft({ title: e.target.value })} /></td>
+                  <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={appendDraft.message} disabled={usingFallback} onChange={(e) => updateAppendDraft({ message: e.target.value })} /></td>
+                  <td><input className="textInput exploreSheetInput" style={{ minWidth: 110, width: 110 }} value={appendDraft.ctaLabel} disabled={usingFallback} onChange={(e) => updateAppendDraft({ ctaLabel: e.target.value })} /></td>
+                  <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={appendDraft.targetUrl} disabled={usingFallback} placeholder="https://..." onChange={(e) => updateAppendDraft({ targetUrl: e.target.value })} /></td>
+                  <td>
+                    {appendDraft.imageUrl ? (
+                      <a href={appendDraft.imageUrl} target="_blank" rel="noreferrer" className="exploreMiniThumbLink">
+                        <img src={appendDraft.imageUrl} alt="append row" className="exploreMiniThumb adsSetupMiniThumb" />
+                      </a>
+                    ) : (
+                      <span className="adsSetupCellSub">없음</span>
+                    )}
+                  </td>
+                  <td>
+                    <label className={`ghostBtn ghostBtnSmall adsUploadBtn${usingFallback ? ' disabled' : ''}`}>
+                      {uploadingKey === 'append' ? '업로드중' : '파일'}
+                      <input
+                        type="file"
+                        accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
+                        className="hiddenInput"
+                        disabled={usingFallback}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          void uploadAssetFile(file, 'append').then((url) => {
+                            if (url) updateAppendDraft({ imageUrl: url })
+                          })
+                        }}
+                      />
+                    </label>
+                  </td>
+                  <td>
+                    <button className="primaryBtn ghostBtnSmall adsSetupSaveBtn" type="button" disabled={savingKey === 'append' || usingFallback} onClick={() => void createCampaign()}>
+                      {savingKey === 'append' ? '추가중' : '추가'}
+                    </button>
+                  </td>
+                  <td><span className="adsSetupCellSub">-</span></td>
+                </tr>
+                {campaigns.map((campaign) => {
+                  const draft = campaignDrafts[campaign.id] ?? draftFromCampaign(campaign)
+                  const slot = slotsByKey[draft.slotKey] ?? slotsByKey[campaign.slotKey] ?? fallbackSlots[0]
                   return (
-                    <tr key={`setup-sheet-${row.slotKey}`}>
+                    <tr key={`campaign-row-${campaign.id}`}>
+                      <td><strong>{campaign.id.slice(0, 8)}</strong></td>
                       <td>
                         <div className="adsSetupCellStack">
-                          <strong>{slot.config.slotLabel || row.slotKey}</strong>
-                          <span className="adsSetupCellSub">{row.slotKey} · {slot.placementType}</span>
-                          <span className="adsSetupCellSub">{row.surfaceLabel} · ctr {formatPercent(row.ctr)}</span>
+                          <select className="textInput exploreSheetInput" style={{ minWidth: 220, width: 220 }} value={draft.slotKey} disabled={usingFallback || campaign.status === 'cancelled'} onChange={(e) => updateCampaignDraft(campaign.id, { slotKey: e.target.value })}>
+                            {slots.map((item) => (
+                              <option key={`campaign-slot-${campaign.id}-${item.slotKey}`} value={item.slotKey}>{item.config.slotLabel || item.slotKey}</option>
+                            ))}
+                          </select>
+                          <span className="adsSetupCellSub">{slot?.config?.slotLabel || campaign.slotKey} · {slot?.placementType || '-'}</span>
                         </div>
                       </td>
+                      <td><span className="adsSetupCellSub">{campaignStatusLabel(campaign.status)}</span></td>
+                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={draft.startAt} disabled={usingFallback || campaign.status === 'cancelled'} onChange={(e) => updateCampaignDraft(campaign.id, { startAt: e.target.value })} /></td>
+                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={draft.endAt} disabled={usingFallback || campaign.status === 'cancelled'} onChange={(e) => updateCampaignDraft(campaign.id, { endAt: e.target.value })} /></td>
+                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={draft.title} disabled={usingFallback || campaign.status === 'cancelled'} onChange={(e) => updateCampaignDraft(campaign.id, { title: e.target.value })} /></td>
+                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={draft.message} disabled={usingFallback || campaign.status === 'cancelled'} onChange={(e) => updateCampaignDraft(campaign.id, { message: e.target.value })} /></td>
+                      <td><input className="textInput exploreSheetInput" style={{ minWidth: 110, width: 110 }} value={draft.ctaLabel} disabled={usingFallback || campaign.status === 'cancelled'} onChange={(e) => updateCampaignDraft(campaign.id, { ctaLabel: e.target.value })} /></td>
+                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={draft.targetUrl} disabled={usingFallback || campaign.status === 'cancelled'} placeholder="https://..." onChange={(e) => updateCampaignDraft(campaign.id, { targetUrl: e.target.value })} /></td>
                       <td>
-                        <select className="textInput exploreSheetInput" style={{ minWidth: 96, width: 96 }} value={slot.status} disabled={usingFallback} onChange={(e) => updateSlot(slot.slotKey, { status: e.target.value })}>
-                          <option value="active">active</option>
-                          <option value="inactive">inactive</option>
-                        </select>
-                      </td>
-                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={slot.config.exposureStartAt ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { exposureStartAt: e.target.value || null })} /></td>
-                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={slot.config.exposureEndAt ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { exposureEndAt: e.target.value || null })} /></td>
-                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={slot.config.reservationStartAt ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { reservationStartAt: e.target.value || null })} /></td>
-                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={slot.config.reservationEndAt ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { reservationEndAt: e.target.value || null })} /></td>
-                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={slot.config.title} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { title: e.target.value })} /></td>
-                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={slot.config.message} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { message: e.target.value })} /></td>
-                      <td><input className="textInput exploreSheetInput" style={{ minWidth: 110, width: 110 }} value={slot.config.ctaLabel ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { ctaLabel: e.target.value || null })} /></td>
-                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={slot.config.targetUrl ?? ''} disabled={usingFallback} placeholder="https://..." onChange={(e) => updateConfig(slot.slotKey, { targetUrl: e.target.value || null })} /></td>
-                      <td>
-                        {slot.config.imageUrl ? (
-                          <a href={slot.config.imageUrl} target="_blank" rel="noreferrer" className="exploreMiniThumbLink">
-                            <img src={slot.config.imageUrl} alt={`${slot.slotKey} live`} className="exploreMiniThumb adsSetupMiniThumb" />
+                        {draft.imageUrl ? (
+                          <a href={draft.imageUrl} target="_blank" rel="noreferrer" className="exploreMiniThumbLink">
+                            <img src={draft.imageUrl} alt={campaign.id} className="exploreMiniThumb adsSetupMiniThumb" />
                           </a>
                         ) : (
                           <span className="adsSetupCellSub">없음</span>
                         )}
                       </td>
                       <td>
-                        <label className={`ghostBtn ghostBtnSmall adsUploadBtn${usingFallback ? ' disabled' : ''}`}>
-                          {uploadingKey === `${slot.slotKey}:imageUrl` ? '업로드중' : '파일'}
+                        <label className={`ghostBtn ghostBtnSmall adsUploadBtn${usingFallback || campaign.status === 'cancelled' ? ' disabled' : ''}`}>
+                          {uploadingKey === campaign.id ? '업로드중' : '파일'}
                           <input
                             type="file"
                             accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
                             className="hiddenInput"
-                            disabled={usingFallback}
+                            disabled={usingFallback || campaign.status === 'cancelled'}
                             onChange={(e) => {
                               const file = e.target.files?.[0]
-                              if (file) void uploadAsset(slot.slotKey, file, 'imageUrl')
+                              if (!file) return
+                              void uploadAssetFile(file, campaign.id).then((url) => {
+                                if (url) updateCampaignDraft(campaign.id, { imageUrl: url })
+                              })
                             }}
                           />
                         </label>
                       </td>
                       <td>
-                        <button className="primaryBtn ghostBtnSmall adsSetupSaveBtn" type="button" disabled={savingKey === `${slot.slotKey}:live` || usingFallback} onClick={() => void saveSlot(slot, 'live')}>
-                          {savingKey === `${slot.slotKey}:live` ? '저장중' : '저장'}
+                        <button className="primaryBtn ghostBtnSmall adsSetupSaveBtn" type="button" disabled={savingKey === campaign.id || usingFallback || campaign.status === 'cancelled'} onClick={() => void saveCampaign(campaign.id)}>
+                          {savingKey === campaign.id ? '저장중' : '저장'}
                         </button>
                       </td>
-                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={slot.config.reservedTitle ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { reservedTitle: e.target.value })} /></td>
-                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={slot.config.reservedMessage ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { reservedMessage: e.target.value })} /></td>
-                      <td><input className="textInput exploreSheetInput" style={{ minWidth: 110, width: 110 }} value={slot.config.reservedCtaLabel ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { reservedCtaLabel: e.target.value || null })} /></td>
-                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={slot.config.reservedTargetUrl ?? ''} disabled={usingFallback} placeholder="https://..." onChange={(e) => updateConfig(slot.slotKey, { reservedTargetUrl: e.target.value || null })} /></td>
                       <td>
-                        {slot.config.reservedImageUrl ? (
-                          <a href={slot.config.reservedImageUrl} target="_blank" rel="noreferrer" className="exploreMiniThumbLink">
-                            <img src={slot.config.reservedImageUrl} alt={`${slot.slotKey} reserved`} className="exploreMiniThumb adsSetupMiniThumb" />
-                          </a>
-                        ) : (
-                          <span className="adsSetupCellSub">없음</span>
-                        )}
-                      </td>
-                      <td>
-                        <label className={`ghostBtn ghostBtnSmall adsUploadBtn${usingFallback ? ' disabled' : ''}`}>
-                          {uploadingKey === `${slot.slotKey}:reservedImageUrl` ? '업로드중' : '파일'}
-                          <input
-                            type="file"
-                            accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
-                            className="hiddenInput"
-                            disabled={usingFallback}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              if (file) void uploadAsset(slot.slotKey, file, 'reservedImageUrl')
-                            }}
-                          />
-                        </label>
-                      </td>
-                      <td>
-                        <button className="primaryBtn ghostBtnSmall adsSetupSaveBtn" type="button" disabled={savingKey === `${slot.slotKey}:reserved` || usingFallback} onClick={() => void saveSlot(slot, 'reserved')}>
-                          {savingKey === `${slot.slotKey}:reserved` ? '저장중' : '저장'}
+                        <button className="primaryBtn ghostBtnSmall" type="button" disabled={savingKey === `cancel:${campaign.id}` || usingFallback || campaign.status === 'cancelled'} onClick={() => void cancelCampaign(campaign.id)}>
+                          {campaign.status === 'cancelled' ? '취소됨' : savingKey === `cancel:${campaign.id}` ? '처리중' : '취소'}
                         </button>
                       </td>
                     </tr>
                   )
                 })}
-                {performance.slotRows.length === 0 ? (
+                {campaigns.length === 0 ? (
                   <tr>
-                    <td colSpan={20} style={{ textAlign: 'center', color: '#64748b' }}>조건에 맞는 slot이 없어.</td>
+                    <td colSpan={13} style={{ textAlign: 'center', color: '#64748b' }}>조건에 맞는 campaign row가 없어.</td>
                   </tr>
                 ) : null}
               </tbody>

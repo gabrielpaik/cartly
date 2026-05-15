@@ -281,6 +281,21 @@ def _parse_optional_date_range_end(value: Optional[str]) -> Optional[datetime]:
         return None
 
 
+def _campaign_runtime_status(campaign: AdCampaign, *, now: Optional[datetime] = None) -> str:
+    runtime_now = now or datetime.utcnow()
+    if (campaign.status or '').strip() == 'cancelled':
+        return 'cancelled'
+    if campaign.end_at is not None and campaign.end_at < runtime_now:
+        return 'ended'
+    if campaign.start_at is not None and campaign.start_at > runtime_now:
+        return 'scheduled'
+    return 'live'
+
+
+def _campaign_runtime_variant(campaign: AdCampaign, *, now: Optional[datetime] = None) -> str:
+    return 'reserved' if _campaign_runtime_status(campaign, now=now) == 'scheduled' else 'live'
+
+
 def _campaign_matches_filters(
     campaign: AdCampaign,
     *,
@@ -290,9 +305,12 @@ def _campaign_matches_filters(
     period_from: Optional[str] = None,
     period_to: Optional[str] = None,
 ) -> bool:
-    if variant and variant != 'all' and campaign.variant != variant:
+    runtime_status = _campaign_runtime_status(campaign)
+    runtime_variant = _campaign_runtime_variant(campaign)
+
+    if variant and variant != 'all' and runtime_variant != variant:
         return False
-    if status and status != 'all' and campaign.status != status:
+    if status and status != 'all' and runtime_status != status:
         return False
 
     if query:

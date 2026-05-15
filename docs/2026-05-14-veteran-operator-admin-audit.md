@@ -107,22 +107,24 @@ This is the decision layer.
 What already exists in runtime today:
 - `GET /admin/ads/slots`
   - returns slot identity, placement type, status, config, live/reserved campaign ids, and updatedAt
-- `PUT /admin/ads/slots/{slotKey}`
-  - updates live or reserved config and writes campaign history rows
 - `GET /admin/ads/campaigns`
   - returns campaign rows with lifetime impressions, clicks, and CTR aggregated per campaign
+- `POST /admin/ads/campaigns`
+  - appends a new campaign row and rejects duplicate / overlapping windows for the same slot
+- `PUT /admin/ads/campaigns/{campaignId}`
+  - edits an existing campaign row in place
+- `POST /admin/ads/campaigns/{campaignId}/cancel`
+  - retires a campaign row without deleting history
 - `POST /v1/ads/impressions`
   - tracks `slotKey`, `campaignId`, optional `screenName`, and optional `creativeId`
 - `POST /v1/ads/clicks`
   - tracks click by `impressionId`
 
 What is still missing for operator confidence:
-- period-aware slot summary, not just campaign list rows
 - creative-level grouping that is stable across campaign replacements
-- explicit effective runtime state (`live_now`, `reserved_pending`, `expired`, `inactive`, `draft_gap`)
-- slot-level no-data / low-signal review queues
 - downstream action signal after click
 - clear surface labels that remain readable without opening the editor
+- better cleanup rules for legacy rows that still have open-ended `startAt/endAt` gaps from the old slot-config era
 
 ### Ads P0 page shape
 
@@ -146,7 +148,9 @@ Left / center:
 - exposure inventory table
 
 Right / lower selected area:
-- selected slot editor
+- campaign-row setup sheet
+- append row first, editable saved rows below
+- current / next derived from time windows instead of fixed live/reserved pair fields
 - live/reserved preview
 - recent campaign history
 

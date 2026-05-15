@@ -8,17 +8,14 @@ class AdSlotUpdateRequest(BaseModel):
     slotLabel: Optional[str] = None
     slotDescription: Optional[str] = None
     placementNote: Optional[str] = None
+
+
+class AdCampaignUpsertRequest(BaseModel):
+    slotKey: str
     title: Optional[str] = None
     message: Optional[str] = None
     ctaLabel: Optional[str] = None
     targetUrl: Optional[str] = None
     imageUrl: Optional[str] = None
-    reservedTitle: Optional[str] = None
-    reservedMessage: Optional[str] = None
-    reservedCtaLabel: Optional[str] = None
-    reservedTargetUrl: Optional[str] = None
-    reservedImageUrl: Optional[str] = None
-    exposureStartAt: Optional[str] = None
-    exposureEndAt: Optional[str] = None
-    reservationStartAt: Optional[str] = None
-    reservationEndAt: Optional[str] = None
+    startAt: Optional[str] = None
+    endAt: Optional[str] = None

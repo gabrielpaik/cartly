@@ -469,38 +469,11 @@ export default function AdsPage() {
         <div className="metaPill">campaign status {historyStatusFilter}</div>
       </div>
 
-      <div className="adsWorkflowLayout section" style={{ marginTop: 8 }}>
-        <div className="card exploreRailCard adsWorkflowRail">
-          <div className="sectionHeader" style={{ marginBottom: 8 }}>
-            <div>
-              <h2 className="panelTitle" style={{ marginBottom: 0 }}>Ads flow</h2>
-            </div>
-          </div>
-          <div className="exploreRailStack">
-            <a className="exploreRailButton" href="#ads-runtime-health">
-              <span className="exploreRailButtonLabel">1. 지금 잘 돌아가나</span>
-              <span className="exploreRailButtonText">live slot, 빈 슬롯, review queue부터 확인</span>
-              <span className="exploreRailButtonMeta">health first</span>
-            </a>
-            <a className="exploreRailButton" href="#ads-quick-setup">
-              <span className="exploreRailButtonLabel">2. 빠르게 세팅</span>
-              <span className="exploreRailButtonText">선택한 slot의 현재/예약 광고를 바로 수정</span>
-              <span className="exploreRailButtonMeta">workspace second</span>
-            </a>
-            <a className="exploreRailButton" href="#ads-efficiency-review">
-              <span className="exploreRailButtonLabel">3. 지난 효율 보기</span>
-              <span className="exploreRailButtonText">기간별 성과, creative 비교, 지난 캠페인 기록</span>
-              <span className="exploreRailButtonMeta">history third</span>
-            </a>
-          </div>
-        </div>
-
-        <div className="adsWorkflowMain">
-      <form className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 0, marginBottom: 16 }} onSubmit={(e) => e.preventDefault()}>
+      <form className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 16, marginBottom: 16 }} onSubmit={(e) => e.preventDefault()}>
         <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 12 }}>
           <div>
-            <h2 className="panelTitle" style={{ marginBottom: 6 }}>Ads operator strip</h2>
-            <p className="pageDesc" style={{ margin: 0 }}>지금 slot 상태를 좁혀 보고, 아래 3단계에서 같은 범위 기준으로 세팅과 지난 효율까지 이어서 보는 공통 필터 바야.</p>
+            <h2 className="panelTitle" style={{ marginBottom: 6 }}>공통 필터</h2>
+            <p className="pageDesc" style={{ margin: 0 }}>좌측 sidebar의 `현황 / 세팅 / 효율` 흐름과 같은 범위로 바로 이어서 보게 맞춘 필터 바야.</p>
           </div>
         </div>
         <div className="exploreSheetFilterGrid" style={{ gridTemplateColumns: 'minmax(220px, 2fr) repeat(5, minmax(140px, 1fr))' }}>
@@ -555,7 +528,7 @@ export default function AdsPage() {
       <div className="card exploreDenseCard exploreSheetCard" id="ads-runtime-health" style={{ marginTop: 12, marginBottom: 16 }}>
         <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 12 }}>
           <div>
-            <h2 className="panelTitle" style={{ marginBottom: 6 }}>Exposure inventory</h2>
+            <h2 className="panelTitle" style={{ marginBottom: 6 }}>현황</h2>
             <p className="pageDesc" style={{ margin: 0 }}>지금 무엇이 어느 surface에 live인지, review가 필요한 slot이 무엇인지 먼저 보는 truth table이야.</p>
           </div>
           <div className="metaRow" style={{ marginTop: 0 }}>
@@ -641,7 +614,7 @@ export default function AdsPage() {
           </div>
         )}
         <div className="section" style={{ marginTop: 16 }}>
-          <h3 className="panelTitle" style={{ marginBottom: 10 }}>Needs review</h3>
+          <h3 className="panelTitle" style={{ marginBottom: 10 }}>주의 필요</h3>
           <div className="exploreSummaryGrid" style={{ marginTop: 0 }}>
             <div className="exploreSummaryCell">
               <div className="exploreSummaryLabel">No data</div>
@@ -705,7 +678,7 @@ export default function AdsPage() {
         <div className="card exploreDenseCard exploreSheetCard" id="ads-quick-setup">
           <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
             <div>
-              <h2 className="panelTitle" style={{ marginBottom: 6 }}>Quick slot setup · {selectedSlot.config.slotLabel || selectedSlot.slotKey}</h2>
+              <h2 className="panelTitle" style={{ marginBottom: 6 }}>세팅 · {selectedSlot.config.slotLabel || selectedSlot.slotKey}</h2>
               <p className="pageDesc" style={{ marginBottom: 8 }}>{selectedSlot.config.slotDescription || '슬롯 설명 없음'}</p>
               <div className="metaRow" style={{ marginTop: 0 }}>
                 <div className="metaPill">{selectedSlot.slotKey}</div>
@@ -756,7 +729,7 @@ export default function AdsPage() {
               <div className="card exploreDenseCard" style={{ padding: 14 }}>
                 <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 8 }}>
                   <div>
-                    <h3 className="panelTitle" style={{ marginBottom: 6 }}>Selected slot performance</h3>
+                    <h3 className="panelTitle" style={{ marginBottom: 6 }}>선택 슬롯 요약</h3>
                     <p className="pageDesc" style={{ margin: 0 }}>현재 선택한 slot의 filtered-period 성과 요약이야.</p>
                   </div>
                 </div>
@@ -782,13 +755,13 @@ export default function AdsPage() {
       <div className="card exploreDenseCard exploreSheetCard" id="ads-efficiency-review" style={{ marginTop: 16, marginBottom: 24 }}>
         <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 12 }}>
           <div>
-            <h2 className="panelTitle" style={{ marginBottom: 6 }}>Performance zone</h2>
-            <p className="pageDesc" style={{ margin: 0 }}>slot-level / creative-level summary와 needs-review queue를 한 곳에 모은 decision layer야.</p>
+            <h2 className="panelTitle" style={{ marginBottom: 6 }}>효율</h2>
+            <p className="pageDesc" style={{ margin: 0 }}>기간 기준 성과와 creative 비교를 한 번에 보는 구간이야.</p>
           </div>
         </div>
 
         <div className="section" style={{ marginTop: 0 }}>
-          <h3 className="panelTitle" style={{ marginBottom: 10 }}>Slot performance</h3>
+          <h3 className="panelTitle" style={{ marginBottom: 10 }}>슬롯별 성과</h3>
           <div className="tableWrap">
             <table className="dataTable">
               <thead>
@@ -822,7 +795,7 @@ export default function AdsPage() {
         </div>
 
         <div className="section" style={{ marginTop: 16 }}>
-          <h3 className="panelTitle" style={{ marginBottom: 10 }}>Creative performance</h3>
+          <h3 className="panelTitle" style={{ marginBottom: 10 }}>소재별 성과</h3>
           {performance.creativeRows.length === 0 ? (
             <div className="emptyState">현재 조건에서는 creative-level row가 없어.</div>
           ) : (
@@ -874,8 +847,6 @@ export default function AdsPage() {
             periodFrom={historyPeriodFrom}
             periodTo={historyPeriodTo}
           />
-        </div>
-      </div>
         </div>
       </div>
     </div>

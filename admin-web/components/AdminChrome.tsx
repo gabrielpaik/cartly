@@ -25,11 +25,17 @@ const exploreWorkspaceNavItems = [
 ] as const
 
 const configPaneNavItems = [
-  { href: '/config?pane=overview', label: 'Overview' },
-  { href: '/config?pane=smoke', label: 'Smoke' },
-  { href: '/config?pane=runtime', label: 'Runtime' },
-  { href: '/config?pane=my-page', label: 'My Page' },
-  { href: '/config?pane=coupang', label: 'Coupang' },
+  { href: '/config?pane=overview', label: '전체 상태' },
+  { href: '/config?pane=smoke', label: '운영 점검' },
+  { href: '/config?pane=runtime', label: '저장소 / 기동' },
+  { href: '/config?pane=my-page', label: '마이페이지' },
+  { href: '/config?pane=coupang', label: '제휴 연동' },
+] as const
+
+const adsSectionNavItems = [
+  { href: '/ads#ads-runtime-health', label: '현황' },
+  { href: '/ads#ads-quick-setup', label: '세팅' },
+  { href: '/ads#ads-efficiency-review', label: '효율' },
 ] as const
 
 const usersNavItems = [
@@ -184,11 +190,13 @@ function AdminChromeInner({ children }: { children: ReactNode }) {
                         ? [...contentSectionNavItems]
                         : item.href === '/explore'
                           ? [...exploreWorkspaceNavItems]
-                          : item.href === '/config'
-                            ? [...configPaneNavItems]
-                            : item.href === '/users'
-                              ? [...usersNavItems]
-                              : undefined
+                          : item.href === '/ads'
+                            ? [...adsSectionNavItems]
+                            : item.href === '/config'
+                              ? [...configPaneNavItems]
+                              : item.href === '/users'
+                                ? [...usersNavItems]
+                                : undefined
                     }
                   />
                 ))}

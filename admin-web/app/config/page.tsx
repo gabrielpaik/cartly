@@ -265,25 +265,9 @@ function ConfigPageInner() {
         <span className="metaPill">운영 점검 {smoke.ok ? '정상' : '재확인'}</span>
       </div>
 
-      <div className="exploreActionBar exploreActionBarSingle" style={{ marginBottom: 12 }}>
-        <div className="exploreActionPanel exploreActionPanelTight configPaneBar">
-          <div className="exploreActionLabel">System 화면</div>
-          <div className="exploreActionMeta">
-            <span className="metaPill">현재 {activePaneLabel}</span>
-            <span className="metaPill">점검 {smoke.results.length}개</span>
-          </div>
-          <div className="editorTabRow">
-            {configPaneOptions.map((pane) => (
-              <a
-                key={pane.id}
-                href={`/config?pane=${pane.id}`}
-                className={`editorSectionTab ${activePane === pane.id ? 'active' : ''}`}
-              >
-                <span>{pane.label}</span>
-              </a>
-            ))}
-          </div>
-        </div>
+      <div className="metaRow section" style={{ marginTop: 0, marginBottom: 12 }}>
+        <span className="metaPill">현재 {activePaneLabel}</span>
+        <span className="metaPill">점검 {smoke.results.length}개</span>
       </div>
 
       {activePane === 'overview' ? (

@@ -391,15 +391,6 @@ function readExploreWorkspaceFromLocation(): ExploreWorkspaceId {
     : 'recommendations'
 }
 
-function writeExploreWorkspaceToLocation(next: ExploreWorkspaceId) {
-  if (typeof window === 'undefined') return
-  const url = new URL(window.location.href)
-  url.searchParams.set('ws', next)
-  const search = url.searchParams.toString()
-  const href = `${url.pathname}${search ? `?${search}` : ''}${url.hash}`
-  window.history.replaceState({}, '', href)
-}
-
 function ensureLocationChangeEventPatched() {
   if (typeof window === 'undefined') return
   const historyState = window.history as History & {
@@ -1113,10 +1104,6 @@ export default function ExploreAdminPage() {
   const activeSectionLabels = orderedSections
     .map((id) => EXPLORE_SECTION_OPTIONS.find((option) => option.id === id)?.label)
     .filter((value): value is string => Boolean(value))
-  const activePriorityPreview = decisionPriorityPreview(form, layoutState).slice(0, 3)
-  const activeCapPreview = decisionMaxCountPreview(form, layoutState)
-    .filter((item) => item.value > 0)
-    .slice(0, 3)
   const modePreviewHeadline = (() => {
     switch (layoutState) {
       case 'activeShopping':
@@ -1138,7 +1125,7 @@ export default function ExploreAdminPage() {
       case 'recommendations':
         return `${editorialPoolPreview.length} pool`
       case 'rules':
-        return `${activePriorityPreview.length} priorities`
+        return `${DECISION_FIELDS.length} priorities`
       case 'copy':
         return `${DECISION_COPY_MESSAGE_FIELDS.length + 1} copy groups`
       case 'store':
@@ -1177,12 +1164,6 @@ export default function ExploreAdminPage() {
   function setActiveExploreState(next: ExploreStateId) {
     setLayoutState(next)
     setPreviewScenario(next)
-  }
-
-  function selectWorkspace(next: ExploreWorkspaceId) {
-    if (next === activeWorkspace) return
-    setActiveWorkspace(next)
-    writeExploreWorkspaceToLocation(next)
   }
 
   function recommendationRowIndex(rowId: string) {
@@ -1925,77 +1906,32 @@ export default function ExploreAdminPage() {
         <span className="metaPill">{res.usingFallback ? 'fallback runtime' : 'live runtime'}</span>
       </div>
 
-      <div className="exploreWorkbench" style={{ marginTop: 12 }}>
-        <div className="exploreWorkbenchRail">
-          <div className="card exploreRailCard">
-            <div className="sectionHeader" style={{ marginBottom: 8 }}>
-              <div>
-                <h2 className="panelTitle" style={{ marginBottom: 0 }}>Explore rail</h2>
-              </div>
-            </div>
-
-            <div className="exploreRailSection">
-              <div className="exploreRailSectionTitle">Mode</div>
-              <div className="exploreRailStack">
-                {EXPLORE_STATE_OPTIONS.map((state) => {
-                  const stateRules = form.stateRules[state.id]
-                  const stateOrder = parseSectionList(form[stateOrderKey(state.id)]).filter((item) => enabledSections.includes(item))
-                  return (
-                    <button
-                      key={state.id}
-                      className={`exploreRailButton${layoutState === state.id ? ' active' : ''}`}
-                      type="button"
-                      onClick={() => setActiveExploreState(state.id)}
-                    >
-                      <span className="exploreRailButtonLabel">{state.label}</span>
-                      <span className="exploreRailButtonText">{state.description}</span>
-                      <span className="exploreRailButtonMeta">sections {stateOrder.length} · offers {stateRules.offerMaxSlots}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="exploreRailSection">
-              <div className="exploreRailSectionTitle">Task</div>
-              <div className="exploreRailStack">
-                {EXPLORE_WORKSPACE_OPTIONS.map((option) => {
-                  const statValue = (() => {
-                    switch (option.id) {
-                      case 'layout':
-                        return `${enabledSections.length}`
-                      case 'recommendations':
-                        return `${editorialPoolPreview.length}`
-                      case 'rules':
-                        return `${STATE_RULE_FIELDS.length + PROMO_POLICY_FIELDS.length + DECISION_FIELDS.length}`
-                      case 'copy':
-                        return `${DECISION_COPY_MESSAGE_FIELDS.length + 1}`
-                      case 'store':
-                        return `${storePromoPreview.length}`
-                      default:
-                        return '-'
-                    }
-                  })()
-                  return (
-                    <button
-                      key={option.id}
-                      className={`exploreRailButton exploreTaskButton${activeWorkspace === option.id ? ' active' : ''}`}
-                      type="button"
-                      onClick={() => selectWorkspace(option.id)}
-                    >
-                      <span className="exploreRailButtonLabel">{option.label}</span>
-                      <span className="exploreRailButtonText">{option.description}</span>
-                      <span className="exploreRailButtonMeta">{option.statLabel} {statValue}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+      <div className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 12, marginBottom: 12 }}>
+        <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
+          <div>
+            <h2 className="panelTitle" style={{ marginBottom: 6 }}>Mode</h2>
+            <p className="pageDesc" style={{ margin: 0 }}>작업 전환은 좌측 sidebar를 쓰고, 여기서는 현재 편집할 상태만 빠르게 바꿔.</p>
+          </div>
+          <div className="metaRow" style={{ marginTop: 0 }}>
+            <span className="metaPill">현재 작업 {activeWorkspaceOption.label}</span>
+            <span className="metaPill">preview는 상단 버튼에서만 실행</span>
           </div>
         </div>
+        <div className="editorSubtabRow">
+          {EXPLORE_STATE_OPTIONS.map((state) => (
+            <button
+              key={state.id}
+              className={`editorSubtab${layoutState === state.id ? ' active' : ''}`}
+              type="button"
+              onClick={() => setActiveExploreState(state.id)}
+            >
+              {state.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-        <div className="exploreWorkbenchMain">
-          <div className="exploreWorkbenchCenter">
+      <div>
           <div className="card" style={{ marginBottom: activeWorkspace === 'layout' ? 16 : 0, display: activeWorkspace === 'layout' ? 'block' : 'none' }}>
             <div className="sectionHeader" style={{ marginBottom: 10 }}>
               <div>
@@ -2640,86 +2576,6 @@ export default function ExploreAdminPage() {
             </div>
           </div>
         </div>
-
-        </div>
-
-        <div className="exploreWorkbenchSide">
-          <div className="card explorePreviewCard">
-            <div className="sectionHeader" style={{ marginBottom: 8 }}>
-              <div>
-                <h2 className="panelTitle" style={{ marginBottom: 0 }}>Mode-bound preview</h2>
-              </div>
-            </div>
-            <div className="metaRow compactMetaRow" style={{ marginBottom: 8 }}>
-              <span className="metaPill">{activeStateOption.label}</span>
-              <span className="metaPill">{res.usingFallback ? 'fallback' : 'live'}</span>
-            </div>
-            <div className="explorePreviewLead">{modePreviewHeadline}</div>
-            <div className="explorePreviewSublead">{activeStateOption.description}</div>
-
-            <div className="explorePreviewSection">
-              <div className="explorePreviewSectionTitle">Top section order</div>
-              <div className="explorePreviewList">
-                {activeSectionLabels.slice(0, 4).map((label, index) => (
-                  <div key={`${label}-${index}`} className="explorePreviewListRow">
-                    <span className="explorePreviewIndex">{index + 1}</span>
-                    <span>{label}</span>
-                  </div>
-                ))}
-                {activeSectionLabels.length === 0 ? <div className="explorePreviewEmpty">활성 섹션 없음</div> : null}
-              </div>
-            </div>
-
-            <div className="explorePreviewSection">
-              <div className="explorePreviewSectionTitle">Priority snapshot</div>
-              <div className="explorePreviewList">
-                {activePriorityPreview.map((item) => (
-                  <div key={item.key} className="explorePreviewMetricRow">
-                    <span>{item.label}</span>
-                    <strong>p{item.value}</strong>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="explorePreviewSection">
-              <div className="explorePreviewSectionTitle">Cap / payload</div>
-              <div className="explorePreviewList">
-                {activeCapPreview.length > 0 ? activeCapPreview.map((item) => (
-                  <div key={item.key} className="explorePreviewMetricRow">
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
-                  </div>
-                )) : <div className="explorePreviewEmpty">설정된 cap 없음</div>}
-              </div>
-            </div>
-
-            <div className="explorePreviewSection">
-              <div className="explorePreviewSectionTitle">Pool / promo snapshot</div>
-              <div className="explorePreviewList">
-                {activeWorkspace === 'store'
-                  ? storePromoPreview.slice(0, 3).map((promo) => (
-                    <div key={promo.id} className="explorePreviewMetricRow">
-                      <span>{promo.badgeLabel}</span>
-                      <strong>{promo.sourceType}</strong>
-                    </div>
-                  ))
-                  : editorialPoolPreview.slice(0, 3).map((item) => (
-                    <div key={item.id} className="explorePreviewMetricRow">
-                      <span>{item.title || item.provider || item.id}</span>
-                      <strong>{item.provider || '추천'}</strong>
-                    </div>
-                  ))}
-                {(activeWorkspace === 'store' ? storePromoPreview.length : editorialPoolPreview.length) === 0 ? <div className="explorePreviewEmpty">preview source 없음</div> : null}
-              </div>
-            </div>
-
-            <div className="metaRow compactMetaRow" style={{ marginTop: 12 }}>
-              <span className="metaPill">preview action은 상단에서 실행</span>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

@@ -333,11 +333,11 @@ Purpose: full scenario preview
 - preview should always be mode-bound, never visually ambiguous about which app state it reflects
 
 ### Explore implementation checkpoint
-- served `/explore` now includes a live mode rail, separate task strip, always-visible mode/task summary strip, and a mode-bound right preview panel
-- mode changes now move together across header preview selector, state tabs, meta strip, and preview context so the operator is not editing one state while previewing another
-- recommendation / rules / copy / store workspaces remain the same underlying operators, but the shell now makes the current mode and task explicit before deeper follow-up work
-- next Explore work should deepen the preview realism and task-specific decision guidance, not go back to a blended mega-settings surface
-- 2026-05-15 polish pass: removed the extra preview-state selector, collapsed mode/task control into a single left Explore rail, removed the old Mode rail / Task strip split, and stopped repeating preview actions inside the right preview card
+- served `/explore` keeps the workspace/task switch in the main sidebar and no longer repeats that task navigation inside the page body
+- the page-local control is now a compact horizontal mode row placed directly under the summary/meta area, so mode remains easy to switch without creating a sidebar-inside-sidebar pattern
+- the old right `Mode-bound preview` card was removed because it was mostly restating visible mode data rather than adding decision value
+- recommendation / rules / copy / store workspaces remain the same underlying operators, but the shell now separates their roles more cleanly: sidebar for task, in-page row for mode, top actions for preview
+- next Explore work should only bring preview back if it becomes a genuinely informative simulation, not a repeated status card
 
 ---
 
@@ -521,8 +521,8 @@ Current direction update:
 ### Ads P0 target shape
 - top exposure inventory with live creative, reserved creative, slot, surface, position, status, updatedAt, and filtered-period metrics
 - selected-slot workspace with live/reserved preview, schedule controls, save/publish actions, and recent campaign history
-- lower performance zone with slot-level and creative-level summaries plus low-signal / no-signal review rows
-- 2026-05-15 polish pass: the served page now declares an explicit three-step Ads flow and orders the page as runtime health first, quick slot setup second, and historical efficiency review third
+- lower efficiency zone with slot-level and creative-level summaries plus low-signal / no-signal review rows
+- 2026-05-15 follow-up simplification: the explicit three-step operator flow remains, but it now lives in the main sidebar as short sublabels `현황 / 세팅 / 효율` instead of a nested in-page rail, and the page body itself no longer wastes width on duplicate navigation
 
 ### Ads implementation contract
 

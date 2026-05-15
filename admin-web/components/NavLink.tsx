@@ -53,18 +53,22 @@ export default function NavLink({
   const active = pathMatches(normalized, href)
   const [currentPath, setCurrentPath] = useState(normalized)
   const [currentSearch, setCurrentSearch] = useState('')
+  const [currentHash, setCurrentHash] = useState('')
 
   useEffect(() => {
     ensureLocationChangeEventPatched()
     const syncLocation = () => {
       setCurrentPath(window.location.pathname)
       setCurrentSearch(window.location.search)
+      setCurrentHash(window.location.hash)
     }
     syncLocation()
     window.addEventListener('popstate', syncLocation)
+    window.addEventListener('hashchange', syncLocation)
     window.addEventListener('cartly:locationchange', syncLocation as EventListener)
     return () => {
       window.removeEventListener('popstate', syncLocation)
+      window.removeEventListener('hashchange', syncLocation)
       window.removeEventListener('cartly:locationchange', syncLocation as EventListener)
     }
   }, [normalized])
@@ -81,7 +85,7 @@ export default function NavLink({
             const childActive = (() => {
               try {
                 const target = new URL(child.href, 'http://localhost')
-                return target.pathname === currentPath && target.search === currentSearch
+                return target.pathname === currentPath && target.search === currentSearch && target.hash === currentHash
               } catch {
                 return false
               }

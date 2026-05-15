@@ -412,6 +412,20 @@ Operators think:
 not
 - "homeExploreEntryTitle key를 수정하자"
 
+### My page compliance/footer contract (2026-05-15)
+- My page bottom area should always expose an easy path to privacy and support information.
+- The compliance/support section itself should be hardwired into the app surface, not removable by content operators.
+- Operator-editable values should live in Content > My copy fields:
+  - compliance section title/body
+  - privacy policy label + URL
+  - support email label + value
+  - support phone label + value
+  - support hours label + value
+  - business/operator info label + value
+  - support note
+- Runtime fallback should always keep a valid privacy-policy path even when admin fields are empty.
+- Missing operator contact values should fail soft in app UI with a visible warning prompt rather than silently hiding the compliance area.
+
 ---
 
 ## 4. Runtime Config

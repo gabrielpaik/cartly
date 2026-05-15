@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../app/cartly_ui.dart';
 import '../models/saved_cart.dart';
@@ -29,6 +30,8 @@ class MyPage extends StatelessWidget {
         _MyPageOrderedSections(),
         SizedBox(height: CartlySpacing.lg),
         _MySecondarySections(),
+        SizedBox(height: CartlySpacing.section),
+        _MyComplianceSection(),
       ],
     );
   }
@@ -1275,6 +1278,252 @@ class _BenefitRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _MyComplianceSection extends StatelessWidget {
+  const _MyComplianceSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<Map<String, dynamic>>(
+      valueListenable: AppConfigStore.instance.copy,
+      builder: (context, _, child) {
+        final privacyLabel = AppRuntimeCopy.text(
+          ['my', 'privacyPolicyLabel'],
+          '개인정보 처리방침',
+        );
+        final privacyUrl = AppRuntimeCopy.text(
+          ['my', 'privacyPolicyUrl'],
+          'https://scan-api.seoa-nas.com/privacy',
+        ).trim();
+        final supportEmailLabel = AppRuntimeCopy.text(
+          ['my', 'supportEmailLabel'],
+          '고객센터 이메일',
+        );
+        final supportEmail = AppRuntimeCopy.text(['my', 'supportEmail'], '')
+            .trim();
+        final supportPhoneLabel = AppRuntimeCopy.text(
+          ['my', 'supportPhoneLabel'],
+          '고객센터 연락처',
+        );
+        final supportPhone = AppRuntimeCopy.text(['my', 'supportPhone'], '')
+            .trim();
+        final supportHoursLabel = AppRuntimeCopy.text(
+          ['my', 'supportHoursLabel'],
+          '응답 안내',
+        );
+        final supportHours = AppRuntimeCopy.text(['my', 'supportHours'], '')
+            .trim();
+        final businessInfoLabel = AppRuntimeCopy.text(
+          ['my', 'businessInfoLabel'],
+          '운영 정보',
+        );
+        final businessInfo = AppRuntimeCopy.text(['my', 'businessInfo'], '')
+            .trim();
+        final supportNote = AppRuntimeCopy.text(['my', 'supportNote'], '')
+            .trim();
+
+        return CartlyInfoCard(
+          backgroundColor: CartlyColors.surface1,
+          border: Border.all(color: CartlyColors.line, width: 0.5),
+          title: AppRuntimeCopy.text(
+            ['my', 'complianceTitle'],
+            '개인정보 및 문의',
+          ),
+          body: AppRuntimeCopy.text(
+            ['my', 'complianceBody'],
+            '개인정보 처리방침과 고객센터 연락 채널을 여기서 바로 확인하실 수 있어요.',
+          ),
+          footer: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _MyComplianceRow(
+                iconName: 'lock',
+                label: privacyLabel,
+                value: privacyUrl,
+                emphasized: true,
+                onTap: () => _openUri(context, privacyUrl),
+              ),
+              if (supportEmail.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _MyComplianceRow(
+                  iconName: 'envelope',
+                  label: supportEmailLabel,
+                  value: supportEmail,
+                  onTap: () => _openUri(context, 'mailto:$supportEmail'),
+                ),
+              ],
+              if (supportPhone.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _MyComplianceRow(
+                  iconName: 'phone',
+                  label: supportPhoneLabel,
+                  value: supportPhone,
+                  onTap: () => _openUri(context, 'tel:$supportPhone'),
+                ),
+              ],
+              if (supportHours.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _MyComplianceRow(
+                  iconName: 'clock',
+                  label: supportHoursLabel,
+                  value: supportHours,
+                ),
+              ],
+              if (businessInfo.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _MyComplianceRow(
+                  iconName: 'info.circle',
+                  label: businessInfoLabel,
+                  value: businessInfo,
+                ),
+              ],
+              if (supportEmail.isEmpty &&
+                  supportPhone.isEmpty &&
+                  supportHours.isEmpty &&
+                  businessInfo.isEmpty) ...[
+                const SizedBox(height: 10),
+                const Text(
+                  '고객센터 연락처는 admin에서 입력해 주세요.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: CartlyColors.semanticWarning,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+              if (supportNote.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  supportNote,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: CartlyColors.textSecondary,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openUri(BuildContext context, String rawValue) async {
+    final value = rawValue.trim();
+    final uri = Uri.tryParse(value);
+    if (uri == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('링크를 열 수 없어요')),
+        );
+      }
+      return;
+    }
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('링크를 열 수 없어요')),
+      );
+    }
+  }
+}
+
+class _MyComplianceRow extends StatelessWidget {
+  final String iconName;
+  final String label;
+  final String value;
+  final bool emphasized;
+  final VoidCallback? onTap;
+
+  const _MyComplianceRow({
+    required this.iconName,
+    required this.label,
+    required this.value,
+    this.emphasized = false,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final rowChild = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: emphasized
+                ? CartlyColors.softPink
+                : CartlyColors.surfaceNeutral,
+            borderRadius: BorderRadius.circular(CartlyRadii.pill),
+          ),
+          child: CartlySymbolIcon.sf(
+            iconName,
+            size: 13,
+            color: emphasized
+                ? CartlyColors.brand
+                : CartlyColors.textSecondary,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: CartlyColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
+                  color: emphasized
+                      ? CartlyColors.brandTextOnLight
+                      : CartlyColors.textSecondary,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (onTap != null) ...[
+          const SizedBox(width: 8),
+          const CartlySymbolIcon.sf(
+            'chevron.right',
+            size: 14,
+            color: CartlyColors.textTertiary,
+          ),
+        ],
+      ],
+    );
+
+    if (onTap == null) {
+      return rowChild;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(CartlyRadii.control),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: rowChild,
+        ),
+      ),
     );
   }
 }

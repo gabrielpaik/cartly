@@ -16,6 +16,8 @@ The goal is to make each page answer the real operational question faster.
 - role: operator-friendly structured editor
 - optimize for: predictable edit scope, stable save behavior, clear preview linkage
 - avoid: turning it into a campaign console or action-heavy triage board
+- latest enforcement: My page compliance/support copy should stay in Content as screen-scoped fields, but the presence of the My footer card itself should not be operator-removable
+- latest enforcement: privacy policy access should be permanently reachable in-app, while contact/business values remain operator-editable because they are operational data that can change
 
 ### Explore
 - role: decision console

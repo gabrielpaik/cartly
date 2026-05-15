@@ -606,6 +606,31 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
         'myAdFallbackMessage',
         '마이에서는 계정과 잘 맞는 혜택만 보여드릴 예정이에요.',
       ),
+      'complianceTitle': text('myComplianceTitle', '개인정보 및 문의'),
+      'complianceBody': text(
+        'myComplianceBody',
+        '개인정보 처리방침과 고객센터 연락 채널을 여기서 바로 확인하실 수 있어요.',
+      ),
+      'privacyPolicyLabel': text(
+        'myPrivacyPolicyLabel',
+        '개인정보 처리방침',
+      ),
+      'privacyPolicyUrl': text(
+        'myPrivacyPolicyUrl',
+        'https://scan-api.seoa-nas.com/privacy',
+      ),
+      'supportEmailLabel': text('mySupportEmailLabel', '고객센터 이메일'),
+      'supportEmail': text('mySupportEmail', ''),
+      'supportPhoneLabel': text('mySupportPhoneLabel', '고객센터 연락처'),
+      'supportPhone': text('mySupportPhone', ''),
+      'supportHoursLabel': text('mySupportHoursLabel', '응답 안내'),
+      'supportHours': text('mySupportHours', ''),
+      'businessInfoLabel': text('myBusinessInfoLabel', '운영 정보'),
+      'businessInfo': text('myBusinessInfo', ''),
+      'supportNote': text(
+        'mySupportNote',
+        '운영 연락처와 사업자/운영 정보는 admin에서 바로 수정할 수 있어요.',
+      ),
     },
     'login': {
       'pageTitle': text('loginPageTitle', 'Cartly'),

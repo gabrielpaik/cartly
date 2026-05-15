@@ -507,6 +507,7 @@ Current direction update:
 - the composer should behave like a right-side operator sheet, even if the first implementation still uses a responsive card layout
 - preset-first composer flow is now preferred: choose preset, inspect selected result, then edit title/body first; advanced fields should stay collapsed unless needed
 - direct audience upload is now part of the Growth operator grammar: accept userId/installId Excel or CSV, preview live-ready targets first, and avoid raw push-token upload
+- 2026-05-15 follow-up: Push now also needs first-class CRM segmentation from server-side region activity, not only account type or upload sheets. The accepted Phase 2 grammar is `recent region / frequent region / primary activity region`, backed by customer region history + aggregate profiles rather than the anonymous runtime cache alone.
 
 ### Ads
 Center grid columns:
@@ -632,6 +633,7 @@ Current direction update:
 - legacy cleanup stays adjacent, but should not dominate the primary Users surface anymore
 - the next step is to strengthen Users as customer DB plus segmentation: lifecycle state, activity timeline, membership transition, push reachability, cart/scan behavior, and operator action context should become easier to inspect per person
 - a strong Users page should answer both "who should I target" and "what kind of customer is this" without forcing operators into separate disconnected tools
+- 2026-05-15 CRM extension: the data model should no longer pretend one user has one static region. Users can accumulate multiple activity regions, so the durable operator concept is `활동지역` history + aggregates, then a softer UI vocabulary like `최근 활동지역`, `상위 활동지역`, and `활동지역 수` instead of a single hard `지역` label.
 
 ### Users P0 target shape
 - keep the current segment filter bar and segment result table
@@ -641,9 +643,11 @@ Current direction update:
 ### Users implementation checkpoint
 - served `/users` now keeps the segment console, but the result table also exposes lifecycle, reachability, and operator-action signals so targeting and customer understanding happen in one surface
 - the per-user drilldown at `/users/{id}` now behaves more like a compact customer DB: profile, operator context, push reachability, recent activity timeline, scan summary, saved-cart summary, and event summary are available together
-- the current backend source remains live runtime evidence only, derived from users + sessions + scan jobs + carts + push devices + app events, with no schema migration required for this phase
+- the current backend source is no longer only ephemeral runtime evidence. Phase 2 now adds explicit user-region history/profile persistence so Users and Push can reason about multi-region behavior without collapsing everything into `last_region_*`.
+- `/users` should now expose region activity directly in both filtering and result rows: recent/frequent/primary region segments, top activity-region summary, region-count context, and per-customer region drilldown.
+- `/users/{id}` should now show region profiles plus recent region events alongside lifecycle, scans, carts, and push state.
 - next Users work should deepen customer suggestions and cross-customer analysis, not revert to a plain directory or split customer-state inspection back into disconnected pages
-- 2026-05-15 polish pass: the top filter bar now uses one horizontal compact row, recent-visit became a preset select, and scan filtering was collapsed from separate min/lt blocks into one operator-plus-value control
+- 2026-05-15 polish pass: the top filter bar now uses one horizontal compact row, recent-visit became a preset select, scan filtering was collapsed from separate min/lt blocks into one operator-plus-value control, and region activity filtering was added as a peer operator control rather than a detached submenu.
 
 ---
 

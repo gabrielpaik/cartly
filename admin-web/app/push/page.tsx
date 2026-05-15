@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import PageHeader from '../../components/PageHeader'
 import { useAdminCopy } from '../../components/AdminCopyProvider'
 import { postJson } from '../../lib/api'
+import { KOREA_CITIES, regionOptionsForLevel, regionSummaryFromKeys, type RegionLevel } from '../../lib/koreaRegions'
 import { mockPushAdmin } from '../../lib/mock'
 import { useAdminData } from '../../lib/useAdminData'
 
@@ -38,6 +39,13 @@ type PushDeviceDto = {
   updatedAt: string | null
 }
 
+type PushRegionSegment = {
+  mode: 'none' | 'recent' | 'frequent' | 'primary'
+  regionKeys: string[]
+  recentWithinDays?: number | null
+  minVisits?: number | null
+}
+
 type PushCampaignDto = {
   id: string
   kind: 'notice' | 'promotion' | string
@@ -49,6 +57,7 @@ type PushCampaignDto = {
   targetUrl: string | null
   requestedBy: string | null
   requestedBySource: string | null
+  segment?: PushRegionSegment | null
   deliveryProvider: string | null
   errorMessage: string | null
   createdAt: string | null
@@ -67,6 +76,15 @@ type BroadcastResponse = {
 }
 
 type AudienceMode = 'all' | 'members' | 'guests' | 'upload'
+type RegionSegmentMode = 'none' | 'recent' | 'frequent' | 'primary'
+
+type KoreaRegionOption = {
+  key: string
+  label: string
+  fullLabel: string
+  cityName?: string | null
+  districtName?: string | null
+}
 type CampaignStatusFilter = 'all' | 'sent' | 'failed' | 'draft'
 type DeviceFilter = 'blockers' | 'ready' | 'all'
 type DeviceIssue = 'ready' | 'invalid' | 'token_missing' | 'notifications_off' | 'inactive'
@@ -104,6 +122,15 @@ type AudiencePreviewResponse = {
     inactiveRows: number
   }
   rows: AudiencePreviewRow[]
+}
+
+type SegmentPreviewResponse = {
+  audience: AudienceMode | string
+  segment?: PushRegionSegment | null
+  summary: {
+    readyDeviceCount: number
+    readyUserCount: number
+  }
 }
 
 const PRESETS = [
@@ -261,6 +288,17 @@ export default function PushPage() {
   const [uploadingAudience, setUploadingAudience] = useState(false)
   const [uploadedAudienceEntries, setUploadedAudienceEntries] = useState<UploadedAudienceEntry[]>([])
   const [audiencePreview, setAudiencePreview] = useState<AudiencePreviewResponse | null>(null)
+  const [regionSegmentMode, setRegionSegmentMode] = useState<RegionSegmentMode>('none')
+  const [regionLevel, setRegionLevel] = useState<Exclude<RegionLevel, 'all'>>('district')
+  const [selectedRegionKeys, setSelectedRegionKeys] = useState<string[]>([])
+  const [regionRecentWithinDays, setRegionRecentWithinDays] = useState('30')
+  const [regionVisitCountMin, setRegionVisitCountMin] = useState('3')
+  const [segmentPreview, setSegmentPreview] = useState<SegmentPreviewResponse | null>(null)
+  const [segmentPreviewLoading, setSegmentPreviewLoading] = useState(false)
+  const [regionPickerOpen, setRegionPickerOpen] = useState(false)
+  const [regionPickerDraftKeys, setRegionPickerDraftKeys] = useState<string[]>([])
+  const [regionPickerCity, setRegionPickerCity] = useState('')
+  const [regionPickerDistrict, setRegionPickerDistrict] = useState('')
 
   const loading = statusRes.loading || devicesRes.loading || campaignsRes.loading
   const usingFallback = statusRes.usingFallback || devicesRes.usingFallback || campaignsRes.usingFallback
@@ -269,6 +307,39 @@ export default function PushPage() {
   const pushReady = status.ready && tokenReadyCount > 0
   const selectedPreset = selectedPresetIndex != null ? PRESETS[selectedPresetIndex] ?? null : null
   const composerTarget = targetUrl.trim() || (targetTab ? `tab:${targetTab}` : '-')
+  const districtOptions = useMemo(() => (regionPickerCity ? regionOptionsForLevel('district', regionPickerCity) as KoreaRegionOption[] : []), [regionPickerCity])
+  const neighborhoodOptions = useMemo(() => (regionPickerCity ? regionOptionsForLevel('neighborhood', regionPickerCity, regionPickerDistrict) as KoreaRegionOption[] : []), [regionPickerCity, regionPickerDistrict])
+  const pickerOptions = useMemo(() => {
+    if (regionLevel === 'city') return KOREA_CITIES as KoreaRegionOption[]
+    if (regionLevel === 'district') return districtOptions
+    return neighborhoodOptions
+  }, [districtOptions, neighborhoodOptions, regionLevel])
+
+  function currentRegionSegmentPayload(): PushRegionSegment | null {
+    if (regionSegmentMode === 'none' || selectedRegionKeys.length === 0) return null
+    return {
+      mode: regionSegmentMode,
+      regionKeys: selectedRegionKeys,
+      recentWithinDays: regionSegmentMode === 'recent' ? Number(regionRecentWithinDays || '30') : null,
+      minVisits: regionSegmentMode === 'frequent' ? Number(regionVisitCountMin || '3') : null,
+    }
+  }
+
+  function openRegionPicker() {
+    setRegionPickerDraftKeys(selectedRegionKeys)
+    setRegionPickerCity('')
+    setRegionPickerDistrict('')
+    setRegionPickerOpen(true)
+  }
+
+  function applyRegionPicker() {
+    setSelectedRegionKeys([...regionPickerDraftKeys].sort())
+    setRegionPickerOpen(false)
+  }
+
+  function toggleRegionDraftKey(key: string) {
+    setRegionPickerDraftKeys((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key].sort())
+  }
 
   const platformSummary = useMemo(() => {
     const counts = new Map<string, number>()
@@ -338,6 +409,11 @@ export default function PushPage() {
     setMessage(campaign.message)
     setTargetTab(campaign.targetTab ?? '')
     setTargetUrl(campaign.targetUrl ?? '')
+    const segment = campaign.segment
+    setRegionSegmentMode(segment?.mode ?? 'none')
+    setSelectedRegionKeys(segment?.regionKeys ?? [])
+    setRegionRecentWithinDays(String(segment?.recentWithinDays ?? 30))
+    setRegionVisitCountMin(String(segment?.minVisits ?? 3))
     setSendMessage(`최근 캠페인 "${campaign.title}" 내용을 composer로 가져왔어`)
   }
 
@@ -399,6 +475,24 @@ export default function PushPage() {
     }
   }
 
+  async function previewRegionSegment() {
+    setSegmentPreviewLoading(true)
+    setSendMessage(null)
+    try {
+      const response = await postJson<{ ok: boolean; data: SegmentPreviewResponse }>('/admin/push/segment-preview', {
+        audience: audienceMode === 'upload' ? 'all' : audienceMode,
+        segment: currentRegionSegmentPayload(),
+      })
+      setSegmentPreview(response.data)
+      setSendMessage(`세그먼트 preview 완료, users ${response.data.summary.readyUserCount}, devices ${response.data.summary.readyDeviceCount}`)
+    } catch (error) {
+      setSegmentPreview(null)
+      setSendMessage(error instanceof Error ? error.message : '세그먼트 preview 실패')
+    } finally {
+      setSegmentPreviewLoading(false)
+    }
+  }
+
   async function sendPush() {
     if (!title.trim() || !message.trim()) {
       setSendMessage('제목과 본문을 먼저 넣어줘')
@@ -420,6 +514,7 @@ export default function PushPage() {
         targetTab: targetTab || null,
         targetUrl: targetUrl.trim() || null,
         explicitAudience: audienceMode === 'upload' ? uploadedAudienceEntries : undefined,
+        segment: audienceMode === 'upload' ? undefined : currentRegionSegmentPayload(),
       })
       const delivery = response.data.delivery
       if (delivery) {
@@ -546,6 +641,7 @@ export default function PushPage() {
               <span className="metaPill">audience {audienceMode}</span>
               <span className="metaPill">target {composerTarget}</span>
               {audienceMode === 'upload' && audiencePreview ? <span className="metaPill">upload ready {audiencePreview.summary.readyDevices}</span> : null}
+              {audienceMode !== 'upload' && regionSegmentMode !== 'none' ? <span className="metaPill">segment {regionSummaryFromKeys(selectedRegionKeys)}</span> : null}
             </div>
             <div style={{ display: 'grid', gap: 4 }}>
               <strong style={{ fontSize: 13, color: '#111827' }}>{title.trim() || '제목 없음'}</strong>
@@ -577,6 +673,64 @@ export default function PushPage() {
               ))}
             </div>
           </div>
+
+          {audienceMode !== 'upload' ? (
+            <div style={{ display: 'grid', gap: 10, padding: '10px 12px', border: '1px solid #e6ebf1', borderRadius: 10, background: '#fff' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                <strong style={{ fontSize: 12, color: '#111827' }}>지역 리타게팅</strong>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button type="button" className="ghostBtn ghostBtnSmall" onClick={openRegionPicker}>지역선택</button>
+                  <button type="button" className="ghostBtn ghostBtnSmall" onClick={() => void previewRegionSegment()} disabled={segmentPreviewLoading || regionSegmentMode === 'none' || selectedRegionKeys.length === 0}>
+                    {segmentPreviewLoading ? 'preview...' : 'preview'}
+                  </button>
+                </div>
+              </div>
+              <div className="exploreSheetFilterGrid compactFilterGrid" style={{ gridTemplateColumns: 'repeat(4, minmax(160px, 1fr))' }}>
+                <label className="field" style={{ margin: 0 }}>
+                  <div className="exploreSheetFieldLabel">세그먼트 모드</div>
+                  <select className="textInput exploreSheetInput" value={regionSegmentMode} onChange={(event) => setRegionSegmentMode(event.target.value as RegionSegmentMode)}>
+                    <option value="none">안씀</option>
+                    <option value="recent">최근 방문</option>
+                    <option value="frequent">자주 방문</option>
+                    <option value="primary">대표 활동지역</option>
+                  </select>
+                </label>
+                <label className="field" style={{ margin: 0 }}>
+                  <div className="exploreSheetFieldLabel">지역단위</div>
+                  <select className="textInput exploreSheetInput" value={regionLevel} onChange={(event) => setRegionLevel(event.target.value as Exclude<RegionLevel, 'all'>)}>
+                    <option value="city">시/도</option>
+                    <option value="district">구/군/시</option>
+                    <option value="neighborhood">동/읍/면</option>
+                  </select>
+                </label>
+                <div className="field" style={{ margin: 0 }}>
+                  <div className="exploreSheetFieldLabel">지역선택</div>
+                  <div className="compactToggleCard"><span>{selectedRegionKeys.length === 0 ? '미선택' : regionSummaryFromKeys(selectedRegionKeys)}</span></div>
+                </div>
+                <label className="field" style={{ margin: 0 }}>
+                  <div className="exploreSheetFieldLabel">기준</div>
+                  {regionSegmentMode === 'recent' ? (
+                    <select className="textInput exploreSheetInput" value={regionRecentWithinDays} onChange={(event) => setRegionRecentWithinDays(event.target.value)}>
+                      <option value="7">7일</option>
+                      <option value="30">30일</option>
+                      <option value="90">90일</option>
+                      <option value="180">180일</option>
+                    </select>
+                  ) : regionSegmentMode === 'frequent' ? (
+                    <input className="textInput exploreSheetInput" inputMode="numeric" value={regionVisitCountMin} onChange={(event) => setRegionVisitCountMin(event.target.value)} placeholder=">= 3" />
+                  ) : (
+                    <div className="compactToggleCard"><span>{regionSegmentMode === 'primary' ? '최다 방문 기준' : '전체'}</span></div>
+                  )}
+                </label>
+              </div>
+              <div className="metaRow" style={{ marginTop: 0 }}>
+                <span className="metaPill">recent = 최근 기간 내 방문</span>
+                <span className="metaPill">frequent = 누적 방문수 기준</span>
+                <span className="metaPill">primary = 대표 활동지역 기준</span>
+                {segmentPreview ? <span className="metaPill">preview users {segmentPreview.summary.readyUserCount} · devices {segmentPreview.summary.readyDeviceCount}</span> : null}
+              </div>
+            </div>
+          ) : null}
 
           {audienceMode === 'upload' ? (
             <div style={{ display: 'grid', gap: 10, padding: '10px 12px', border: '1px solid #e6ebf1', borderRadius: 10, background: '#fff' }}>
@@ -881,6 +1035,62 @@ export default function PushPage() {
           )}
         </div>
       </div>
+
+      {regionPickerOpen ? (
+        <div className="sheetModalBackdrop" onClick={() => setRegionPickerOpen(false)}>
+          <div className="sheetModalCard" style={{ width: 'min(960px, calc(100vw - 32px))' }} onClick={(event) => event.stopPropagation()}>
+            <div className="sectionHeader exploreSheetHeader">
+              <h2 className="panelTitle" style={{ marginBottom: 0 }}>푸시 지역 세그먼트 선택</h2>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" className="ghostBtn ghostBtnSmall" onClick={() => setRegionPickerDraftKeys([])}>전체해제</button>
+                <button type="button" className="pageActionBtn" onClick={applyRegionPicker}>적용</button>
+              </div>
+            </div>
+            <div className="exploreSheetFilterGrid compactFilterGrid" style={{ gridTemplateColumns: 'repeat(3, minmax(180px, 1fr))', marginBottom: 12 }}>
+              <label className="field" style={{ margin: 0 }}>
+                <div className="exploreSheetFieldLabel">시/도</div>
+                <select className="textInput exploreSheetInput" value={regionPickerCity} onChange={(event) => { setRegionPickerCity(event.target.value); setRegionPickerDistrict('') }}>
+                  <option value="">선택</option>
+                  {(KOREA_CITIES as KoreaRegionOption[]).map((option) => <option key={option.key} value={option.cityName ?? ''}>{option.label}</option>)}
+                </select>
+              </label>
+              <label className="field" style={{ margin: 0 }}>
+                <div className="exploreSheetFieldLabel">구/군/시</div>
+                <select className="textInput exploreSheetInput" value={regionPickerDistrict} onChange={(event) => setRegionPickerDistrict(event.target.value)} disabled={regionLevel === 'city' || !regionPickerCity}>
+                  <option value="">선택</option>
+                  {districtOptions.map((option) => <option key={option.key} value={option.districtName ?? ''}>{option.label}</option>)}
+                </select>
+              </label>
+              <div className="field" style={{ margin: 0 }}>
+                <div className="exploreSheetFieldLabel">선택 요약</div>
+                <div className="compactToggleCard"><span>{selectedRegionKeys.length === 0 ? '미선택' : regionSummaryFromKeys(regionPickerDraftKeys)}</span></div>
+              </div>
+            </div>
+            <div className="tableWrap" style={{ maxHeight: '52vh' }}>
+              <table className="dataTable exploreDenseTable">
+                <thead>
+                  <tr>
+                    <th style={{ width: 64 }}>선택</th>
+                    <th>Label</th>
+                    <th>Full</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pickerOptions.length === 0 ? (
+                    <tr><td colSpan={3}>먼저 상위 지역을 선택해줘</td></tr>
+                  ) : pickerOptions.map((option) => (
+                    <tr key={option.key}>
+                      <td><input type="checkbox" checked={regionPickerDraftKeys.includes(option.key)} onChange={() => toggleRegionDraftKey(option.key)} /></td>
+                      <td>{option.label}</td>
+                      <td>{option.fullLabel}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

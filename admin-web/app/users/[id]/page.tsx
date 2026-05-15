@@ -129,6 +129,8 @@ export default function UserDetailPage() {
                 <tr><td>Merged at</td><td>{formatDate(user.mergedAt)}</td></tr>
                 <tr><td>Created</td><td>{formatDate(user.createdAt)}</td></tr>
                 <tr><td>Last seen</td><td>{formatDate(user.lastSeenAt)}</td></tr>
+                <tr><td>Current region</td><td>{payload.regions.currentLabel ?? '-'}</td></tr>
+                <tr><td>Region captured</td><td>{formatDate(payload.regions.currentCapturedAt)}</td></tr>
                 <tr><td>Platform</td><td>{user.lastDevicePlatform ?? '-'}</td></tr>
                 <tr><td>App version</td><td>{user.lastAppVersion ?? '-'}</td></tr>
               </tbody>
@@ -163,6 +165,61 @@ export default function UserDetailPage() {
       </div>
 
       <div className="section sectionGrid twoCol">
+        <div className="card exploreDenseCard exploreSheetCard">
+          <div className="sectionHeader exploreSheetHeader">
+            <h2 className="panelTitle" style={{ marginBottom: 0 }}>Region activity</h2>
+            <div className="metaRow" style={{ marginTop: 0 }}>
+              <span className="metaPill">profiles {formatNumber(payload.regions.profileCount)}</span>
+            </div>
+          </div>
+          <div className="tableWrap" style={{ marginBottom: 12 }}>
+            <table className="dataTable exploreDenseTable">
+              <thead>
+                <tr>
+                  <th>Region</th>
+                  <th>Visits</th>
+                  <th>Days</th>
+                  <th>Last seen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payload.regions.profiles.length === 0 ? (
+                  <tr><td colSpan={4}>지역 활동 프로필이 아직 없어</td></tr>
+                ) : payload.regions.profiles.map((row) => (
+                  <tr key={row.regionKey}>
+                    <td>{row.label ?? row.regionKey}</td>
+                    <td>{formatNumber(row.visitCount)}</td>
+                    <td>{formatNumber(row.activeDayCount)}</td>
+                    <td>{formatDate(row.lastSeenAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="tableWrap">
+            <table className="dataTable exploreDenseTable">
+              <thead>
+                <tr>
+                  <th>At</th>
+                  <th>Source</th>
+                  <th>Region</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payload.regions.recentEvents.length === 0 ? (
+                  <tr><td colSpan={3}>최근 지역 이벤트가 아직 없어</td></tr>
+                ) : payload.regions.recentEvents.map((row) => (
+                  <tr key={row.id}>
+                    <td>{formatDate(row.capturedAt)}</td>
+                    <td>{row.source ?? '-'}</td>
+                    <td>{row.label ?? row.regionKey}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div className="card exploreDenseCard exploreSheetCard">
           <div className="sectionHeader exploreSheetHeader">
             <h2 className="panelTitle" style={{ marginBottom: 0 }}>Recent activity</h2>

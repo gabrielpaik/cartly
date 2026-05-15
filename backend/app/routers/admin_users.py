@@ -26,6 +26,10 @@ def list_users(
     scanCountLt: Optional[int] = Query(default=None, ge=0, le=100000),
     savedCartCountMin: Optional[int] = Query(default=None, ge=0, le=100000),
     readyPushOnly: bool = Query(default=False),
+    regionSegmentMode: str = Query(default='none', pattern='^(none|recent|frequent|primary)$'),
+    regionKeys: str = Query(default=''),
+    regionRecentWithinDays: Optional[int] = Query(default=None, ge=1, le=3650),
+    regionVisitCountMin: Optional[int] = Query(default=None, ge=1, le=100000),
     limit: int = Query(default=500, ge=1, le=5000),
     db: OrmSession = Depends(db_dep),
 ):
@@ -41,6 +45,10 @@ def list_users(
             scan_count_lt=scanCountLt,
             saved_cart_count_min=savedCartCountMin,
             ready_push_only=readyPushOnly,
+            region_segment_mode=regionSegmentMode,
+            region_keys=[item.strip() for item in regionKeys.split(',') if item.strip()],
+            region_recent_within_days=regionRecentWithinDays,
+            region_visit_count_min=regionVisitCountMin,
             limit=limit,
         ),
     }

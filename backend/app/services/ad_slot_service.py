@@ -22,6 +22,7 @@ from .ad_slot_helpers import (
     _safe_xlsx_filename,
     _serialize_slot,
 )
+from .user_region_service import sync_user_region_context as sync_user_region_context_record
 
 
 def ensure_default_ad_slots(db: OrmSession) -> None:
@@ -301,20 +302,17 @@ def sync_user_region_context(
     district: Optional[str] = None,
     neighborhood: Optional[str] = None,
     captured_at: Optional[datetime] = None,
+    source: Optional[str] = None,
 ) -> None:
-    if user is None:
-        return
-    next_city = _clean_region_string(city)
-    next_district = _clean_region_string(district)
-    next_neighborhood = _clean_region_string(neighborhood)
-    if not any([next_city, next_district, next_neighborhood]):
-        return
-    user.last_region_city = next_city
-    user.last_region_district = next_district
-    user.last_region_neighborhood = next_neighborhood
-    user.last_region_label = _resolve_region_label(next_city, next_district, next_neighborhood)
-    user.last_region_captured_at = captured_at or datetime.utcnow()
-    db.add(user)
+    sync_user_region_context_record(
+        db,
+        user,
+        city=city,
+        district=district,
+        neighborhood=neighborhood,
+        captured_at=captured_at,
+        source=source,
+    )
 
 
 def _context_region_key(level: str, context: Optional[AdRuntimeContext]) -> Optional[str]:

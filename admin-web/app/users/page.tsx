@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx'
 import PageHeader from '../../components/PageHeader'
 import { useAdminCopy } from '../../components/AdminCopyProvider'
 import { formatDate, formatNumber } from '../../lib/format'
+import { KOREA_CITIES, buildRegionKey, regionOptionsForLevel, regionSummaryFromKeys, type RegionLevel } from '../../lib/koreaRegions'
 import { useAdminData } from '../../lib/useAdminData'
 
 type UserRow = {
@@ -42,6 +43,21 @@ type UserRow = {
   operatorActionLabel?: string | null
   daysSinceSeen?: number | null
   daysSinceCreated?: number | null
+  primaryRegionKey?: string | null
+  primaryRegionLabel?: string | null
+  topRegionLabels?: string[] | null
+  topRegionSummary?: string | null
+  regionActivityCount?: number | null
+  recentRegionCount30d?: number | null
+}
+
+type KoreaRegionOption = {
+  key: string
+  label: string
+  fullLabel: string
+  cityName?: string | null
+  districtName?: string | null
+  neighborhoodName?: string | null
 }
 
 type UsersSummary = {
@@ -63,6 +79,7 @@ type LegacySummary = {
 type AccountFilter = 'all' | 'member' | 'guest'
 type ScanFilterOperator = 'gte' | 'lt'
 type SegmentPreset = 'recent7' | 'recent30' | 'visit5' | 'scan10' | 'scanLow' | 'pushReady'
+type RegionSegmentMode = 'none' | 'recent' | 'frequent' | 'primary'
 
 const usersFallback = {
   summary: {
@@ -123,6 +140,12 @@ function parseOptionalNumber(value: string) {
   return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : undefined
 }
 
+function regionFilterSummary(mode: RegionSegmentMode, keys: string[]) {
+  if (mode === 'none') return '전체지역'
+  if (keys.length === 0) return '지역 미선택'
+  return regionSummaryFromKeys(keys)
+}
+
 function lifecycleTone(stage: string | null | undefined) {
   if (!stage) return '#475569'
   if (stage.includes('dormant')) return '#92400e'
@@ -149,6 +172,39 @@ export default function UsersPage() {
   const [scanFilterValue, setScanFilterValue] = useState('')
   const [savedCartCountMin, setSavedCartCountMin] = useState('')
   const [readyPushOnly, setReadyPushOnly] = useState(false)
+  const [regionSegmentMode, setRegionSegmentMode] = useState<RegionSegmentMode>('none')
+  const [regionLevel, setRegionLevel] = useState<Exclude<RegionLevel, 'all'>>('district')
+  const [selectedRegionKeys, setSelectedRegionKeys] = useState<string[]>([])
+  const [regionRecentWithinDays, setRegionRecentWithinDays] = useState('30')
+  const [regionVisitCountMin, setRegionVisitCountMin] = useState('3')
+  const [regionPickerOpen, setRegionPickerOpen] = useState(false)
+  const [regionPickerDraftKeys, setRegionPickerDraftKeys] = useState<string[]>([])
+  const [regionPickerCity, setRegionPickerCity] = useState('')
+  const [regionPickerDistrict, setRegionPickerDistrict] = useState('')
+
+  const districtOptions = useMemo(() => (regionPickerCity ? regionOptionsForLevel('district', regionPickerCity) as KoreaRegionOption[] : []), [regionPickerCity])
+  const neighborhoodOptions = useMemo(() => (regionPickerCity ? regionOptionsForLevel('neighborhood', regionPickerCity, regionPickerDistrict) as KoreaRegionOption[] : []), [regionPickerCity, regionPickerDistrict])
+  const pickerOptions = useMemo(() => {
+    if (regionLevel === 'city') return KOREA_CITIES as KoreaRegionOption[]
+    if (regionLevel === 'district') return districtOptions
+    return neighborhoodOptions
+  }, [districtOptions, neighborhoodOptions, regionLevel])
+
+  function openRegionPicker() {
+    setRegionPickerDraftKeys(selectedRegionKeys)
+    setRegionPickerCity('')
+    setRegionPickerDistrict('')
+    setRegionPickerOpen(true)
+  }
+
+  function applyRegionPicker() {
+    setSelectedRegionKeys([...regionPickerDraftKeys].sort())
+    setRegionPickerOpen(false)
+  }
+
+  function toggleRegionDraftKey(key: string) {
+    setRegionPickerDraftKeys((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key].sort())
+  }
 
   const usersPath = useMemo(() => {
     const params = new URLSearchParams({
@@ -174,9 +230,21 @@ export default function UsersPage() {
     }
     if (parsedSavedCartCountMin !== undefined) params.set('savedCartCountMin', String(parsedSavedCartCountMin))
     if (readyPushOnly) params.set('readyPushOnly', 'true')
+    if (regionSegmentMode !== 'none') {
+      params.set('regionSegmentMode', regionSegmentMode)
+      if (selectedRegionKeys.length > 0) params.set('regionKeys', selectedRegionKeys.join(','))
+      if (regionSegmentMode === 'recent') {
+        const parsedRegionRecentWithinDays = parseOptionalNumber(regionRecentWithinDays)
+        if (parsedRegionRecentWithinDays !== undefined) params.set('regionRecentWithinDays', String(parsedRegionRecentWithinDays))
+      }
+      if (regionSegmentMode === 'frequent') {
+        const parsedRegionVisitCountMin = parseOptionalNumber(regionVisitCountMin)
+        if (parsedRegionVisitCountMin !== undefined) params.set('regionVisitCountMin', String(parsedRegionVisitCountMin))
+      }
+    }
 
     return `/admin/users?${params.toString()}`
-  }, [accountFilter, lastSeenWithinDays, query, readyPushOnly, savedCartCountMin, scanFilterOperator, scanFilterValue, sessionCountMin])
+  }, [accountFilter, lastSeenWithinDays, query, readyPushOnly, regionRecentWithinDays, regionSegmentMode, regionVisitCountMin, savedCartCountMin, scanFilterOperator, scanFilterValue, selectedRegionKeys, sessionCountMin])
 
   const usersRes = useAdminData<{ ok: boolean; data: { summary?: UsersSummary; users?: UserRow[] } }>(usersPath, {
     ok: true,
@@ -222,8 +290,14 @@ export default function UsersPage() {
     if (scanFilterValue.trim()) pills.push(`scans ${scanFilterOperator === 'gte' ? '>=' : '<'} ${scanFilterValue.trim()}`)
     if (savedCartCountMin.trim()) pills.push(`saved carts >= ${savedCartCountMin.trim()}`)
     if (readyPushOnly) pills.push('push ready only')
+    if (regionSegmentMode !== 'none') {
+      pills.push(`activity ${regionSegmentMode}`)
+      pills.push(`region ${regionFilterSummary(regionSegmentMode, selectedRegionKeys)}`)
+      if (regionSegmentMode === 'recent') pills.push(`recent ${regionRecentWithinDays.trim() || '30'}d`)
+      if (regionSegmentMode === 'frequent') pills.push(`visits >= ${regionVisitCountMin.trim() || '3'}`)
+    }
     return pills
-  }, [accountFilter, lastSeenWithinDays, query, readyPushOnly, savedCartCountMin, scanFilterOperator, scanFilterValue, sessionCountMin])
+  }, [accountFilter, lastSeenWithinDays, query, readyPushOnly, regionRecentWithinDays, regionSegmentMode, regionVisitCountMin, savedCartCountMin, scanFilterOperator, scanFilterValue, selectedRegionKeys, sessionCountMin])
 
   function applyPreset(preset: SegmentPreset) {
     if (preset === 'recent7') {
@@ -262,6 +336,10 @@ export default function UsersPage() {
     setScanFilterValue('')
     setSavedCartCountMin('')
     setReadyPushOnly(false)
+    setRegionSegmentMode('none')
+    setSelectedRegionKeys([])
+    setRegionRecentWithinDays('30')
+    setRegionVisitCountMin('3')
   }
 
   function downloadPushAudienceSheet() {
@@ -284,7 +362,7 @@ export default function UsersPage() {
         userId: user.id ?? '',
         installId: '',
         name: displayUserName(user),
-        memo: `users segment | ${user.lifecycleLabel ?? '-'} | visits ${user.sessionCount ?? 0} | scans ${user.scanCount ?? 0} | carts ${savedCartCount(user)}`,
+        memo: `users segment | ${user.lifecycleLabel ?? '-'} | region ${user.topRegionSummary ?? user.primaryRegionLabel ?? '-'} | visits ${user.sessionCount ?? 0} | scans ${user.scanCount ?? 0} | carts ${savedCartCount(user)}`,
         accountType: user.isGuest ? 'guest' : 'member',
         lifecycleStage: user.lifecycleStage ?? '',
         reachabilityState: user.reachabilityState ?? '',
@@ -298,6 +376,10 @@ export default function UsersPage() {
         savedCartCount: savedCartCount(user),
         readyPushDeviceCount: user.readyPushDeviceCount ?? 0,
         pushDeviceCount: user.pushDeviceCount ?? 0,
+        primaryRegionLabel: user.primaryRegionLabel ?? '',
+        topRegionSummary: user.topRegionSummary ?? '',
+        regionActivityCount: user.regionActivityCount ?? 0,
+        recentRegionCount30d: user.recentRegionCount30d ?? 0,
         lastDevicePlatform: user.lastDevicePlatform ?? '',
         lastAppVersion: user.lastAppVersion ?? '',
       }))
@@ -402,7 +484,7 @@ export default function UsersPage() {
             <button type="button" className="ghostBtn ghostBtnSmall" onClick={resetFilters}>Reset</button>
           </div>
 
-          <div className="exploreSheetFilterGrid compactFilterGrid" style={{ gridTemplateColumns: 'minmax(260px, 1.8fr) repeat(4, minmax(140px, 0.8fr)) minmax(180px, 1fr)' }}>
+          <div className="exploreSheetFilterGrid compactFilterGrid" style={{ gridTemplateColumns: 'minmax(240px, 1.5fr) repeat(5, minmax(130px, 0.8fr)) minmax(200px, 1.2fr) minmax(200px, 1.1fr)' }}>
             <label className="field" style={{ margin: 0 }}>
               <div className="exploreSheetFieldLabel">검색</div>
               <input className="textInput exploreSheetInput" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.users.list.searchPlaceholder', 'name / email / id / device')} />
@@ -442,7 +524,54 @@ export default function UsersPage() {
                 <span>ready device만</span>
               </div>
             </label>
+            <label className="field" style={{ margin: 0 }}>
+              <div className="exploreSheetFieldLabel">지역 세그먼트</div>
+              <select className="textInput exploreSheetInput" value={regionSegmentMode} onChange={(event) => setRegionSegmentMode(event.target.value as RegionSegmentMode)}>
+                <option value="none">안씀</option>
+                <option value="recent">최근 방문</option>
+                <option value="frequent">자주 방문</option>
+                <option value="primary">대표 활동지역</option>
+              </select>
+            </label>
+            <label className="field" style={{ margin: 0 }}>
+              <div className="exploreSheetFieldLabel">지역 선택</div>
+              <button type="button" className="ghostBtn ghostBtnSmall" style={{ justifyContent: 'flex-start', width: '100%' }} onClick={openRegionPicker}>
+                {regionFilterSummary(regionSegmentMode, selectedRegionKeys)}
+              </button>
+            </label>
           </div>
+
+          {regionSegmentMode !== 'none' ? (
+            <div className="exploreSheetFilterGrid compactFilterGrid" style={{ gridTemplateColumns: 'repeat(3, minmax(180px, 0.9fr))' }}>
+              <label className="field" style={{ margin: 0 }}>
+                <div className="exploreSheetFieldLabel">지역단위</div>
+                <select className="textInput exploreSheetInput" value={regionLevel} onChange={(event) => setRegionLevel(event.target.value as Exclude<RegionLevel, 'all'>)}>
+                  <option value="city">시/도</option>
+                  <option value="district">구/군/시</option>
+                  <option value="neighborhood">동/읍/면</option>
+                </select>
+              </label>
+              <label className="field" style={{ margin: 0 }}>
+                <div className="exploreSheetFieldLabel">{regionSegmentMode === 'recent' ? '최근 기준일' : regionSegmentMode === 'frequent' ? '최소 방문수' : '기준'}</div>
+                {regionSegmentMode === 'recent' ? (
+                  <select className="textInput exploreSheetInput" value={regionRecentWithinDays} onChange={(event) => setRegionRecentWithinDays(event.target.value)}>
+                    <option value="7">7일</option>
+                    <option value="30">30일</option>
+                    <option value="90">90일</option>
+                    <option value="180">180일</option>
+                  </select>
+                ) : regionSegmentMode === 'frequent' ? (
+                  <input className="textInput exploreSheetInput" inputMode="numeric" value={regionVisitCountMin} onChange={(event) => setRegionVisitCountMin(event.target.value)} placeholder=">= 3" />
+                ) : (
+                  <div className="compactToggleCard"><span>최다 방문 기준</span></div>
+                )}
+              </label>
+              <div className="field" style={{ margin: 0 }}>
+                <div className="exploreSheetFieldLabel">선택 요약</div>
+                <div className="compactToggleCard"><span>{regionSummaryFromKeys(selectedRegionKeys)}</span></div>
+              </div>
+            </div>
+          ) : null}
 
           <div className="metaRow" style={{ marginTop: 10, alignItems: 'center' }}>
             <div className="metaPill">export uses userId, installId blank</div>
@@ -474,6 +603,7 @@ export default function UsersPage() {
                   <th>Lifecycle</th>
                   <th>Visits / Scans</th>
                   <th>Reachability</th>
+                  <th>Region activity</th>
                   <th>Device / Identity</th>
                   <th>Last active</th>
                   <th>Action</th>
@@ -514,6 +644,13 @@ export default function UsersPage() {
                       </div>
                     </td>
                     <td>
+                      <div style={{ display: 'grid', gap: 4, minWidth: 190 }}>
+                        <strong>{user.primaryRegionLabel ?? user.topRegionSummary ?? '-'}</strong>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>{user.topRegionSummary ?? '활동지역 없음'}</span>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>regions {formatNumber(user.regionActivityCount ?? 0)} · recent30 {formatNumber(user.recentRegionCount30d ?? 0)}</span>
+                      </div>
+                    </td>
+                    <td>
                       <div style={{ display: 'grid', gap: 4, minWidth: 170 }}>
                         <strong>{platformLabel(user.lastDevicePlatform)}</strong>
                         <span style={{ color: '#64748b', fontSize: 12 }}>{user.lastAppVersion ?? '-'}</span>
@@ -544,6 +681,62 @@ export default function UsersPage() {
           </div>
         )}
       </div>
+
+      {regionPickerOpen ? (
+        <div className="sheetModalBackdrop" onClick={() => setRegionPickerOpen(false)}>
+          <div className="sheetModalCard" style={{ width: 'min(960px, calc(100vw - 32px))' }} onClick={(event) => event.stopPropagation()}>
+            <div className="sectionHeader exploreSheetHeader">
+              <h2 className="panelTitle" style={{ marginBottom: 0 }}>활동지역 선택</h2>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" className="ghostBtn ghostBtnSmall" onClick={() => setRegionPickerDraftKeys([])}>전체해제</button>
+                <button type="button" className="pageActionBtn" onClick={applyRegionPicker}>적용</button>
+              </div>
+            </div>
+            <div className="exploreSheetFilterGrid compactFilterGrid" style={{ gridTemplateColumns: 'repeat(3, minmax(180px, 1fr))', marginBottom: 12 }}>
+              <label className="field" style={{ margin: 0 }}>
+                <div className="exploreSheetFieldLabel">시/도</div>
+                <select className="textInput exploreSheetInput" value={regionPickerCity} onChange={(event) => { setRegionPickerCity(event.target.value); setRegionPickerDistrict('') }}>
+                  <option value="">선택</option>
+                  {(KOREA_CITIES as KoreaRegionOption[]).map((option) => <option key={option.key} value={option.cityName ?? ''}>{option.label}</option>)}
+                </select>
+              </label>
+              <label className="field" style={{ margin: 0 }}>
+                <div className="exploreSheetFieldLabel">구/군/시</div>
+                <select className="textInput exploreSheetInput" value={regionPickerDistrict} onChange={(event) => setRegionPickerDistrict(event.target.value)} disabled={regionLevel === 'city' || !regionPickerCity}>
+                  <option value="">선택</option>
+                  {districtOptions.map((option) => <option key={option.key} value={option.districtName ?? ''}>{option.label}</option>)}
+                </select>
+              </label>
+              <div className="field" style={{ margin: 0 }}>
+                <div className="exploreSheetFieldLabel">선택 요약</div>
+                <div className="compactToggleCard"><span>{regionSummaryFromKeys(regionPickerDraftKeys)}</span></div>
+              </div>
+            </div>
+            <div className="tableWrap" style={{ maxHeight: '52vh' }}>
+              <table className="dataTable exploreDenseTable">
+                <thead>
+                  <tr>
+                    <th style={{ width: 64 }}>선택</th>
+                    <th>Label</th>
+                    <th>Full</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pickerOptions.length === 0 ? (
+                    <tr><td colSpan={3}>먼저 상위 지역을 선택해줘</td></tr>
+                  ) : pickerOptions.map((option) => (
+                    <tr key={option.key}>
+                      <td><input type="checkbox" checked={regionPickerDraftKeys.includes(option.key)} onChange={() => toggleRegionDraftKey(option.key)} /></td>
+                      <td>{option.label}</td>
+                      <td>{option.fullLabel}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

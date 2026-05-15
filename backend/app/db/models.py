@@ -35,6 +35,46 @@ class User(Base):
     last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
+class UserRegionEvent(Base):
+    __tablename__ = 'user_region_events'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), index=True)
+    source: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    city: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    district: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    neighborhood: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    region_label: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    region_key: Mapped[str] = mapped_column(String(255), index=True)
+    captured_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class UserRegionProfile(Base):
+    __tablename__ = 'user_region_profiles'
+    __table_args__ = (
+        UniqueConstraint('user_id', 'region_key', name='uq_user_region_profiles_user_region'),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), index=True)
+    region_key: Mapped[str] = mapped_column(String(255), index=True)
+    region_level: Mapped[str] = mapped_column(String(20), default='city')
+    city: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    district: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    neighborhood: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    region_label: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    visit_count: Mapped[int] = mapped_column(Integer, default=0)
+    active_day_count: Mapped[int] = mapped_column(Integer, default=0)
+    weekday_visit_count: Mapped[int] = mapped_column(Integer, default=0)
+    weekend_visit_count: Mapped[int] = mapped_column(Integer, default=0)
+    first_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_source: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class Session(Base):
     __tablename__ = 'sessions'
 
@@ -318,6 +358,7 @@ class PushCampaign(Base):
     target_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     requested_by: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     requested_by_source: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    segment_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     delivery_provider: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

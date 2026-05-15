@@ -27,6 +27,7 @@ def app_config(
     x_cartly_district: Optional[str] = Header(default=None),
     x_cartly_neighborhood: Optional[str] = Header(default=None),
     x_cartly_region_captured_at: Optional[str] = Header(default=None),
+    x_cartly_region_source: Optional[str] = Header(default=None),
 ):
     apply_due_content_schedule(db)
     captured_at = None
@@ -45,6 +46,7 @@ def app_config(
         district=decoded_district,
         neighborhood=decoded_neighborhood,
         captured_at=captured_at,
+        source=(x_cartly_region_source or '').strip() or None,
     )
     if current_user is not None and any([decoded_city, decoded_district, decoded_neighborhood]):
         db.commit()

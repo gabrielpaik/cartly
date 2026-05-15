@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session as OrmSession
 
 from ..core.settings import settings
 from ..db.models import PushCampaign, PushDevice, User
+from .user_region_service import normalize_region_keys, resolve_user_ids_for_region_segment
 
 
 def get_push_runtime_status(db: OrmSession) -> Dict[str, Any]:
@@ -48,6 +49,26 @@ def get_push_runtime_status(db: OrmSession) -> Dict[str, Any]:
             'tokenReady': token_ready_devices,
         },
     }
+
+
+def _normalize_region_segment(segment: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not isinstance(segment, dict):
+        return None
+    mode = str(segment.get('mode') or 'none').strip().lower()
+    if mode not in {'none', 'recent', 'frequent', 'primary'} or mode == 'none':
+        return None
+    region_keys = normalize_region_keys(segment.get('regionKeys'))
+    if not region_keys:
+        return None
+    normalized: Dict[str, Any] = {
+        'mode': mode,
+        'regionKeys': region_keys,
+    }
+    if mode == 'recent':
+        normalized['recentWithinDays'] = max(1, int(segment.get('recentWithinDays') or 30))
+    if mode == 'frequent':
+        normalized['minVisits'] = max(1, int(segment.get('minVisits') or 3))
+    return normalized
 
 
 def register_push_device(
@@ -140,12 +161,14 @@ def create_push_campaign(
     requested_by: Optional[str],
     requested_by_source: Optional[str],
     explicit_audience: Optional[List[Dict[str, Any]]] = None,
+    segment: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     runtime = get_push_runtime_status(db)
     status = 'queued' if runtime['ready'] else 'blocked'
     error_message = None if runtime['ready'] else '; '.join(runtime['blockers'])
 
     normalized_explicit_audience = _normalize_explicit_audience_entries(explicit_audience)
+    normalized_segment = _normalize_region_segment(segment)
 
     row = PushCampaign(
         kind=kind,
@@ -157,6 +180,7 @@ def create_push_campaign(
         target_url=(target_url or '').strip() or None,
         requested_by=(requested_by or '').strip() or None,
         requested_by_source=(requested_by_source or '').strip() or None,
+        segment_json=json.dumps(normalized_segment, ensure_ascii=False) if normalized_segment else None,
         delivery_provider=settings.push_provider if runtime['ready'] else None,
         error_message=error_message,
     )
@@ -166,7 +190,7 @@ def create_push_campaign(
 
     if runtime['ready']:
         try:
-            result = _send_campaign_now(db, row, explicit_audience=normalized_explicit_audience)
+            result = _send_campaign_now(db, row, explicit_audience=normalized_explicit_audience, segment=normalized_segment)
         except Exception as error:
             row.status = 'failed'
             row.error_message = str(error)
@@ -352,11 +376,31 @@ def preview_push_audience(db: OrmSession, entries: Optional[List[Dict[str, Any]]
 
 
 
+def preview_push_segment(
+    db: OrmSession,
+    *,
+    audience: str,
+    segment: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    normalized_segment = _normalize_region_segment(segment)
+    rows = _eligible_device_rows(db, audience, segment=normalized_segment)
+    user_ids = {user.id for _, user in rows if user is not None}
+    return {
+        'audience': audience,
+        'segment': normalized_segment,
+        'summary': {
+            'readyDeviceCount': len({device.id for device, _ in rows}),
+            'readyUserCount': len(user_ids),
+        },
+    }
+
+
 def _eligible_device_rows(
     db: OrmSession,
     audience: str,
     *,
     explicit_audience: Optional[List[Dict[str, Any]]] = None,
+    segment: Optional[Dict[str, Any]] = None,
 ) -> List[Tuple[PushDevice, Optional[User]]]:
     rows = db.query(PushDevice, User).outerjoin(User, PushDevice.user_id == User.id).filter(
         PushDevice.status == 'active',
@@ -373,13 +417,25 @@ def _eligible_device_rows(
                     continue
                 seen.add(device.id)
                 selected.append((device, user))
-        return selected
-    if audience == 'all':
-        return rows
-    if audience == 'members':
-        return [row for row in rows if row[1] is not None and not row[1].is_guest]
-    if audience == 'guests':
-        return [row for row in rows if row[1] is not None and row[1].is_guest]
+        rows = selected
+    elif audience == 'members':
+        rows = [row for row in rows if row[1] is not None and not row[1].is_guest]
+    elif audience == 'guests':
+        rows = [row for row in rows if row[1] is not None and row[1].is_guest]
+
+    normalized_segment = _normalize_region_segment(segment)
+    if normalized_segment:
+        candidate_user_ids = {user.id for _, user in rows if user is not None}
+        matched_user_ids = resolve_user_ids_for_region_segment(
+            db,
+            mode=str(normalized_segment.get('mode') or 'none'),
+            region_keys=normalized_segment.get('regionKeys'),
+            recent_within_days=normalized_segment.get('recentWithinDays'),
+            min_visits=normalized_segment.get('minVisits'),
+            candidate_user_ids=candidate_user_ids,
+        ) or set()
+        rows = [row for row in rows if row[1] is not None and row[1].id in matched_user_ids]
+
     return rows
 
 
@@ -388,8 +444,9 @@ def _send_campaign_now(
     campaign: PushCampaign,
     *,
     explicit_audience: Optional[List[Dict[str, Any]]] = None,
+    segment: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    rows = _eligible_device_rows(db, campaign.audience, explicit_audience=explicit_audience)
+    rows = _eligible_device_rows(db, campaign.audience, explicit_audience=explicit_audience, segment=segment)
     tokens = []
     target_devices: List[PushDevice] = []
     seen = set()
@@ -493,6 +550,12 @@ def serialize_push_device(row: PushDevice) -> Dict[str, Any]:
 
 
 def serialize_push_campaign(row: PushCampaign) -> Dict[str, Any]:
+    segment = None
+    if (row.segment_json or '').strip():
+        try:
+            segment = json.loads(row.segment_json)
+        except Exception:
+            segment = {'raw': row.segment_json}
     return {
         'id': row.id,
         'kind': row.kind,
@@ -504,6 +567,7 @@ def serialize_push_campaign(row: PushCampaign) -> Dict[str, Any]:
         'targetUrl': row.target_url,
         'requestedBy': row.requested_by,
         'requestedBySource': row.requested_by_source,
+        'segment': segment,
         'deliveryProvider': row.delivery_provider,
         'errorMessage': row.error_message,
         'createdAt': row.created_at.isoformat() if row.created_at else None,

@@ -48,6 +48,34 @@ export type ActivityTimelineDto = {
   note: string | null
 }
 
+export type UserRegionProfileDto = {
+  regionKey: string
+  regionLevel: string
+  city?: string | null
+  district?: string | null
+  neighborhood?: string | null
+  label?: string | null
+  visitCount: number
+  activeDayCount: number
+  weekdayVisitCount: number
+  weekendVisitCount: number
+  firstSeenAt: string | null
+  lastSeenAt: string | null
+  lastSource?: string | null
+}
+
+export type UserRegionEventDto = {
+  id: string
+  source?: string | null
+  regionKey: string
+  city?: string | null
+  district?: string | null
+  neighborhood?: string | null
+  label?: string | null
+  capturedAt: string | null
+  createdAt: string | null
+}
+
 export type UserCartDetailPayload = {
   user: {
     id: string
@@ -64,6 +92,8 @@ export type UserCartDetailPayload = {
     lastAppVersion?: string | null
     createdAt: string | null
     lastSeenAt: string | null
+    lastRegionLabel?: string | null
+    lastRegionCapturedAt?: string | null
   }
   summary: {
     totalCarts: number
@@ -116,6 +146,13 @@ export type UserCartDetailPayload = {
     timeline: ActivityTimelineDto[]
     eventSummary: Array<{ eventName: string; screenName?: string | null; count: number }>
   }
+  regions: {
+    currentLabel?: string | null
+    currentCapturedAt?: string | null
+    profileCount: number
+    profiles: UserRegionProfileDto[]
+    recentEvents: UserRegionEventDto[]
+  }
   carts: CartDto[]
 }
 
@@ -135,6 +172,8 @@ export function createUserDetailFallback(userId?: string): UserCartDetailPayload
       lastAppVersion: '0.1.0',
       createdAt: '2026-03-23T00:00:00.000Z',
       lastSeenAt: '2026-03-24T00:00:00.000Z',
+      lastRegionLabel: '서울특별시, 문래동',
+      lastRegionCapturedAt: '2026-03-24T00:00:00.000Z',
     },
     summary: {
       totalCarts: 2,
@@ -226,6 +265,35 @@ export function createUserDetailFallback(userId?: string): UserCartDetailPayload
       ],
       eventSummary: [
         { eventName: 'help_opened', screenName: 'help', count: 2 },
+      ],
+    },
+    regions: {
+      currentLabel: '문래동, 서울특별시',
+      currentCapturedAt: '2026-03-24T00:00:00.000Z',
+      profileCount: 3,
+      profiles: [
+        {
+          regionKey: 'neighborhood:서울특별시/영등포구/문래동',
+          regionLevel: 'neighborhood',
+          label: '문래동, 영등포구, 서울특별시',
+          visitCount: 8,
+          activeDayCount: 5,
+          weekdayVisitCount: 6,
+          weekendVisitCount: 2,
+          firstSeenAt: '2026-03-20T00:00:00.000Z',
+          lastSeenAt: '2026-03-24T00:00:00.000Z',
+          lastSource: 'app_launch',
+        },
+      ],
+      recentEvents: [
+        {
+          id: 'region_evt_1',
+          source: 'scan_start',
+          regionKey: 'neighborhood:서울특별시/영등포구/문래동',
+          label: '문래동, 영등포구, 서울특별시',
+          capturedAt: '2026-03-24T00:00:00.000Z',
+          createdAt: '2026-03-24T00:00:00.000Z',
+        },
       ],
     },
     carts: [

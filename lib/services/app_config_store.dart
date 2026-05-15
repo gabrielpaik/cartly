@@ -162,6 +162,9 @@ class AppConfigStore {
           'X-Cartly-Region-Captured-At',
           snapshot.capturedAt.toIso8601String(),
         );
+        if (snapshot.source.trim().isNotEmpty) {
+          req.headers.set('X-Cartly-Region-Source', snapshot.source);
+        }
       }
       final res = await req.close();
       if (res.statusCode < 200 || res.statusCode >= 300) {

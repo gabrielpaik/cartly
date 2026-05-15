@@ -25,6 +25,18 @@ class AdminPushAudiencePreviewRequest(BaseModel):
     entries: list[AdminPushAudienceEntry] = []
 
 
+class AdminPushRegionSegment(BaseModel):
+    mode: Literal['none', 'recent', 'frequent', 'primary'] = 'none'
+    regionKeys: list[str] = []
+    recentWithinDays: Optional[int] = None
+    minVisits: Optional[int] = None
+
+
+class AdminPushSegmentPreviewRequest(BaseModel):
+    audience: Literal['all', 'members', 'guests'] = 'all'
+    segment: Optional[AdminPushRegionSegment] = None
+
+
 class AdminPushBroadcastRequest(BaseModel):
     kind: Literal['notice', 'promotion'] = 'notice'
     audience: Literal['all', 'members', 'guests', 'upload'] = 'all'
@@ -33,3 +45,4 @@ class AdminPushBroadcastRequest(BaseModel):
     targetTab: Optional[Literal['home', 'explore', 'my']] = None
     targetUrl: Optional[str] = None
     explicitAudience: Optional[list[AdminPushAudienceEntry]] = None
+    segment: Optional[AdminPushRegionSegment] = None

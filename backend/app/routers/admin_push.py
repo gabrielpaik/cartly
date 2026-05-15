@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session as OrmSession
 
 from ..deps import admin_token_dep, db_dep
-from ..schemas.push import AdminPushAudiencePreviewRequest, AdminPushBroadcastRequest
-from ..services.push_service import create_push_campaign, get_push_runtime_status, list_push_campaigns, list_push_devices, preview_push_audience
+from ..schemas.push import AdminPushAudiencePreviewRequest, AdminPushBroadcastRequest, AdminPushSegmentPreviewRequest
+from ..services.push_service import create_push_campaign, get_push_runtime_status, list_push_campaigns, list_push_devices, preview_push_audience, preview_push_segment
 from .admin_common import ADMIN_ROUTE_DEP
 
 router = APIRouter(dependencies=ADMIN_ROUTE_DEP)
@@ -32,6 +32,14 @@ def admin_push_audience_preview(
     return {'ok': True, 'data': preview_push_audience(db, [entry.model_dump() for entry in payload.entries])}
 
 
+@router.post('/push/segment-preview')
+def admin_push_segment_preview(
+    payload: AdminPushSegmentPreviewRequest,
+    db: OrmSession = Depends(db_dep),
+):
+    return {'ok': True, 'data': preview_push_segment(db, audience=payload.audience, segment=payload.segment.model_dump() if payload.segment else None)}
+
+
 @router.post('/push/broadcast')
 def admin_push_broadcast(
     payload: AdminPushBroadcastRequest,
@@ -49,5 +57,6 @@ def admin_push_broadcast(
         requested_by=admin.token[-8:],
         requested_by_source=admin.source,
         explicit_audience=[entry.model_dump() for entry in payload.explicitAudience] if payload.explicitAudience else None,
+        segment=payload.segment.model_dump() if payload.segment else None,
     )
     return {'ok': True, 'data': data}

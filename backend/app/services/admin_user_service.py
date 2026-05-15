@@ -6,6 +6,12 @@ from sqlalchemy.orm import Session as OrmSession, selectinload
 
 from ..db.models import AdImpression, AppEvent, Cart, PushDevice, ScanFailureLog, ScanFeedback, ScanJob, Session, User
 from .cart_service import serialize_cart
+from .user_region_service import (
+    build_user_region_summary_map,
+    list_user_region_events,
+    list_user_region_profiles,
+    resolve_user_ids_for_region_segment,
+)
 
 
 def _iso(value: Optional[datetime]) -> Optional[str]:
@@ -171,6 +177,10 @@ def list_users_for_admin(
     scan_count_lt: Optional[int] = None,
     saved_cart_count_min: Optional[int] = None,
     ready_push_only: bool = False,
+    region_segment_mode: str = 'none',
+    region_keys: Optional[list[str]] = None,
+    region_recent_within_days: Optional[int] = None,
+    region_visit_count_min: Optional[int] = None,
     limit: int = 500,
 ) -> dict:
     cart_count = (
@@ -294,14 +304,40 @@ def list_users_for_admin(
     if ready_push_only:
         stmt = stmt.where(func.coalesce(push_count.c.ready_push_device_count, 0) > 0)
 
+    matched_region_user_ids = resolve_user_ids_for_region_segment(
+        db,
+        mode=region_segment_mode,
+        region_keys=region_keys,
+        recent_within_days=region_recent_within_days,
+        min_visits=region_visit_count_min,
+    )
+    if matched_region_user_ids is not None:
+        if not matched_region_user_ids:
+            return {
+                'summary': {
+                    'filteredUsers': 0,
+                    'members': 0,
+                    'guests': 0,
+                    'readyPushUsers': 0,
+                    'totalSessions': 0,
+                    'totalScans': 0,
+                    'totalSavedCarts': 0,
+                },
+                'users': [],
+            }
+        stmt = stmt.where(User.id.in_(sorted(matched_region_user_ids)))
+
     rows = list(
         db.execute(
             stmt.order_by(func.coalesce(User.last_seen_at, User.created_at).desc(), User.created_at.desc()).limit(max(1, min(limit, 5000)))
         ).all()
     )
 
+    region_summary_map = build_user_region_summary_map(db, [row[0] for row in rows])
+
     users = []
     for row in rows:
+        region_summary = region_summary_map.get(row[0], {})
         user = {
             'id': row[0],
             'displayName': row[1],
@@ -321,6 +357,12 @@ def list_users_for_admin(
             'lastRegionNeighborhood': row[15],
             'lastRegionLabel': row[16],
             'lastRegionCapturedAt': _iso(row[17]),
+            'regionActivityCount': int(region_summary.get('regionActivityCount') or 0),
+            'recentRegionCount30d': int(region_summary.get('recentRegionCount30d') or 0),
+            'primaryRegionKey': region_summary.get('primaryRegionKey'),
+            'primaryRegionLabel': region_summary.get('primaryRegionLabel'),
+            'topRegionLabels': region_summary.get('topRegionLabels') or [],
+            'topRegionSummary': region_summary.get('topRegionSummary'),
             'cartCount': int(row[18] or 0),
             'savedCartCount': int(row[18] or 0),
             'sessionCount': int(row[19] or 0),
@@ -411,6 +453,8 @@ def get_user_detail_with_carts(db: OrmSession, user_id: str, limit: int = 200) -
             .limit(12)
         ).all()
     )
+    region_profiles = list_user_region_profiles(db, user_id, limit=12)
+    region_events = list_user_region_events(db, user_id, limit=20)
 
     total_carts = len(carts)
     total_items = sum((cart.total_count_cached or 0) for cart in carts)
@@ -587,6 +631,13 @@ def get_user_detail_with_carts(db: OrmSession, user_id: str, limit: int = 200) -
                 }
                 for row in event_rows
             ],
+        },
+        'regions': {
+            'currentLabel': user.last_region_label,
+            'currentCapturedAt': _iso(user.last_region_captured_at),
+            'profileCount': len(region_profiles),
+            'profiles': region_profiles,
+            'recentEvents': region_events,
         },
         'carts': [serialize_cart(cart) for cart in carts],
     }

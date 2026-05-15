@@ -33,9 +33,9 @@ const configPaneNavItems = [
 ] as const
 
 const adsSectionNavItems = [
-  { href: '/ads#ads-runtime-health', label: '현황' },
-  { href: '/ads#ads-quick-setup', label: '세팅' },
-  { href: '/ads#ads-efficiency-review', label: '효율' },
+  { href: '/ads/status', label: '현황' },
+  { href: '/ads/setup', label: '세팅' },
+  { href: '/ads/efficiency', label: '효율' },
 ] as const
 
 const usersNavItems = [

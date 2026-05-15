@@ -522,7 +522,7 @@ Current direction update:
 - top exposure inventory with live creative, reserved creative, slot, surface, position, status, updatedAt, and filtered-period metrics
 - selected-slot workspace with live/reserved preview, schedule controls, save/publish actions, and recent campaign history
 - lower efficiency zone with slot-level and creative-level summaries plus low-signal / no-signal review rows
-- 2026-05-15 follow-up simplification: the explicit three-step operator flow remains, but it now lives in the main sidebar as short sublabels `현황 / 세팅 / 효율` instead of a nested in-page rail, and the page body itself no longer wastes width on duplicate navigation
+- 2026-05-15 follow-up simplification: the explicit three-step operator flow remains, but it now lives as separate Ads routes under the main sidebar with short sublabels `현황 / 세팅 / 효율` instead of anchor jumps or a nested in-page rail, and the page body itself no longer wastes width on duplicate navigation
 
 ### Ads implementation contract
 

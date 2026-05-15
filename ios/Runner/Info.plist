@@ -28,6 +28,8 @@
 	<string>ca-app-pub-7326648056182385~1227671006</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>가격표를 인식해 상품명과 가격을 자동 입력하기 위해 카메라 접근이 필요합니다.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

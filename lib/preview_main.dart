@@ -609,7 +609,7 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
       'complianceTitle': text('myComplianceTitle', '개인정보 및 문의'),
       'complianceBody': text(
         'myComplianceBody',
-        '개인정보 처리방침과 고객센터 연락 채널을 여기서 바로 확인하실 수 있어요.',
+        '개인정보 처리방침과 문의 이메일을 여기서 바로 확인하실 수 있어요.',
       ),
       'privacyPolicyLabel': text(
         'myPrivacyPolicyLabel',
@@ -619,7 +619,7 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
         'myPrivacyPolicyUrl',
         'https://scan-api.seoa-nas.com/privacy',
       ),
-      'supportEmailLabel': text('mySupportEmailLabel', '고객센터 이메일'),
+      'supportEmailLabel': text('mySupportEmailLabel', '문의 이메일'),
       'supportEmail': text('mySupportEmail', ''),
       'supportPhoneLabel': text('mySupportPhoneLabel', '고객센터 연락처'),
       'supportPhone': text('mySupportPhone', ''),
@@ -629,7 +629,7 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
       'businessInfo': text('myBusinessInfo', ''),
       'supportNote': text(
         'mySupportNote',
-        '운영 연락처와 사업자/운영 정보는 admin에서 바로 수정할 수 있어요.',
+        '문의는 아래 이메일로 보내주세요.',
       ),
     },
     'login': {

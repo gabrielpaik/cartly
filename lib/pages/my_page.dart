@@ -1300,27 +1300,9 @@ class _MyComplianceSection extends StatelessWidget {
         ).trim();
         final supportEmailLabel = AppRuntimeCopy.text(
           ['my', 'supportEmailLabel'],
-          '고객센터 이메일',
+          '문의 이메일',
         );
         final supportEmail = AppRuntimeCopy.text(['my', 'supportEmail'], '')
-            .trim();
-        final supportPhoneLabel = AppRuntimeCopy.text(
-          ['my', 'supportPhoneLabel'],
-          '고객센터 연락처',
-        );
-        final supportPhone = AppRuntimeCopy.text(['my', 'supportPhone'], '')
-            .trim();
-        final supportHoursLabel = AppRuntimeCopy.text(
-          ['my', 'supportHoursLabel'],
-          '응답 안내',
-        );
-        final supportHours = AppRuntimeCopy.text(['my', 'supportHours'], '')
-            .trim();
-        final businessInfoLabel = AppRuntimeCopy.text(
-          ['my', 'businessInfoLabel'],
-          '운영 정보',
-        );
-        final businessInfo = AppRuntimeCopy.text(['my', 'businessInfo'], '')
             .trim();
         final supportNote = AppRuntimeCopy.text(['my', 'supportNote'], '')
             .trim();
@@ -1334,7 +1316,7 @@ class _MyComplianceSection extends StatelessWidget {
           ),
           body: AppRuntimeCopy.text(
             ['my', 'complianceBody'],
-            '개인정보 처리방침과 고객센터 연락 채널을 여기서 바로 확인하실 수 있어요.',
+            '개인정보 처리방침과 문의 이메일을 여기서 바로 확인하실 수 있어요.',
           ),
           footer: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1355,38 +1337,10 @@ class _MyComplianceSection extends StatelessWidget {
                   onTap: () => _openUri(context, 'mailto:$supportEmail'),
                 ),
               ],
-              if (supportPhone.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                _MyComplianceRow(
-                  iconName: 'phone',
-                  label: supportPhoneLabel,
-                  value: supportPhone,
-                  onTap: () => _openUri(context, 'tel:$supportPhone'),
-                ),
-              ],
-              if (supportHours.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                _MyComplianceRow(
-                  iconName: 'clock',
-                  label: supportHoursLabel,
-                  value: supportHours,
-                ),
-              ],
-              if (businessInfo.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                _MyComplianceRow(
-                  iconName: 'info.circle',
-                  label: businessInfoLabel,
-                  value: businessInfo,
-                ),
-              ],
-              if (supportEmail.isEmpty &&
-                  supportPhone.isEmpty &&
-                  supportHours.isEmpty &&
-                  businessInfo.isEmpty) ...[
+              if (supportEmail.isEmpty) ...[
                 const SizedBox(height: 10),
                 const Text(
-                  '고객센터 연락처는 admin에서 입력해 주세요.',
+                  '문의 이메일은 admin에서 입력해 주세요.',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,

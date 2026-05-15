@@ -606,11 +606,8 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
         'myAdFallbackMessage',
         '마이에서는 계정과 잘 맞는 혜택만 보여드릴 예정이에요.',
       ),
-      'complianceTitle': text('myComplianceTitle', '개인정보 및 문의'),
-      'complianceBody': text(
-        'myComplianceBody',
-        '개인정보 처리방침과 문의 이메일을 여기서 바로 확인하실 수 있어요.',
-      ),
+      'complianceTitle': text('myComplianceTitle', '개인정보'),
+      'complianceBody': text('myComplianceBody', ''),
       'privacyPolicyLabel': text(
         'myPrivacyPolicyLabel',
         '개인정보 처리방침',
@@ -619,8 +616,8 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
         'myPrivacyPolicyUrl',
         'https://scan-api.seoa-nas.com/privacy',
       ),
-      'supportEmailLabel': text('mySupportEmailLabel', '문의 이메일'),
-      'supportEmail': text('mySupportEmail', ''),
+      'supportEmailLabel': text('mySupportEmailLabel', '문의'),
+      'supportEmail': text('mySupportEmail', 'scancart.wimc@gmail.com'),
       'supportPhoneLabel': text('mySupportPhoneLabel', '고객센터 연락처'),
       'supportPhone': text('mySupportPhone', ''),
       'supportHoursLabel': text('mySupportHoursLabel', '응답 안내'),
@@ -629,7 +626,7 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
       'businessInfo': text('myBusinessInfo', ''),
       'supportNote': text(
         'mySupportNote',
-        '문의는 아래 이메일로 보내주세요.',
+        '',
       ),
     },
     'login': {

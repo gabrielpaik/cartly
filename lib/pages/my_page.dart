@@ -1300,67 +1300,93 @@ class _MyComplianceSection extends StatelessWidget {
         ).trim();
         final supportEmailLabel = AppRuntimeCopy.text(
           ['my', 'supportEmailLabel'],
-          '문의 이메일',
+          '문의',
         );
         final supportEmail = AppRuntimeCopy.text(['my', 'supportEmail'], '')
             .trim();
         final supportNote = AppRuntimeCopy.text(['my', 'supportNote'], '')
             .trim();
+        final title = AppRuntimeCopy.text(
+          ['my', 'complianceTitle'],
+          '개인정보',
+        ).trim();
+        final body = AppRuntimeCopy.text(['my', 'complianceBody'], '').trim();
 
-        return CartlyInfoCard(
+        return CartlySurfaceCard(
           backgroundColor: CartlyColors.surface1,
           border: Border.all(color: CartlyColors.line, width: 0.5),
-          title: AppRuntimeCopy.text(
-            ['my', 'complianceTitle'],
-            '개인정보 및 문의',
-          ),
-          body: AppRuntimeCopy.text(
-            ['my', 'complianceBody'],
-            '개인정보 처리방침과 문의 이메일을 여기서 바로 확인하실 수 있어요.',
-          ),
-          footer: Column(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _MyComplianceRow(
-                iconName: 'lock',
-                label: privacyLabel,
-                value: privacyUrl,
-                emphasized: true,
-                onTap: () => _openUri(context, privacyUrl),
+              Text(
+                title,
+                style: CartlyText.cardMeta.copyWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: CartlyColors.textPrimary,
+                ),
               ),
-              if (supportEmail.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                _MyComplianceRow(
-                  iconName: 'envelope',
-                  label: supportEmailLabel,
-                  value: supportEmail,
-                  onTap: () => _openUri(context, 'mailto:$supportEmail'),
-                ),
-              ],
-              if (supportEmail.isEmpty) ...[
-                const SizedBox(height: 10),
-                const Text(
-                  '문의 이메일은 admin에서 입력해 주세요.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: CartlyColors.semanticWarning,
-                    height: 1.45,
-                  ),
-                ),
-              ],
-              if (supportNote.isNotEmpty) ...[
-                const SizedBox(height: 10),
+              if (body.isNotEmpty) ...[
+                const SizedBox(height: 4),
                 Text(
-                  supportNote,
+                  body,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: CartlyColors.textSecondary,
-                    height: 1.45,
+                    height: 1.4,
                   ),
                 ),
               ],
+              const SizedBox(height: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _MyComplianceRow(
+                    iconName: 'lock',
+                    label: privacyLabel,
+                    value: privacyUrl,
+                    emphasized: true,
+                    compact: true,
+                    onTap: () => _openUri(context, privacyUrl),
+                  ),
+                  if (supportEmail.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _MyComplianceRow(
+                      iconName: 'envelope',
+                      label: supportEmailLabel,
+                      value: supportEmail,
+                      compact: true,
+                      onTap: () => _openUri(context, 'mailto:$supportEmail'),
+                    ),
+                  ],
+                  if (supportEmail.isEmpty) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      '문의 이메일은 admin에서 입력해 주세요.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: CartlyColors.semanticWarning,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                  if (supportNote.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      supportNote,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: CartlyColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
         );
@@ -1393,6 +1419,7 @@ class _MyComplianceRow extends StatelessWidget {
   final String label;
   final String value;
   final bool emphasized;
+  final bool compact;
   final VoidCallback? onTap;
 
   const _MyComplianceRow({
@@ -1400,17 +1427,35 @@ class _MyComplianceRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.emphasized = false,
+    this.compact = false,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final iconBox = compact ? 20.0 : 24.0;
+    final iconSize = compact ? 11.0 : 13.0;
+    final labelStyle = TextStyle(
+      fontSize: compact ? 11 : 12,
+      fontWeight: FontWeight.w700,
+      color: CartlyColors.textPrimary,
+      height: compact ? 1.3 : null,
+    );
+    final valueStyle = TextStyle(
+      fontSize: compact ? 11 : 12,
+      fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
+      color: emphasized
+          ? CartlyColors.brandTextOnLight
+          : CartlyColors.textSecondary,
+      height: compact ? 1.35 : 1.45,
+    );
+
     final rowChild = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 24,
-          height: 24,
+          width: iconBox,
+          height: iconBox,
           decoration: BoxDecoration(
             color: emphasized
                 ? CartlyColors.softPink
@@ -1419,45 +1464,28 @@ class _MyComplianceRow extends StatelessWidget {
           ),
           child: CartlySymbolIcon.sf(
             iconName,
-            size: 13,
+            size: iconSize,
             color: emphasized
                 ? CartlyColors.brand
                 : CartlyColors.textSecondary,
           ),
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: compact ? 8 : 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: CartlyColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
-                  color: emphasized
-                      ? CartlyColors.brandTextOnLight
-                      : CartlyColors.textSecondary,
-                  height: 1.45,
-                ),
-              ),
+              Text(label, style: labelStyle),
+              SizedBox(height: compact ? 2 : 3),
+              Text(value, style: valueStyle),
             ],
           ),
         ),
         if (onTap != null) ...[
           const SizedBox(width: 8),
-          const CartlySymbolIcon.sf(
+          CartlySymbolIcon.sf(
             'chevron.right',
-            size: 14,
+            size: compact ? 12 : 14,
             color: CartlyColors.textTertiary,
           ),
         ],
@@ -1474,7 +1502,7 @@ class _MyComplianceRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(CartlyRadii.control),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
+          padding: EdgeInsets.symmetric(vertical: compact ? 1 : 2),
           child: rowChild,
         ),
       ),

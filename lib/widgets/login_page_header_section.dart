@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/cartly_ui.dart';
+import 'brand_mark.dart';
 
 class LoginPageHeaderSection extends StatelessWidget {
   final String? loginHeroImageUrl;
@@ -21,6 +22,8 @@ class LoginPageHeaderSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const BrandMark(fontSize: 28),
+        const SizedBox(height: 14),
         if (heroUrl != null && heroUrl.isNotEmpty) ...[
           ClipRRect(
             borderRadius: BorderRadius.circular(CartlyRadii.card),

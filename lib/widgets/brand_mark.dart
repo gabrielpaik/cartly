@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../services/app_config_store.dart';
 
@@ -21,11 +22,9 @@ class BrandMark extends StatelessWidget {
         final logoType = branding.logoType;
 
         if ((logoType == 'image' || logoType == 'text_image') && hasImage) {
-          final image = Image.network(
+          final image = _networkLogo(
             branding.logoImageUrl!,
-            height: fontSize + 14,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) => _textLogo(branding.logoText),
+            fallbackText: branding.logoText,
           );
 
           if (logoType == 'text_image') {
@@ -44,6 +43,31 @@ class BrandMark extends StatelessWidget {
 
         return _textLogo(branding.logoText);
       },
+    );
+  }
+
+  Widget _networkLogo(String url, {required String fallbackText}) {
+    final trimmed = url.trim();
+    final isSvg = trimmed.toLowerCase().split('?').first.endsWith('.svg');
+    if (isSvg) {
+      return SvgPicture.network(
+        trimmed,
+        height: fontSize + 14,
+        fit: BoxFit.contain,
+        placeholderBuilder: (_) => SizedBox(
+          height: fontSize + 14,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _textLogo(fallbackText),
+          ),
+        ),
+      );
+    }
+    return Image.network(
+      trimmed,
+      height: fontSize + 14,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) => _textLogo(fallbackText),
     );
   }
 

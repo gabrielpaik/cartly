@@ -230,7 +230,6 @@ export default function AdsConsole({ view }: { view: AdsView }) {
     if (!selectedSlotKey) return null
     return slotsByKey[selectedSlotKey] ?? null
   }, [selectedSlotKey, slotsByKey])
-  const selectedPerformance = workspace?.performance ?? null
   const selectedSlotHistory = useMemo(() => {
     if (!selectedSlot) return []
     return (workspace?.history ?? []).filter((campaign) => campaign.id !== selectedSlot.config.liveCampaignId && campaign.id !== selectedSlot.config.reservedCampaignId)
@@ -679,145 +678,74 @@ export default function AdsConsole({ view }: { view: AdsView }) {
       ) : null}
 
       {view === 'setup' ? (
-        <>
-          <div className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 12, marginBottom: 12 }}>
-            <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
-              <div>
-                <h2 className="panelTitle" style={{ marginBottom: 6 }}>세팅 대상</h2>
-                <p className="pageDesc" style={{ margin: 0 }}>먼저 slot을 고르고, 아래 시트에서 live / reserved를 한 번에 바로 수정해.</p>
-              </div>
-              <div className="metaRow" style={{ marginTop: 0 }}>
-                <div className="metaPill">rows {performance.slotRows.length}</div>
-                <div className="metaPill">selected {selectedSlot?.slotKey || '-'}</div>
-              </div>
+        <div className="card exploreDenseCard exploreSheetCard" id="ads-quick-setup" style={{ marginTop: 12, marginBottom: 16 }}>
+          <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
+            <div>
+              <h2 className="panelTitle" style={{ marginBottom: 6 }}>세팅 시트</h2>
+              <p className="pageDesc" style={{ marginBottom: 6 }}>slot이 구분값이고, 현재 / 예약은 각 시작시간과 종료시간 기준으로 바로 읽게 한 운영 시트야.</p>
             </div>
-            <div className="tableWrap">
-              <table className="dataTable adsSetupPickerTable">
-                <thead>
-                  <tr>
-                    <th>Slot</th>
-                    <th>Surface</th>
-                    <th>Runtime</th>
-                    <th>Live</th>
-                    <th>Reserved</th>
-                    <th>성과</th>
-                    <th>선택</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {performance.slotRows.map((row) => {
-                    const isSelected = selectedSlotKey === row.slotKey
-                    return (
-                      <tr key={`setup-${row.slotKey}`} className={isSelected ? 'exploreRowSelected' : ''} onClick={() => setSelectedSlotKey(row.slotKey)} style={{ cursor: 'pointer' }}>
-                        <td>
-                          <div className="adsSetupCellStack">
-                            <strong>{slotsByKey[row.slotKey]?.config.slotLabel || row.slotKey}</strong>
-                            <span className="adsSetupCellSub">{row.slotKey}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="adsSetupCellStack">
-                            <span>{row.surfaceLabel}</span>
-                            <span className="adsSetupCellSub">{row.placementLabel}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="adsSetupCellStack">
-                            <span>{runtimeStateLabel(row.effectiveRuntimeState)}</span>
-                            <span className="adsSetupCellSub">{row.slotStatus}</span>
-                          </div>
-                        </td>
-                        <td>{row.liveCreativeTitle}</td>
-                        <td>{row.reservedCreativeTitle}</td>
-                        <td>{formatNumber(row.impressions)} · {formatPercent(row.ctr)}</td>
-                        <td>
-                          <button className="ghostBtn ghostBtnSmall" type="button" onClick={(event) => { event.stopPropagation(); setSelectedSlotKey(row.slotKey) }}>
-                            {isSelected ? '선택됨' : '열기'}
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+            <div className="metaRow" style={{ marginTop: 0 }}>
+              <div className="metaPill">rows {performance.slotRows.length}</div>
+              <div className="metaPill">sheet only</div>
             </div>
           </div>
 
-          {selectedSlot ? (
-            <div className="card exploreDenseCard exploreSheetCard" id="ads-quick-setup">
-              <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
-                <div>
-                  <h2 className="panelTitle" style={{ marginBottom: 6 }}>세팅 시트 · {selectedSlot.config.slotLabel || selectedSlot.slotKey}</h2>
-                  <p className="pageDesc" style={{ marginBottom: 6 }}>큰 편집 카드 대신, 필요한 값만 한 줄씩 바로 고치는 운영 시트로 바꿨어.</p>
-                </div>
-                <div className="metaRow" style={{ marginTop: 0 }}>
-                  <div className="metaPill">{selectedPerformance ? runtimeStateLabel(selectedPerformance.effectiveRuntimeState) : 'loading'}</div>
-                  <div className="metaPill">imp {formatNumber(selectedPerformance?.impressions ?? 0)}</div>
-                  <div className="metaPill">click {formatNumber(selectedPerformance?.clicks ?? 0)}</div>
-                  <div className="metaPill">ctr {formatPercent(selectedPerformance?.ctr ?? 0)}</div>
-                  <div className="metaPill">{selectedPerformance ? reviewFlagLabel(selectedPerformance.reviewFlag) : '-'}</div>
-                </div>
-              </div>
-
-              <div className="exploreSheetFilterGrid compactFilterGrid adsSetupMetaGrid" style={{ marginBottom: 10 }}>
-                <label className="field compactInlineField" style={{ margin: 0 }}>
-                  <div className="exploreSheetFieldLabel">상태</div>
-                  <select className="textInput exploreSheetInput compactInlineSelect" value={selectedSlot.status} disabled={usingFallback} onChange={(e) => updateSlot(selectedSlot.slotKey, { status: e.target.value })}>
-                    <option value="active">active</option>
-                    <option value="inactive">inactive</option>
-                  </select>
-                </label>
-                <label className="field compactInlineField" style={{ margin: 0 }}>
-                  <div className="exploreSheetFieldLabel">슬롯명</div>
-                  <input className="textInput exploreSheetInput compactInlineInput" value={selectedSlot.config.slotLabel ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { slotLabel: e.target.value })} />
-                </label>
-                <label className="field compactInlineField" style={{ margin: 0 }}>
-                  <div className="exploreSheetFieldLabel">설명</div>
-                  <input className="textInput exploreSheetInput compactInlineInput" value={selectedSlot.config.slotDescription ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { slotDescription: e.target.value })} />
-                </label>
-                <label className="field compactInlineField" style={{ margin: 0 }}>
-                  <div className="exploreSheetFieldLabel">메모</div>
-                  <input className="textInput exploreSheetInput compactInlineInput" value={selectedSlot.config.placementNote ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { placementNote: e.target.value })} />
-                </label>
-              </div>
-
-              <div className="metaRow" style={{ marginTop: 0, marginBottom: 10 }}>
-                <div className="metaPill">{selectedSlot.slotKey}</div>
-                <div className="metaPill">{selectedSlot.placementType}</div>
-                <div className="metaPill">screen {selectedSlot.config.screen}</div>
-                <div className="metaPill">position {selectedSlot.config.position}</div>
-                <div className="metaPill">last impression {formatDate(selectedPerformance?.lastImpressionAt ?? null)}</div>
-              </div>
-
-              <div className="exploreSheetViewport adsSetupSheetViewport">
-                <table className="exploreSimpleSheet adsSetupSheet">
-                  <thead>
-                    <tr>
-                      <th>구분</th>
-                      <th>제목</th>
-                      <th>문구</th>
-                      <th>CTA</th>
-                      <th>링크</th>
-                      <th>시작</th>
-                      <th>종료</th>
-                      <th>배너</th>
-                      <th>업로드</th>
-                      <th>저장</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td><strong>live</strong></td>
-                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={selectedSlot.config.title} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { title: e.target.value })} /></td>
-                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={selectedSlot.config.message} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { message: e.target.value })} /></td>
-                      <td><input className="textInput exploreSheetInput" style={{ minWidth: 110, width: 110 }} value={selectedSlot.config.ctaLabel ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { ctaLabel: e.target.value || null })} /></td>
-                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={selectedSlot.config.targetUrl ?? ''} disabled={usingFallback} placeholder="https://..." onChange={(e) => updateConfig(selectedSlot.slotKey, { targetUrl: e.target.value || null })} /></td>
-                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={selectedSlot.config.exposureStartAt ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { exposureStartAt: e.target.value || null })} /></td>
-                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={selectedSlot.config.exposureEndAt ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { exposureEndAt: e.target.value || null })} /></td>
+          <div className="exploreSheetViewport adsSetupSheetViewport">
+            <table className="exploreSimpleSheet adsSetupSheet adsSetupUnifiedSheet">
+              <thead>
+                <tr>
+                  <th>슬롯</th>
+                  <th>상태</th>
+                  <th>현재 시작</th>
+                  <th>현재 종료</th>
+                  <th>예약 시작</th>
+                  <th>예약 종료</th>
+                  <th>현재 제목</th>
+                  <th>현재 문구</th>
+                  <th>현재 CTA</th>
+                  <th>현재 링크</th>
+                  <th>현재 배너</th>
+                  <th>현재 업로드</th>
+                  <th>현재 저장</th>
+                  <th>예약 제목</th>
+                  <th>예약 문구</th>
+                  <th>예약 CTA</th>
+                  <th>예약 링크</th>
+                  <th>예약 배너</th>
+                  <th>예약 업로드</th>
+                  <th>예약 저장</th>
+                </tr>
+              </thead>
+              <tbody>
+                {performance.slotRows.map((row) => {
+                  const slot = slotsByKey[row.slotKey] ?? fallbackSlots.find((item) => item.slotKey === row.slotKey) ?? fallbackSlots[0]
+                  return (
+                    <tr key={`setup-sheet-${row.slotKey}`}>
                       <td>
-                        {selectedSlot.config.imageUrl ? (
-                          <a href={selectedSlot.config.imageUrl} target="_blank" rel="noreferrer" className="exploreMiniThumbLink">
-                            <img src={selectedSlot.config.imageUrl} alt={`${selectedSlot.slotKey} live`} className="exploreMiniThumb adsSetupMiniThumb" />
+                        <div className="adsSetupCellStack">
+                          <strong>{slot.config.slotLabel || row.slotKey}</strong>
+                          <span className="adsSetupCellSub">{row.slotKey} · {slot.placementType}</span>
+                          <span className="adsSetupCellSub">{row.surfaceLabel} · ctr {formatPercent(row.ctr)}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <select className="textInput exploreSheetInput" style={{ minWidth: 96, width: 96 }} value={slot.status} disabled={usingFallback} onChange={(e) => updateSlot(slot.slotKey, { status: e.target.value })}>
+                          <option value="active">active</option>
+                          <option value="inactive">inactive</option>
+                        </select>
+                      </td>
+                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={slot.config.exposureStartAt ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { exposureStartAt: e.target.value || null })} /></td>
+                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={slot.config.exposureEndAt ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { exposureEndAt: e.target.value || null })} /></td>
+                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={slot.config.reservationStartAt ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { reservationStartAt: e.target.value || null })} /></td>
+                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={slot.config.reservationEndAt ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { reservationEndAt: e.target.value || null })} /></td>
+                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={slot.config.title} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { title: e.target.value })} /></td>
+                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={slot.config.message} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { message: e.target.value })} /></td>
+                      <td><input className="textInput exploreSheetInput" style={{ minWidth: 110, width: 110 }} value={slot.config.ctaLabel ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { ctaLabel: e.target.value || null })} /></td>
+                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={slot.config.targetUrl ?? ''} disabled={usingFallback} placeholder="https://..." onChange={(e) => updateConfig(slot.slotKey, { targetUrl: e.target.value || null })} /></td>
+                      <td>
+                        {slot.config.imageUrl ? (
+                          <a href={slot.config.imageUrl} target="_blank" rel="noreferrer" className="exploreMiniThumbLink">
+                            <img src={slot.config.imageUrl} alt={`${slot.slotKey} live`} className="exploreMiniThumb adsSetupMiniThumb" />
                           </a>
                         ) : (
                           <span className="adsSetupCellSub">없음</span>
@@ -825,7 +753,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
                       </td>
                       <td>
                         <label className={`ghostBtn ghostBtnSmall adsUploadBtn${usingFallback ? ' disabled' : ''}`}>
-                          {uploadingKey === `${selectedSlot.slotKey}:imageUrl` ? '업로드중' : '파일'}
+                          {uploadingKey === `${slot.slotKey}:imageUrl` ? '업로드중' : '파일'}
                           <input
                             type="file"
                             accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
@@ -833,29 +761,24 @@ export default function AdsConsole({ view }: { view: AdsView }) {
                             disabled={usingFallback}
                             onChange={(e) => {
                               const file = e.target.files?.[0]
-                              if (file) void uploadAsset(selectedSlot.slotKey, file, 'imageUrl')
+                              if (file) void uploadAsset(slot.slotKey, file, 'imageUrl')
                             }}
                           />
                         </label>
                       </td>
                       <td>
-                        <button className="primaryBtn ghostBtnSmall adsSetupSaveBtn" type="button" disabled={savingKey === `${selectedSlot.slotKey}:live` || usingFallback} onClick={() => void saveSlot(selectedSlot, 'live')}>
-                          {savingKey === `${selectedSlot.slotKey}:live` ? '저장중' : '저장'}
+                        <button className="primaryBtn ghostBtnSmall adsSetupSaveBtn" type="button" disabled={savingKey === `${slot.slotKey}:live` || usingFallback} onClick={() => void saveSlot(slot, 'live')}>
+                          {savingKey === `${slot.slotKey}:live` ? '저장중' : '저장'}
                         </button>
                       </td>
-                    </tr>
-                    <tr>
-                      <td><strong>reserved</strong></td>
-                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={selectedSlot.config.reservedTitle ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { reservedTitle: e.target.value })} /></td>
-                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={selectedSlot.config.reservedMessage ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { reservedMessage: e.target.value })} /></td>
-                      <td><input className="textInput exploreSheetInput" style={{ minWidth: 110, width: 110 }} value={selectedSlot.config.reservedCtaLabel ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { reservedCtaLabel: e.target.value || null })} /></td>
-                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={selectedSlot.config.reservedTargetUrl ?? ''} disabled={usingFallback} placeholder="https://..." onChange={(e) => updateConfig(selectedSlot.slotKey, { reservedTargetUrl: e.target.value || null })} /></td>
-                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={selectedSlot.config.reservationStartAt ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { reservationStartAt: e.target.value || null })} /></td>
-                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={selectedSlot.config.reservationEndAt ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { reservationEndAt: e.target.value || null })} /></td>
+                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={slot.config.reservedTitle ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { reservedTitle: e.target.value })} /></td>
+                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={slot.config.reservedMessage ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { reservedMessage: e.target.value })} /></td>
+                      <td><input className="textInput exploreSheetInput" style={{ minWidth: 110, width: 110 }} value={slot.config.reservedCtaLabel ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(slot.slotKey, { reservedCtaLabel: e.target.value || null })} /></td>
+                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={slot.config.reservedTargetUrl ?? ''} disabled={usingFallback} placeholder="https://..." onChange={(e) => updateConfig(slot.slotKey, { reservedTargetUrl: e.target.value || null })} /></td>
                       <td>
-                        {selectedSlot.config.reservedImageUrl ? (
-                          <a href={selectedSlot.config.reservedImageUrl} target="_blank" rel="noreferrer" className="exploreMiniThumbLink">
-                            <img src={selectedSlot.config.reservedImageUrl} alt={`${selectedSlot.slotKey} reserved`} className="exploreMiniThumb adsSetupMiniThumb" />
+                        {slot.config.reservedImageUrl ? (
+                          <a href={slot.config.reservedImageUrl} target="_blank" rel="noreferrer" className="exploreMiniThumbLink">
+                            <img src={slot.config.reservedImageUrl} alt={`${slot.slotKey} reserved`} className="exploreMiniThumb adsSetupMiniThumb" />
                           </a>
                         ) : (
                           <span className="adsSetupCellSub">없음</span>
@@ -863,7 +786,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
                       </td>
                       <td>
                         <label className={`ghostBtn ghostBtnSmall adsUploadBtn${usingFallback ? ' disabled' : ''}`}>
-                          {uploadingKey === `${selectedSlot.slotKey}:reservedImageUrl` ? '업로드중' : '파일'}
+                          {uploadingKey === `${slot.slotKey}:reservedImageUrl` ? '업로드중' : '파일'}
                           <input
                             type="file"
                             accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
@@ -871,25 +794,28 @@ export default function AdsConsole({ view }: { view: AdsView }) {
                             disabled={usingFallback}
                             onChange={(e) => {
                               const file = e.target.files?.[0]
-                              if (file) void uploadAsset(selectedSlot.slotKey, file, 'reservedImageUrl')
+                              if (file) void uploadAsset(slot.slotKey, file, 'reservedImageUrl')
                             }}
                           />
                         </label>
                       </td>
                       <td>
-                        <button className="primaryBtn ghostBtnSmall adsSetupSaveBtn" type="button" disabled={savingKey === `${selectedSlot.slotKey}:reserved` || usingFallback} onClick={() => void saveSlot(selectedSlot, 'reserved')}>
-                          {savingKey === `${selectedSlot.slotKey}:reserved` ? '저장중' : '저장'}
+                        <button className="primaryBtn ghostBtnSmall adsSetupSaveBtn" type="button" disabled={savingKey === `${slot.slotKey}:reserved` || usingFallback} onClick={() => void saveSlot(slot, 'reserved')}>
+                          {savingKey === `${slot.slotKey}:reserved` ? '저장중' : '저장'}
                         </button>
                       </td>
                     </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : (
-            <div className="emptyState">선택된 slot이 없어.</div>
-          )}
-        </>
+                  )
+                })}
+                {performance.slotRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={20} style={{ textAlign: 'center', color: '#64748b' }}>조건에 맞는 slot이 없어.</td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : null}
 
       {view === 'efficiency' ? (

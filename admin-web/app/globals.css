@@ -156,6 +156,7 @@ a { color: inherit; text-decoration: none; }
 .exploreSheetFilterGrid.adsSetupMetaGrid { display: grid; grid-template-columns: 140px minmax(220px, 1fr) minmax(260px, 1.2fr) minmax(220px, 1fr); }
 .adsSetupSheetViewport { margin-top: 4px; }
 .adsSetupSheet { width: 1640px; min-width: 1640px; }
+.adsSetupUnifiedSheet { width: 3660px; min-width: 3660px; }
 .adsSetupMiniThumb { width: 28px; height: 28px; border-radius: 4px; }
 .adsUploadBtn { position: relative; overflow: hidden; cursor: pointer; }
 .adsUploadBtn.disabled { cursor: not-allowed; opacity: 0.5; }

@@ -520,7 +520,7 @@ Current direction update:
 
 ### Ads P0 target shape
 - top exposure inventory with live creative, reserved creative, slot, surface, position, status, updatedAt, and filtered-period metrics
-- setup page should open as a compact slot picker plus one horizontally scrollable selected-slot editing sheet, with live / reserved rows and immediate save/upload controls rather than oversized form cards
+- setup page should now collapse into one horizontally scrollable sheet where `slot` is the primary discriminator, the old separate slot-picker block is removed, and current / reserved operations are handled inline with immediate save/upload controls rather than oversized form cards
 - lower efficiency zone with slot-level and creative-level summaries plus low-signal / no-signal review rows
 - 2026-05-15 follow-up simplification: the explicit three-step operator flow remains, but it now lives as separate Ads routes under the main sidebar with short sublabels `현황 / 세팅 / 효율` instead of anchor jumps or a nested in-page rail, and the page body itself no longer wastes width on duplicate navigation
 

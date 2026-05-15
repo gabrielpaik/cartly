@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-import { CampaignRow, fallbackSlots, SlotConfig, SlotEditorPanel, SlotHistory, SlotPreview, SlotRow } from '../../components/ads'
+import { CampaignRow, fallbackSlots, SlotConfig, SlotHistory, SlotRow } from '../../components/ads'
 import { useAdminCopy } from '../../components/AdminCopyProvider'
 import PageHeader from '../../components/PageHeader'
 import { fetchJsonSafe, isUnauthorizedError, postFormData, putJson } from '../../lib/api'
@@ -472,58 +472,58 @@ export default function AdsConsole({ view }: { view: AdsView }) {
       </div>
 
       <form className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 16, marginBottom: 16 }} onSubmit={(e) => e.preventDefault()}>
-        <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 12 }}>
+        <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
           <div>
             <h2 className="panelTitle" style={{ marginBottom: 6 }}>공통 필터</h2>
-            <p className="pageDesc" style={{ margin: 0 }}>좌측 sidebar의 `현황 / 세팅 / 효율` 흐름과 같은 범위로 바로 이어서 보게 맞춘 필터 바야.</p>
+            <p className="pageDesc" style={{ margin: 0 }}>현황, 세팅, 효율을 같은 조건으로 바로 넘겨보는 압축 필터야.</p>
           </div>
         </div>
-        <div className="exploreSheetFilterGrid" style={{ gridTemplateColumns: 'minmax(220px, 2fr) repeat(5, minmax(140px, 1fr))' }}>
-          <label className="field" style={{ margin: 0 }}>
-            <div className="exploreSheetFieldLabel">surface / slot 검색</div>
-            <input className="textInput exploreSheetInput" value={slotQuery} onChange={(e) => setSlotQuery(e.target.value)} placeholder="slot / screen / position / placement" />
+        <div className="exploreSheetFilterGrid compactFilterGrid adsCompactFilterGrid adsCompactFilterGridInline">
+          <label className="field compactInlineField" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">검색</div>
+            <input className="textInput exploreSheetInput compactInlineInput" value={slotQuery} onChange={(e) => setSlotQuery(e.target.value)} placeholder="slot / screen / position / placement" />
           </label>
-          <label className="field" style={{ margin: 0 }}>
-            <div className="exploreSheetFieldLabel">slot status</div>
-            <select className="textInput exploreSheetInput" value={slotStatusFilter} onChange={(e) => setSlotStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}>
-              <option value="all">all</option>
+          <label className="field compactInlineField" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">슬롯</div>
+            <select className="textInput exploreSheetInput compactInlineSelect" value={slotStatusFilter} onChange={(e) => setSlotStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}>
+              <option value="all">전체</option>
               <option value="active">active</option>
               <option value="inactive">inactive</option>
             </select>
           </label>
-          <label className="field" style={{ margin: 0 }}>
-            <div className="exploreSheetFieldLabel">variant</div>
-            <select className="textInput exploreSheetInput" value={historyVariantFilter} onChange={(e) => setHistoryVariantFilter(e.target.value as 'all' | 'live' | 'reserved')}>
-              <option value="all">all</option>
+          <label className="field compactInlineField" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">구분</div>
+            <select className="textInput exploreSheetInput compactInlineSelect" value={historyVariantFilter} onChange={(e) => setHistoryVariantFilter(e.target.value as 'all' | 'live' | 'reserved')}>
+              <option value="all">전체</option>
               <option value="live">live</option>
               <option value="reserved">reserved</option>
             </select>
           </label>
-          <label className="field" style={{ margin: 0 }}>
-            <div className="exploreSheetFieldLabel">campaign status</div>
-            <select className="textInput exploreSheetInput" value={historyStatusFilter} onChange={(e) => setHistoryStatusFilter(e.target.value as 'all' | 'ended' | 'cancelled' | 'scheduled' | 'live')}>
-              <option value="all">all</option>
+          <label className="field compactInlineField" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">상태</div>
+            <select className="textInput exploreSheetInput compactInlineSelect" value={historyStatusFilter} onChange={(e) => setHistoryStatusFilter(e.target.value as 'all' | 'ended' | 'cancelled' | 'scheduled' | 'live')}>
+              <option value="all">전체</option>
               <option value="ended">ended</option>
               <option value="cancelled">cancelled</option>
               <option value="scheduled">scheduled</option>
               <option value="live">live</option>
             </select>
           </label>
-          <label className="field" style={{ margin: 0 }}>
-            <div className="exploreSheetFieldLabel">period from</div>
-            <input className="textInput exploreSheetInput" type="date" value={historyPeriodFrom} onChange={(e) => setHistoryPeriodFrom(e.target.value)} />
+          <label className="field compactInlineField adsCompactDateField" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">기간</div>
+            <div className="adsCompactDateRange">
+              <input className="textInput exploreSheetInput compactInlineInput" type="date" value={historyPeriodFrom} onChange={(e) => setHistoryPeriodFrom(e.target.value)} />
+              <span className="adsCompactDateDivider">~</span>
+              <input className="textInput exploreSheetInput compactInlineInput" type="date" value={historyPeriodTo} onChange={(e) => setHistoryPeriodTo(e.target.value)} />
+            </div>
           </label>
-          <label className="field" style={{ margin: 0 }}>
-            <div className="exploreSheetFieldLabel">period to</div>
-            <input className="textInput exploreSheetInput" type="date" value={historyPeriodTo} onChange={(e) => setHistoryPeriodTo(e.target.value)} />
+          <label className="field compactInlineField" style={{ margin: 0 }}>
+            <div className="exploreSheetFieldLabel">지난 광고</div>
+            <input className="textInput exploreSheetInput compactInlineInput" value={historyQuery} onChange={(e) => setHistoryQuery(e.target.value)} placeholder="광고 제목, 문구, CTA" />
           </label>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-          <label className="field" style={{ margin: 0, minWidth: 240 }}>
-            <div className="exploreSheetFieldLabel">history query</div>
-            <input className="textInput exploreSheetInput" value={historyQuery} onChange={(e) => setHistoryQuery(e.target.value)} placeholder="광고 제목, 문구, CTA" />
-          </label>
-          <a className="ghostBtn pageActionBtn" href={bulkExportHref}>기간내 지난광고 Excel 일괄 다운로드</a>
+          <div className="compactFilterActionCell">
+            <a className="ghostBtn ghostBtnSmall" href={bulkExportHref}>Excel</a>
+          </div>
         </div>
       </form>
 
@@ -678,83 +678,219 @@ export default function AdsConsole({ view }: { view: AdsView }) {
       </div>
       ) : null}
 
-      {view === 'setup' ? (selectedSlot ? (
-        <div className="card exploreDenseCard exploreSheetCard" id="ads-quick-setup">
-          <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
-            <div>
-              <h2 className="panelTitle" style={{ marginBottom: 6 }}>세팅 · {selectedSlot.config.slotLabel || selectedSlot.slotKey}</h2>
-              <p className="pageDesc" style={{ marginBottom: 8 }}>{selectedSlot.config.slotDescription || '슬롯 설명 없음'}</p>
+      {view === 'setup' ? (
+        <>
+          <div className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 12, marginBottom: 12 }}>
+            <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
+              <div>
+                <h2 className="panelTitle" style={{ marginBottom: 6 }}>세팅 대상</h2>
+                <p className="pageDesc" style={{ margin: 0 }}>먼저 slot을 고르고, 아래 시트에서 live / reserved를 한 번에 바로 수정해.</p>
+              </div>
               <div className="metaRow" style={{ marginTop: 0 }}>
-                <div className="metaPill">{selectedSlot.slotKey}</div>
-                <div className="metaPill">{selectedSlot.placementType}</div>
-                <div className="metaPill">{selectedSlot.config.screen}</div>
-                <div className="metaPill">{selectedSlot.config.position}</div>
-                <div className="metaPill">{selectedSlot.config.placementNote || '-'}</div>
+                <div className="metaPill">rows {performance.slotRows.length}</div>
+                <div className="metaPill">selected {selectedSlot?.slotKey || '-'}</div>
               </div>
             </div>
-            <div className="metaRow" style={{ marginTop: 0 }}>
-              <div className="metaPill">{selectedPerformance ? runtimeStateLabel(selectedPerformance.effectiveRuntimeState) : 'loading'}</div>
-              <div className="metaPill">imp {formatNumber(selectedPerformance?.impressions ?? 0)}</div>
-              <div className="metaPill">click {formatNumber(selectedPerformance?.clicks ?? 0)}</div>
-              <div className="metaPill">ctr {formatPercent(selectedPerformance?.ctr ?? 0)}</div>
-              <div className="metaPill">{selectedPerformance ? reviewFlagLabel(selectedPerformance.reviewFlag) : '-'}</div>
+            <div className="tableWrap">
+              <table className="dataTable adsSetupPickerTable">
+                <thead>
+                  <tr>
+                    <th>Slot</th>
+                    <th>Surface</th>
+                    <th>Runtime</th>
+                    <th>Live</th>
+                    <th>Reserved</th>
+                    <th>성과</th>
+                    <th>선택</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {performance.slotRows.map((row) => {
+                    const isSelected = selectedSlotKey === row.slotKey
+                    return (
+                      <tr key={`setup-${row.slotKey}`} className={isSelected ? 'exploreRowSelected' : ''} onClick={() => setSelectedSlotKey(row.slotKey)} style={{ cursor: 'pointer' }}>
+                        <td>
+                          <div className="adsSetupCellStack">
+                            <strong>{slotsByKey[row.slotKey]?.config.slotLabel || row.slotKey}</strong>
+                            <span className="adsSetupCellSub">{row.slotKey}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="adsSetupCellStack">
+                            <span>{row.surfaceLabel}</span>
+                            <span className="adsSetupCellSub">{row.placementLabel}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="adsSetupCellStack">
+                            <span>{runtimeStateLabel(row.effectiveRuntimeState)}</span>
+                            <span className="adsSetupCellSub">{row.slotStatus}</span>
+                          </div>
+                        </td>
+                        <td>{row.liveCreativeTitle}</td>
+                        <td>{row.reservedCreativeTitle}</td>
+                        <td>{formatNumber(row.impressions)} · {formatPercent(row.ctr)}</td>
+                        <td>
+                          <button className="ghostBtn ghostBtnSmall" type="button" onClick={(event) => { event.stopPropagation(); setSelectedSlotKey(row.slotKey) }}>
+                            {isSelected ? '선택됨' : '열기'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div className="slotEditorLayout adsSelectedSlotLayout">
-            <SlotEditorPanel
-              title={t('admin.ads.livePanel.title', '현재 노출 광고')}
-              description={t('admin.ads.livePanel.desc', '현재 앱에 노출 중인 광고 설정')}
-              slot={selectedSlot}
-              variant="live"
-              uploading={uploadingKey === `${selectedSlot.slotKey}:imageUrl`}
-              saving={savingKey === `${selectedSlot.slotKey}:live`}
-              readOnly={usingFallback}
-              onSlotChange={(patch) => updateSlot(selectedSlot.slotKey, patch)}
-              onConfigChange={(patch) => updateConfig(selectedSlot.slotKey, patch)}
-              onUpload={(file) => void uploadAsset(selectedSlot.slotKey, file, 'imageUrl')}
-              onSave={() => void saveSlot(selectedSlot, 'live')}
-            />
-            <SlotEditorPanel
-              title={t('admin.ads.reservedPanel.title', '예약 광고 세팅')}
-              description={t('admin.ads.reservedPanel.desc', '다음 노출 순서를 미리 준비하는 예약 광고 설정')}
-              slot={selectedSlot}
-              variant="reserved"
-              uploading={uploadingKey === `${selectedSlot.slotKey}:reservedImageUrl`}
-              saving={savingKey === `${selectedSlot.slotKey}:reserved`}
-              readOnly={usingFallback}
-              onSlotChange={(patch) => updateSlot(selectedSlot.slotKey, patch)}
-              onConfigChange={(patch) => updateConfig(selectedSlot.slotKey, patch)}
-              onUpload={(file) => void uploadAsset(selectedSlot.slotKey, file, 'reservedImageUrl')}
-              onSave={() => void saveSlot(selectedSlot, 'reserved')}
-            />
-            <div style={{ display: 'grid', gap: 12 }}>
-              <SlotPreview slot={selectedSlot} />
-              <div className="card exploreDenseCard" style={{ padding: 14 }}>
-                <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 8 }}>
-                  <div>
-                    <h3 className="panelTitle" style={{ marginBottom: 6 }}>선택 슬롯 요약</h3>
-                    <p className="pageDesc" style={{ margin: 0 }}>현재 선택한 slot의 filtered-period 성과 요약이야.</p>
-                  </div>
+          {selectedSlot ? (
+            <div className="card exploreDenseCard exploreSheetCard" id="ads-quick-setup">
+              <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
+                <div>
+                  <h2 className="panelTitle" style={{ marginBottom: 6 }}>세팅 시트 · {selectedSlot.config.slotLabel || selectedSlot.slotKey}</h2>
+                  <p className="pageDesc" style={{ marginBottom: 6 }}>큰 편집 카드 대신, 필요한 값만 한 줄씩 바로 고치는 운영 시트로 바꿨어.</p>
                 </div>
                 <div className="metaRow" style={{ marginTop: 0 }}>
-                  <div className="metaPill">live {workspace?.liveCampaign?.title || '-'}</div>
-                  <div className="metaPill">reserved {workspace?.reservedCampaign?.title || '-'}</div>
-                </div>
-                <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span>Impressions</span><strong>{formatNumber(selectedPerformance?.impressions ?? 0)}</strong></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span>Clicks</span><strong>{formatNumber(selectedPerformance?.clicks ?? 0)}</strong></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span>CTR</span><strong>{formatPercent(selectedPerformance?.ctr ?? 0)}</strong></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span>Last impression</span><strong>{formatDate(selectedPerformance?.lastImpressionAt ?? null)}</strong></div>
+                  <div className="metaPill">{selectedPerformance ? runtimeStateLabel(selectedPerformance.effectiveRuntimeState) : 'loading'}</div>
+                  <div className="metaPill">imp {formatNumber(selectedPerformance?.impressions ?? 0)}</div>
+                  <div className="metaPill">click {formatNumber(selectedPerformance?.clicks ?? 0)}</div>
+                  <div className="metaPill">ctr {formatPercent(selectedPerformance?.ctr ?? 0)}</div>
+                  <div className="metaPill">{selectedPerformance ? reviewFlagLabel(selectedPerformance.reviewFlag) : '-'}</div>
                 </div>
               </div>
-            </div>
-          </div>
 
-        </div>
-      ) : (
-        <div className="emptyState">선택된 slot이 없어.</div>
-      )) : null}
+              <div className="exploreSheetFilterGrid compactFilterGrid adsSetupMetaGrid" style={{ marginBottom: 10 }}>
+                <label className="field compactInlineField" style={{ margin: 0 }}>
+                  <div className="exploreSheetFieldLabel">상태</div>
+                  <select className="textInput exploreSheetInput compactInlineSelect" value={selectedSlot.status} disabled={usingFallback} onChange={(e) => updateSlot(selectedSlot.slotKey, { status: e.target.value })}>
+                    <option value="active">active</option>
+                    <option value="inactive">inactive</option>
+                  </select>
+                </label>
+                <label className="field compactInlineField" style={{ margin: 0 }}>
+                  <div className="exploreSheetFieldLabel">슬롯명</div>
+                  <input className="textInput exploreSheetInput compactInlineInput" value={selectedSlot.config.slotLabel ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { slotLabel: e.target.value })} />
+                </label>
+                <label className="field compactInlineField" style={{ margin: 0 }}>
+                  <div className="exploreSheetFieldLabel">설명</div>
+                  <input className="textInput exploreSheetInput compactInlineInput" value={selectedSlot.config.slotDescription ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { slotDescription: e.target.value })} />
+                </label>
+                <label className="field compactInlineField" style={{ margin: 0 }}>
+                  <div className="exploreSheetFieldLabel">메모</div>
+                  <input className="textInput exploreSheetInput compactInlineInput" value={selectedSlot.config.placementNote ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { placementNote: e.target.value })} />
+                </label>
+              </div>
+
+              <div className="metaRow" style={{ marginTop: 0, marginBottom: 10 }}>
+                <div className="metaPill">{selectedSlot.slotKey}</div>
+                <div className="metaPill">{selectedSlot.placementType}</div>
+                <div className="metaPill">screen {selectedSlot.config.screen}</div>
+                <div className="metaPill">position {selectedSlot.config.position}</div>
+                <div className="metaPill">last impression {formatDate(selectedPerformance?.lastImpressionAt ?? null)}</div>
+              </div>
+
+              <div className="exploreSheetViewport adsSetupSheetViewport">
+                <table className="exploreSimpleSheet adsSetupSheet">
+                  <thead>
+                    <tr>
+                      <th>구분</th>
+                      <th>제목</th>
+                      <th>문구</th>
+                      <th>CTA</th>
+                      <th>링크</th>
+                      <th>시작</th>
+                      <th>종료</th>
+                      <th>배너</th>
+                      <th>업로드</th>
+                      <th>저장</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>live</strong></td>
+                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={selectedSlot.config.title} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { title: e.target.value })} /></td>
+                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={selectedSlot.config.message} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { message: e.target.value })} /></td>
+                      <td><input className="textInput exploreSheetInput" style={{ minWidth: 110, width: 110 }} value={selectedSlot.config.ctaLabel ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { ctaLabel: e.target.value || null })} /></td>
+                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={selectedSlot.config.targetUrl ?? ''} disabled={usingFallback} placeholder="https://..." onChange={(e) => updateConfig(selectedSlot.slotKey, { targetUrl: e.target.value || null })} /></td>
+                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={selectedSlot.config.exposureStartAt ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { exposureStartAt: e.target.value || null })} /></td>
+                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={selectedSlot.config.exposureEndAt ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { exposureEndAt: e.target.value || null })} /></td>
+                      <td>
+                        {selectedSlot.config.imageUrl ? (
+                          <a href={selectedSlot.config.imageUrl} target="_blank" rel="noreferrer" className="exploreMiniThumbLink">
+                            <img src={selectedSlot.config.imageUrl} alt={`${selectedSlot.slotKey} live`} className="exploreMiniThumb adsSetupMiniThumb" />
+                          </a>
+                        ) : (
+                          <span className="adsSetupCellSub">없음</span>
+                        )}
+                      </td>
+                      <td>
+                        <label className={`ghostBtn ghostBtnSmall adsUploadBtn${usingFallback ? ' disabled' : ''}`}>
+                          {uploadingKey === `${selectedSlot.slotKey}:imageUrl` ? '업로드중' : '파일'}
+                          <input
+                            type="file"
+                            accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
+                            className="hiddenInput"
+                            disabled={usingFallback}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) void uploadAsset(selectedSlot.slotKey, file, 'imageUrl')
+                            }}
+                          />
+                        </label>
+                      </td>
+                      <td>
+                        <button className="primaryBtn ghostBtnSmall adsSetupSaveBtn" type="button" disabled={savingKey === `${selectedSlot.slotKey}:live` || usingFallback} onClick={() => void saveSlot(selectedSlot, 'live')}>
+                          {savingKey === `${selectedSlot.slotKey}:live` ? '저장중' : '저장'}
+                        </button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><strong>reserved</strong></td>
+                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={selectedSlot.config.reservedTitle ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { reservedTitle: e.target.value })} /></td>
+                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={selectedSlot.config.reservedMessage ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { reservedMessage: e.target.value })} /></td>
+                      <td><input className="textInput exploreSheetInput" style={{ minWidth: 110, width: 110 }} value={selectedSlot.config.reservedCtaLabel ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { reservedCtaLabel: e.target.value || null })} /></td>
+                      <td><input className="textInput exploreSheetInput exploreSpreadsheetInput" value={selectedSlot.config.reservedTargetUrl ?? ''} disabled={usingFallback} placeholder="https://..." onChange={(e) => updateConfig(selectedSlot.slotKey, { reservedTargetUrl: e.target.value || null })} /></td>
+                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={selectedSlot.config.reservationStartAt ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { reservationStartAt: e.target.value || null })} /></td>
+                      <td><input type="datetime-local" className="textInput exploreSheetInput" style={{ minWidth: 176, width: 176 }} value={selectedSlot.config.reservationEndAt ?? ''} disabled={usingFallback} onChange={(e) => updateConfig(selectedSlot.slotKey, { reservationEndAt: e.target.value || null })} /></td>
+                      <td>
+                        {selectedSlot.config.reservedImageUrl ? (
+                          <a href={selectedSlot.config.reservedImageUrl} target="_blank" rel="noreferrer" className="exploreMiniThumbLink">
+                            <img src={selectedSlot.config.reservedImageUrl} alt={`${selectedSlot.slotKey} reserved`} className="exploreMiniThumb adsSetupMiniThumb" />
+                          </a>
+                        ) : (
+                          <span className="adsSetupCellSub">없음</span>
+                        )}
+                      </td>
+                      <td>
+                        <label className={`ghostBtn ghostBtnSmall adsUploadBtn${usingFallback ? ' disabled' : ''}`}>
+                          {uploadingKey === `${selectedSlot.slotKey}:reservedImageUrl` ? '업로드중' : '파일'}
+                          <input
+                            type="file"
+                            accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"
+                            className="hiddenInput"
+                            disabled={usingFallback}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) void uploadAsset(selectedSlot.slotKey, file, 'reservedImageUrl')
+                            }}
+                          />
+                        </label>
+                      </td>
+                      <td>
+                        <button className="primaryBtn ghostBtnSmall adsSetupSaveBtn" type="button" disabled={savingKey === `${selectedSlot.slotKey}:reserved` || usingFallback} onClick={() => void saveSlot(selectedSlot, 'reserved')}>
+                          {savingKey === `${selectedSlot.slotKey}:reserved` ? '저장중' : '저장'}
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="emptyState">선택된 slot이 없어.</div>
+          )}
+        </>
+      ) : null}
 
       {view === 'efficiency' ? (
       <div className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 16, marginBottom: 24 }}>

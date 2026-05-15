@@ -145,6 +145,21 @@ a { color: inherit; text-decoration: none; }
 .compactInlineInput { min-width: 0; }
 .compactToggleCard { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 10px; border: 1px solid #d0d5dd; border-radius: 10px; background: #fff; font-size: 12px; font-weight: 700; color: #344054; }
 .compactFilterActionCell { display: flex; align-items: flex-end; justify-content: flex-end; }
+.exploreSheetFilterGrid.adsCompactFilterGrid { display: grid; grid-template-columns: minmax(220px, 1.7fr) repeat(2, minmax(130px, 0.8fr)) minmax(150px, 0.9fr) minmax(260px, 1.4fr) minmax(220px, 1.2fr) auto; }
+.adsCompactFilterGridInline .compactInlineField { grid-template-columns: 64px minmax(0, 1fr); align-items: center; }
+.adsCompactDateField { grid-template-columns: 48px minmax(0, 1fr) !important; }
+.adsCompactDateRange { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; align-items: center; }
+.adsCompactDateDivider { font-size: 12px; font-weight: 700; color: #667085; }
+.adsSetupPickerTable { min-width: 980px; }
+.adsSetupCellStack { display: grid; gap: 2px; min-width: 0; }
+.adsSetupCellSub { font-size: 10px; color: #667085; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.exploreSheetFilterGrid.adsSetupMetaGrid { display: grid; grid-template-columns: 140px minmax(220px, 1fr) minmax(260px, 1.2fr) minmax(220px, 1fr); }
+.adsSetupSheetViewport { margin-top: 4px; }
+.adsSetupSheet { width: 1640px; min-width: 1640px; }
+.adsSetupMiniThumb { width: 28px; height: 28px; border-radius: 4px; }
+.adsUploadBtn { position: relative; overflow: hidden; cursor: pointer; }
+.adsUploadBtn.disabled { cursor: not-allowed; opacity: 0.5; }
+.adsSetupSaveBtn { min-width: 56px; }
 .exploreActionBar { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 8px; }
 .exploreActionBarSingle { grid-template-columns: minmax(0, 1fr); }
 .exploreActionSplit { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }

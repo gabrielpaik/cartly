@@ -511,8 +511,8 @@ Right sheet:
 Current direction update:
 - Ads should move toward inventory-table and campaign-history grammar, not repeated large per-slot form blocks
 - slot inventory, live/reserved state, and recent campaign history should be scannable before deep editing
-- the next concrete Ads shape is now table first plus one selected-slot editor, instead of rendering every slot as a full live/reserved editor stack at once
-- live and reserved editing can stay side-by-side inside the selected slot sheet, but selection should happen from the inventory table above
+- the next concrete Ads shape is now table first plus one selected-slot editing sheet, instead of rendering every slot as a full live/reserved editor stack at once
+- live and reserved editing should behave like a horizontal operator sheet with one row per variant, while slot selection happens from a compact inventory table above
 - after Push reaches a stable operator pattern, Ads should inherit the same Growth grammar
 - the next veteran-level concern is confidence, not just layout: the operator must be able to answer "what is live now, where does it show, how is it performing, and what should I stop or increase"
 - Ads should evolve into a placement-and-performance console with three first-class views: exposure map, selected slot editing, and slot/creative performance summaries
@@ -520,7 +520,7 @@ Current direction update:
 
 ### Ads P0 target shape
 - top exposure inventory with live creative, reserved creative, slot, surface, position, status, updatedAt, and filtered-period metrics
-- selected-slot workspace with live/reserved preview, schedule controls, save/publish actions, and recent campaign history
+- setup page should open as a compact slot picker plus one horizontally scrollable selected-slot editing sheet, with live / reserved rows and immediate save/upload controls rather than oversized form cards
 - lower efficiency zone with slot-level and creative-level summaries plus low-signal / no-signal review rows
 - 2026-05-15 follow-up simplification: the explicit three-step operator flow remains, but it now lives as separate Ads routes under the main sidebar with short sublabels `현황 / 세팅 / 효율` instead of anchor jumps or a nested in-page rail, and the page body itself no longer wastes width on duplicate navigation
 

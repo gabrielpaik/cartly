@@ -84,6 +84,7 @@ SavedCart _cloneReceiptSavedCart(SavedCart source) {
     id: source.id,
     title: source.title,
     createdAt: source.createdAt,
+    updatedAt: source.updatedAt,
     items: source.items
         .map(
           (item) => SavedCartItem(
@@ -429,6 +430,7 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
         id: widget.cart.id,
         title: widget.cart.title,
         createdAt: widget.cart.createdAt,
+        updatedAt: DateTime.now(),
         items: nextItems,
         expiresAt: widget.cart.expiresAt,
         isExpired: widget.cart.isExpired,

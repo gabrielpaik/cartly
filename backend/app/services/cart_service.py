@@ -379,20 +379,22 @@ def extend_cart_retention(db: OrmSession, cart: Cart, *, days: int = GUEST_CART_
 
 
 def update_cart(db: OrmSession, cart: Cart, payload: dict) -> Cart:
-    next_payload = {
-        'title': payload.get('title', cart.title),
-        'items': payload.get('items') if payload.get('items') is not None else [
-            {
-                'scanResultId': item.scan_job_id,
-                'name': item.name,
-                'originalName': item.original_name,
-                'price': item.price,
-                'quantity': item.quantity,
-            }
-            for item in cart.items
-        ],
-    }
-    return _create_snapshot(db, cart.user_id or '', next_payload, source_cart_id=cart.id)
+    cart.title = (payload.get('title') or cart.title or '').strip() or None
+    next_items = payload.get('items') if payload.get('items') is not None else [
+        {
+            'scanResultId': item.scan_job_id,
+            'name': item.name,
+            'originalName': item.original_name,
+            'price': item.price,
+            'quantity': item.quantity,
+        }
+        for item in cart.items
+    ]
+    _apply_cart_items(cart, next_items)
+    db.add(cart)
+    db.commit()
+    db.refresh(cart)
+    return db.scalar(select(Cart).options(selectinload(Cart.items)).where(Cart.id == cart.id)) or cart
 
 
 def delete_cart(db: OrmSession, cart: Cart) -> None:

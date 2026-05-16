@@ -1407,7 +1407,11 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
         .toSet();
     final Map<String, _RepeatAccumulator> map = {};
 
-    for (final cart in carts) {
+    final repeatSourceCarts = carts
+        .where((cart) => cart.isPurchaseCompleted())
+        .toList(growable: false);
+
+    for (final cart in repeatSourceCarts) {
       final seenInCart = <String>{};
       for (final item in cart.items) {
         final key = _normalize(item.name);

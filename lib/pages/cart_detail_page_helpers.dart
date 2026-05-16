@@ -9,6 +9,7 @@ SavedCart cloneSavedCartSnapshot(SavedCart source) {
     id: source.id,
     title: source.title,
     createdAt: source.createdAt,
+    updatedAt: source.updatedAt,
     expiresAt: source.expiresAt,
     isExpired: source.isExpired,
     retentionExtensionCount: source.retentionExtensionCount,

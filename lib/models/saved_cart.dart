@@ -79,6 +79,7 @@ class SavedCart {
   String id; // unique
   String? title;
   DateTime createdAt;
+  DateTime updatedAt;
   List<SavedCartItem> items;
   DateTime? expiresAt;
   bool isExpired;
@@ -90,21 +91,32 @@ class SavedCart {
     required this.id,
     this.title,
     required this.createdAt,
+    DateTime? updatedAt,
     required this.items,
     this.expiresAt,
     this.isExpired = false,
     this.retentionExtensionCount = 0,
     this.canExtendRetention = false,
     this.receiptStatus,
-  });
+  }) : updatedAt = updatedAt ?? createdAt;
 
   int get totalPrice => items.fold(0, (sum, it) => sum + it.total);
   int get totalCount => items.fold(0, (sum, it) => sum + it.quantity);
+  DateTime get lastTouchedAt => updatedAt;
+
+  bool isPurchaseCompleted({DateTime? now}) {
+    if (receiptStatus?.isReady == true) {
+      return true;
+    }
+    final cutoff = (now ?? DateTime.now()).subtract(const Duration(days: 2));
+    return !lastTouchedAt.isAfter(cutoff);
+  }
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'title': title,
     'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
     'expiresAt': expiresAt?.toIso8601String(),
     'isExpired': isExpired,
     'retentionExtensionCount': retentionExtensionCount,
@@ -117,6 +129,9 @@ class SavedCart {
     id: json['id'] as String,
     title: json['title'] as String?,
     createdAt: DateTime.parse(json['createdAt'] as String),
+    updatedAt: json['updatedAt'] != null
+        ? DateTime.tryParse(json['updatedAt'] as String)
+        : null,
     expiresAt: json['expiresAt'] != null
         ? DateTime.tryParse(json['expiresAt'] as String)
         : null,

@@ -88,10 +88,12 @@ class CartStore {
     required List<SavedCartItem> items,
     String? title,
   }) async {
+    final now = DateTime.now();
     final localCart = SavedCart(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       title: title,
-      createdAt: DateTime.now(),
+      createdAt: now,
+      updatedAt: now,
       items: items,
     );
 
@@ -169,6 +171,7 @@ class CartStore {
       id: updated.id,
       title: updated.title,
       createdAt: updated.createdAt,
+      updatedAt: DateTime.now(),
       items: updated.items,
       expiresAt: updated.expiresAt,
       isExpired: updated.isExpired,

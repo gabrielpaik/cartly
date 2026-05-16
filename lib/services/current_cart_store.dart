@@ -9,8 +9,13 @@ import 'auth_store.dart';
 class CurrentCartSnapshot {
   final List<CartItem> items;
   final List<RecentScanEntry> recentScans;
+  final List<ConsideredProductEntry> consideredItems;
 
-  const CurrentCartSnapshot({required this.items, required this.recentScans});
+  const CurrentCartSnapshot({
+    required this.items,
+    required this.recentScans,
+    required this.consideredItems,
+  });
 }
 
 class CurrentCartStore {
@@ -30,10 +35,18 @@ class CurrentCartStore {
     final currentOwnerId = _currentOwnerId;
 
     if (raw == null || raw.trim().isEmpty) {
-      return const CurrentCartSnapshot(items: [], recentScans: []);
+      return const CurrentCartSnapshot(
+        items: [],
+        recentScans: [],
+        consideredItems: [],
+      );
     }
     if (storedOwnerId != currentOwnerId) {
-      return const CurrentCartSnapshot(items: [], recentScans: []);
+      return const CurrentCartSnapshot(
+        items: [],
+        recentScans: [],
+        consideredItems: [],
+      );
     }
 
     try {
@@ -43,6 +56,7 @@ class CurrentCartStore {
           : <String, dynamic>{};
       final itemsRaw = map['items'];
       final recentRaw = map['recentScans'];
+      final consideredRaw = map['consideredItems'];
       final items = itemsRaw is List
           ? itemsRaw
                 .whereType<Map>()
@@ -61,20 +75,42 @@ class CurrentCartStore {
                 )
                 .toList(growable: false)
           : const <RecentScanEntry>[];
-      return CurrentCartSnapshot(items: items, recentScans: recentScans);
+      final consideredItems = consideredRaw is List
+          ? consideredRaw
+                .whereType<Map>()
+                .map(
+                  (entry) => _consideredItemFromJson(
+                    Map<String, dynamic>.from(entry),
+                  ),
+                )
+                .toList(growable: false)
+          : const <ConsideredProductEntry>[];
+      return CurrentCartSnapshot(
+        items: items,
+        recentScans: recentScans,
+        consideredItems: consideredItems,
+      );
     } catch (_) {
-      return const CurrentCartSnapshot(items: [], recentScans: []);
+      return const CurrentCartSnapshot(
+        items: [],
+        recentScans: [],
+        consideredItems: [],
+      );
     }
   }
 
   Future<void> save({
     required List<CartItem> items,
     required List<RecentScanEntry> recentScans,
+    required List<ConsideredProductEntry> consideredItems,
   }) async {
     final sp = await SharedPreferences.getInstance();
     final payload = {
       'items': items.map(_cartItemToJson).toList(growable: false),
       'recentScans': recentScans.map(_recentScanToJson).toList(growable: false),
+      'consideredItems': consideredItems
+          .map(_consideredItemToJson)
+          .toList(growable: false),
     };
     await sp.setString(_ownerKey, _currentOwnerId);
     await sp.setString(_snapshotKey, jsonEncode(payload));
@@ -137,6 +173,28 @@ class CurrentCartStore {
         originalRecognizedName:
             (itemMap['originalRecognizedName'] ?? itemMap['name']) as String?,
       ),
+    );
+  }
+
+  Map<String, dynamic> _consideredItemToJson(ConsideredProductEntry entry) => {
+    'id': entry.id,
+    'name': entry.name,
+    'price': entry.price,
+    'source': entry.source,
+    'createdAt': entry.createdAt.toIso8601String(),
+    'originalRecognizedName': entry.originalRecognizedName,
+  };
+
+  ConsideredProductEntry _consideredItemFromJson(Map<String, dynamic> json) {
+    return ConsideredProductEntry(
+      id: (json['id'] ?? '') as String,
+      name: (json['name'] ?? '') as String,
+      price: (json['price'] ?? 0) as int,
+      source: (json['source'] ?? 'scanNotAdded') as String,
+      createdAt:
+          DateTime.tryParse((json['createdAt'] ?? '') as String) ??
+          DateTime.now(),
+      originalRecognizedName: json['originalRecognizedName'] as String?,
     );
   }
 }

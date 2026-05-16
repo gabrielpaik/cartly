@@ -31,6 +31,7 @@ const String _exploreStateStoreContext = 'storeContext';
 class ShoppingHelpPage extends StatefulWidget {
   final List<CartItem> items;
   final List<RecentScanEntry> recentScans;
+  final List<ConsideredProductEntry> consideredItems;
   final VoidCallback onGoHome;
   final VoidCallback onGoSaved;
 
@@ -38,6 +39,7 @@ class ShoppingHelpPage extends StatefulWidget {
     super.key,
     required this.items,
     required this.recentScans,
+    this.consideredItems = const [],
     required this.onGoHome,
     required this.onGoSaved,
   });
@@ -1220,6 +1222,12 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
       'revisitRecentScanLimit',
       3,
     );
+    final consideredItemLimit = _stateRuleInt(
+      exploreConfig,
+      state,
+      'revisitConsideredItemLimit',
+      3,
+    );
     final cartItemLimit = _stateRuleInt(
       exploreConfig,
       state,
@@ -1245,7 +1253,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
               : _decisionCopyText(
                   exploreConfig,
                   'recentScanPendingBody',
-                  '방금 스캔했지만 아직 카트에 담지 않았어요. 지금 확인해 두시면 놓치지 않아요.',
+                  '스캔은 끝났지만 아직 카트에 담지 않았어요. 고민 중인 상품이라면 대체안도 같이 확인해보세요.',
                 ),
           badge: inCart ? '재확인' : '미결정',
           reasonLabel: inCart
@@ -1257,7 +1265,47 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
               : _decisionCopyText(
                   exploreConfig,
                   'recentScanPendingReasonLabel',
-                  '아직 담기 전이에요',
+                  '스캔만 해둔 상품이에요',
+                ),
+        ),
+      );
+    }
+
+    for (final entry in widget.consideredItems.take(consideredItemLimit)) {
+      final normalizedName = _normalize(entry.name);
+      if (currentNames.contains(normalizedName)) {
+        continue;
+      }
+      final isRemovedFromCart = entry.source == 'removedFromCart';
+      results.add(
+        _RevisitItem(
+          decisionKey: isRemovedFromCart
+              ? 'removedCartCandidate'
+              : 'scanNotAddedCandidate',
+          name: entry.name,
+          price: entry.price,
+          reason: isRemovedFromCart
+              ? _decisionCopyText(
+                  exploreConfig,
+                  'removedCartCandidateBody',
+                  '한번 담았다가 다시 뺀 상품이에요. 아직 고민 중이라면 비슷한 대체안도 같이 볼 수 있어요.',
+                )
+              : _decisionCopyText(
+                  exploreConfig,
+                  'scanNotAddedCandidateBody',
+                  '스캔까지는 했지만 담지 않은 상품이에요. 망설였던 후보라면 대체안 비교가 도움이 될 수 있어요.',
+                ),
+          badge: isRemovedFromCart ? '보류' : '미결정',
+          reasonLabel: isRemovedFromCart
+              ? _decisionCopyText(
+                  exploreConfig,
+                  'removedCartCandidateReasonLabel',
+                  '담았다가 다시 뺐어요',
+                )
+              : _decisionCopyText(
+                  exploreConfig,
+                  'scanNotAddedCandidateReasonLabel',
+                  '스캔만 하고 넘겼어요',
                 ),
         ),
       );

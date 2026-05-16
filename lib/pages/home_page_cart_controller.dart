@@ -6,12 +6,14 @@ import '../models/recognized_item.dart';
 class HomePageCartController {
   final List<CartItem> items;
   final List<RecentScanEntry> recentScans;
+  final List<ConsideredProductEntry> consideredItems;
   final void Function(VoidCallback fn) _setState;
   final VoidCallback? _onStateChanged;
 
   HomePageCartController({
     required this.items,
     required this.recentScans,
+    required this.consideredItems,
     required void Function(VoidCallback fn) setState,
     VoidCallback? onStateChanged,
   }) : _setState = setState,
@@ -32,6 +34,7 @@ class HomePageCartController {
               : item.name.trim(),
         ),
       );
+      _clearConsideredMatches(item.originalRecognizedName ?? item.name);
       _removeRecentScanEntry(item, recentScanEntryId: recentScanEntryId);
     });
     _onStateChanged?.call();
@@ -44,6 +47,7 @@ class HomePageCartController {
   }) {
     _setState(() {
       existing.quantity++;
+      _clearConsideredMatches(item.originalRecognizedName ?? item.name);
       _removeRecentScanEntry(item, recentScanEntryId: recentScanEntryId);
     });
     _onStateChanged?.call();
@@ -66,6 +70,12 @@ class HomePageCartController {
 
   void dismissRecentScan(RecentScanEntry entry) {
     _setState(() {
+      _rememberConsideredProduct(
+        name: entry.item.originalRecognizedName ?? entry.item.name,
+        price: entry.item.price,
+        source: 'scanNotAdded',
+        originalRecognizedName: entry.item.originalRecognizedName,
+      );
       recentScans.removeWhere((item) => item.id == entry.id);
     });
     _onStateChanged?.call();
@@ -73,9 +83,16 @@ class HomePageCartController {
 
   void dismissRecognizedItem(RecognizedItem item) {
     final entryId = _recentScanEntryIdForItem(item);
-    if (entryId == null) return;
     _setState(() {
-      recentScans.removeWhere((entry) => entry.id == entryId);
+      _rememberConsideredProduct(
+        name: item.originalRecognizedName ?? item.name,
+        price: item.price,
+        source: 'scanNotAdded',
+        originalRecognizedName: item.originalRecognizedName,
+      );
+      if (entryId != null) {
+        recentScans.removeWhere((entry) => entry.id == entryId);
+      }
     });
     _onStateChanged?.call();
   }
@@ -86,6 +103,12 @@ class HomePageCartController {
 
   void removeCartItem(CartItem item) {
     _setState(() {
+      _rememberConsideredProduct(
+        name: item.originalRecognizedName ?? item.name,
+        price: item.price,
+        source: 'removedFromCart',
+        originalRecognizedName: item.originalRecognizedName,
+      );
       items.remove(item);
     });
     _onStateChanged?.call();
@@ -123,6 +146,44 @@ class HomePageCartController {
     if (resolvedEntryId != null) {
       recentScans.removeWhere((entry) => entry.id == resolvedEntryId);
     }
+  }
+
+  void _rememberConsideredProduct({
+    required String name,
+    required int price,
+    required String source,
+    String? originalRecognizedName,
+  }) {
+    final normalizedName = _normalizeItemName(originalRecognizedName ?? name);
+    consideredItems.removeWhere(
+      (entry) =>
+          entry.source == source &&
+          _normalizeItemName(entry.originalRecognizedName ?? entry.name) ==
+              normalizedName,
+    );
+    consideredItems.insert(
+      0,
+      ConsideredProductEntry(
+        id: '${DateTime.now().microsecondsSinceEpoch}',
+        name: name,
+        price: price,
+        source: source,
+        createdAt: DateTime.now(),
+        originalRecognizedName: originalRecognizedName,
+      ),
+    );
+    if (consideredItems.length > 24) {
+      consideredItems.removeRange(24, consideredItems.length);
+    }
+  }
+
+  void _clearConsideredMatches(String name) {
+    final normalizedName = _normalizeItemName(name);
+    consideredItems.removeWhere(
+      (entry) =>
+          _normalizeItemName(entry.originalRecognizedName ?? entry.name) ==
+          normalizedName,
+    );
   }
 
   String? _recentScanEntryIdForItem(RecognizedItem item) {

@@ -39,6 +39,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final List<CartItem> items = [];
   final List<RecentScanEntry> recentScans = [];
+  final List<ConsideredProductEntry> consideredItems = [];
   int _tabIndex = 0;
   bool _savingCurrentCart = false;
   bool _showHomeDot = false;
@@ -58,6 +59,7 @@ class _HomePageState extends State<HomePage> {
   late final HomePageCartController _cartController = HomePageCartController(
     items: items,
     recentScans: recentScans,
+    consideredItems: consideredItems,
     setState: setState,
     onStateChanged: _persistCurrentCartState,
   );
@@ -110,6 +112,9 @@ class _HomePageState extends State<HomePage> {
       recentScans
         ..clear()
         ..addAll(snapshot.recentScans);
+      consideredItems
+        ..clear()
+        ..addAll(snapshot.consideredItems);
       _loadedCurrentCartOwnerId = ownerId;
     });
     _refreshShoppingNudge();
@@ -117,7 +122,11 @@ class _HomePageState extends State<HomePage> {
 
   void _persistCurrentCartState() {
     unawaited(
-      CurrentCartStore.instance.save(items: items, recentScans: recentScans),
+      CurrentCartStore.instance.save(
+        items: items,
+        recentScans: recentScans,
+        consideredItems: consideredItems,
+      ),
     );
   }
 
@@ -536,6 +545,7 @@ class _HomePageState extends State<HomePage> {
         ShoppingHelpPage(
           items: items,
           recentScans: recentScans,
+          consideredItems: consideredItems,
           onGoHome: () => _selectTab(0),
           onGoSaved: _openSavedCartsList,
         ),

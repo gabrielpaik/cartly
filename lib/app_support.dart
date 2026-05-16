@@ -35,3 +35,21 @@ class RecentScanEntry {
     required this.createdAt,
   });
 }
+
+class ConsideredProductEntry {
+  final String id;
+  final String name;
+  final int price;
+  final String source;
+  final DateTime createdAt;
+  final String? originalRecognizedName;
+
+  const ConsideredProductEntry({
+    required this.id,
+    required this.name,
+    required this.price,
+    required this.source,
+    required this.createdAt,
+    this.originalRecognizedName,
+  });
+}

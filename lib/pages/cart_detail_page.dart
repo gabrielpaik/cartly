@@ -255,6 +255,9 @@ class _CartDetailPageState extends State<CartDetailPage> {
       setState(() {
         _cart = cloneSavedCartSnapshot(result);
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('영수증 기준으로 카트를 반영했어요')),
+      );
       return;
     }
 

@@ -15,6 +15,7 @@ import '../models/receipt_compare.dart';
 import '../models/saved_cart.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
+import '../services/cart_store.dart';
 import '../services/remote_receipt_repository.dart';
 import '../widgets/cartly_badge.dart';
 import '../widgets/cartly_info_card.dart';
@@ -99,6 +100,7 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
   String? _errorMessage;
   String? _capturedImagePath;
   String _progressMessage = '영수증을 올리는 중';
+  bool _isApplyingReceipt = false;
 
   @override
   void initState() {
@@ -289,6 +291,98 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
     }
   }
 
+  List<SavedCartItem> _buildReceiptCartItems(_ReceiptSimpleViewData data) {
+    final items = <SavedCartItem>[];
+
+    for (final entry in data.purchasedEntries) {
+      final item = entry.item;
+      final label = item.rawName.trim().isNotEmpty
+          ? item.rawName.trim()
+          : item.normalizedName.trim().isNotEmpty
+          ? item.normalizedName.trim()
+          : '영수증 상품';
+      final quantity = (item.quantity ?? 1) > 0 ? (item.quantity ?? 1) : 1;
+      final linkedDiscountAmount = entry.linkedAdjustments.fold<int>(
+        0,
+        (sum, adjustment) => sum + (adjustment.finalAmount ?? adjustment.lineAmount),
+      );
+      final lineTotal = (item.finalAmount ?? item.lineAmount) + linkedDiscountAmount;
+      if (lineTotal <= 0) {
+        continue;
+      }
+
+      if (lineTotal % quantity == 0) {
+        items.add(
+          SavedCartItem(
+            name: label,
+            originalName: label,
+            price: lineTotal ~/ quantity,
+            quantity: quantity,
+            source: 'receipt',
+          ),
+        );
+        continue;
+      }
+
+      final basePrice = lineTotal ~/ quantity;
+      final remainder = lineTotal % quantity;
+      for (var i = 0; i < quantity; i += 1) {
+        items.add(
+          SavedCartItem(
+            name: label,
+            originalName: label,
+            price: basePrice + (i < remainder ? 1 : 0),
+            quantity: 1,
+            source: 'receipt',
+          ),
+        );
+      }
+    }
+
+    return items;
+  }
+
+  Future<void> _applyReceiptToCart(_ReceiptSimpleViewData data) async {
+    if (_isApplyingReceipt || data.purchasedEntries.isEmpty) {
+      return;
+    }
+
+    final nextItems = _buildReceiptCartItems(data);
+    if (nextItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('영수증에서 반영할 상품을 찾지 못했어요')),
+      );
+      return;
+    }
+
+    setState(() => _isApplyingReceipt = true);
+    try {
+      final updated = SavedCart(
+        id: widget.cart.id,
+        title: widget.cart.title,
+        createdAt: widget.cart.createdAt,
+        items: nextItems,
+        expiresAt: widget.cart.expiresAt,
+        isExpired: widget.cart.isExpired,
+        retentionExtensionCount: widget.cart.retentionExtensionCount,
+        canExtendRetention: widget.cart.canExtendRetention,
+        receiptStatus: widget.cart.receiptStatus,
+      );
+      final saved = await CartStore.instance.updateCart(updated);
+      if (!mounted) return;
+      Navigator.of(context).pop(saved);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() => _isApplyingReceipt = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final viewData = _result == null
@@ -336,7 +430,11 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
             if (viewData != null) ...[
               _ReceiptSimpleSummaryCard(data: viewData),
               const SizedBox(height: 12),
-              _ReceiptFinalPriceCompareCard(data: viewData),
+              _ReceiptApplyToCartCard(
+                data: viewData,
+                isApplying: _isApplyingReceipt,
+                onApply: () => _applyReceiptToCart(viewData),
+              ),
               const SizedBox(height: 12),
               _ReceiptStoredDetailsCard(data: viewData),
               const SizedBox(height: 16),
@@ -1176,7 +1274,7 @@ class _ReceiptSimpleSummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            '상세내역을 확인하여 비교해보세요',
+            '영수증을 정답으로 보고 저장 카트에 그대로 반영할 수 있어요.',
             style: TextStyle(
               fontSize: 14,
               height: 1.5,
@@ -1586,6 +1684,116 @@ class _ReceiptAmountBox extends StatelessWidget {
   }
 }
 
+class _ReceiptApplyToCartCard extends StatelessWidget {
+  final _ReceiptSimpleViewData data;
+  final bool isApplying;
+  final VoidCallback onApply;
+
+  const _ReceiptApplyToCartCard({
+    required this.data,
+    required this.isApplying,
+    required this.onApply,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasItems = data.purchasedEntries.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: CartlyColors.onBrandPrimary,
+        borderRadius: BorderRadius.circular(CartlyRadii.card),
+        border: Border.all(color: CartlyColors.line, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '영수증 기준으로 카트 반영',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            hasItems
+                ? '지금 보이는 영수증 상품 목록으로 저장 카트를 바꿔요. 기존 카트 내용은 영수증 기준으로 덮어써요.'
+                : '반영할 영수증 상품이 아직 없어요.',
+            style: const TextStyle(
+              fontSize: 13,
+              color: CartlyColors.textSecondary,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: CartlyColors.surface2,
+                    borderRadius: BorderRadius.circular(CartlyRadii.control),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '반영 상품',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: CartlyColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${data.purchasedItemCount}개',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _ReceiptAmountBox(
+                  label: '영수증 총액',
+                  amount: data.actualTotal,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: hasItems && !isApplying ? onApply : null,
+              style: CartlyButtonStyles.primary(),
+              icon: isApplying
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: CartlyColors.onBrandPrimary,
+                      ),
+                    )
+                  : const CartlySymbolIcon.sf('arrow.triangle.branch', size: 18),
+              label: Text(
+                isApplying ? '카트에 반영하는 중' : '영수증대로 카트 바꾸기',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ReceiptStoredDetailsCard extends StatefulWidget {
   final _ReceiptSimpleViewData data;
 
@@ -1614,7 +1822,7 @@ class _ReceiptStoredDetailsCardState extends State<_ReceiptStoredDetailsCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            '상세 내역',
+            '영수증 상세 내역',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
+import '../app/cartly_ui.dart';
 import '../pages/home_page.dart';
 import '../services/app_attention_service.dart';
 import '../services/app_config_store.dart';
@@ -38,7 +39,9 @@ class _CartlyAppState extends State<CartlyApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    AppLocationService.instance.snapshot.addListener(_handleLocationSnapshotChanged);
+    AppLocationService.instance.snapshot.addListener(
+      _handleLocationSnapshotChanged,
+    );
     unawaited(AppConfigStore.instance.load());
     unawaited(AppAttentionService.instance.load());
     unawaited(PushNavigationService.instance.initialize());
@@ -54,7 +57,9 @@ class _CartlyAppState extends State<CartlyApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    AppLocationService.instance.snapshot.removeListener(_handleLocationSnapshotChanged);
+    AppLocationService.instance.snapshot.removeListener(
+      _handleLocationSnapshotChanged,
+    );
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -84,8 +89,37 @@ class _CartlyAppState extends State<CartlyApp> with WidgetsBindingObserver {
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             fontFamily: 'Pretendard',
+            scaffoldBackgroundColor: CartlyColors.surface0,
+            canvasColor: CartlyColors.surface0,
+            cardColor: CartlyColors.surface1,
             colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFFE31837),
+              seedColor: CartlyColors.brand,
+              surface: CartlyColors.surface0,
+            ),
+            navigationBarTheme: NavigationBarThemeData(
+              backgroundColor: CartlyColors.surface0,
+              indicatorColor: Colors.transparent,
+              overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+              labelTextStyle: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: CartlyColors.brand,
+                  );
+                }
+                return const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: CartlyColors.textSecondary,
+                );
+              }),
+              iconTheme: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return const IconThemeData(color: CartlyColors.brand);
+                }
+                return const IconThemeData(color: CartlyColors.textSecondary);
+              }),
             ),
           ),
           home: SplashScreen(next: HomePage(cameras: widget.cameras)),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app/cartly_ui.dart';
 import '../app_support.dart';
 import '../models/saved_cart.dart';
 import '../services/app_runtime_copy.dart';
@@ -42,7 +43,7 @@ class _SaveCompleteBottomSheet extends StatelessWidget {
         margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: CartlyColors.surface1,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(

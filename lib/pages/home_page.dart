@@ -284,9 +284,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> _openLoginPage({bool preferSignup = false}) async {
     if (!mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => LoginPage(preferSignup: preferSignup),
-      ),
+      MaterialPageRoute(builder: (_) => LoginPage(preferSignup: preferSignup)),
     );
   }
 
@@ -582,7 +580,7 @@ class _HomePageState extends State<HomePage> {
                 return const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: CartlyColors.textPrimary,
+                  color: CartlyColors.brand,
                 );
               }
               return const TextStyle(
@@ -645,7 +643,7 @@ class _SavedCartsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: CartlyColors.surface0,
       appBar: AppBar(title: const Text('지난 카트')),
       body: const SafeArea(child: SavedTabView()),
     );

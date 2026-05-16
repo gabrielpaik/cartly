@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app/cartly_ui.dart';
 import '../app_support.dart';
 import '../services/app_runtime_copy.dart';
 
@@ -91,7 +92,7 @@ class _RecentScanInboxRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: CartlyColors.surface1,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(

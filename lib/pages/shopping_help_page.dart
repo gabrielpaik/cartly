@@ -17,6 +17,7 @@ import '../services/explore_intent_normalizer.dart';
 import '../services/explore_offer_service.dart';
 import '../widgets/cartly_action_tile.dart';
 import '../widgets/cartly_badge.dart';
+import '../widgets/cartly_page_header.dart';
 import '../widgets/cartly_surface_card.dart';
 import '../widgets/cartly_symbol_icon.dart';
 import '../widgets/section_header.dart';
@@ -1101,19 +1102,19 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
               children: [
-                Text(
-                  AppRuntimeCopy.text(['help', 'pageTitle'], 'Explore'),
-                  style: CartlyText.pageHero.copyWith(
-                    color: CartlyColors.subBrand,
+                CartlyPageHeader(
+                  title: Text(
+                    AppRuntimeCopy.text(['help', 'pageTitle'], 'Explore'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CartlyText.pageHero.copyWith(
+                      color: CartlyColors.subBrand,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  AppRuntimeCopy.text([
+                  subtitle: AppRuntimeCopy.text([
                     'help',
                     'subtitle',
                   ], '지금 필요한 비교를 한곳에서 이어서 보실 수 있어요'),
-                  style: CartlyText.pageSubtitle,
                 ),
                 const SizedBox(height: CartlySpacing.sectionLoose),
                 ...sectionWidgets,

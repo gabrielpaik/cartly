@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app/cartly_ui.dart';
 import '../services/app_config_store.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
@@ -82,10 +83,9 @@ class _LoginPageState extends State<LoginPage> {
   bool get _isLogin => _mode == AuthMode.login;
   bool get _usesCustomDomain => _selectedEmailDomain == '__custom__';
 
-  String get _emailDomainValue =>
-      _usesCustomDomain
-          ? _emailCustomDomainCtrl.text.trim().toLowerCase()
-          : _selectedEmailDomain;
+  String get _emailDomainValue => _usesCustomDomain
+      ? _emailCustomDomainCtrl.text.trim().toLowerCase()
+      : _selectedEmailDomain;
 
   String get _composedEmail {
     final local = _emailLocalCtrl.text.trim().toLowerCase();
@@ -143,7 +143,9 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _requestCode() async {
     final email = _composedEmail;
     if (email.isEmpty) {
-      _showMessage(_text(['login', 'validation', 'emailRequired'], '이메일을 입력해 주세요'));
+      _showMessage(
+        _text(['login', 'validation', 'emailRequired'], '이메일을 입력해 주세요'),
+      );
       return;
     }
 
@@ -180,11 +182,15 @@ class _LoginPageState extends State<LoginPage> {
     final email = _composedEmail;
     final code = _codeCtrl.text.trim();
     if (email.isEmpty) {
-      _showMessage(_text(['login', 'validation', 'emailRequired'], '이메일을 입력해 주세요'));
+      _showMessage(
+        _text(['login', 'validation', 'emailRequired'], '이메일을 입력해 주세요'),
+      );
       return;
     }
     if (code.isEmpty) {
-      _showMessage(_text(['login', 'validation', 'codeRequired'], '인증 코드를 입력해 주세요'));
+      _showMessage(
+        _text(['login', 'validation', 'codeRequired'], '인증 코드를 입력해 주세요'),
+      );
       return;
     }
 
@@ -193,7 +199,9 @@ class _LoginPageState extends State<LoginPage> {
       await AuthStore.instance.verifySignupCode(email: email, code: code);
       if (!mounted) return;
       setState(() => _signupCodeVerified = true);
-      _showMessage(_text(['login', 'signup', 'codeVerified'], '이메일 인증이 완료되었습니다'));
+      _showMessage(
+        _text(['login', 'signup', 'codeVerified'], '이메일 인증이 완료되었습니다'),
+      );
     } catch (error) {
       if (!mounted) return;
       _showMessage(error.toString());
@@ -205,44 +213,80 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _submit() async {
     final email = _composedEmail;
     if (email.isEmpty) {
-      _showMessage(_text(['login', 'validation', 'emailRequired'], '이메일을 입력해 주세요'));
+      _showMessage(
+        _text(['login', 'validation', 'emailRequired'], '이메일을 입력해 주세요'),
+      );
       return;
     }
 
     if (_isLogin) {
       final password = _passwordCtrl.text.trim();
       if (password.isEmpty) {
-        _showMessage(_text(['login', 'validation', 'emailPasswordRequired'], '이메일과 비밀번호를 입력해 주세요'));
+        _showMessage(
+          _text([
+            'login',
+            'validation',
+            'emailPasswordRequired',
+          ], '이메일과 비밀번호를 입력해 주세요'),
+        );
         return;
       }
     }
 
     if (_isSignup) {
       if (_nameCtrl.text.trim().isEmpty) {
-        _showMessage(_text(['login', 'validation', 'nameRequired'], '이름을 입력해 주세요'));
+        _showMessage(
+          _text(['login', 'validation', 'nameRequired'], '이름을 입력해 주세요'),
+        );
         return;
       }
       if (!_signupCodeVerified) {
-        _showMessage(_text(['login', 'validation', 'signupCodeVerifyRequired'], '이메일 인증을 먼저 완료해 주세요'));
+        _showMessage(
+          _text([
+            'login',
+            'validation',
+            'signupCodeVerifyRequired',
+          ], '이메일 인증을 먼저 완료해 주세요'),
+        );
         return;
       }
       if (_passwordCtrl.text.trim().length < 8) {
-        _showMessage(_text(['login', 'validation', 'passwordTooShort'], '비밀번호는 8자 이상이어야 합니다'));
+        _showMessage(
+          _text([
+            'login',
+            'validation',
+            'passwordTooShort',
+          ], '비밀번호는 8자 이상이어야 합니다'),
+        );
         return;
       }
       if (_passwordCtrl.text.trim() != _passwordConfirmCtrl.text.trim()) {
-        _showMessage(_text(['login', 'validation', 'passwordMismatch'], '비밀번호 확인이 일치하지 않습니다'));
+        _showMessage(
+          _text([
+            'login',
+            'validation',
+            'passwordMismatch',
+          ], '비밀번호 확인이 일치하지 않습니다'),
+        );
         return;
       }
     }
 
     if (_isReset) {
       if (_codeCtrl.text.trim().isEmpty) {
-        _showMessage(_text(['login', 'validation', 'codeRequired'], '인증 코드를 입력해 주세요'));
+        _showMessage(
+          _text(['login', 'validation', 'codeRequired'], '인증 코드를 입력해 주세요'),
+        );
         return;
       }
       if (_passwordCtrl.text.trim().length < 8) {
-        _showMessage(_text(['login', 'validation', 'passwordTooShort'], '비밀번호는 8자 이상이어야 합니다'));
+        _showMessage(
+          _text([
+            'login',
+            'validation',
+            'passwordTooShort',
+          ], '비밀번호는 8자 이상이어야 합니다'),
+        );
         return;
       }
     }
@@ -277,7 +321,9 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       if (_isLogin && error.code == 'INVALID_CREDENTIALS') {
         setState(() => _loginFailedCount += 1);
-        _showMessage(_text(['login', 'invalidPasswordMessage'], '비밀번호를 확인해 주세요'));
+        _showMessage(
+          _text(['login', 'invalidPasswordMessage'], '비밀번호를 확인해 주세요'),
+        );
         if (_loginFailedCount >= 5) {
           await _showForgotPasswordPrompt();
         }
@@ -327,13 +373,10 @@ class _LoginPageState extends State<LoginPage> {
             'reset',
             'subtitle',
           ], '가입한 이메일을 확인한 뒤 새 비밀번호를 설정해 주세요')
-        : _text([
-            'login',
-            'subtitle',
-          ], '저장한 카트와 스캔 기록을 이어서 보시려면 로그인해 주세요');
+        : _text(['login', 'subtitle'], '저장한 카트와 스캔 기록을 이어서 보시려면 로그인해 주세요');
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: CartlyColors.surface0,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
@@ -392,15 +435,15 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 16),
               LoginPageGuestCtaSection(
-                benefitsTitle: _text([
-                  'login',
-                  'benefitsTitle',
-                ], '왜 계정을 만들까'),
+                benefitsTitle: _text(['login', 'benefitsTitle'], '왜 계정을 만들까'),
                 benefitsBody: _text([
                   'login',
                   'benefitsBody',
                 ], '• 저장한 카트 보기\n• 다음 결제 전에 다시 확인\n• 더 저렴한 대안 추천'),
-                guestButtonLabel: _text(['login', 'continueAsGuest'], '게스트로 계속하기'),
+                guestButtonLabel: _text([
+                  'login',
+                  'continueAsGuest',
+                ], '게스트로 계속하기'),
                 onContinueAsGuest: _isSubmitting ? null : _continueAsGuest,
               ),
             ],

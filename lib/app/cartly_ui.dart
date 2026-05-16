@@ -13,8 +13,8 @@ class CartlyColors {
 
   static const contrast = Color(0xFF111111);
 
-  static const surface0 = Color(0xFFFFFFFF);
-  static const surface1 = Color(0xFFFFFFFF);
+  static const surface0 = Color(0xFFFDFCF8);
+  static const surface1 = Color(0xFFFDFCF8);
   static const surface2 = Color(0xFFF1EFE8);
   static const surfaceNeutral = Color(0xFFF5F5F5);
   static const softSurface = surface2;

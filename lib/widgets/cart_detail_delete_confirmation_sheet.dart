@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app/cartly_ui.dart';
 import '../services/app_runtime_copy.dart';
 
 Future<bool?> showCartDetailDeleteConfirmationSheet(BuildContext context) {
@@ -22,7 +23,7 @@ class _CartDetailDeleteConfirmationSheet extends StatelessWidget {
         margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: CartlyColors.surface1,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
@@ -49,10 +50,7 @@ class _CartDetailDeleteConfirmationSheet extends StatelessWidget {
                 'cartDetail',
                 'deleteDialogTitle',
               ], '이 카트를 삭제할까요?'),
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
             Text(
@@ -79,10 +77,7 @@ class _CartDetailDeleteConfirmationSheet extends StatelessWidget {
                     ),
                     onPressed: () => Navigator.pop(context, false),
                     child: Text(
-                      AppRuntimeCopy.text([
-                        'cartDetail',
-                        'deleteCancel',
-                      ], '취소'),
+                      AppRuntimeCopy.text(['cartDetail', 'deleteCancel'], '취소'),
                       style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ),

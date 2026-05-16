@@ -617,7 +617,7 @@ class _MonthlySummaryCardState extends State<_MonthlySummaryCard> {
                   children: [
                     Expanded(
                       child: _InsightMetric(
-                        label: '구매완료',
+                        label: '지난 장보기',
                         value: '${summary.savedCartCount}개',
                       ),
                     ),
@@ -638,7 +638,7 @@ class _MonthlySummaryCardState extends State<_MonthlySummaryCard> {
                 if (summary.topItems.isNotEmpty) ...[
                   const SizedBox(height: 14),
                   Text(
-                    '반복 구매 상품 TOP ${widget.topItemsCount}',
+                    '자주 담은 상품 TOP ${widget.topItemsCount}',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -786,7 +786,7 @@ class _MonthlyTopItemRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${item.cartCount}번 구매 · 총 ${item.quantity}개',
+                  '${item.cartCount}번 담음 · 총 ${item.quantity}개',
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -1041,7 +1041,7 @@ class _MonthlyCategoryItemsSheet extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${item.cartCount}번 구매 · 총 ${item.quantity}개',
+                                '${item.cartCount}번 담음 · 총 ${item.quantity}개',
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,

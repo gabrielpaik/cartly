@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 from typing import Iterable, Optional
 
 GUEST_CART_RETENTION_DAYS = 14
+PURCHASE_COMPLETION_WINDOW = timedelta(days=2)
 
 from openpyxl import Workbook
 from openpyxl.styles import Font
@@ -202,6 +203,21 @@ def _serialize_receipt_status(receipt: Optional[Receipt]) -> Optional[dict]:
     }
 
 
+def _purchase_completion_status(cart: Cart, latest_receipt: Optional[Receipt]) -> tuple[bool, Optional[datetime], Optional[str]]:
+    if latest_receipt is not None and latest_receipt.status == 'ready':
+        completed_at = latest_receipt.updated_at or cart.updated_at or cart.created_at
+        return True, completed_at, 'receipt'
+
+    last_touched_at = cart.updated_at or cart.created_at
+    if last_touched_at is None:
+        return False, None, None
+
+    inferred_completed_at = last_touched_at + PURCHASE_COMPLETION_WINDOW
+    if inferred_completed_at > datetime.utcnow():
+        return False, None, None
+    return True, inferred_completed_at, 'inactive_timeout'
+
+
 def _serialize_cart(
     cart: Cart,
     include_items: bool = True,
@@ -213,6 +229,7 @@ def _serialize_cart(
     is_member_cart = user is not None and not user.is_guest
     expires_at = None if is_member_cart else cart.expires_at
     is_expired = expires_at is not None and expires_at <= datetime.utcnow()
+    purchase_completed, purchase_completed_at, purchase_completion_source = _purchase_completion_status(cart, latest_receipt)
     data = {
         'id': cart.id,
         'userId': cart.user_id,
@@ -230,6 +247,9 @@ def _serialize_cart(
         'retentionExtensionCount': 0 if is_member_cart else int(cart.retention_extension_count or 0),
         'canExtendRetention': False if is_member_cart else expires_at is not None,
         'receiptStatus': _serialize_receipt_status(latest_receipt),
+        'purchaseCompleted': purchase_completed,
+        'purchaseCompletedAt': purchase_completed_at.isoformat() if purchase_completed_at else None,
+        'purchaseCompletionSource': purchase_completion_source,
     }
     if user is not None:
         data['user'] = {
@@ -413,10 +433,18 @@ def _load_users_for_carts(db: OrmSession, carts: list[Cart]) -> dict[str, User]:
     return {user.id: user for user in users}
 
 
-def _cart_export_rows(carts: list[Cart], users_by_id: dict[str, User]) -> list[list[object]]:
+def _cart_export_rows(
+    carts: list[Cart],
+    users_by_id: dict[str, User],
+    latest_receipts_by_cart_id: dict[str, Receipt],
+) -> list[list[object]]:
     rows: list[list[object]] = []
     for cart in carts:
         user = users_by_id.get(cart.user_id or '')
+        purchase_completed, purchase_completed_at, purchase_completion_source = _purchase_completion_status(
+            cart,
+            latest_receipts_by_cart_id.get(cart.id),
+        )
         for item in cart.items:
             rows.append([
                 cart.saved_date.isoformat() if cart.saved_date else '',
@@ -425,6 +453,9 @@ def _cart_export_rows(carts: list[Cart], users_by_id: dict[str, User]) -> list[l
                 cart.source_cart_id or '',
                 cart.title or '',
                 cart.status,
+                'true' if purchase_completed else 'false',
+                purchase_completed_at.isoformat() if purchase_completed_at else '',
+                purchase_completion_source or '',
                 user.id if user else (cart.user_id or ''),
                 user.display_name if user else '',
                 user.email if user and user.email else '',
@@ -521,6 +552,7 @@ def export_carts_admin_csv(
         ).all()
     )
     users_by_id = _load_users_for_carts(db, carts)
+    latest_receipts_by_cart_id = _load_latest_receipts_for_carts(db, carts)
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
@@ -531,6 +563,9 @@ def export_carts_admin_csv(
         'source_cart_id',
         'cart_title',
         'cart_status',
+        'purchase_completed',
+        'purchase_completed_at',
+        'purchase_completion_source',
         'customer_id',
         'customer_name',
         'customer_email',
@@ -546,7 +581,7 @@ def export_carts_admin_csv(
         'item_source',
         'scan_result_id',
     ])
-    writer.writerows(_cart_export_rows(carts, users_by_id))
+    writer.writerows(_cart_export_rows(carts, users_by_id, latest_receipts_by_cart_id))
     return buffer.getvalue()
 
 
@@ -570,6 +605,7 @@ def export_carts_admin_xlsx(
         ).all()
     )
     users_by_id = _load_users_for_carts(db, carts)
+    latest_receipts_by_cart_id = _load_latest_receipts_for_carts(db, carts)
 
     workbook = Workbook()
     sheet = workbook.active
@@ -582,6 +618,9 @@ def export_carts_admin_xlsx(
         'source_cart_id',
         'cart_title',
         'cart_status',
+        'purchase_completed',
+        'purchase_completed_at',
+        'purchase_completion_source',
         'customer_id',
         'customer_name',
         'customer_email',
@@ -601,7 +640,7 @@ def export_carts_admin_xlsx(
     for cell in sheet[1]:
         cell.font = Font(bold=True)
 
-    for row in _cart_export_rows(carts, users_by_id):
+    for row in _cart_export_rows(carts, users_by_id, latest_receipts_by_cart_id):
         sheet.append(row)
 
     sheet.freeze_panes = 'A2'

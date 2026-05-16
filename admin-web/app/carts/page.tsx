@@ -65,6 +65,9 @@ type CartRow = {
   isExpired?: boolean | null
   retentionExtensionCount?: number | null
   canExtendRetention?: boolean | null
+  purchaseCompleted?: boolean | null
+  purchaseCompletedAt?: string | null
+  purchaseCompletionSource?: string | null
   receiptStatus?: CartReceiptStatus | null
   items?: CartItemRow[] | null
   user?: {
@@ -184,6 +187,22 @@ function receiptLabel(cart: CartRow) {
 
 function receiptImageSrc(cartId: string) {
   return `/api/cartly-admin/admin/carts/${cartId}/receipt-image`
+}
+
+function purchaseStatusLabel(cart: CartRow) {
+  return cart.purchaseCompleted ? '구매완료' : '진행중'
+}
+
+function purchaseStatusHint(cart: CartRow) {
+  if (!cart.purchaseCompleted) return '아직 완료 추정 전'
+  const completedAtLabel = formatDate(cart.purchaseCompletedAt)
+  if (cart.purchaseCompletionSource === 'receipt') {
+    return completedAtLabel ? `${completedAtLabel} · 영수증 반영` : '영수증 반영'
+  }
+  if (cart.purchaseCompletionSource === 'inactive_timeout') {
+    return completedAtLabel ? `${completedAtLabel} · 2일 무수정 추정` : '2일 무수정 추정'
+  }
+  return completedAtLabel || '-'
 }
 
 function itemCategoryLabel(item?: CartItemRow | null) {
@@ -623,6 +642,7 @@ export default function CartsPage() {
                   <th>Receipt</th>
                   <th>{t('admin.carts.history.table.items', 'Items')}</th>
                   <th>{t('admin.carts.history.table.total', 'Total')}</th>
+                  <th>구매</th>
                   <th>Lineage</th>
                   <th>{t('admin.carts.history.table.savedAt', '저장 시각')}</th>
                 </tr>
@@ -660,6 +680,12 @@ export default function CartsPage() {
                       <div style={{ display: 'grid', gap: 4 }}>
                         <strong>{formatWon(cart.totalValue ?? cart.totalPrice ?? 0)}</strong>
                         <span style={{ color: '#64748b', fontSize: 12 }}>{t('admin.carts.history.totalHint', '저장 시점 총액')}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'grid', gap: 4, minWidth: 160 }}>
+                        <strong>{purchaseStatusLabel(cart)}</strong>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>{purchaseStatusHint(cart)}</span>
                       </div>
                     </td>
                     <td>
@@ -711,6 +737,9 @@ export default function CartsPage() {
                     <tr><td>저장일</td><td>{selectedCart.savedDate ?? cartSavedDateKey(selectedCart) ?? '-'}</td></tr>
                     <tr><td>저장 시각</td><td>{cartSavedLabel(selectedCart)}</td></tr>
                     <tr><td>업데이트</td><td>{formatDate(selectedCart.updatedAt)}</td></tr>
+                    <tr><td>구매 상태</td><td>{purchaseStatusLabel(selectedCart)}</td></tr>
+                    <tr><td>구매완료 시각</td><td>{formatDate(selectedCart.purchaseCompletedAt)}</td></tr>
+                    <tr><td>완료 근거</td><td>{selectedCart.purchaseCompletionSource === 'receipt' ? '영수증 반영' : selectedCart.purchaseCompletionSource === 'inactive_timeout' ? '2일 무수정 추정' : '-'}</td></tr>
                     <tr><td>만료</td><td>{formatDate(selectedCart.expiresAt)}{selectedCart.isExpired ? ' · expired' : ''}</td></tr>
                     <tr><td>retention 연장</td><td>{selectedCart.retentionExtensionCount ?? 0}</td></tr>
                     <tr><td>영수증</td><td>{receiptLabel(selectedCart)}</td></tr>

@@ -34,6 +34,8 @@ class _CartDetailPageState extends State<CartDetailPage> {
   bool _isEditing = false;
   bool _isSaving = false;
   bool _isExtendingRetention = false;
+  ReceiptCartApplyResult? _pendingReceiptApplyResult;
+  bool _hasEditedAfterReceiptApply = false;
 
   int? _editingIndex;
   final TextEditingController _nameCtrl = TextEditingController();
@@ -83,6 +85,13 @@ class _CartDetailPageState extends State<CartDetailPage> {
     setState(() => _editingIndex = null);
   }
 
+  void _markReceiptApplyEdited() {
+    if (_pendingReceiptApplyResult == null || _hasEditedAfterReceiptApply) {
+      return;
+    }
+    _hasEditedAfterReceiptApply = true;
+  }
+
   void _applyInlineEdits() {
     final i = _editingIndex;
     if (i == null) return;
@@ -103,17 +112,24 @@ class _CartDetailPageState extends State<CartDetailPage> {
     }
 
     setState(() {
+      _markReceiptApplyEdited();
       _cart.items[i].name = newName;
       _cart.items[i].price = newPrice;
       _editingIndex = null;
     });
   }
 
-  void _increase(int i) => setState(() => _cart.items[i].quantity++);
+  void _increase(int i) => setState(() {
+    _markReceiptApplyEdited();
+    _cart.items[i].quantity++;
+  });
 
   void _decrease(int i) {
     setState(() {
-      if (_cart.items[i].quantity > 1) _cart.items[i].quantity--;
+      if (_cart.items[i].quantity > 1) {
+        _markReceiptApplyEdited();
+        _cart.items[i].quantity--;
+      }
     });
   }
 
@@ -137,6 +153,8 @@ class _CartDetailPageState extends State<CartDetailPage> {
         _cart = cloneSavedCartSnapshot(savedSnapshot);
         _isEditing = false;
         _editingIndex = null;
+        _pendingReceiptApplyResult = null;
+        _hasEditedAfterReceiptApply = false;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -224,6 +242,7 @@ class _CartDetailPageState extends State<CartDetailPage> {
     if (_isExpiredGuestLocked) return;
 
     setState(() {
+      _markReceiptApplyEdited();
       _cart.items.add(
         SavedCartItem(name: name, price: price, quantity: 1, source: 'manual'),
       );
@@ -246,11 +265,38 @@ class _CartDetailPageState extends State<CartDetailPage> {
   }
 
   Future<void> _undoReceiptApply(ReceiptCartApplyResult result) async {
+    if (_hasEditedAfterReceiptApply) {
+      final approved = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('되돌릴까요?'),
+            content: const Text('영수증 반영 뒤에 수정한 내용은 사라져요. 이전 카트로 되돌릴까요?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('취소'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('되돌리기'),
+              ),
+            ],
+          );
+        },
+      );
+      if (approved != true || !mounted) {
+        return;
+      }
+    }
+
     try {
       final restored = await CartStore.instance.updateCart(result.previousCart);
       if (!mounted) return;
       setState(() {
         _cart = cloneSavedCartSnapshot(restored);
+        _pendingReceiptApplyResult = null;
+        _hasEditedAfterReceiptApply = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('이전 카트로 되돌렸어요')),
@@ -274,18 +320,11 @@ class _CartDetailPageState extends State<CartDetailPage> {
     if (result is ReceiptCartApplyResult) {
       setState(() {
         _cart = cloneSavedCartSnapshot(result.appliedCart);
+        _pendingReceiptApplyResult = result;
+        _hasEditedAfterReceiptApply = false;
       });
-      final messenger = ScaffoldMessenger.of(context);
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text('영수증 기준으로 카트를 수정했어요'),
-          action: SnackBarAction(
-            label: '되돌리기',
-            onPressed: () {
-              unawaited(_undoReceiptApply(result));
-            },
-          ),
-        ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('영수증 기준으로 카트를 수정했어요. 수정에서 되돌릴 수 있어요')),
       );
       return;
     }
@@ -384,7 +423,10 @@ class _CartDetailPageState extends State<CartDetailPage> {
                       formatPriceText: (price) => '₩${_fmt(price)}',
                       onEdit: _openInlineEditor,
                       onDelete: (index) {
-                        setState(() => _cart.items.removeAt(index));
+                        setState(() {
+                          _markReceiptApplyEdited();
+                          _cart.items.removeAt(index);
+                        });
                       },
                       onDecrease: _decrease,
                       onIncrease: _increase,
@@ -405,6 +447,10 @@ class _CartDetailPageState extends State<CartDetailPage> {
         totalPriceText: '₩${_fmt(_cart.totalPrice)}',
         isSaving: _isSaving,
         onSave: _save,
+        showUndoReceiptApply: _pendingReceiptApplyResult != null,
+        onUndoReceiptApply: _pendingReceiptApplyResult == null
+            ? null
+            : () => unawaited(_undoReceiptApply(_pendingReceiptApplyResult!)),
       ),
     );
   }

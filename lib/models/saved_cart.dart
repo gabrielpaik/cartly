@@ -104,12 +104,19 @@ class SavedCart {
   int get totalCount => items.fold(0, (sum, it) => sum + it.quantity);
   DateTime get lastTouchedAt => updatedAt;
 
-  bool isPurchaseCompleted({DateTime? now}) {
+  DateTime? purchaseCompletedAt({DateTime? now}) {
     if (receiptStatus?.isReady == true) {
-      return true;
+      return receiptStatus?.completedAt ?? receiptStatus?.updatedAt ?? updatedAt;
     }
-    final cutoff = (now ?? DateTime.now()).subtract(const Duration(days: 2));
-    return !lastTouchedAt.isAfter(cutoff);
+    final completedAt = lastTouchedAt.add(const Duration(days: 2));
+    if (completedAt.isAfter(now ?? DateTime.now())) {
+      return null;
+    }
+    return completedAt;
+  }
+
+  bool isPurchaseCompleted({DateTime? now}) {
+    return purchaseCompletedAt(now: now) != null;
   }
 
   Map<String, dynamic> toJson() => {

@@ -96,14 +96,15 @@ class MyPageInsightsCalculator {
     return monthStarts.map((monthStart) {
       final nextMonth = DateTime(monthStart.year, monthStart.month + 1, 1);
       final monthCarts =
-          carts
-              .where(
-                (cart) =>
-                    !cart.createdAt.isBefore(monthStart) &&
-                    cart.createdAt.isBefore(nextMonth),
-              )
-              .toList()
-            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          carts.where((cart) {
+              final completedAt = cart.purchaseCompletedAt(now: base);
+              if (completedAt == null) {
+                return false;
+              }
+              return !completedAt.isBefore(monthStart) &&
+                  completedAt.isBefore(nextMonth);
+            }).toList()
+            ..sort((a, b) => b.lastTouchedAt.compareTo(a.lastTouchedAt));
 
       final categoryBuckets = <String, _CategoryBucket>{};
       final itemBuckets = <String, _ItemBucket>{};

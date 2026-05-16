@@ -5,6 +5,7 @@ import '../app_support.dart';
 import '../models/saved_cart.dart';
 import '../pages/cart_detail_page.dart';
 import '../services/app_runtime_copy.dart';
+import '../services/cart_title_formatter.dart';
 
 class RecentSavedPreviewCard extends StatelessWidget {
   final SavedCart? cart;
@@ -47,8 +48,8 @@ class RecentSavedPreviewCard extends StatelessWidget {
     }
 
     final savedCart = cart!;
-    final dateText = DateFormat('M월 d일').format(savedCart.createdAt);
-    final title = (savedCart.title ?? '').trim();
+    final dateText = DateFormat('M월 d일').format(savedCart.customerTimelineAt);
+    final title = normalizeCartTitleForDisplay(savedCart.title) ?? '';
     final preview = savedCart.items.take(2).map((e) => e.name).join(' · ');
 
     return InkWell(
@@ -73,9 +74,15 @@ class RecentSavedPreviewCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title.isEmpty
-                        ? AppRuntimeCopy.text(['saved', 'recentTitle'], '최근 저장 카트')
+                        ? AppRuntimeCopy.text([
+                            'saved',
+                            'recentTitle',
+                          ], '최근 저장 카트')
                         : title,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
                 if (savedCart.isExpired)
@@ -112,10 +119,7 @@ class _RecentSavedContextPill extends StatelessWidget {
   final String label;
   final Color color;
 
-  const _RecentSavedContextPill({
-    required this.label,
-    required this.color,
-  });
+  const _RecentSavedContextPill({required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {

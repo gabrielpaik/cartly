@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/saved_cart.dart';
 import '../services/admob_service.dart';
 import '../services/app_runtime_copy.dart';
+import '../services/cart_title_formatter.dart';
 
 SavedCart cloneSavedCartSnapshot(SavedCart source) {
   return SavedCart(
@@ -21,6 +22,7 @@ SavedCart cloneSavedCartSnapshot(SavedCart source) {
             receiptStatus: source.receiptStatus!.receiptStatus,
             merchantName: source.receiptStatus!.merchantName,
             hasReceipt: source.receiptStatus!.hasReceipt,
+            purchasedAt: source.receiptStatus!.purchasedAt,
             updatedAt: source.receiptStatus!.updatedAt,
             completedAt: source.receiptStatus!.completedAt,
           ),
@@ -33,9 +35,29 @@ SavedCart cloneSavedCartSnapshot(SavedCart source) {
             source: item.source,
             scanResultId: item.scanResultId,
             originalName: item.originalName,
+            originalPrice: item.originalPrice,
+            categoryLabel: item.categoryLabel,
+            categorySource: item.categorySource,
           ),
         )
         .toList(),
+  );
+}
+
+String? buildReceiptAppliedCartTitle({
+  required String? merchantName,
+  required DateTime? purchasedAt,
+  String? fallbackTitle,
+}) {
+  final merchant = merchantName?.trim();
+  if ((merchant == null || merchant.isEmpty) && purchasedAt == null) {
+    return normalizeCartTitleForDisplay(fallbackTitle);
+  }
+  return buildUnifiedCartTitle(
+    merchantOrBrand: merchant,
+    date: purchasedAt,
+    fallbackTitle: fallbackTitle,
+    appendShoppingForAreaOnly: false,
   );
 }
 
@@ -46,10 +68,11 @@ String? cartDetailInlineEditValidationMessage({
   final newName = nameText.trim();
   final newPrice = int.tryParse(priceText.replaceAll(',', '').trim()) ?? 0;
   if (newName.isEmpty || newPrice <= 0) {
-    return AppRuntimeCopy.text(
-      ['cartDetail', 'validation', 'namePriceRequired'],
-      '상품명/가격을 확인해주세요',
-    );
+    return AppRuntimeCopy.text([
+      'cartDetail',
+      'validation',
+      'namePriceRequired',
+    ], '상품명/가격을 확인해주세요');
   }
   return null;
 }
@@ -58,16 +81,18 @@ String? cartDetailSaveValidationMessage(List<SavedCartItem> items) {
   for (final item in items) {
     item.name = item.name.trim();
     if (item.name.isEmpty) {
-      return AppRuntimeCopy.text(
-        ['cartDetail', 'validation', 'nameRequired'],
-        '상품명이 비어있어요',
-      );
+      return AppRuntimeCopy.text([
+        'cartDetail',
+        'validation',
+        'nameRequired',
+      ], '상품명이 비어있어요');
     }
     if (item.price <= 0 || item.quantity <= 0) {
-      return AppRuntimeCopy.text(
-        ['cartDetail', 'validation', 'priceQuantityRequired'],
-        '가격/수량을 확인해주세요',
-      );
+      return AppRuntimeCopy.text([
+        'cartDetail',
+        'validation',
+        'priceQuantityRequired',
+      ], '가격/수량을 확인해주세요');
     }
   }
   return null;

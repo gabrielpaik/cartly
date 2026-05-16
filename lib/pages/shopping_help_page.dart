@@ -12,6 +12,7 @@ import '../pages/cart_detail_page.dart';
 import '../services/app_config_store.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/cart_store.dart';
+import '../services/cart_title_formatter.dart';
 import '../services/explore_intent_normalizer.dart';
 import '../services/explore_offer_service.dart';
 import '../widgets/cartly_action_tile.dart';
@@ -666,8 +667,11 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
       return const [];
     }
 
-    final visibleCount = _configInt(config, 'editorialRecommendationsCount', 5)
-        .clamp(1, 50);
+    final visibleCount = _configInt(
+      config,
+      'editorialRecommendationsCount',
+      5,
+    ).clamp(1, 50);
     final fixedBySlot = <int, ExploreAlternativeOffer>{};
     final randomPool = <ExploreAlternativeOffer>[];
 
@@ -698,7 +702,9 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
       randomIndex += 1;
     }
 
-    return arranged.whereType<ExploreAlternativeOffer>().toList(growable: false);
+    return arranged.whereType<ExploreAlternativeOffer>().toList(
+      growable: false,
+    );
   }
 
   @override
@@ -2282,7 +2288,7 @@ class _SavedContextHeroCard extends StatelessWidget {
           Text(
             latest == null
                 ? '카트를 저장해두시면 여기서 지난 장보기와 자주 사는 상품을 바로 이어서 보실 수 있어요.'
-                : '${latest.title ?? '최근 저장 카트'} · ${latest.totalCount}개 · ₩${formatPrice(latest.totalPrice)}',
+                : '${normalizeCartTitleForDisplay(latest.title) ?? '최근 저장 카트'} · ${latest.totalCount}개 · ₩${formatPrice(latest.totalPrice)}',
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,

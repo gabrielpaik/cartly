@@ -4,6 +4,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import '../models/saved_cart.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/cart_store.dart';
+import '../services/cart_title_formatter.dart';
 import 'cartly_symbol_icon.dart';
 import 'inline_promo_slot.dart';
 import 'saved_cart_list_card.dart';
@@ -63,7 +64,7 @@ class _SavedTabListEntryState extends State<SavedTabListEntry>
   }
 
   Future<void> _deleteCart(BuildContext context) async {
-    final title = (widget.cart.title ?? '').trim();
+    final title = normalizeCartTitleForDisplay(widget.cart.title) ?? '';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {

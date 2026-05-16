@@ -16,7 +16,9 @@ import '../models/saved_cart.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
+import '../services/cart_title_formatter.dart';
 import '../services/remote_receipt_repository.dart';
+import 'cart_detail_page_helpers.dart';
 import '../widgets/cartly_badge.dart';
 import '../widgets/cartly_info_card.dart';
 import '../widgets/cartly_surface_card.dart';
@@ -94,6 +96,9 @@ SavedCart _cloneReceiptSavedCart(SavedCart source) {
             source: item.source,
             scanResultId: item.scanResultId,
             originalName: item.originalName,
+            originalPrice: item.originalPrice,
+            categoryLabel: item.categoryLabel,
+            categorySource: item.categorySource,
           ),
         )
         .toList(),
@@ -108,6 +113,7 @@ SavedCart _cloneReceiptSavedCart(SavedCart source) {
             receiptStatus: source.receiptStatus!.receiptStatus,
             merchantName: source.receiptStatus!.merchantName,
             hasReceipt: source.receiptStatus!.hasReceipt,
+            purchasedAt: source.receiptStatus!.purchasedAt,
             updatedAt: source.receiptStatus!.updatedAt,
             completedAt: source.receiptStatus!.completedAt,
           ),
@@ -349,19 +355,38 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
       final quantity = (item.quantity ?? 1) > 0 ? (item.quantity ?? 1) : 1;
       final linkedDiscountAmount = entry.linkedAdjustments.fold<int>(
         0,
-        (sum, adjustment) => sum + (adjustment.finalAmount ?? adjustment.lineAmount),
+        (sum, adjustment) =>
+            sum + (adjustment.finalAmount ?? adjustment.lineAmount),
       );
-      final lineTotal = (item.finalAmount ?? item.lineAmount) + linkedDiscountAmount;
+      final lineTotal =
+          (item.finalAmount ?? item.lineAmount) + linkedDiscountAmount;
       if (lineTotal <= 0) {
         continue;
       }
 
+      final originalUnitPrice = (() {
+        final rawUnitPrice = item.unitPrice;
+        if (rawUnitPrice != null && rawUnitPrice > 0) {
+          return rawUnitPrice;
+        }
+        final originalLineAmount = item.finalAmount ?? item.lineAmount;
+        if (originalLineAmount > 0 && originalLineAmount % quantity == 0) {
+          return originalLineAmount ~/ quantity;
+        }
+        return null;
+      })();
+
       if (lineTotal % quantity == 0) {
+        final paidUnitPrice = lineTotal ~/ quantity;
         items.add(
           SavedCartItem(
             name: label,
             originalName: label,
-            price: lineTotal ~/ quantity,
+            originalPrice:
+                originalUnitPrice != null && originalUnitPrice > paidUnitPrice
+                ? originalUnitPrice
+                : null,
+            price: paidUnitPrice,
             quantity: quantity,
             source: 'receipt',
           ),
@@ -372,11 +397,16 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
       final basePrice = lineTotal ~/ quantity;
       final remainder = lineTotal % quantity;
       for (var i = 0; i < quantity; i += 1) {
+        final paidUnitPrice = basePrice + (i < remainder ? 1 : 0);
         items.add(
           SavedCartItem(
             name: label,
             originalName: label,
-            price: basePrice + (i < remainder ? 1 : 0),
+            originalPrice:
+                originalUnitPrice != null && originalUnitPrice > paidUnitPrice
+                ? originalUnitPrice
+                : null,
+            price: paidUnitPrice,
             quantity: 1,
             source: 'receipt',
           ),
@@ -417,9 +447,9 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
 
     final nextItems = _buildReceiptCartItems(data);
     if (nextItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('영수증에서 반영할 상품을 찾지 못했어요')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('영수증에서 반영할 상품을 찾지 못했어요')));
       return;
     }
 
@@ -428,7 +458,12 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
       final previousCart = _cloneReceiptSavedCart(widget.cart);
       final updated = SavedCart(
         id: widget.cart.id,
-        title: widget.cart.title,
+        title: buildReceiptAppliedCartTitle(
+          merchantName: data.merchantName,
+          purchasedAt:
+              data.purchasedAt ?? widget.cart.receiptStatus?.purchasedAt,
+          fallbackTitle: widget.cart.title,
+        ),
         createdAt: widget.cart.createdAt,
         updatedAt: DateTime.now(),
         items: nextItems,
@@ -441,10 +476,7 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
       final saved = await CartStore.instance.updateCart(updated);
       if (!mounted) return;
       Navigator.of(context).pop(
-        ReceiptCartApplyResult(
-          previousCart: previousCart,
-          appliedCart: saved,
-        ),
+        ReceiptCartApplyResult(previousCart: previousCart, appliedCart: saved),
       );
     } catch (error) {
       if (!mounted) return;
@@ -553,9 +585,7 @@ class _ReceiptCompareContextCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            cart.title?.trim().isNotEmpty == true
-                ? cart.title!.trim()
-                : '$dateText 카트',
+            normalizeCartTitleForDisplay(cart.title) ?? '$dateText 카트',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
@@ -790,7 +820,9 @@ class _ReceiptCompareAggregate {
 
   _ReceiptCompareEntry toEntry(String normalizedName) {
     return _ReceiptCompareEntry(
-      displayName: displayName.trim().isNotEmpty ? displayName.trim() : normalizedName,
+      displayName: displayName.trim().isNotEmpty
+          ? displayName.trim()
+          : normalizedName,
       normalizedName: normalizedName,
       quantity: quantity,
       amount: amount,
@@ -882,9 +914,7 @@ class _ReceiptItemDiffRow {
   }
 
   String get helperText {
-    final prefix = inferredNameMatch
-        ? '이름이 달라도 같은 상품으로 추정했어요. '
-        : '';
+    final prefix = inferredNameMatch ? '이름이 달라도 같은 상품으로 추정했어요. ' : '';
     if (isCartOnly) {
       return '$prefix저장 카트에는 있지만 영수증에서는 아직 못 찾았어요.';
     }
@@ -955,7 +985,10 @@ double _receiptBigramScore(String left, String right) {
   return (2 * overlap) / (leftSet.length + rightSet.length);
 }
 
-double _receiptNameScore(_ReceiptCompareEntry cart, _ReceiptCompareEntry receipt) {
+double _receiptNameScore(
+  _ReceiptCompareEntry cart,
+  _ReceiptCompareEntry receipt,
+) {
   if (cart.normalizedName == receipt.normalizedName) {
     return 1;
   }
@@ -1041,6 +1074,7 @@ bool _shouldSuppressAmountDiff(
 
 class _ReceiptSimpleViewData {
   final String merchantName;
+  final DateTime? purchasedAt;
   final String purchasedAtText;
   final int purchasedItemCount;
   final int actualTotal;
@@ -1056,6 +1090,7 @@ class _ReceiptSimpleViewData {
 
   const _ReceiptSimpleViewData({
     required this.merchantName,
+    required this.purchasedAt,
     required this.purchasedAtText,
     required this.purchasedItemCount,
     required this.actualTotal,
@@ -1139,12 +1174,17 @@ class _ReceiptSimpleViewData {
       );
       final linkedDiscountAmount = entry.linkedAdjustments.fold<int>(
         0,
-        (sum, adjustment) => sum + (adjustment.finalAmount ?? adjustment.lineAmount),
+        (sum, adjustment) =>
+            sum + (adjustment.finalAmount ?? adjustment.lineAmount),
       );
       aggregate.add(
         nextLabel: label,
-        nextQuantity: (lineItem.quantity ?? 1) > 0 ? (lineItem.quantity ?? 1) : 1,
-        nextAmount: (lineItem.finalAmount ?? lineItem.lineAmount) + linkedDiscountAmount,
+        nextQuantity: (lineItem.quantity ?? 1) > 0
+            ? (lineItem.quantity ?? 1)
+            : 1,
+        nextAmount:
+            (lineItem.finalAmount ?? lineItem.lineAmount) +
+            linkedDiscountAmount,
         nextLinkedDiscountAmount: linkedDiscountAmount,
       );
     }
@@ -1162,11 +1202,20 @@ class _ReceiptSimpleViewData {
     final totalDiscount = receipt.totalDiscountAmount ?? 0;
 
     for (var cartIndex = 0; cartIndex < cartEntries.length; cartIndex += 1) {
-      for (var receiptIndex = 0; receiptIndex < receiptEntries.length; receiptIndex += 1) {
+      for (
+        var receiptIndex = 0;
+        receiptIndex < receiptEntries.length;
+        receiptIndex += 1
+      ) {
         final cartEntry = cartEntries[cartIndex];
         final receiptEntry = receiptEntries[receiptIndex];
-        final score = _receiptMatchScore(cartEntry, receiptEntry, totalDiscount);
-        final inferred = cartEntry.normalizedName != receiptEntry.normalizedName;
+        final score = _receiptMatchScore(
+          cartEntry,
+          receiptEntry,
+          totalDiscount,
+        );
+        final inferred =
+            cartEntry.normalizedName != receiptEntry.normalizedName;
         final threshold = inferred ? 0.8 : 0.55;
         if (score >= threshold) {
           candidateMatches.add(
@@ -1201,11 +1250,8 @@ class _ReceiptSimpleViewData {
       final cartEntry = cartEntries[match.cartIndex];
       final receiptEntry = receiptEntries[match.receiptIndex];
       final quantityMismatch = cartEntry.quantity != receiptEntry.quantity;
-      final amountMismatch = !_shouldSuppressAmountDiff(
-            cartEntry,
-            receiptEntry,
-            totalDiscount,
-          ) &&
+      final amountMismatch =
+          !_shouldSuppressAmountDiff(cartEntry, receiptEntry, totalDiscount) &&
           cartEntry.amount != receiptEntry.amount;
 
       if (!quantityMismatch && !amountMismatch) {
@@ -1288,6 +1334,7 @@ class _ReceiptSimpleViewData {
       merchantName: receipt.merchantName?.trim().isNotEmpty == true
           ? receipt.merchantName!.trim()
           : '영수증 확인 결과',
+      purchasedAt: receipt.purchasedAt,
       purchasedAtText: receipt.purchasedAt == null
           ? '결제 시각 미상'
           : DateFormat('M월 d일 HH:mm').format(receipt.purchasedAt!.toLocal()),
@@ -1419,7 +1466,10 @@ class _ReceiptFinalPriceCompareCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: _ReceiptAmountBox(label: '내 카트', amount: data.cartTotal),
+                    child: _ReceiptAmountBox(
+                      label: '내 카트',
+                      amount: data.cartTotal,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -1856,7 +1906,10 @@ class _ReceiptApplyToCartCard extends StatelessWidget {
                         color: CartlyColors.onBrandPrimary,
                       ),
                     )
-                  : const CartlySymbolIcon.sf('arrow.triangle.branch', size: 18),
+                  : const CartlySymbolIcon.sf(
+                      'arrow.triangle.branch',
+                      size: 18,
+                    ),
               label: Text(
                 isApplying ? '카트에 반영하는 중' : '영수증 기준으로 수정 승인',
                 style: const TextStyle(fontWeight: FontWeight.w700),

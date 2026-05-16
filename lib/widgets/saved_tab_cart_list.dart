@@ -15,9 +15,12 @@ class SavedTabCartList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sortedCarts = [...carts]
+      ..sort((a, b) => b.customerTimelineAt.compareTo(a.customerTimelineAt));
+
     return Column(
-      children: List.generate(carts.length, (index) {
-        final cart = carts[index];
+      children: List.generate(sortedCarts.length, (index) {
+        final cart = sortedCarts[index];
         return SavedTabListEntry(
           cart: cart,
           index: index,

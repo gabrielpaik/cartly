@@ -4,12 +4,15 @@ import 'package:flutter/services.dart';
 import '../app/cartly_ui.dart';
 import '../models/saved_cart.dart';
 import '../pages/cart_detail_page.dart';
+import '../pages/cart_detail_page_helpers.dart';
 import '../pages/login_page.dart';
 import '../services/app_config_store.dart';
 import '../services/app_location_service.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
+import '../services/cart_category_catalog.dart';
 import '../services/cart_store.dart';
+import '../services/cart_title_formatter.dart';
 import '../services/my_page_insights.dart';
 import '../widgets/cartly_info_card.dart';
 import '../widgets/cartly_surface_card.dart';
@@ -541,6 +544,7 @@ class _MonthlySummaryCardState extends State<_MonthlySummaryCard> {
           child: _MonthlyCategoryItemsSheet(
             month: widget.summary.month,
             category: category,
+            carts: widget.summary.carts,
           ),
         );
       },
@@ -917,7 +921,7 @@ class _MonthlySavedCartRow extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              '${_formatShortDate(cart.createdAt)} · 상품 ${cart.totalCount}개 · ${_formatCurrency(cart.totalPrice)}',
+              '${_formatShortDate(cart.customerTimelineAt)} · 상품 ${cart.totalCount}개 · ${_formatCurrency(cart.totalPrice)}',
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -945,17 +949,244 @@ class _MonthlySavedCartRow extends StatelessWidget {
   }
 }
 
-class _MonthlyCategoryItemsSheet extends StatelessWidget {
+class _MonthlyCategoryCartItemEntry {
+  final SavedCart cart;
+  final int itemIndex;
+  final SavedCartItem item;
+  final String resolvedCategoryLabel;
+
+  const _MonthlyCategoryCartItemEntry({
+    required this.cart,
+    required this.itemIndex,
+    required this.item,
+    required this.resolvedCategoryLabel,
+  });
+
+  _MonthlyCategoryCartItemEntry copyWith({
+    SavedCart? cart,
+    int? itemIndex,
+    SavedCartItem? item,
+    String? resolvedCategoryLabel,
+  }) {
+    return _MonthlyCategoryCartItemEntry(
+      cart: cart ?? this.cart,
+      itemIndex: itemIndex ?? this.itemIndex,
+      item: item ?? this.item,
+      resolvedCategoryLabel:
+          resolvedCategoryLabel ?? this.resolvedCategoryLabel,
+    );
+  }
+}
+
+class _MonthlyCategoryItemsSheet extends StatefulWidget {
   final DateTime month;
   final MyPageCategorySummary category;
+  final List<SavedCart> carts;
 
   const _MonthlyCategoryItemsSheet({
     required this.month,
     required this.category,
+    required this.carts,
   });
 
   @override
+  State<_MonthlyCategoryItemsSheet> createState() =>
+      _MonthlyCategoryItemsSheetState();
+}
+
+class _MonthlyCategoryItemsSheetState
+    extends State<_MonthlyCategoryItemsSheet> {
+  late List<_MonthlyCategoryCartItemEntry> _entries;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _entries = _buildEntries();
+  }
+
+  List<_MonthlyCategoryCartItemEntry> _buildEntries() {
+    final groups = AppConfigStore.instance.myPageCategoryGroups;
+    final entries = <_MonthlyCategoryCartItemEntry>[];
+    for (final cart in widget.carts) {
+      for (var index = 0; index < cart.items.length; index += 1) {
+        final item = cart.items[index];
+        final resolved = MyPageInsightsCalculator.resolveCategoryLabel(
+          item,
+          groups,
+        );
+        if (resolved != widget.category.label) {
+          continue;
+        }
+        entries.add(
+          _MonthlyCategoryCartItemEntry(
+            cart: cart,
+            itemIndex: index,
+            item: item,
+            resolvedCategoryLabel: resolved,
+          ),
+        );
+      }
+    }
+    return entries;
+  }
+
+  Future<void> _changeCategory(_MonthlyCategoryCartItemEntry entry) async {
+    if (_saving) {
+      return;
+    }
+    const autoCategory = '__auto__';
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: CartlyColors.surface0,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        final currentLabel = entry.item.categoryLabel?.trim();
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '카테고리 변경',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: CartlyColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  entry.item.originalName ?? entry.item.name,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: CartlyColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('자동 분류 사용'),
+                  subtitle: const Text('직접 고른 카테고리를 지우고 자동으로 다시 분류해요'),
+                  trailing: currentLabel == null
+                      ? const Icon(Icons.check, color: CartlyColors.brand)
+                      : null,
+                  onTap: () => Navigator.of(context).pop(autoCategory),
+                ),
+                const Divider(height: 1),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: cartCategoryOptions.length,
+                    itemBuilder: (context, index) {
+                      final option = cartCategoryOptions[index];
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(option),
+                        trailing: option == currentLabel
+                            ? const Icon(Icons.check, color: CartlyColors.brand)
+                            : null,
+                        onTap: () => Navigator.of(context).pop(option),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted || selected == null) {
+      return;
+    }
+    final nextCategory = selected == autoCategory ? null : selected;
+    if (nextCategory == entry.item.categoryLabel) {
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+    });
+
+    try {
+      final updatedCart = cloneSavedCartSnapshot(entry.cart);
+      final updatedItem = updatedCart.items[entry.itemIndex];
+      updatedItem.categoryLabel = nextCategory;
+      updatedItem.categorySource = nextCategory == null
+          ? null
+          : customerManualCategorySource;
+      await CartStore.instance.updateCart(updatedCart);
+      final groups = AppConfigStore.instance.myPageCategoryGroups;
+      final resolved = MyPageInsightsCalculator.resolveCategoryLabel(
+        updatedItem,
+        groups,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        if (resolved != widget.category.label) {
+          _entries.removeWhere(
+            (candidate) =>
+                candidate.cart.id == entry.cart.id &&
+                candidate.itemIndex == entry.itemIndex,
+          );
+        } else {
+          final targetIndex = _entries.indexWhere(
+            (candidate) =>
+                candidate.cart.id == entry.cart.id &&
+                candidate.itemIndex == entry.itemIndex,
+          );
+          if (targetIndex >= 0) {
+            _entries[targetIndex] = _entries[targetIndex].copyWith(
+              cart: updatedCart,
+              item: updatedItem,
+              resolvedCategoryLabel: resolved,
+            );
+          }
+        }
+      });
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('카테고리를 바꿨어요')));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('카테고리를 바꾸지 못했어요')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final totalAmount = _entries.fold<int>(
+      0,
+      (sum, entry) => sum + entry.item.total,
+    );
+    final totalCount = _entries.fold<int>(
+      0,
+      (sum, entry) => sum + entry.item.quantity,
+    );
+
     return SafeArea(
       top: false,
       child: Padding(
@@ -975,7 +1206,7 @@ class _MonthlyCategoryItemsSheet extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              '${month.year}년 ${month.month}월 · ${category.label}',
+              '${widget.month.year}년 ${widget.month.month}월 · ${widget.category.label}',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -984,87 +1215,160 @@ class _MonthlyCategoryItemsSheet extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              '총 ${category.itemCount}개 · ${_formatCurrency(category.amount)}',
+              '총 $totalCount개 · ${_formatCurrency(totalAmount)}',
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: CartlyColors.textSecondary,
               ),
             ),
+            const SizedBox(height: 6),
+            const Text(
+              '상품 카테고리를 직접 바꾸면 다음 분류부터 반영돼요',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: CartlyColors.textSecondary,
+              ),
+            ),
             const SizedBox(height: 14),
             Expanded(
-              child: ListView.separated(
-                itemCount: category.items.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  final item = category.items[index];
-                  final iconName = _categorySymbolName(category.label);
-                  return Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: CartlyColors.surface1,
-                      borderRadius: BorderRadius.circular(CartlyRadii.card),
-                      border: Border.all(color: CartlyColors.line, width: 0.5),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            color: CartlyColors.surfaceNeutral,
-                            borderRadius: BorderRadius.circular(
-                              CartlyRadii.pill,
-                            ),
-                          ),
-                          child: Center(
-                            child: CartlySymbolIcon.sf(
-                              iconName,
-                              size: 14,
-                              color: CartlyColors.brand,
-                            ),
-                          ),
+              child: _entries.isEmpty
+                  ? const Center(
+                      child: Text(
+                        '이 카테고리에 남아 있는 상품이 없어요',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: CartlyColors.textSecondary,
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: _entries.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final entry = _entries[index];
+                        final item = entry.item;
+                        final iconName = _categorySymbolName(
+                          entry.resolvedCategoryLabel,
+                        );
+                        return Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: CartlyColors.surface1,
+                            borderRadius: BorderRadius.circular(
+                              CartlyRadii.card,
+                            ),
+                            border: Border.all(
+                              color: CartlyColors.line,
+                              width: 0.5,
+                            ),
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                item.label,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: CartlyColors.textPrimary,
-                                ),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      color: CartlyColors.surfaceNeutral,
+                                      borderRadius: BorderRadius.circular(
+                                        CartlyRadii.pill,
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: CartlySymbolIcon.sf(
+                                        iconName,
+                                        size: 14,
+                                        color: CartlyColors.brand,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.originalName ?? item.name,
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: CartlyColors.textPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${_cartHeadline(entry.cart)} · 총 ${item.quantity}개',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: CartlyColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    _formatCurrency(item.total),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: CartlyColors.textPrimary,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${item.cartCount}번 담음 · 총 ${item.quantity}개',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: CartlyColors.textSecondary,
+                              const SizedBox(height: 10),
+                              GestureDetector(
+                                onTap: _saving
+                                    ? null
+                                    : () => _changeCategory(entry),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: CartlyColors.surfaceNeutral,
+                                    borderRadius: BorderRadius.circular(
+                                      CartlyRadii.pill,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        '카테고리 ${item.categoryLabel ?? entry.resolvedCategoryLabel}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: CartlyColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      const CartlySymbolIcon.sf(
+                                        'chevron.right',
+                                        size: 11,
+                                        color: CartlyColors.textSecondary,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          _formatCurrency(item.amount),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: CartlyColors.textPrimary,
-                          ),
-                        ),
-                      ],
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),
@@ -1242,7 +1546,7 @@ class _RecentSavedCartCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '${_formatShortDate(cart.createdAt)} · 상품 ${cart.totalCount}개 · ${_formatCurrency(cart.totalPrice)}',
+            '${_formatShortDate(cart.customerTimelineAt)} · 상품 ${cart.totalCount}개 · ${_formatCurrency(cart.totalPrice)}',
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
@@ -1752,6 +2056,16 @@ String _categorySymbolName(String categoryLabel) {
       return 'sparkle.magnifyingglass';
     case '가구/인테리어':
       return 'cart';
+    case '문구/사무용품':
+      return 'pencil';
+    case '완구/취미':
+      return 'gamecontroller';
+    case '자동차용품':
+      return 'car';
+    case '반려동물':
+      return 'pawprint';
+    case '도서':
+      return 'book';
     case '출산/육아':
       return 'person';
     case '스포츠/레저':
@@ -1767,16 +2081,18 @@ SavedCart? _latestCartFrom(List<SavedCart> carts) {
   if (carts.isEmpty) return null;
   return carts.reduce(
     (current, next) =>
-        current.createdAt.isAfter(next.createdAt) ? current : next,
+        current.customerTimelineAt.isAfter(next.customerTimelineAt)
+        ? current
+        : next,
   );
 }
 
 String _cartHeadline(SavedCart cart) {
-  final title = cart.title?.trim();
+  final title = normalizeCartTitleForDisplay(cart.title);
   if (title != null && title.isNotEmpty) {
     return title;
   }
-  return '${_formatShortDate(cart.createdAt)} 장보기';
+  return '${_formatShortDate(cart.customerTimelineAt)} 장보기';
 }
 
 String _formatCurrency(int value) {

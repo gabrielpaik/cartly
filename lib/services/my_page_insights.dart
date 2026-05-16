@@ -95,16 +95,14 @@ class MyPageInsightsCalculator {
 
     return monthStarts.map((monthStart) {
       final nextMonth = DateTime(monthStart.year, monthStart.month + 1, 1);
-      final monthCarts =
-          carts.where((cart) {
-              final completedAt = cart.purchaseCompletedAt(now: base);
-              if (completedAt == null) {
-                return false;
-              }
-              return !completedAt.isBefore(monthStart) &&
-                  completedAt.isBefore(nextMonth);
-            }).toList()
-            ..sort((a, b) => b.lastTouchedAt.compareTo(a.lastTouchedAt));
+      final monthCarts = carts.where((cart) {
+        final completedAt = cart.purchaseCompletedAt(now: base);
+        if (completedAt == null) {
+          return false;
+        }
+        return !completedAt.isBefore(monthStart) &&
+            completedAt.isBefore(nextMonth);
+      }).toList()..sort((a, b) => b.lastTouchedAt.compareTo(a.lastTouchedAt));
 
       final categoryBuckets = <String, _CategoryBucket>{};
       final itemBuckets = <String, _ItemBucket>{};
@@ -117,7 +115,7 @@ class MyPageInsightsCalculator {
         final seenItemKeys = <String>{};
 
         for (final item in cart.items) {
-          final categoryLabel = _resolveCategoryLabel(item, groups);
+          final categoryLabel = resolveCategoryLabel(item, groups);
           final itemKey = _normalizeItemKey(item);
           final itemLabel = _resolveItemLabel(item);
           final firstSeenInCart = seenItemKeys.add(itemKey);
@@ -196,10 +194,14 @@ class MyPageInsightsCalculator {
     return a.label.compareTo(b.label);
   }
 
-  static String _resolveCategoryLabel(
+  static String resolveCategoryLabel(
     SavedCartItem item,
     List<MyPageCategoryGroup> groups,
   ) {
+    final explicit = item.categoryLabel?.trim();
+    if (explicit != null && explicit.isNotEmpty) {
+      return explicit;
+    }
     final haystack = '${item.name} ${item.originalName ?? ''}'.toLowerCase();
     for (final group in groups) {
       for (final keyword in group.keywords) {

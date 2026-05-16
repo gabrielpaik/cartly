@@ -9,6 +9,7 @@ class CartDetailItemTile extends StatelessWidget {
   final bool isEditingMode;
   final bool isInlineEditing;
   final String priceText;
+  final String? originalPriceText;
   final TextEditingController nameController;
   final TextEditingController priceController;
   final VoidCallback? onEdit;
@@ -24,6 +25,7 @@ class CartDetailItemTile extends StatelessWidget {
     required this.isEditingMode,
     required this.isInlineEditing,
     required this.priceText,
+    required this.originalPriceText,
     required this.nameController,
     required this.priceController,
     required this.onEdit,
@@ -65,6 +67,41 @@ class CartDetailItemTile extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
+                    if (originalPriceText != null) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEAF7EE),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Text(
+                              '할인 적용',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF2E7D32),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '정가 $originalPriceText',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black45,
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../models/saved_cart.dart';
 import '../services/cart_store.dart';
+import '../services/cart_title_formatter.dart';
 import 'cartly_symbol_icon.dart';
 import 'saved_cart_list_card_content.dart';
 
@@ -20,8 +21,8 @@ class SavedCartListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateText = DateFormat('yyyy년 M월 d일').format(cart.createdAt);
-    final title = (cart.title ?? '').trim();
+    final dateText = DateFormat('yyyy년 M월 d일').format(cart.customerTimelineAt);
+    final title = normalizeCartTitleForDisplay(cart.title) ?? '';
     final preview = cart.items.take(2).map((e) => e.name).join(' · ');
     final expiryText = cart.expiresAt == null
         ? null

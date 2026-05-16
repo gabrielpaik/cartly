@@ -2,18 +2,14 @@ import 'dart:async';
 
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:intl/intl.dart';
-
 import '../app_support.dart';
+import 'cart_title_formatter.dart';
 
 class CartTitleSuggestion {
   final String suggestedTitle;
   final String? subtitle;
 
-  const CartTitleSuggestion({
-    required this.suggestedTitle,
-    this.subtitle,
-  });
+  const CartTitleSuggestion({required this.suggestedTitle, this.subtitle});
 }
 
 class CartTitleSuggester {
@@ -21,7 +17,6 @@ class CartTitleSuggester {
 
   static Future<CartTitleSuggestion> suggest(List<CartItem> items) async {
     final now = DateTime.now();
-    final dateText = DateFormat('M월 d일').format(now);
     final brand = _inferMartBrand(items);
     String? areaLabel;
 
@@ -56,11 +51,7 @@ class CartTitleSuggester {
       // 위치 기반 추천은 best-effort. 실패하면 날짜 fallback.
     }
 
-    final title = _buildTitle(
-      brand: brand,
-      areaLabel: areaLabel,
-      dateText: dateText,
-    );
+    final title = _buildTitle(brand: brand, areaLabel: areaLabel, now: now);
     final subtitle = _buildSubtitle(brand: brand, areaLabel: areaLabel);
 
     return CartTitleSuggestion(suggestedTitle: title, subtitle: subtitle);
@@ -69,18 +60,14 @@ class CartTitleSuggester {
   static String _buildTitle({
     required String? brand,
     required String? areaLabel,
-    required String dateText,
+    required DateTime now,
   }) {
-    if (brand != null && areaLabel != null) {
-      return '$brand · $areaLabel · $dateText';
-    }
-    if (brand != null) {
-      return '$brand · $dateText';
-    }
-    if (areaLabel != null) {
-      return '$areaLabel 장보기 · $dateText';
-    }
-    return '$dateText 카트';
+    return buildUnifiedCartTitle(
+      merchantOrBrand: brand,
+      areaLabel: areaLabel,
+      date: now,
+      appendShoppingForAreaOnly: true,
+    );
   }
 
   static String? _buildSubtitle({
@@ -100,9 +87,7 @@ class CartTitleSuggester {
   }
 
   static String? _inferMartBrand(List<CartItem> items) {
-    final joined = items
-        .map((item) => item.name.toLowerCase())
-        .join(' ');
+    final joined = items.map((item) => item.name.toLowerCase()).join(' ');
 
     const patterns = <String, List<String>>{
       '코스트코': ['kirkland', '커클랜드', 'costco', '코스트코'],

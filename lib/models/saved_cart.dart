@@ -3,6 +3,7 @@ class SavedCartReceiptStatus {
   final String receiptStatus;
   final String? merchantName;
   final bool hasReceipt;
+  final DateTime? purchasedAt;
   final DateTime? updatedAt;
   final DateTime? completedAt;
 
@@ -11,6 +12,7 @@ class SavedCartReceiptStatus {
     required this.receiptStatus,
     required this.merchantName,
     required this.hasReceipt,
+    required this.purchasedAt,
     required this.updatedAt,
     required this.completedAt,
   });
@@ -22,6 +24,7 @@ class SavedCartReceiptStatus {
     'receiptStatus': receiptStatus,
     'merchantName': merchantName,
     'hasReceipt': hasReceipt,
+    'purchasedAt': purchasedAt?.toIso8601String(),
     'updatedAt': updatedAt?.toIso8601String(),
     'completedAt': completedAt?.toIso8601String(),
   };
@@ -32,6 +35,7 @@ class SavedCartReceiptStatus {
         receiptStatus: (json['receiptStatus'] ?? 'processing') as String,
         merchantName: json['merchantName'] as String?,
         hasReceipt: json['hasReceipt'] != false,
+        purchasedAt: DateTime.tryParse((json['purchasedAt'] ?? '') as String),
         updatedAt: DateTime.tryParse((json['updatedAt'] ?? '') as String),
         completedAt: DateTime.tryParse((json['completedAt'] ?? '') as String),
       );
@@ -44,6 +48,9 @@ class SavedCartItem {
   String? source;
   String? scanResultId;
   String? originalName;
+  int? originalPrice;
+  String? categoryLabel;
+  String? categorySource;
 
   SavedCartItem({
     required this.name,
@@ -52,9 +59,14 @@ class SavedCartItem {
     this.source,
     this.scanResultId,
     this.originalName,
+    this.originalPrice,
+    this.categoryLabel,
+    this.categorySource,
   });
 
   int get total => price * quantity;
+  bool get hasDiscount => originalPrice != null && originalPrice! > price;
+  int? get discountAmount => hasDiscount ? originalPrice! - price : null;
 
   Map<String, dynamic> toJson() => {
     'name': name,
@@ -63,16 +75,39 @@ class SavedCartItem {
     'source': source,
     'scanResultId': scanResultId,
     'originalName': originalName,
+    'originalPrice': originalPrice,
+    'categoryLabel': categoryLabel,
+    'categorySource': categorySource,
   };
 
-  static SavedCartItem fromJson(Map<String, dynamic> json) => SavedCartItem(
-    name: (json['name'] ?? '') as String,
-    price: (json['price'] ?? 0) as int,
-    quantity: (json['quantity'] ?? 1) as int,
-    source: json['source'] as String?,
-    scanResultId: json['scanResultId'] as String?,
-    originalName: (json['originalName'] ?? json['name']) as String?,
-  );
+  static SavedCartItem fromJson(Map<String, dynamic> json) {
+    final categoryMeta = json['categoryMeta'] is Map<String, dynamic>
+        ? json['categoryMeta'] as Map<String, dynamic>
+        : json['categoryMeta'] is Map
+        ? Map<String, dynamic>.from(json['categoryMeta'] as Map)
+        : null;
+    return SavedCartItem(
+      name: (json['name'] ?? '') as String,
+      price: (json['price'] ?? 0) as int,
+      quantity: (json['quantity'] ?? 1) as int,
+      source: json['source'] as String?,
+      scanResultId: json['scanResultId'] as String?,
+      originalName: (json['originalName'] ?? json['name']) as String?,
+      originalPrice: json['originalPrice'] is int
+          ? json['originalPrice'] as int
+          : json['originalPrice'] is num
+          ? (json['originalPrice'] as num).toInt()
+          : null,
+      categoryLabel:
+          (json['categoryLabel'] as String?) ??
+          (categoryMeta?['naverLargeCategory'] as String?) ??
+          (categoryMeta?['category'] as String?),
+      categorySource:
+          (json['categorySource'] as String?) ??
+          (categoryMeta?['categorySource'] as String?) ??
+          (categoryMeta?['source'] as String?),
+    );
+  }
 }
 
 class SavedCart {
@@ -103,10 +138,13 @@ class SavedCart {
   int get totalPrice => items.fold(0, (sum, it) => sum + it.total);
   int get totalCount => items.fold(0, (sum, it) => sum + it.quantity);
   DateTime get lastTouchedAt => updatedAt;
+  DateTime get customerTimelineAt => receiptStatus?.purchasedAt ?? createdAt;
 
   DateTime? purchaseCompletedAt({DateTime? now}) {
     if (receiptStatus?.isReady == true) {
-      return receiptStatus?.completedAt ?? receiptStatus?.updatedAt ?? updatedAt;
+      return receiptStatus?.completedAt ??
+          receiptStatus?.updatedAt ??
+          updatedAt;
     }
     final completedAt = lastTouchedAt.add(const Duration(days: 2));
     if (completedAt.isAfter(now ?? DateTime.now())) {

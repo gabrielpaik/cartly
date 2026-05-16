@@ -42,9 +42,7 @@ class CartDetailBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isExpiredGuestLocked) {
-      return CartDetailGuestLockedView(
-        canExtendRetention: canExtendRetention,
-      );
+      return CartDetailGuestLockedView(canExtendRetention: canExtendRetention);
     }
 
     if (items.isEmpty) {
@@ -73,6 +71,9 @@ class CartDetailBody extends StatelessWidget {
           isEditingMode: isEditing,
           isInlineEditing: editing,
           priceText: formatPriceText(item.price),
+          originalPriceText: item.hasDiscount && item.originalPrice != null
+              ? formatPriceText(item.originalPrice!)
+              : null,
           nameController: nameController,
           priceController: priceController,
           onEdit: isEditing ? () => onEdit(index) : null,

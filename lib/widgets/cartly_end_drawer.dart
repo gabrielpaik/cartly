@@ -243,11 +243,14 @@ class _CartlyEndDrawerState extends State<CartlyEndDrawer> {
                       );
                     }
 
+                    final sortedCarts = [...carts]
+                      ..sort((a, b) => b.customerTimelineAt.compareTo(a.customerTimelineAt));
+
                     return Column(
-                      children: carts.map((cart) {
+                      children: sortedCarts.map((cart) {
                         final d = DateFormat(
                           'yyyy년 M월 d일',
-                        ).format(cart.createdAt);
+                        ).format(cart.customerTimelineAt);
                         final summary =
                             '${cart.totalCount}개 · ₩${_fmt(cart.totalPrice)}';
 

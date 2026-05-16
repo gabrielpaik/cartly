@@ -101,12 +101,22 @@ def _serialize_cart_item(
 ) -> dict:
     item_override = override_to_category_meta((cart_item_overrides_by_id or {}).get(item.id or ''))
     scan_job_override = override_to_category_meta((scan_job_overrides_by_id or {}).get(item.scan_job_id or ''))
-    category_meta = item_override or scan_job_override or infer_large_category(item.name, item.original_name, item.scan_job_id)
+    stored_meta = None
+    if item.category_label:
+        stored_meta = {
+            'naverLargeCategory': item.category_label,
+            'naverCategoryPath': item.category_label,
+            'categorySource': item.category_source or 'customer-manual-v1',
+        }
+    category_meta = item_override or stored_meta or scan_job_override or infer_large_category(item.name, item.original_name, item.scan_job_id)
     return {
         'id': item.id,
         'scanResultId': item.scan_job_id,
         'name': item.name,
         'originalName': item.original_name,
+        'originalPrice': item.original_price,
+        'categoryLabel': item.category_label,
+        'categorySource': item.category_source,
         'price': item.price,
         'quantity': item.quantity,
         'source': item.source,
@@ -322,10 +332,24 @@ def _apply_cart_items(cart: Cart, items: Iterable[dict]) -> None:
         quantity = max(int(item.get('quantity') or 1), 1)
         price = int(item['price'])
         original_name = str(item.get('originalName') or '').strip() or None
+        raw_original_price = item.get('originalPrice')
+        original_price = int(raw_original_price) if raw_original_price not in (None, '') else None
+        if original_price is not None and original_price <= price:
+            original_price = None
+        raw_category_label = str(item.get('categoryLabel') or '').strip() or None
+        raw_category_source = str(item.get('categorySource') or '').strip() or None
+        if raw_category_label is None and isinstance(item.get('categoryMeta'), dict):
+            category_meta = item.get('categoryMeta') or {}
+            raw_category_label = str(category_meta.get('naverLargeCategory') or category_meta.get('category') or '').strip() or None
+            raw_category_source = str(category_meta.get('categorySource') or category_meta.get('source') or '').strip() or None
+        persist_manual_category = raw_category_label is not None and raw_category_source in {'customer-manual-v1', 'admin-override-v1'}
         cart_item = CartItem(
             scan_job_id=item.get('scanResultId'),
             name=str(item['name']).strip(),
             original_name=original_name,
+            original_price=original_price,
+            category_label=raw_category_label if persist_manual_category else None,
+            category_source=raw_category_source if persist_manual_category else None,
             price=price,
             quantity=quantity,
             source='scan' if item.get('scanResultId') else 'manual',
@@ -405,6 +429,9 @@ def update_cart(db: OrmSession, cart: Cart, payload: dict) -> Cart:
             'scanResultId': item.scan_job_id,
             'name': item.name,
             'originalName': item.original_name,
+            'originalPrice': item.original_price,
+            'categoryLabel': item.category_label,
+            'categorySource': item.category_source,
             'price': item.price,
             'quantity': item.quantity,
         }

@@ -8,6 +8,7 @@ import '../services/admob_service.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
+import '../services/cart_title_formatter.dart';
 import '../app/cartly_ui.dart';
 import 'cart_detail_page_helpers.dart';
 import 'receipt_comparison_page.dart';
@@ -114,6 +115,9 @@ class _CartDetailPageState extends State<CartDetailPage> {
     setState(() {
       _markReceiptApplyEdited();
       _cart.items[i].name = newName;
+      if (_cart.items[i].price != newPrice) {
+        _cart.items[i].originalPrice = null;
+      }
       _cart.items[i].price = newPrice;
       _editingIndex = null;
     });
@@ -298,9 +302,9 @@ class _CartDetailPageState extends State<CartDetailPage> {
         _pendingReceiptApplyResult = null;
         _hasEditedAfterReceiptApply = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이전 카트로 되돌렸어요')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('이전 카트로 되돌렸어요')));
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -340,7 +344,10 @@ class _CartDetailPageState extends State<CartDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final dateText = DateFormat('M월 d일').format(_cart.createdAt);
+    final dateText = DateFormat('M월 d일').format(_cart.customerTimelineAt);
+    final titleText =
+        normalizeCartTitleForDisplay(_cart.title) ??
+        '$dateText ${AppRuntimeCopy.text(['cartDetail', 'titleSuffix'], '카트')}';
 
     return Scaffold(
       backgroundColor: CartlyColors.surface0,
@@ -350,9 +357,7 @@ class _CartDetailPageState extends State<CartDetailPage> {
         surfaceTintColor: CartlyColors.surface0,
         foregroundColor: CartlyColors.textPrimary,
         centerTitle: false,
-        title: Text(
-          '$dateText ${AppRuntimeCopy.text(['cartDetail', 'titleSuffix'], '카트')}',
-        ),
+        title: Text(titleText),
         actions: [
           CartDetailAppBarActions(
             isEditing: _isEditing,

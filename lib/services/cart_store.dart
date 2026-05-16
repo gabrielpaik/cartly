@@ -166,12 +166,20 @@ class CartStore {
     }
 
     final localSnapshot = SavedCart(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: updated.id,
       title: updated.title,
-      createdAt: DateTime.now(),
+      createdAt: updated.createdAt,
       items: updated.items,
+      expiresAt: updated.expiresAt,
+      isExpired: updated.isExpired,
+      retentionExtensionCount: updated.retentionExtensionCount,
+      canExtendRetention: updated.canExtendRetention,
+      receiptStatus: updated.receiptStatus,
     );
-    final next = [localSnapshot, ...carts.value];
+    final next = [
+      localSnapshot,
+      ...carts.value.where((cart) => cart.id != localSnapshot.id),
+    ];
     await _persistLocal(next, ownerId: '');
     return localSnapshot;
   }

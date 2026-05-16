@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -243,6 +245,24 @@ class _CartDetailPageState extends State<CartDetailPage> {
     });
   }
 
+  Future<void> _undoReceiptApply(ReceiptCartApplyResult result) async {
+    try {
+      final restored = await CartStore.instance.updateCart(result.previousCart);
+      if (!mounted) return;
+      setState(() {
+        _cart = cloneSavedCartSnapshot(restored);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('이전 카트로 되돌렸어요')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
   Future<void> _openReceiptCompare() async {
     if (_isEditing || _isSaving || _isExpiredGuestLocked) return;
 
@@ -251,13 +271,28 @@ class _CartDetailPageState extends State<CartDetailPage> {
     ).push(MaterialPageRoute(builder: (_) => ReceiptCheckPage(cart: _cart)));
 
     if (!mounted) return;
+    if (result is ReceiptCartApplyResult) {
+      setState(() {
+        _cart = cloneSavedCartSnapshot(result.appliedCart);
+      });
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('영수증 기준으로 카트를 수정했어요'),
+          action: SnackBarAction(
+            label: '되돌리기',
+            onPressed: () {
+              unawaited(_undoReceiptApply(result));
+            },
+          ),
+        ),
+      );
+      return;
+    }
     if (result is SavedCart) {
       setState(() {
         _cart = cloneSavedCartSnapshot(result);
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('영수증 기준으로 카트를 반영했어요')),
-      );
       return;
     }
 
@@ -405,7 +440,7 @@ class _CartReceiptStatusCard extends StatelessWidget {
         '영수증 정리됨',
         const Color(0xFFEAF7EE),
         const Color(0xFF2E7D32),
-        '영수증 요약과 상세 내역을 다시 열어볼 수 있어요.',
+        '영수증 분석이 끝났어요. 열어서 영수증 기준으로 카트를 수정할 수 있어요.',
       ),
       _ => (
         '영수증 등록됨',

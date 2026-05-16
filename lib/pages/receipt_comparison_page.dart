@@ -79,6 +79,50 @@ class _ReceiptPurchasedEntry {
   });
 }
 
+SavedCart _cloneReceiptSavedCart(SavedCart source) {
+  return SavedCart(
+    id: source.id,
+    title: source.title,
+    createdAt: source.createdAt,
+    items: source.items
+        .map(
+          (item) => SavedCartItem(
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            source: item.source,
+            scanResultId: item.scanResultId,
+            originalName: item.originalName,
+          ),
+        )
+        .toList(),
+    expiresAt: source.expiresAt,
+    isExpired: source.isExpired,
+    retentionExtensionCount: source.retentionExtensionCount,
+    canExtendRetention: source.canExtendRetention,
+    receiptStatus: source.receiptStatus == null
+        ? null
+        : SavedCartReceiptStatus(
+            receiptId: source.receiptStatus!.receiptId,
+            receiptStatus: source.receiptStatus!.receiptStatus,
+            merchantName: source.receiptStatus!.merchantName,
+            hasReceipt: source.receiptStatus!.hasReceipt,
+            updatedAt: source.receiptStatus!.updatedAt,
+            completedAt: source.receiptStatus!.completedAt,
+          ),
+  );
+}
+
+class ReceiptCartApplyResult {
+  final SavedCart previousCart;
+  final SavedCart appliedCart;
+
+  const ReceiptCartApplyResult({
+    required this.previousCart,
+    required this.appliedCart,
+  });
+}
+
 class ReceiptCheckPage extends StatefulWidget {
   final SavedCart cart;
 
@@ -347,6 +391,29 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
       return;
     }
 
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('영수증 분석이 끝났어요!'),
+          content: const Text('영수증을 기반해 카트를 수정할까요?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('나중에'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('승인하고 반영'),
+            ),
+          ],
+        );
+      },
+    );
+    if (approved != true || !mounted) {
+      return;
+    }
+
     final nextItems = _buildReceiptCartItems(data);
     if (nextItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -357,6 +424,7 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
 
     setState(() => _isApplyingReceipt = true);
     try {
+      final previousCart = _cloneReceiptSavedCart(widget.cart);
       final updated = SavedCart(
         id: widget.cart.id,
         title: widget.cart.title,
@@ -370,7 +438,12 @@ class _ReceiptCheckPageState extends State<ReceiptCheckPage> {
       );
       final saved = await CartStore.instance.updateCart(updated);
       if (!mounted) return;
-      Navigator.of(context).pop(saved);
+      Navigator.of(context).pop(
+        ReceiptCartApplyResult(
+          previousCart: previousCart,
+          appliedCart: saved,
+        ),
+      );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -1710,13 +1783,13 @@ class _ReceiptApplyToCartCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            '영수증 기준으로 카트 반영',
+            '영수증 분석이 끝났어요!',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           Text(
             hasItems
-                ? '지금 보이는 영수증 상품 목록으로 저장 카트를 바꿔요. 기존 카트 내용은 영수증 기준으로 덮어써요.'
+                ? '영수증을 기반해 카트를 수정할까요? 승인하면 영수증 상품 기준으로 저장 카트를 바꾸고, 반영 후에도 카트에서 직접 수정할 수 있어요.'
                 : '반영할 영수증 상품이 아직 없어요.',
             style: const TextStyle(
               fontSize: 13,
@@ -1783,7 +1856,7 @@ class _ReceiptApplyToCartCard extends StatelessWidget {
                     )
                   : const CartlySymbolIcon.sf('arrow.triangle.branch', size: 18),
               label: Text(
-                isApplying ? '카트에 반영하는 중' : '영수증대로 카트 바꾸기',
+                isApplying ? '카트에 반영하는 중' : '영수증 기준으로 수정 승인',
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),

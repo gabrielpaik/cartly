@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.orm import Session as OrmSession, selectinload
 
-from ..db.models import AdImpression, AppEvent, Cart, PushDevice, ScanFailureLog, ScanFeedback, ScanJob, Session, User
+from ..db.models import AdImpression, AppEvent, Cart, Household, HouseholdMembership, PushDevice, ScanFailureLog, ScanFeedback, ScanJob, Session, User
 from .cart_service import serialize_cart
 from .user_region_service import (
     build_user_region_summary_map,
@@ -163,6 +163,127 @@ def _serialize_push_device(device: PushDevice) -> dict:
         'lastRegisteredAt': _iso(device.last_registered_at),
         'lastSeenAt': _iso(device.last_seen_at),
         'createdAt': _iso(device.created_at),
+    }
+
+
+def _build_household_admin_map(db: OrmSession, user_ids: list[str]) -> dict[str, dict]:
+    normalized_user_ids = [user_id for user_id in user_ids if user_id]
+    if not normalized_user_ids:
+        return {}
+
+    member_count_subquery = (
+        select(
+            HouseholdMembership.household_id.label('household_id'),
+            func.count(HouseholdMembership.id).label('member_count'),
+        )
+        .group_by(HouseholdMembership.household_id)
+        .subquery()
+    )
+
+    rows = list(
+        db.execute(
+            select(
+                HouseholdMembership.user_id,
+                HouseholdMembership.role,
+                HouseholdMembership.created_at,
+                Household.id,
+                Household.name,
+                Household.invite_code,
+                Household.invite_code_created_at,
+                Household.created_by_user_id,
+                Household.created_at,
+                Household.updated_at,
+                func.coalesce(member_count_subquery.c.member_count, 0),
+            )
+            .join(Household, Household.id == HouseholdMembership.household_id)
+            .outerjoin(member_count_subquery, member_count_subquery.c.household_id == Household.id)
+            .where(HouseholdMembership.user_id.in_(normalized_user_ids))
+        ).all()
+    )
+
+    payload = {}
+    for row in rows:
+        payload[row[0]] = {
+            'hasHousehold': True,
+            'householdId': row[3],
+            'householdName': row[4],
+            'householdInviteCode': row[5],
+            'householdInviteCodeCreatedAt': _iso(row[6]),
+            'householdCreatedByUserId': row[7],
+            'householdCreatedAt': _iso(row[8]),
+            'householdUpdatedAt': _iso(row[9]),
+            'householdMemberCount': int(row[10] or 0),
+            'householdRole': row[1],
+            'householdJoinedAt': _iso(row[2]),
+        }
+    return payload
+
+
+def _build_household_detail(db: OrmSession, user_id: str) -> dict:
+    household_map = _build_household_admin_map(db, [user_id])
+    current = household_map.get(user_id)
+    if current is None:
+        return {
+            'hasHousehold': False,
+            'household': None,
+            'membership': None,
+            'members': [],
+        }
+
+    membership_rows = list(
+        db.scalars(
+            select(HouseholdMembership)
+            .where(HouseholdMembership.household_id == current['householdId'])
+            .order_by(
+                case((HouseholdMembership.role == 'owner', 0), else_=1),
+                HouseholdMembership.created_at.asc(),
+            )
+        ).all()
+    )
+    users = {
+        member.id: member
+        for member in db.scalars(
+            select(User).where(User.id.in_([row.user_id for row in membership_rows]))
+        ).all()
+    }
+    members = []
+    for row in membership_rows:
+        member_user = users.get(row.user_id)
+        if member_user is None:
+            continue
+        members.append(
+            {
+                'userId': member_user.id,
+                'displayName': member_user.display_name,
+                'email': member_user.email,
+                'isGuest': bool(member_user.is_guest),
+                'status': member_user.status,
+                'role': row.role,
+                'joinedAt': _iso(row.created_at),
+                'lastSeenAt': _iso(member_user.last_seen_at),
+                'lastDevicePlatform': member_user.last_device_platform,
+                'lastAppVersion': member_user.last_app_version,
+                'isCurrentUser': member_user.id == user_id,
+            }
+        )
+
+    return {
+        'hasHousehold': True,
+        'household': {
+            'id': current['householdId'],
+            'name': current['householdName'],
+            'inviteCode': current['householdInviteCode'],
+            'inviteCodeCreatedAt': current['householdInviteCodeCreatedAt'],
+            'createdByUserId': current['householdCreatedByUserId'],
+            'createdAt': current['householdCreatedAt'],
+            'updatedAt': current['householdUpdatedAt'],
+            'memberCount': current['householdMemberCount'],
+        },
+        'membership': {
+            'role': current['householdRole'],
+            'joinedAt': current['householdJoinedAt'],
+        },
+        'members': members,
     }
 
 
@@ -333,11 +454,14 @@ def list_users_for_admin(
         ).all()
     )
 
-    region_summary_map = build_user_region_summary_map(db, [row[0] for row in rows])
+    user_ids = [row[0] for row in rows]
+    region_summary_map = build_user_region_summary_map(db, user_ids)
+    household_map = _build_household_admin_map(db, user_ids)
 
     users = []
     for row in rows:
         region_summary = region_summary_map.get(row[0], {})
+        household_summary = household_map.get(row[0], {})
         user = {
             'id': row[0],
             'displayName': row[1],
@@ -357,6 +481,12 @@ def list_users_for_admin(
             'lastRegionNeighborhood': row[15],
             'lastRegionLabel': row[16],
             'lastRegionCapturedAt': _iso(row[17]),
+            'hasHousehold': bool(household_summary.get('hasHousehold')),
+            'householdId': household_summary.get('householdId'),
+            'householdName': household_summary.get('householdName'),
+            'householdRole': household_summary.get('householdRole'),
+            'householdMemberCount': household_summary.get('householdMemberCount'),
+            'householdJoinedAt': household_summary.get('householdJoinedAt'),
             'regionActivityCount': int(region_summary.get('regionActivityCount') or 0),
             'recentRegionCount30d': int(region_summary.get('recentRegionCount30d') or 0),
             'primaryRegionKey': region_summary.get('primaryRegionKey'),
@@ -455,6 +585,7 @@ def get_user_detail_with_carts(db: OrmSession, user_id: str, limit: int = 200) -
     )
     region_profiles = list_user_region_profiles(db, user_id, limit=12)
     region_events = list_user_region_events(db, user_id, limit=20)
+    household = _build_household_detail(db, user_id)
 
     total_carts = len(carts)
     total_items = sum((cart.total_count_cached or 0) for cart in carts)
@@ -639,7 +770,81 @@ def get_user_detail_with_carts(db: OrmSession, user_id: str, limit: int = 200) -
             'profiles': region_profiles,
             'recentEvents': region_events,
         },
+        'household': household,
         'carts': [serialize_cart(cart) for cart in carts],
+    }
+
+
+def disconnect_user_from_household(db: OrmSession, user_id: str) -> dict:
+    membership = db.scalar(select(HouseholdMembership).where(HouseholdMembership.user_id == user_id))
+    if membership is None:
+        return {'ok': False, 'code': 'HOUSEHOLD_NOT_FOUND', 'message': '가족공유 상태가 아니야'}
+
+    household = db.get(Household, membership.household_id)
+    member_rows = list(
+        db.scalars(
+            select(HouseholdMembership)
+            .where(HouseholdMembership.household_id == membership.household_id)
+            .order_by(
+                case((HouseholdMembership.role == 'owner', 0), else_=1),
+                HouseholdMembership.created_at.asc(),
+            )
+        ).all()
+    )
+    remaining_rows = [row for row in member_rows if row.user_id != user_id]
+    next_owner_user_id = None
+
+    if household is None:
+        db.delete(membership)
+        db.commit()
+        return {'ok': True, 'disconnectedUserId': user_id, 'householdId': membership.household_id, 'remainingMemberCount': 0, 'householdDeleted': False}
+
+    if membership.role == 'owner' and remaining_rows:
+        next_owner = remaining_rows[0]
+        next_owner.role = 'owner'
+        next_owner.updated_at = datetime.utcnow()
+        household.created_by_user_id = next_owner.user_id
+        next_owner_user_id = next_owner.user_id
+        db.add(next_owner)
+
+    db.delete(membership)
+    if remaining_rows:
+        household.updated_at = datetime.utcnow()
+        db.add(household)
+    else:
+        db.delete(household)
+    db.commit()
+    return {
+        'ok': True,
+        'disconnectedUserId': user_id,
+        'householdId': membership.household_id,
+        'remainingMemberCount': len(remaining_rows),
+        'householdDeleted': len(remaining_rows) == 0,
+        'nextOwnerUserId': next_owner_user_id,
+    }
+
+
+def disband_household_for_user(db: OrmSession, user_id: str) -> dict:
+    membership = db.scalar(select(HouseholdMembership).where(HouseholdMembership.user_id == user_id))
+    if membership is None:
+        return {'ok': False, 'code': 'HOUSEHOLD_NOT_FOUND', 'message': '가족공유 상태가 아니야'}
+
+    household = db.get(Household, membership.household_id)
+    member_rows = list(
+        db.scalars(
+            select(HouseholdMembership).where(HouseholdMembership.household_id == membership.household_id)
+        ).all()
+    )
+    for row in member_rows:
+        db.delete(row)
+    if household is not None:
+        db.delete(household)
+    db.commit()
+    return {
+        'ok': True,
+        'householdId': membership.household_id,
+        'removedMemberCount': len(member_rows),
+        'householdDeleted': household is not None,
     }
 
 

@@ -921,3 +921,28 @@ Why:
 - immediate operator value
 
 If Explore works, the same design language can expand to Content and Config.
+
+---
+
+## 2026-05-17 operator follow-up
+
+The active pre-ship operator follow-up for build 24 is now implemented and refreshed into the live-served admin runtime.
+
+What landed:
+- admin-editable runtime copy coverage for the new member `수정 및 가족공유` page, including profile, password, household/share, and account-deletion confirm/done/fail strings
+- admin Users detail now exposes household/share runtime state, member list, invite-code summary, and operator actions for `Disconnect user` and `Disband household`
+- admin Users list now carries household-state summary data for row-level visibility (`solo` vs share role/member count)
+
+Verification completed in this pass:
+- backend `py_compile` passed for the admin copy and admin users changes
+- Flutter analyze passed for the My/settings-household copy wiring
+- `admin-web` production build passed
+- runtime refresh completed successfully
+- public live-served admin screenshots confirmed:
+  - `/content?section=account` shows the new My/settings/share and account-deletion copy fields
+  - `/users/[id]` shows household/share summary, operator controls, and member list
+- destructive operator household actions were **not** executed against live user data during verification; instead, the disconnect/disband service logic was smoke-tested against a temp SQLite DB fixture and passed
+
+Ship gate status:
+- the earlier build-24 blocker for admin content + admin Users household/operator visibility is now cleared
+- next safe step is to prepare the release commit / build bump and ship `1.0.4 (24)` when ready

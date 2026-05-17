@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session as OrmSession
 from ..deps import db_dep
 from ..services.admin_user_service import (
     archive_legacy_guest,
+    disband_household_for_user,
+    disconnect_user_from_household,
     get_user_detail_with_carts,
     list_legacy_guests,
     list_users_for_admin,
@@ -88,3 +90,21 @@ def admin_user_carts(user_id: str, limit: int = Query(default=200, ge=1, le=500)
             },
         }
     return {'ok': True, 'data': detail}
+
+
+@router.post('/users/{user_id}/household/disconnect')
+def admin_disconnect_user_household(user_id: str, db: OrmSession = Depends(db_dep)):
+    result = disconnect_user_from_household(db, user_id)
+    if not result.get('ok'):
+        return {'ok': False, 'error': {'code': result['code'], 'message': result['message']}}
+    detail = get_user_detail_with_carts(db, user_id)
+    return {'ok': True, 'data': {'result': result, 'detail': detail}}
+
+
+@router.post('/users/{user_id}/household/disband')
+def admin_disband_user_household(user_id: str, db: OrmSession = Depends(db_dep)):
+    result = disband_household_for_user(db, user_id)
+    if not result.get('ok'):
+        return {'ok': False, 'error': {'code': result['code'], 'message': result['message']}}
+    detail = get_user_detail_with_carts(db, user_id)
+    return {'ok': True, 'data': {'result': result, 'detail': detail}}

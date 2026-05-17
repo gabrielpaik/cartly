@@ -76,6 +76,20 @@ export type UserRegionEventDto = {
   createdAt: string | null
 }
 
+export type HouseholdMemberDto = {
+  userId: string
+  displayName?: string | null
+  email?: string | null
+  isGuest?: boolean
+  status?: string | null
+  role: string
+  joinedAt: string | null
+  lastSeenAt?: string | null
+  lastDevicePlatform?: string | null
+  lastAppVersion?: string | null
+  isCurrentUser?: boolean
+}
+
 export type UserCartDetailPayload = {
   user: {
     id: string
@@ -152,6 +166,24 @@ export type UserCartDetailPayload = {
     profileCount: number
     profiles: UserRegionProfileDto[]
     recentEvents: UserRegionEventDto[]
+  }
+  household: {
+    hasHousehold: boolean
+    household: {
+      id: string
+      name?: string | null
+      inviteCode?: string | null
+      inviteCodeCreatedAt?: string | null
+      createdByUserId?: string | null
+      createdAt?: string | null
+      updatedAt?: string | null
+      memberCount: number
+    } | null
+    membership: {
+      role: string
+      joinedAt?: string | null
+    } | null
+    members: HouseholdMemberDto[]
   }
   carts: CartDto[]
 }
@@ -293,6 +325,51 @@ export function createUserDetailFallback(userId?: string): UserCartDetailPayload
           label: '문래동, 영등포구, 서울특별시',
           capturedAt: '2026-03-24T00:00:00.000Z',
           createdAt: '2026-03-24T00:00:00.000Z',
+        },
+      ],
+    },
+    household: {
+      hasHousehold: true,
+      household: {
+        id: 'household_001',
+        name: '우리 집',
+        inviteCode: 'ABC123',
+        inviteCodeCreatedAt: '2026-03-24T00:00:00.000Z',
+        createdByUserId: userId ?? 'usr_mock',
+        createdAt: '2026-03-23T00:00:00.000Z',
+        updatedAt: '2026-03-24T00:00:00.000Z',
+        memberCount: 2,
+      },
+      membership: {
+        role: 'owner',
+        joinedAt: '2026-03-23T00:00:00.000Z',
+      },
+      members: [
+        {
+          userId: userId ?? 'usr_mock',
+          displayName: 'Guest shopper',
+          email: null,
+          isGuest: true,
+          status: 'active',
+          role: 'owner',
+          joinedAt: '2026-03-23T00:00:00.000Z',
+          lastSeenAt: '2026-03-24T00:00:00.000Z',
+          lastDevicePlatform: 'ios',
+          lastAppVersion: '1.0.3',
+          isCurrentUser: true,
+        },
+        {
+          userId: 'usr_mock_member',
+          displayName: 'Family member',
+          email: 'family@example.com',
+          isGuest: false,
+          status: 'active',
+          role: 'member',
+          joinedAt: '2026-03-24T00:00:00.000Z',
+          lastSeenAt: '2026-03-24T05:00:00.000Z',
+          lastDevicePlatform: 'ios',
+          lastAppVersion: '1.0.4',
+          isCurrentUser: false,
         },
       ],
     },

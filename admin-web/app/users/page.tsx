@@ -49,6 +49,12 @@ type UserRow = {
   topRegionSummary?: string | null
   regionActivityCount?: number | null
   recentRegionCount30d?: number | null
+  hasHousehold?: boolean | null
+  householdId?: string | null
+  householdName?: string | null
+  householdRole?: string | null
+  householdMemberCount?: number | null
+  householdJoinedAt?: string | null
 }
 
 type KoreaRegionOption = {
@@ -380,6 +386,9 @@ export default function UsersPage() {
         topRegionSummary: user.topRegionSummary ?? '',
         regionActivityCount: user.regionActivityCount ?? 0,
         recentRegionCount30d: user.recentRegionCount30d ?? 0,
+        householdRole: user.householdRole ?? '',
+        householdName: user.householdName ?? '',
+        householdMemberCount: user.householdMemberCount ?? 0,
         lastDevicePlatform: user.lastDevicePlatform ?? '',
         lastAppVersion: user.lastAppVersion ?? '',
       }))
@@ -619,6 +628,11 @@ export default function UsersPage() {
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           <span className="metaPill">{userTypeLabel(user, t)}</span>
                           <span className="metaPill">{providerLabel(user)}</span>
+                          {user.hasHousehold ? (
+                            <span className="metaPill">share {user.householdRole ?? 'member'} · {formatNumber(user.householdMemberCount ?? 0)}</span>
+                          ) : (
+                            <span className="metaPill">solo</span>
+                          )}
                         </div>
                       </div>
                     </td>

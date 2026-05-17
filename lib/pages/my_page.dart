@@ -28,6 +28,18 @@ import '../widgets/inline_promo_slot.dart';
 import '../widgets/saved_tab_cart_list.dart';
 import '../widgets/saved_tab_empty_state.dart';
 
+String _myCopy(String key, String fallback) {
+  return AppRuntimeCopy.text(['my', key], fallback);
+}
+
+String _applyCopyTemplate(String template, Map<String, String> values) {
+  var result = template;
+  values.forEach((key, value) {
+    result = result.replaceAll('{$key}', value);
+  });
+  return result;
+}
+
 class MyPage extends StatelessWidget {
   const MyPage({super.key});
 
@@ -112,7 +124,16 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
     if (displayName.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('이름을 입력해 주세요')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppRuntimeCopy.text(
+              ['login', 'validation', 'nameRequired'],
+              '이름을 입력해 주세요',
+            ),
+          ),
+        ),
+      );
       return;
     }
     if (_profileSaving) return;
@@ -124,7 +145,11 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('닉네임을 변경했어요')));
+      ).showSnackBar(SnackBar(
+          content: Text(
+            _myCopy('settingsShareNicknameSavedMessage', '닉네임을 변경했어요'),
+          ),
+        ));
     } on AuthRepositoryException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -145,7 +170,14 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('비밀번호 재설정 코드를 보냈어요')));
+      ).showSnackBar(SnackBar(
+          content: Text(
+            _myCopy(
+              'settingsSharePasswordCodeSentMessage',
+              '비밀번호 재설정 코드를 보냈어요',
+            ),
+          ),
+        ));
     } on AuthRepositoryException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -165,19 +197,46 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
     if (code.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('인증 코드를 입력해 주세요')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppRuntimeCopy.text(
+              ['login', 'validation', 'codeRequired'],
+              '인증 코드를 입력해 주세요',
+            ),
+          ),
+        ),
+      );
       return;
     }
     if (password.length < 8) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('비밀번호는 8자 이상이어야 해요')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppRuntimeCopy.text(
+              ['login', 'validation', 'passwordTooShort'],
+              '비밀번호는 8자 이상이어야 해요',
+            ),
+          ),
+        ),
+      );
       return;
     }
     if (password != confirm) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('비밀번호 확인이 일치하지 않아요')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppRuntimeCopy.text(
+              ['login', 'validation', 'passwordMismatch'],
+              '비밀번호 확인이 일치하지 않아요',
+            ),
+          ),
+        ),
+      );
       return;
     }
     if (_passwordSaving) return;
@@ -196,7 +255,11 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('비밀번호를 변경했어요')));
+      ).showSnackBar(SnackBar(
+          content: Text(
+            _myCopy('settingsSharePasswordSavedMessage', '비밀번호를 변경했어요'),
+          ),
+        ));
     } on AuthRepositoryException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -222,7 +285,15 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(code.isNotEmpty ? '초대 코드를 만들고 복사했어요' : '초대 코드를 만들었어요'),
+          content: Text(code.isNotEmpty
+                ? _myCopy(
+                    'settingsShareInviteCodeCreatedAndCopiedMessage',
+                    '초대 코드를 만들고 복사했어요',
+                  )
+                : _myCopy(
+                    'settingsShareInviteCodeCreatedMessage',
+                    '초대 코드를 만들었어요',
+                  )),
         ),
       );
     } on RemoteHouseholdException catch (error) {
@@ -241,14 +312,25 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
     if (inviteCode.trim().isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('복사할 초대 코드가 아직 없어요')));
+      ).showSnackBar(SnackBar(
+          content: Text(
+            _myCopy(
+              'settingsShareInviteCodeMissingMessage',
+              '복사할 초대 코드가 아직 없어요',
+            ),
+          ),
+        ));
       return;
     }
     await Clipboard.setData(ClipboardData(text: inviteCode.trim()));
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('초대 코드를 복사했어요')));
+    ).showSnackBar(SnackBar(
+        content: Text(
+          _myCopy('settingsShareInviteCodeCopiedMessage', '초대 코드를 복사했어요'),
+        ),
+      ));
   }
 
   Future<void> _joinHousehold() async {
@@ -256,7 +338,14 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
     if (inviteCode.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('초대 코드를 입력해 주세요')));
+      ).showSnackBar(SnackBar(
+          content: Text(
+            _myCopy(
+              'settingsShareInviteCodeRequiredMessage',
+              '초대 코드를 입력해 주세요',
+            ),
+          ),
+        ));
       return;
     }
     if (_shareBusy) return;
@@ -268,7 +357,11 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('가족 공유에 참여했어요')));
+      ).showSnackBar(SnackBar(
+          content: Text(
+            _myCopy('settingsShareJoinDoneMessage', '가족 공유에 참여했어요'),
+          ),
+        ));
     } on RemoteHouseholdException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -293,20 +386,34 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(isOwner ? '가족 공유 해제' : '가족 공유 나가기'),
+        title: Text(
+          isOwner
+              ? _myCopy('settingsShareDisbandConfirmTitle', '가족 공유 해제')
+              : _myCopy('settingsShareLeaveConfirmTitle', '가족 공유 나가기'),
+        ),
         content: Text(
           isOwner
-              ? '가족 공유를 해제하면 모든 구성원이 공유 카트를 더 이상 볼 수 없어요. 계속할까요?'
-              : '가족 공유에서 나가면 다른 구성원의 카트를 더 이상 볼 수 없어요. 계속할까요?',
+              ? _myCopy(
+                  'settingsShareDisbandConfirmBody',
+                  '가족 공유를 해제하면 모든 구성원이 공유 카트를 더 이상 볼 수 없어요. 계속할까요?',
+                )
+              : _myCopy(
+                  'settingsShareLeaveConfirmBody',
+                  '가족 공유에서 나가면 다른 구성원의 카트를 더 이상 볼 수 없어요. 계속할까요?',
+                ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('취소'),
+            child: Text(AppRuntimeCopy.text(['common', 'cancel'], '취소')),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(isOwner ? '해제할게요' : '나갈게요'),
+            child: Text(
+              isOwner
+                  ? _myCopy('settingsShareDisbandConfirmAction', '해제할게요')
+                  : _myCopy('settingsShareLeaveConfirmAction', '나갈게요'),
+            ),
           ),
         ],
       ),
@@ -321,7 +428,13 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
       await CartStore.instance.refreshForCurrentSession();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(isOwner ? '가족 공유를 해제했어요' : '가족 공유에서 나왔어요')),
+        SnackBar(
+          content: Text(
+            isOwner
+                ? _myCopy('settingsShareDisbandDoneMessage', '가족 공유를 해제했어요')
+                : _myCopy('settingsShareLeaveDoneMessage', '가족 공유에서 나왔어요'),
+          ),
+        ),
       );
     } on RemoteHouseholdException catch (error) {
       if (!mounted) return;
@@ -362,7 +475,11 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
               backgroundColor: CartlyColors.surface0,
               surfaceTintColor: Colors.transparent,
             ),
-            body: const Center(child: Text('로그인이 필요해요')),
+            body: Center(
+              child: Text(
+                AppRuntimeCopy.text(['my', 'guestBody'], '로그인이 필요해요'),
+              ),
+            ),
           );
         }
 
@@ -379,9 +496,9 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
           appBar: AppBar(
             backgroundColor: CartlyColors.surface0,
             surfaceTintColor: Colors.transparent,
-            title: const Text(
-              '수정 및 가족공유',
-              style: TextStyle(
+            title: Text(
+              _myCopy('settingsSharePageTitle', '수정 및 가족공유'),
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: CartlyColors.textPrimary,
@@ -405,9 +522,15 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
               return ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
                 children: [
-                  const CartlyPageHeader(
-                    title: Text('수정 및 가족공유', style: CartlyText.pageHeroCompact),
-                    subtitle: '계정 정보와 가족공유 설정을 한 번에 관리해 보세요',
+                  CartlyPageHeader(
+                    title: Text(
+                      _myCopy('settingsSharePageTitle', '수정 및 가족공유'),
+                      style: CartlyText.pageHeroCompact,
+                    ),
+                    subtitle: _myCopy(
+                      'settingsSharePageSubtitle',
+                      '계정 정보와 가족공유 설정을 한 번에 관리해 보세요',
+                    ),
                   ),
                   const SizedBox(height: CartlySpacing.section),
                   CartlySurfaceCard(
@@ -418,19 +541,31 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('기본 정보', style: CartlyText.cardTitle),
+                        Text(
+                          _myCopy('settingsShareProfileTitle', '기본 정보'),
+                          style: CartlyText.cardTitle,
+                        ),
                         const SizedBox(height: 6),
-                        const Text(
-                          '닉네임과 로그인 정보를 여기서 바로 관리할 수 있어요',
+                        Text(
+                          _myCopy(
+                            'settingsShareProfileBody',
+                            '닉네임과 로그인 정보를 여기서 바로 관리할 수 있어요',
+                          ),
                           style: CartlyText.cardBody,
                         ),
                         const SizedBox(height: 16),
                         TextField(
                           controller: _nameCtrl,
-                          decoration: const InputDecoration(
-                            labelText: '닉네임',
-                            hintText: '닉네임을 입력해 주세요',
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: _myCopy(
+                              'settingsShareNicknameFieldLabel',
+                              '닉네임',
+                            ),
+                            hintText: _myCopy(
+                              'settingsShareNicknameFieldHint',
+                              '닉네임을 입력해 주세요',
+                            ),
+                            border: const OutlineInputBorder(),
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -463,7 +598,12 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                           child: FilledButton(
                             style: CartlyButtonStyles.primary(),
                             onPressed: _profileSaving ? null : _saveDisplayName,
-                            child: Text(_profileSaving ? '저장 중' : '닉네임 변경하기'),
+                            child: Text(_profileSaving
+                                  ? AppRuntimeCopy.text(['common', 'loading'], '저장 중')
+                                  : _myCopy(
+                                      'settingsShareNicknameSaveAction',
+                                      '닉네임 변경하기',
+                                    )),
                           ),
                         ),
                       ],
@@ -478,12 +618,21 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('비밀번호', style: CartlyText.cardTitle),
+                        Text(
+                          _myCopy('settingsSharePasswordTitle', '비밀번호'),
+                          style: CartlyText.cardTitle,
+                        ),
                         const SizedBox(height: 6),
                         Text(
                           canChangePassword
-                              ? '이메일로 받은 인증 코드로 비밀번호를 바로 바꿀 수 있어요'
-                              : '이 계정은 앱 안에서 비밀번호를 바꿀 수 없어요',
+                              ? _myCopy(
+                                  'settingsSharePasswordBody',
+                                  '이메일로 받은 인증 코드로 비밀번호를 바로 바꿀 수 있어요',
+                                )
+                              : _myCopy(
+                                  'settingsSharePasswordUnsupportedBody',
+                                  '이 계정은 앱 안에서 비밀번호를 바꿀 수 없어요',
+                                ),
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -498,9 +647,12 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                               Expanded(
                                 child: TextField(
                                   controller: _passwordCodeCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: '인증 코드',
-                                    border: OutlineInputBorder(),
+                                  decoration: InputDecoration(
+                                    labelText: _myCopy(
+                                      'settingsSharePasswordCodeFieldLabel',
+                                      '인증 코드',
+                                    ),
+                                    border: const OutlineInputBorder(),
                                   ),
                                 ),
                               ),
@@ -517,7 +669,15 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                                         session.email.trim(),
                                       ),
                                 child: Text(
-                                  _passwordCodeSending ? '전송 중' : '코드 받기',
+                                  _passwordCodeSending
+                                      ? _myCopy(
+                                          'settingsSharePasswordCodeSending',
+                                          '전송 중',
+                                        )
+                                      : _myCopy(
+                                          'settingsSharePasswordCodeSendAction',
+                                          '코드 받기',
+                                        ),
                                 ),
                               ),
                             ],
@@ -526,18 +686,24 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                           TextField(
                             controller: _passwordCtrl,
                             obscureText: true,
-                            decoration: const InputDecoration(
-                              labelText: '새 비밀번호',
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: _myCopy(
+                                'settingsSharePasswordNewFieldLabel',
+                                '새 비밀번호',
+                              ),
+                              border: const OutlineInputBorder(),
                             ),
                           ),
                           const SizedBox(height: 12),
                           TextField(
                             controller: _passwordConfirmCtrl,
                             obscureText: true,
-                            decoration: const InputDecoration(
-                              labelText: '비밀번호 확인',
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: _myCopy(
+                                'settingsSharePasswordConfirmFieldLabel',
+                                '비밀번호 확인',
+                              ),
+                              border: const OutlineInputBorder(),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -549,7 +715,15 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                                   ? null
                                   : () => _changePassword(session.email.trim()),
                               child: Text(
-                                _passwordSaving ? '저장 중' : '비밀번호 변경하기',
+                                _passwordSaving
+                                    ? _myCopy(
+                                        'settingsSharePasswordSaving',
+                                        '저장 중',
+                                      )
+                                    : _myCopy(
+                                        'settingsSharePasswordSaveAction',
+                                        '비밀번호 변경하기',
+                                      ),
                               ),
                             ),
                           ),
@@ -566,12 +740,27 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('가족공유', style: CartlyText.cardTitle),
+                        Text(
+                          _myCopy('settingsShareHouseholdTitle', '가족공유'),
+                          style: CartlyText.cardTitle,
+                        ),
                         const SizedBox(height: 6),
                         Text(
                           householdState.hasHousehold
-                              ? '${household?.name ?? '우리 집'} · ${household?.memberCount ?? 0}명과 저장 카트를 함께 보고 있어요'
-                              : '아직 가족 그룹이 없어요. 초대 코드를 만들거나 받은 코드로 바로 참여해 보세요.',
+                              ? _applyCopyTemplate(
+                                  _myCopy(
+                                    'settingsShareHouseholdJoinedBody',
+                                    '{householdName} · {memberCount}명과 저장 카트를 함께 보고 있어요',
+                                  ),
+                                  {
+                                    'householdName': household?.name ?? '우리 집',
+                                    'memberCount': '${household?.memberCount ?? 0}',
+                                  },
+                                )
+                              : _myCopy(
+                                  'settingsShareHouseholdEmptyBody',
+                                  '아직 가족 그룹이 없어요. 초대 코드를 만들거나 받은 코드로 바로 참여해 보세요.',
+                                ),
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -596,7 +785,12 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                                   border: Border.all(color: CartlyColors.line),
                                 ),
                                 child: Text(
-                                  inviteCode.isEmpty ? '초대 코드 없음' : inviteCode,
+                                  inviteCode.isEmpty
+                                      ? _myCopy(
+                                          'settingsShareInviteCodeEmpty',
+                                          '초대 코드 없음',
+                                        )
+                                      : inviteCode,
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w800,
@@ -616,7 +810,15 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                                   ? null
                                   : _generateInviteCode,
                               child: Text(
-                                inviteCode.isEmpty ? '코드 만들기' : '새 코드',
+                                inviteCode.isEmpty
+                                    ? _myCopy(
+                                        'settingsShareInviteCodeCreateAction',
+                                        '코드 만들기',
+                                      )
+                                    : _myCopy(
+                                        'settingsShareInviteCodeRefreshAction',
+                                        '새 코드',
+                                      ),
                               ),
                             ),
                           ],
@@ -631,7 +833,12 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                             style: TextButton.styleFrom(
                               foregroundColor: CartlyColors.textSecondary,
                             ),
-                            child: const Text('초대 코드 복사'),
+                            child: Text(
+                              _myCopy(
+                                'settingsShareInviteCodeCopyAction',
+                                '초대 코드 복사',
+                              ),
+                            ),
                           ),
                         ),
                         if (!householdState.hasHousehold) ...[
@@ -639,10 +846,16 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                           TextField(
                             controller: _inviteJoinCtrl,
                             textCapitalization: TextCapitalization.characters,
-                            decoration: const InputDecoration(
-                              labelText: '초대 코드',
-                              hintText: '받은 초대 코드를 입력해 주세요',
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: _myCopy(
+                                'settingsShareInviteCodeFieldLabel',
+                                '초대 코드',
+                              ),
+                              hintText: _myCopy(
+                                'settingsShareInviteCodeFieldHint',
+                                '받은 초대 코드를 입력해 주세요',
+                              ),
+                              border: const OutlineInputBorder(),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -651,18 +864,23 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                             child: FilledButton(
                               style: CartlyButtonStyles.primary(),
                               onPressed: _shareBusy ? null : _joinHousehold,
-                              child: const Text('가족공유 참여하기'),
+                              child: Text(
+                                _myCopy('settingsShareJoinAction', '가족공유 참여하기'),
+                              ),
                             ),
                           ),
                         ],
                         if (householdState.members.isNotEmpty) ...[
                           const SizedBox(height: 18),
-                          const Text('공유 대상자', style: CartlyText.cardTitle),
+                          Text(
+                            _myCopy('settingsShareMembersTitle', '공유 대상자'),
+                            style: CartlyText.cardTitle,
+                          ),
                           const SizedBox(height: 10),
                           ...householdState.members.map((member) {
                             final badge = member.role == 'owner'
-                                ? '관리자'
-                                : '구성원';
+                                ? _myCopy('settingsShareOwnerBadge', '관리자')
+                                : _myCopy('settingsShareMemberBadge', '구성원');
                             final email = member.email?.trim() ?? '';
                             return Container(
                               margin: const EdgeInsets.only(bottom: 10),
@@ -729,7 +947,7 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                                               ),
                                               child: Text(
                                                 member.isMe
-                                                    ? '$badge · 나'
+                                                    ? '$badge · ${_myCopy('settingsShareMeBadge', '나')}'
                                                     : badge,
                                                 style: const TextStyle(
                                                   fontSize: 11,
@@ -772,7 +990,17 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                               onPressed: _shareBusy
                                   ? null
                                   : () => _leaveHousehold(householdState),
-                              child: Text(isOwner ? '가족공유 해제하기' : '가족공유 나가기'),
+                              child: Text(
+                                isOwner
+                                    ? _myCopy(
+                                        'settingsShareDisbandAction',
+                                        '가족공유 해제하기',
+                                      )
+                                    : _myCopy(
+                                        'settingsShareLeaveAction',
+                                        '가족공유 나가기',
+                                      ),
+                              ),
                             ),
                           ),
                         ],
@@ -788,7 +1016,10 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('계정 마무리', style: CartlyText.cardTitle),
+                        Text(
+                          _myCopy('settingsShareAccountTitle', '계정 마무리'),
+                          style: CartlyText.cardTitle,
+                        ),
                         const SizedBox(height: 12),
                         SizedBox(
                           width: double.infinity,
@@ -798,7 +1029,7 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                               borderColor: CartlyColors.line,
                             ),
                             onPressed: _signOut,
-                            child: const Text('로그아웃'),
+                            child: Text(_myCopy('logoutAction', '로그아웃')),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -814,7 +1045,9 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            child: const Text('탈퇴하기'),
+                            child: Text(
+                              _myCopy('settingsShareDeleteAction', '탈퇴하기'),
+                            ),
                           ),
                         ),
                       ],
@@ -834,16 +1067,23 @@ Future<void> _handleMemberAccountDeletion(BuildContext context) async {
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('회원 탈퇴'),
-      content: const Text('계정과 저장 기록이 삭제돼요. 계속할까요?'),
+      title: Text(_myCopy('settingsShareDeleteConfirmTitle', '회원 탈퇴')),
+      content: Text(
+        _myCopy(
+          'settingsShareDeleteConfirmBody',
+          '계정과 저장 기록이 삭제돼요. 계속할까요?',
+        ),
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text('취소'),
+          child: Text(AppRuntimeCopy.text(['common', 'cancel'], '취소')),
         ),
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: const Text('탈퇴할게요'),
+          child: Text(
+            _myCopy('settingsShareDeleteConfirmAction', '탈퇴할게요'),
+          ),
         ),
       ],
     ),
@@ -869,7 +1109,13 @@ Future<void> _handleMemberAccountDeletion(BuildContext context) async {
       Navigator.of(context, rootNavigator: true).pop();
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('회원 탈퇴가 완료되었어요')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            _myCopy('settingsShareDeleteDoneMessage', '회원 탈퇴가 완료되었어요'),
+          ),
+        ),
+      );
     }
   } on AuthRepositoryException catch (error) {
     if (context.mounted) {
@@ -882,7 +1128,14 @@ Future<void> _handleMemberAccountDeletion(BuildContext context) async {
     if (context.mounted) {
       Navigator.of(context, rootNavigator: true).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('회원 탈퇴를 완료하지 못했어요. 잠시 후 다시 시도해 주세요.')),
+        SnackBar(
+          content: Text(
+            _myCopy(
+              'settingsShareDeleteFailedMessage',
+              '회원 탈퇴를 완료하지 못했어요. 잠시 후 다시 시도해 주세요.',
+            ),
+          ),
+        ),
       );
     }
   }
@@ -1173,9 +1426,12 @@ class _AccountHubCard extends StatelessWidget {
                                             ),
                                           );
                                         },
-                                        child: const Text(
-                                          '수정 및 가족공유',
-                                          style: TextStyle(
+                                        child: Text(
+                                          _myCopy(
+                                            'settingsShareEntryAction',
+                                            '수정 및 가족공유',
+                                          ),
+                                          style: const TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w700,
                                           ),

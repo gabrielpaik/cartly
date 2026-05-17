@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
+import { useState } from 'react'
 
 import PageHeader from '../../../components/PageHeader'
 import { useAdminCopy } from '../../../components/AdminCopyProvider'
+import { postJson } from '../../../lib/api'
 import { formatDate, formatNumber } from '../../../lib/format'
 import { useAdminData } from '../../../lib/useAdminData'
 import { createUserDetailFallback, isLegacyGuestUser, type UserCartDetailPayload } from './detailShared'
@@ -38,6 +40,44 @@ export default function UserDetailPage() {
   const payload = res.data.data
   const user = payload.user
   const isLegacyGuest = isLegacyGuestUser(user)
+  const [householdBusy, setHouseholdBusy] = useState<'disconnect' | 'disband' | null>(null)
+  const [householdActionNote, setHouseholdActionNote] = useState<string | null>(null)
+  const [householdActionError, setHouseholdActionError] = useState<string | null>(null)
+
+  async function runHouseholdAction(kind: 'disconnect' | 'disband') {
+    if (!user.id || !payload.household.hasHousehold) return
+    const confirmed = window.confirm(
+      kind === 'disband'
+        ? '이 household 전체를 해제할까요? 모든 구성원 연결이 끊깁니다.'
+        : '이 사용자를 household에서 분리할까요? owner면 다음 구성원으로 소유권이 넘어갈 수 있어요.',
+    )
+    if (!confirmed) return
+    setHouseholdBusy(kind)
+    setHouseholdActionError(null)
+    setHouseholdActionNote(null)
+    try {
+      const response = await postJson<{ ok: boolean; data?: { result?: { remainingMemberCount?: number; removedMemberCount?: number; householdDeleted?: boolean; nextOwnerUserId?: string | null } } }>(
+        `/admin/users/${user.id}/household/${kind}`,
+      )
+      const result = response.data?.result
+      if (kind === 'disband') {
+        setHouseholdActionNote(
+          `household disbanded, removed ${formatNumber(result?.removedMemberCount ?? 0)} members`,
+        )
+      } else {
+        setHouseholdActionNote(
+          result?.householdDeleted
+            ? 'user disconnected, household removed'
+            : `user disconnected, remaining ${formatNumber(result?.remainingMemberCount ?? 0)} members${result?.nextOwnerUserId ? `, next owner ${result.nextOwnerUserId}` : ''}`,
+        )
+      }
+      await res.reload()
+    } catch (error) {
+      setHouseholdActionError(error instanceof Error ? error.message : 'household action failed')
+    } finally {
+      setHouseholdBusy(null)
+    }
+  }
 
   return (
     <div className="exploreCompactPage">
@@ -64,6 +104,8 @@ export default function UserDetailPage() {
           {t('admin.users.detail.warning.fallbackBody', '지금 화면은 fallback/mock data일 수 있어서 merge 판단 전에 live runtime 상태를 같이 확인하는 편이 안전해.')}
         </div>
       ) : null}
+      {householdActionError ? <div className="loginError" style={{ marginBottom: 16 }}>{householdActionError}</div> : null}
+      {householdActionNote ? <div className="card" style={{ marginBottom: 16, padding: 12, borderColor: '#cbd5e1', color: '#334155' }}>{householdActionNote}</div> : null}
 
       <div className="exploreSummaryGrid section" style={{ marginTop: 12 }}>
         <div className="exploreSummaryCell">
@@ -90,6 +132,11 @@ export default function UserDetailPage() {
           <div className="exploreSummaryLabel">Saved carts</div>
           <div className="exploreSummaryValue">{formatNumber(payload.summary.totalCarts)}</div>
           <div className="exploreSummaryNote">items {formatNumber(payload.summary.totalItems)} · ₩{formatNumber(payload.summary.totalValue)}</div>
+        </div>
+        <div className="exploreSummaryCell">
+          <div className="exploreSummaryLabel">Household</div>
+          <div className="exploreSummaryValue">{payload.household.hasHousehold ? (payload.household.membership?.role ?? 'member') : 'solo'}</div>
+          <div className="exploreSummaryNote">{payload.household.hasHousehold ? `${formatNumber(payload.household.household?.memberCount ?? payload.household.members.length)} members` : 'no shared cart group'}</div>
         </div>
         <div className="exploreSummaryCell">
           <div className="exploreSummaryLabel">Last active</div>
@@ -165,6 +212,71 @@ export default function UserDetailPage() {
       </div>
 
       <div className="section sectionGrid twoCol">
+        <div className="card exploreDenseCard exploreSheetCard">
+          <div className="sectionHeader exploreSheetHeader">
+            <h2 className="panelTitle" style={{ marginBottom: 0 }}>Household / share state</h2>
+            <div className="metaRow" style={{ marginTop: 0 }}>
+              <span className="metaPill">operator controls</span>
+            </div>
+          </div>
+          {!payload.household.hasHousehold ? (
+            <div className="emptyState">현재 연결된 household가 없어</div>
+          ) : (
+            <>
+              <div className="tableWrap" style={{ marginBottom: 12 }}>
+                <table className="dataTable exploreDenseTable">
+                  <tbody>
+                    <tr><td>Household</td><td>{payload.household.household?.name ?? '-'}</td></tr>
+                    <tr><td>Role</td><td>{payload.household.membership?.role ?? '-'}</td></tr>
+                    <tr><td>Member count</td><td>{formatNumber(payload.household.household?.memberCount ?? payload.household.members.length)}</td></tr>
+                    <tr><td>Invite code</td><td>{payload.household.household?.inviteCode ?? '-'}</td></tr>
+                    <tr><td>Invite code created</td><td>{formatDate(payload.household.household?.inviteCodeCreatedAt)}</td></tr>
+                    <tr><td>Joined</td><td>{formatDate(payload.household.membership?.joinedAt)}</td></tr>
+                    <tr><td>Updated</td><td>{formatDate(payload.household.household?.updatedAt)}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                <button type="button" className="ghostBtn ghostBtnSmall" onClick={() => void runHouseholdAction('disconnect')} disabled={householdBusy !== null}>
+                  {householdBusy === 'disconnect' ? 'Disconnecting...' : 'Disconnect user'}
+                </button>
+                <button type="button" className="pageActionBtn" onClick={() => void runHouseholdAction('disband')} disabled={householdBusy !== null}>
+                  {householdBusy === 'disband' ? 'Disbanding...' : 'Disband household'}
+                </button>
+              </div>
+              <div className="tableWrap">
+                <table className="dataTable exploreDenseTable">
+                  <thead>
+                    <tr>
+                      <th>Member</th>
+                      <th>Role</th>
+                      <th>Type</th>
+                      <th>Joined</th>
+                      <th>Last seen</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payload.household.members.map((member) => (
+                      <tr key={member.userId}>
+                        <td>
+                          <div style={{ display: 'grid', gap: 4 }}>
+                            <strong>{member.displayName || member.email || member.userId}</strong>
+                            <span style={{ color: '#64748b', fontSize: 12 }}>{member.userId}</span>
+                          </div>
+                        </td>
+                        <td>{member.isCurrentUser ? `${member.role} · current` : member.role}</td>
+                        <td>{member.isGuest ? 'guest' : 'member'}</td>
+                        <td>{formatDate(member.joinedAt)}</td>
+                        <td>{formatDate(member.lastSeenAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+
         <div className="card exploreDenseCard exploreSheetCard">
           <div className="sectionHeader exploreSheetHeader">
             <h2 className="panelTitle" style={{ marginBottom: 0 }}>Region activity</h2>

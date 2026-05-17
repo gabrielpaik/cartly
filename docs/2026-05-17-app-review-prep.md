@@ -50,9 +50,21 @@ Important review notes:
 3. Join from account B
 4. Confirm shared saved carts/current cart behavior
 
+## Metadata progress update
+- App Store Connect app info localization has now been updated to:
+  - name: `Cartly` (fixed earlier `Cartrly` typo)
+  - subtitle: `장보기 기록과 대체안 탐색`
+  - privacy policy URL: `https://scan-api.seoa-nas.com/privacy`
+- App Store Connect version localization has now been updated to:
+  - Korean description
+  - keywords
+  - marketing URL: `https://scan-api.seoa-nas.com/`
+  - support URL: `https://scan-api.seoa-nas.com/support`
+- Public support page is now live at `https://scan-api.seoa-nas.com/support` and exposes the reachable support email `scancart.wimc@gmail.com`.
+
 ## Remaining non-code submission tasks
 - fill App Review notes in App Store Connect using the draft above
-- verify privacy policy URL is entered in App Privacy / App Information fields where needed
+- provide a valid App Review contact phone number in international format (`+82 ...`) because Apple currently rejects review-detail creation without `contactPhone`
 - confirm screenshots match the current family-sharing/settings UI, not the older popup/menu variant
 - add a short note that guest mode exists and login is only required for member features
 

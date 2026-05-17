@@ -17,6 +17,9 @@ const publicAssetRoutes = new Map([
 ])
 const dynamicLandingRoutes = new Set(['/', '/partners', '/partners/'])
 const dynamicPrivacyRoutes = new Set(['/privacy', '/privacy/'])
+const dynamicSupportRoutes = new Set(['/support', '/support/'])
+const supportEmail = 'scancart.wimc@gmail.com'
+const supportUrl = 'https://scan-api.seoa-nas.com/support'
 const allowedPrefixes = [
   '/v1/auth/',
   '/v1/scan/',
@@ -270,7 +273,7 @@ function buildLandingHtml(config) {
           <strong>${escapeHtml(branding.logoText || 'Cartly')}</strong>
           <span>smart grocery planning and same-intent alternative discovery</span>
         </div>
-        <div class="footer-note">파트너 검토 및 서비스 문의는 계정 등록 채널을 통해 응답합니다.</div>
+        <div class="footer-note">문의: <a href="mailto:${escapeHtml(supportEmail)}">${escapeHtml(supportEmail)}</a> · <a href="/support">지원 안내</a></div>
       </footer>
     </main>
   </body>
@@ -299,6 +302,8 @@ function buildPrivacyHtml(config) {
         <p>${escapeHtml(publicSite.privacyExternalBody)}</p>
         <h2>${escapeHtml(publicSite.privacyStatusTitle)}</h2>
         <p>${escapeHtml(publicSite.privacyStatusBody)}</p>
+        <h2>문의</h2>
+        <p>지원 및 문의: <a href="mailto:${escapeHtml(supportEmail)}">${escapeHtml(supportEmail)}</a></p>
         <p><a class="button secondary" href="/">${escapeHtml(publicSite.privacyBackAction)}</a></p>
       </section>
     </main>
@@ -306,10 +311,39 @@ function buildPrivacyHtml(config) {
 </html>`
 }
 
+function buildSupportHtml(config) {
+  const { branding } = config
+  return `<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(branding.logoText || 'Cartly')} Support</title>
+    <link rel="stylesheet" href="/site.css" />
+  </head>
+  <body>
+    <main class="page narrow">
+      <section class="card legal">
+        <div class="eyebrow">${escapeHtml(branding.logoText || 'Cartly')}</div>
+        <h1>지원 안내</h1>
+        <p>Cartly는 현재 private beta 단계로 운영 중이며, 문의와 지원은 아래 이메일로 받고 있습니다.</p>
+        <p><strong><a href="mailto:${escapeHtml(supportEmail)}">${escapeHtml(supportEmail)}</a></strong></p>
+        <p>계정, 로그인, 개인정보, TestFlight 사용 중 문제가 있으면 위 주소로 연락해 주세요.</p>
+        <p><a class="button secondary" href="/">메인 페이지로 돌아가기</a></p>
+      </section>
+    </main>
+  </body>
+</html>`
+}
+
 async function tryServePublicSite(pathname, res, method) {
-  if (dynamicLandingRoutes.has(pathname) || dynamicPrivacyRoutes.has(pathname)) {
+  if (dynamicLandingRoutes.has(pathname) || dynamicPrivacyRoutes.has(pathname) || dynamicSupportRoutes.has(pathname)) {
     const config = await fetchAppConfig()
-    const html = dynamicLandingRoutes.has(pathname) ? buildLandingHtml(config) : buildPrivacyHtml(config)
+    const html = dynamicLandingRoutes.has(pathname)
+      ? buildLandingHtml(config)
+      : dynamicPrivacyRoutes.has(pathname)
+        ? buildPrivacyHtml(config)
+        : buildSupportHtml(config)
     const body = Buffer.from(html)
     res.writeHead(200, {
       'content-type': 'text/html; charset=utf-8',

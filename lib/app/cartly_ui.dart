@@ -18,12 +18,12 @@ class CartlyColors {
   static const surface2 = Color(0xFFF1EFE8);
   static const surfaceNeutral = Color(0xFFF5F5F5);
   static const softSurface = surface2;
-  static const softWarmSurface = Color(0xFFFFFBFC);
-  static const softPink = Color(0xFFFFE8EC);
+  static const softWarmSurface = Color(0xFFF8F6F1);
+  static const softPink = Color(0xFFF2EFE8);
 
   static const line = Color(0xFFE5E7EB);
   static const lineStrong = Color(0xFFD6D6D6);
-  static const lineWarm = Color(0xFFF1D5DB);
+  static const lineWarm = Color(0xFFE5E7EB);
 
   static const textPrimary = contrast;
   static const textSecondary = Color(0xFF4B5563);

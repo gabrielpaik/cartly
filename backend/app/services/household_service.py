@@ -6,7 +6,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as OrmSession
 
-from ..db.models import Household, HouseholdMembership, User
+from ..db.models import Household, HouseholdCurrentCart, HouseholdCurrentCartItem, HouseholdMembership, User
 
 
 class HouseholdError(Exception):
@@ -143,6 +143,17 @@ def leave_household(db: OrmSession, user: User) -> None:
     )
 
     if membership.role == 'owner':
+        current_cart = db.get(HouseholdCurrentCart, household.id)
+        if current_cart is not None:
+            for item in list(
+                db.scalars(
+                    select(HouseholdCurrentCartItem).where(
+                        HouseholdCurrentCartItem.household_id == household.id,
+                    )
+                ).all()
+            ):
+                db.delete(item)
+            db.delete(current_cart)
         for row in member_rows:
             db.delete(row)
         db.delete(household)

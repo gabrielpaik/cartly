@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.orm import Session as OrmSession, selectinload
 
-from ..db.models import AdImpression, AppEvent, Cart, Household, HouseholdMembership, PushDevice, ScanFailureLog, ScanFeedback, ScanJob, Session, User
+from ..db.models import AdImpression, AppEvent, Cart, Household, HouseholdCurrentCart, HouseholdCurrentCartItem, HouseholdMembership, PushDevice, ScanFailureLog, ScanFeedback, ScanJob, Session, User
 from .cart_service import serialize_cart
 from .user_region_service import (
     build_user_region_summary_map,
@@ -812,6 +812,17 @@ def disconnect_user_from_household(db: OrmSession, user_id: str) -> dict:
         household.updated_at = datetime.utcnow()
         db.add(household)
     else:
+        current_cart = db.get(HouseholdCurrentCart, membership.household_id)
+        if current_cart is not None:
+            for item in list(
+                db.scalars(
+                    select(HouseholdCurrentCartItem).where(
+                        HouseholdCurrentCartItem.household_id == membership.household_id,
+                    )
+                ).all()
+            ):
+                db.delete(item)
+            db.delete(current_cart)
         db.delete(household)
     db.commit()
     return {
@@ -837,6 +848,17 @@ def disband_household_for_user(db: OrmSession, user_id: str) -> dict:
     )
     for row in member_rows:
         db.delete(row)
+    current_cart = db.get(HouseholdCurrentCart, membership.household_id)
+    if current_cart is not None:
+        for item in list(
+            db.scalars(
+                select(HouseholdCurrentCartItem).where(
+                    HouseholdCurrentCartItem.household_id == membership.household_id,
+                )
+            ).all()
+        ):
+            db.delete(item)
+        db.delete(current_cart)
     if household is not None:
         db.delete(household)
     db.commit()

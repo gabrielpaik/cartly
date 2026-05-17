@@ -20,6 +20,7 @@ import '../services/app_attention_service.dart';
 import '../services/app_config_store.dart';
 import '../services/auth_store.dart';
 import '../services/push_navigation_service.dart';
+import '../services/remote_current_cart_repository.dart';
 import '../services/remote_scan_repository.dart';
 import '../services/scan_repository.dart';
 import '../services/shopping_nudge_service.dart';
@@ -45,6 +46,10 @@ class _HomePageState extends State<HomePage> {
   bool _showHomeDot = false;
   bool _showExploreDot = false;
   String? _loadedCurrentCartOwnerId;
+  Timer? _sharedCurrentCartPollTimer;
+  bool _sharedCurrentCartEnabled = false;
+  int _sharedCurrentCartSyncDepth = 0;
+  DateTime? _lastSharedCurrentCartMutationAt;
 
   late final ScanRepository _scanRepository = RemoteScanRepository(
     baseUrl: CartlyRuntimeConfig.current.normalizedRemoteBaseUrl,
@@ -56,6 +61,8 @@ class _HomePageState extends State<HomePage> {
       return CartlyRuntimeConfig.current.effectiveRemoteAuthToken;
     },
   );
+  late final RemoteCurrentCartRepository _remoteCurrentCartRepository =
+      RemoteCurrentCartRepository();
   late final HomePageCartController _cartController = HomePageCartController(
     items: items,
     recentScans: recentScans,
@@ -96,6 +103,7 @@ class _HomePageState extends State<HomePage> {
     );
     AuthStore.instance.session.removeListener(_handleSessionChanged);
     AppNavigationService.instance.unbind();
+    _sharedCurrentCartPollTimer?.cancel();
     super.dispose();
   }
 
@@ -104,11 +112,26 @@ class _HomePageState extends State<HomePage> {
   Future<void> _restoreCurrentCartState() async {
     final ownerId = _currentCartOwnerId;
     final snapshot = await CurrentCartStore.instance.load();
+    var sharedEnabled = false;
+    List<CartItem> nextItems = snapshot.items;
+    final session = AuthStore.instance.session.value;
+    if (session != null &&
+        !session.isGuest &&
+        session.authToken.trim().isNotEmpty) {
+      try {
+        final sharedSnapshot = await _remoteCurrentCartRepository
+            .getCurrentCart(session.authToken);
+        if (sharedSnapshot.shared) {
+          sharedEnabled = true;
+          nextItems = sharedSnapshot.items;
+        }
+      } catch (_) {}
+    }
     if (!mounted) return;
     setState(() {
       items
         ..clear()
-        ..addAll(snapshot.items);
+        ..addAll(nextItems);
       recentScans
         ..clear()
         ..addAll(snapshot.recentScans);
@@ -116,7 +139,10 @@ class _HomePageState extends State<HomePage> {
         ..clear()
         ..addAll(snapshot.consideredItems);
       _loadedCurrentCartOwnerId = ownerId;
+      _sharedCurrentCartEnabled = sharedEnabled;
     });
+    _restartSharedCurrentCartPolling();
+    _persistCurrentCartState();
     _refreshShoppingNudge();
   }
 
@@ -128,6 +154,162 @@ class _HomePageState extends State<HomePage> {
         consideredItems: consideredItems,
       ),
     );
+  }
+
+  void _restartSharedCurrentCartPolling() {
+    _sharedCurrentCartPollTimer?.cancel();
+    if (!_sharedCurrentCartEnabled) return;
+    _sharedCurrentCartPollTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => unawaited(_refreshSharedCurrentCart()),
+    );
+  }
+
+  void _applySharedCurrentCartItems(List<CartItem> nextItems) {
+    if (_sameCurrentCartItems(items, nextItems)) {
+      return;
+    }
+    setState(() {
+      items
+        ..clear()
+        ..addAll(nextItems);
+    });
+    _persistCurrentCartState();
+    _refreshShoppingNudge();
+  }
+
+  bool get _shouldPauseSharedCurrentCartPolling {
+    if (_sharedCurrentCartSyncDepth > 0) {
+      return true;
+    }
+    final lastMutationAt = _lastSharedCurrentCartMutationAt;
+    if (lastMutationAt == null) {
+      return false;
+    }
+    return DateTime.now().difference(lastMutationAt) <
+        const Duration(seconds: 3);
+  }
+
+  Future<void> _refreshSharedCurrentCart() async {
+    if (!_sharedCurrentCartEnabled || _shouldPauseSharedCurrentCartPolling) {
+      return;
+    }
+    final session = AuthStore.instance.session.value;
+    if (session == null ||
+        session.isGuest ||
+        session.authToken.trim().isEmpty) {
+      return;
+    }
+    try {
+      final sharedSnapshot = await _remoteCurrentCartRepository.getCurrentCart(
+        session.authToken,
+      );
+      if (!mounted || !sharedSnapshot.shared) return;
+      _applySharedCurrentCartItems(sharedSnapshot.items);
+    } catch (_) {}
+  }
+
+  bool _sameCurrentCartItems(List<CartItem> a, List<CartItem> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i += 1) {
+      if (a[i].id != b[i].id ||
+          a[i].name != b[i].name ||
+          a[i].price != b[i].price ||
+          a[i].quantity != b[i].quantity ||
+          a[i].source != b[i].source ||
+          a[i].scanJobId != b[i].scanJobId ||
+          a[i].originalRecognizedName != b[i].originalRecognizedName) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Future<void> _syncSharedItemAdd(CartItem item) async {
+    final session = AuthStore.instance.session.value;
+    if (!_sharedCurrentCartEnabled ||
+        session == null ||
+        session.authToken.trim().isEmpty) {
+      return;
+    }
+    _sharedCurrentCartSyncDepth += 1;
+    _lastSharedCurrentCartMutationAt = DateTime.now();
+    try {
+      final snapshot = await _remoteCurrentCartRepository.addItem(
+        session.authToken,
+        item,
+      );
+      if (!mounted || !snapshot.shared) return;
+      _applySharedCurrentCartItems(snapshot.items);
+    } catch (_) {
+    } finally {
+      _sharedCurrentCartSyncDepth -= 1;
+    }
+  }
+
+  Future<void> _syncSharedItemUpdate(CartItem item) async {
+    final session = AuthStore.instance.session.value;
+    if (!_sharedCurrentCartEnabled ||
+        session == null ||
+        session.authToken.trim().isEmpty) {
+      return;
+    }
+    _sharedCurrentCartSyncDepth += 1;
+    _lastSharedCurrentCartMutationAt = DateTime.now();
+    try {
+      final snapshot = await _remoteCurrentCartRepository.updateItem(
+        session.authToken,
+        item,
+      );
+      if (!mounted || !snapshot.shared) return;
+      _applySharedCurrentCartItems(snapshot.items);
+    } catch (_) {
+    } finally {
+      _sharedCurrentCartSyncDepth -= 1;
+    }
+  }
+
+  Future<void> _syncSharedItemDelete(CartItem item) async {
+    final session = AuthStore.instance.session.value;
+    if (!_sharedCurrentCartEnabled ||
+        session == null ||
+        session.authToken.trim().isEmpty) {
+      return;
+    }
+    _sharedCurrentCartSyncDepth += 1;
+    _lastSharedCurrentCartMutationAt = DateTime.now();
+    try {
+      final snapshot = await _remoteCurrentCartRepository.deleteItem(
+        session.authToken,
+        item.id,
+      );
+      if (!mounted || !snapshot.shared) return;
+      _applySharedCurrentCartItems(snapshot.items);
+    } catch (_) {
+    } finally {
+      _sharedCurrentCartSyncDepth -= 1;
+    }
+  }
+
+  Future<void> _clearSharedCurrentCartIfNeeded() async {
+    final session = AuthStore.instance.session.value;
+    if (!_sharedCurrentCartEnabled ||
+        session == null ||
+        session.authToken.trim().isEmpty) {
+      return;
+    }
+    _sharedCurrentCartSyncDepth += 1;
+    _lastSharedCurrentCartMutationAt = DateTime.now();
+    try {
+      final snapshot = await _remoteCurrentCartRepository.clear(
+        session.authToken,
+      );
+      if (!mounted || !snapshot.shared) return;
+      _applySharedCurrentCartItems(snapshot.items);
+    } catch (_) {
+    } finally {
+      _sharedCurrentCartSyncDepth -= 1;
+    }
   }
 
   void _handleSessionChanged() {
@@ -195,6 +377,7 @@ class _HomePageState extends State<HomePage> {
       unawaited(
         PushNavigationService.instance.clearSystemAttentionForTab('home'),
       );
+      unawaited(_restoreCurrentCartState());
     }
     if (index == 1) {
       unawaited(AppAttentionService.instance.clearExplore());
@@ -238,6 +421,7 @@ class _HomePageState extends State<HomePage> {
 
   void _handleRemoveCartItem(CartItem item) {
     _cartController.removeCartItem(item);
+    unawaited(_syncSharedItemDelete(item));
     _markExploreAttention();
     _refreshShoppingNudge();
   }
@@ -245,6 +429,7 @@ class _HomePageState extends State<HomePage> {
   void _handleChangeCartItem(CartItem item) {
     setState(() {});
     _persistCurrentCartState();
+    unawaited(_syncSharedItemUpdate(item));
     _markExploreAttention();
     _refreshShoppingNudge();
   }
@@ -310,6 +495,7 @@ class _HomePageState extends State<HomePage> {
         items,
         title: title,
       );
+      await _clearSharedCurrentCartIfNeeded();
       if (!mounted) return;
 
       _cartController.clearItems();
@@ -422,10 +608,11 @@ class _HomePageState extends State<HomePage> {
   }) async {
     final duplicate = _cartController.findDuplicateCartItem(item);
     if (duplicate == null) {
-      _cartController.addRecognizedItem(
+      final added = _cartController.addRecognizedItem(
         item,
         recentScanEntryId: recentScanEntryId,
       );
+      await _syncSharedItemAdd(added);
       _markExploreAttention();
       _refreshShoppingNudge();
       return true;
@@ -500,19 +687,21 @@ class _HomePageState extends State<HomePage> {
 
     switch (choice) {
       case _DuplicateAddChoice.mergeQuantity:
-        _cartController.increaseMatchingCartItem(
+        final updated = _cartController.increaseMatchingCartItem(
           duplicate,
           item,
           recentScanEntryId: recentScanEntryId,
         );
+        unawaited(_syncSharedItemUpdate(updated));
         _markExploreAttention();
         _refreshShoppingNudge();
         return true;
       case _DuplicateAddChoice.addAsNew:
-        _cartController.addRecognizedItem(
+        final added = _cartController.addRecognizedItem(
           item,
           recentScanEntryId: recentScanEntryId,
         );
+        unawaited(_syncSharedItemAdd(added));
         _markExploreAttention();
         _refreshShoppingNudge();
         return true;

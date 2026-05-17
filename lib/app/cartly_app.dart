@@ -96,6 +96,15 @@ class _CartlyAppState extends State<CartlyApp> with WidgetsBindingObserver {
               seedColor: CartlyColors.brand,
               surface: CartlyColors.surface0,
             ),
+            dialogTheme: const DialogThemeData(
+              backgroundColor: CartlyColors.surface0,
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(
+                  Radius.circular(CartlyRadii.hero),
+                ),
+              ),
+            ),
             navigationBarTheme: NavigationBarThemeData(
               backgroundColor: CartlyColors.surface0,
               indicatorColor: Colors.transparent,

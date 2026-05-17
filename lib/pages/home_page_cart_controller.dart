@@ -19,28 +19,28 @@ class HomePageCartController {
   }) : _setState = setState,
        _onStateChanged = onStateChanged;
 
-  void addRecognizedItem(RecognizedItem item, {String? recentScanEntryId}) {
+  CartItem addRecognizedItem(RecognizedItem item, {String? recentScanEntryId}) {
+    late final CartItem addedItem;
     _setState(() {
-      items.insert(
-        0,
-        CartItem(
-          name: item.name,
-          price: item.price,
-          source: item.source,
-          scanJobId: item.scanJobId,
-          originalRecognizedName:
-              item.originalRecognizedName?.trim().isNotEmpty == true
-              ? item.originalRecognizedName!.trim()
-              : item.name.trim(),
-        ),
+      addedItem = CartItem(
+        name: item.name,
+        price: item.price,
+        source: item.source,
+        scanJobId: item.scanJobId,
+        originalRecognizedName:
+            item.originalRecognizedName?.trim().isNotEmpty == true
+            ? item.originalRecognizedName!.trim()
+            : item.name.trim(),
       );
+      items.insert(0, addedItem);
       _clearConsideredMatches(item.originalRecognizedName ?? item.name);
       _removeRecentScanEntry(item, recentScanEntryId: recentScanEntryId);
     });
     _onStateChanged?.call();
+    return addedItem;
   }
 
-  void increaseMatchingCartItem(
+  CartItem increaseMatchingCartItem(
     CartItem existing,
     RecognizedItem item, {
     String? recentScanEntryId,
@@ -51,6 +51,7 @@ class HomePageCartController {
       _removeRecentScanEntry(item, recentScanEntryId: recentScanEntryId);
     });
     _onStateChanged?.call();
+    return existing;
   }
 
   CartItem? findDuplicateCartItem(RecognizedItem item) {

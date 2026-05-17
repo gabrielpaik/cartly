@@ -206,6 +206,37 @@ class HouseholdMembership(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+
+class HouseholdCurrentCart(Base):
+    __tablename__ = 'household_current_carts'
+
+    household_id: Mapped[str] = mapped_column(ForeignKey('households.id'), primary_key=True)
+    updated_by_user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    items: Mapped[List['HouseholdCurrentCartItem']] = relationship(
+        back_populates='cart', cascade='all, delete-orphan'
+    )
+
+
+class HouseholdCurrentCartItem(Base):
+    __tablename__ = 'household_current_cart_items'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    household_id: Mapped[str] = mapped_column(ForeignKey('household_current_carts.household_id'), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    price: Mapped[int] = mapped_column(Integer)
+    quantity: Mapped[int] = mapped_column(Integer, default=1)
+    source: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    scan_job_id: Mapped[Optional[str]] = mapped_column(ForeignKey('scan_jobs.id'), nullable=True)
+    original_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    cart: Mapped['HouseholdCurrentCart'] = relationship(back_populates='items')
+
+
 class CartItem(Base):
     __tablename__ = 'cart_items'
 

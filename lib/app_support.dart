@@ -1,11 +1,20 @@
+import 'dart:math';
+
 import 'package:intl/intl.dart';
 
 import 'models/recognized_item.dart';
 
 final _priceFormatter = NumberFormat('#,###');
+final _cartItemIdRandom = Random();
+
 String formatPrice(int price) => _priceFormatter.format(price);
 
+String _nextCartItemId() {
+  return '${DateTime.now().microsecondsSinceEpoch}-${_cartItemIdRandom.nextInt(1 << 32)}';
+}
+
 class CartItem {
+  String id;
   String name;
   int price;
   int quantity;
@@ -14,13 +23,14 @@ class CartItem {
   String? originalRecognizedName;
 
   CartItem({
+    String? id,
     required this.name,
     required this.price,
     this.quantity = 1,
     this.source,
     this.scanJobId,
     this.originalRecognizedName,
-  });
+  }) : id = id ?? _nextCartItemId();
   int get totalPrice => price * quantity;
 }
 

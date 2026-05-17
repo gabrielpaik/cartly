@@ -122,6 +122,7 @@ class CurrentCartStore {
   }
 
   Map<String, dynamic> _cartItemToJson(CartItem item) => {
+    'id': item.id,
     'name': item.name,
     'price': item.price,
     'quantity': item.quantity,
@@ -132,6 +133,7 @@ class CurrentCartStore {
 
   CartItem _cartItemFromJson(Map<String, dynamic> json) {
     return CartItem(
+      id: json['id'] as String?,
       name: (json['name'] ?? '') as String,
       price: (json['price'] ?? 0) as int,
       quantity: (json['quantity'] ?? 1) as int,

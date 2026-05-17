@@ -7,6 +7,7 @@ from ..services.household_service import (
     ensure_member_can_use_household,
     generate_invite_code,
     join_household_by_invite_code,
+    leave_household,
     serialize_household_state,
 )
 
@@ -63,6 +64,19 @@ def join_household(
     try:
         user = ensure_member_can_use_household(current_user)
         join_household_by_invite_code(db, user, payload.inviteCode)
+    except HouseholdError as exc:
+        return _error(exc)
+    return {'ok': True, 'data': serialize_household_state(db, user)}
+
+
+@router.post('/leave')
+def leave_household_route(
+    db: OrmSession = Depends(db_dep),
+    current_user=Depends(current_user_dep),
+):
+    try:
+        user = ensure_member_can_use_household(current_user)
+        leave_household(db, user)
     except HouseholdError as exc:
         return _error(exc)
     return {'ok': True, 'data': serialize_household_state(db, user)}

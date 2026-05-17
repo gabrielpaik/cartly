@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app/cartly_ui.dart';
+import '../models/auth_provider_type.dart';
 import '../models/household_state.dart';
 import '../models/saved_cart.dart';
 import '../pages/cart_detail_page.dart';
@@ -16,6 +17,7 @@ import '../services/cart_store.dart';
 import '../services/household_store.dart';
 import '../services/current_cart_store.dart';
 import '../services/remote_auth_repository.dart';
+import '../services/remote_household_repository.dart';
 import '../services/cart_title_formatter.dart';
 import '../services/my_page_insights.dart';
 import '../widgets/cartly_info_card.dart';
@@ -34,8 +36,6 @@ class MyPage extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
       children: const [
         _AccountHubCard(),
-        SizedBox(height: CartlySpacing.section),
-        _HouseholdSection(),
         SizedBox(height: CartlySpacing.section),
         _MyPageOrderedSections(),
         SizedBox(height: CartlySpacing.lg),
@@ -326,6 +326,485 @@ Future<void> _handleMemberProfileEdit(BuildContext context) async {
   }
 }
 
+Future<void> _handleMemberPasswordReset(BuildContext context) async {
+  final current = AuthStore.instance.session.value;
+  if (current == null || current.isGuest) {
+    return;
+  }
+  if (current.provider != AuthProviderType.email ||
+      current.email.trim().isEmpty) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('이 계정은 앱 안에서 비밀번호를 수정할 수 없어요')),
+      );
+    }
+    return;
+  }
+
+  final codeCtrl = TextEditingController();
+  final passwordCtrl = TextEditingController();
+  final confirmCtrl = TextEditingController();
+  bool sendingCode = false;
+  bool submitting = false;
+
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (dialogContext, setState) => AlertDialog(
+        title: const Text('비밀번호 수정'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                current.email.trim(),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: CartlyColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: codeCtrl,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: '인증 코드',
+                        hintText: '이메일 코드 입력',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: sendingCode || submitting
+                        ? null
+                        : () async {
+                            setState(() => sendingCode = true);
+                            try {
+                              await AuthStore.instance.requestPasswordResetCode(
+                                current.email.trim(),
+                              );
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('비밀번호 재설정 코드를 보냈어요'),
+                                ),
+                              );
+                            } on AuthRepositoryException catch (error) {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(error.message)),
+                              );
+                            } finally {
+                              if (dialogContext.mounted) {
+                                setState(() => sendingCode = false);
+                              }
+                            }
+                          },
+                    child: Text(sendingCode ? '전송중' : '코드 받기'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: passwordCtrl,
+                obscureText: true,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: '새 비밀번호',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirmCtrl,
+                obscureText: true,
+                textInputAction: TextInputAction.done,
+                decoration: const InputDecoration(
+                  labelText: '비밀번호 확인',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: submitting
+                ? null
+                : () => Navigator.of(dialogContext).pop(),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: submitting
+                ? null
+                : () async {
+                    final code = codeCtrl.text.trim();
+                    final password = passwordCtrl.text.trim();
+                    final confirm = confirmCtrl.text.trim();
+                    if (code.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('인증 코드를 입력해 주세요')),
+                      );
+                      return;
+                    }
+                    if (password.length < 8) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('비밀번호는 8자 이상이어야 해요')),
+                      );
+                      return;
+                    }
+                    if (password != confirm) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('비밀번호 확인이 일치하지 않아요')),
+                      );
+                      return;
+                    }
+                    setState(() => submitting = true);
+                    try {
+                      await AuthStore.instance.resetPassword(
+                        email: current.email.trim(),
+                        code: code,
+                        newPassword: password,
+                      );
+                      await HouseholdStore.instance.refresh();
+                      await CartStore.instance.refreshForCurrentSession();
+                      if (dialogContext.mounted) {
+                        Navigator.of(dialogContext).pop();
+                      }
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('비밀번호를 수정했어요')),
+                        );
+                      }
+                    } on AuthRepositoryException catch (error) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text(error.message)));
+                      }
+                    } finally {
+                      if (dialogContext.mounted) {
+                        setState(() => submitting = false);
+                      }
+                    }
+                  },
+            child: Text(submitting ? '저장중' : '저장'),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  codeCtrl.dispose();
+  passwordCtrl.dispose();
+  confirmCtrl.dispose();
+}
+
+Future<void> _showHouseholdMembersDialog(BuildContext context) async {
+  final session = AuthStore.instance.session.value;
+  if (session == null || session.isGuest) {
+    return;
+  }
+  try {
+    await HouseholdStore.instance.refresh();
+    final state = HouseholdStore.instance.state.value;
+    if (!state.hasHousehold || state.members.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('아직 공유 대상자가 없어요')));
+      }
+      return;
+    }
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('공유 대상자 보기'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: state.members.map((member) {
+              final subtitleParts = <String>[];
+              if (member.email?.trim().isNotEmpty == true) {
+                subtitleParts.add(member.email!.trim());
+              }
+              subtitleParts.add(member.role == 'owner' ? '관리자' : '구성원');
+              if (member.isMe) {
+                subtitleParts.add('나');
+              }
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: CartlyColors.surfaceNeutral,
+                  child: Text(
+                    member.displayName.trim().isNotEmpty
+                        ? member.displayName.trim().substring(0, 1)
+                        : '?',
+                    style: const TextStyle(
+                      color: CartlyColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                title: Text(member.displayName),
+                subtitle: Text(subtitleParts.join(' · ')),
+              );
+            }).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('닫기'),
+          ),
+        ],
+      ),
+    );
+  } on RemoteHouseholdException catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+}
+
+Future<void> _showHouseholdShareSheet(BuildContext context) async {
+  final session = AuthStore.instance.session.value;
+  if (session == null || session.isGuest) {
+    return;
+  }
+  try {
+    await HouseholdStore.instance.refresh();
+  } on RemoteHouseholdException catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+  if (!context.mounted) return;
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          12,
+          12,
+          12,
+          MediaQuery.of(sheetContext).viewInsets.bottom + 12,
+        ),
+        child: const _HouseholdSection(),
+      ),
+    ),
+  );
+}
+
+Future<void> _handleHouseholdLeave(BuildContext context) async {
+  final session = AuthStore.instance.session.value;
+  if (session == null || session.isGuest) {
+    return;
+  }
+  var progressShown = false;
+  try {
+    await HouseholdStore.instance.refresh();
+    final state = HouseholdStore.instance.state.value;
+    if (!state.hasHousehold) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('해제할 가족 공유가 없어요')));
+      }
+      return;
+    }
+
+    if (!context.mounted) {
+      return;
+    }
+
+    HouseholdMemberSummary? me;
+    for (final member in state.members) {
+      if (member.isMe) {
+        me = member;
+        break;
+      }
+    }
+    final isOwner = me?.role == 'owner';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isOwner ? '가족 공유 해제' : '가족 공유 나가기'),
+        content: Text(
+          isOwner
+              ? '가족 공유를 해제하면 모든 구성원이 공유 카트를 더 이상 볼 수 없어요. 계속할까요?'
+              : '가족 공유에서 나가면 다른 구성원의 카트를 더 이상 볼 수 없어요. 계속할까요?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(isOwner ? '해제할게요' : '나갈게요'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    progressShown = true;
+
+    await HouseholdStore.instance.leaveHousehold();
+    await CartStore.instance.refreshForCurrentSession();
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(isOwner ? '가족 공유를 해제했어요' : '가족 공유에서 나왔어요')),
+      );
+    }
+  } on RemoteHouseholdException catch (error) {
+    if (context.mounted) {
+      if (progressShown) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  } catch (_) {
+    if (context.mounted) {
+      if (progressShown) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('가족 공유를 변경하지 못했어요. 잠시 후 다시 시도해 주세요.')),
+      );
+    }
+  }
+}
+
+Future<void> _showMemberActionMenu(BuildContext context) async {
+  final session = AuthStore.instance.session.value;
+  if (session == null || session.isGuest) {
+    return;
+  }
+
+  final selection = await showModalBottomSheet<String>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('닉네임 수정'),
+              onTap: () => Navigator.of(sheetContext).pop('profile'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.lock_outline),
+              title: const Text('비밀번호 수정'),
+              onTap: () => Navigator.of(sheetContext).pop('password'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.groups_outlined),
+              title: const Text('가족공유'),
+              onTap: () => Navigator.of(sheetContext).pop('share'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.group_outlined),
+              title: const Text('공유 대상자 보기'),
+              onTap: () => Navigator.of(sheetContext).pop('members'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.link_off_outlined),
+              title: const Text('공유 해제'),
+              onTap: () => Navigator.of(sheetContext).pop('leave'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('로그아웃'),
+              onTap: () => Navigator.of(sheetContext).pop('logout'),
+            ),
+            const SizedBox(height: 4),
+            TextButton(
+              onPressed: () => Navigator.of(sheetContext).pop('delete'),
+              style: TextButton.styleFrom(
+                foregroundColor: CartlyColors.textSecondary,
+                textStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              child: const Text('탈퇴하기'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  if (!context.mounted || selection == null) {
+    return;
+  }
+
+  switch (selection) {
+    case 'profile':
+      await _handleMemberProfileEdit(context);
+      return;
+    case 'password':
+      await _handleMemberPasswordReset(context);
+      return;
+    case 'share':
+      await _showHouseholdShareSheet(context);
+      return;
+    case 'members':
+      await _showHouseholdMembersDialog(context);
+      return;
+    case 'leave':
+      await _handleHouseholdLeave(context);
+      return;
+    case 'logout':
+      await AuthStore.instance.signOut();
+      HouseholdStore.instance.clear();
+      await CartStore.instance.refreshForCurrentSession();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppRuntimeCopy.text(['my', 'logoutDoneMessage'], '로그아웃되었어요'),
+            ),
+          ),
+        );
+      }
+      return;
+    case 'delete':
+      await _handleMemberAccountDeletion(context);
+      return;
+  }
+}
+
 Future<void> _handleMemberAccountDeletion(BuildContext context) async {
   final confirmed = await showDialog<bool>(
     context: context,
@@ -504,25 +983,6 @@ class _AccountHubCard extends StatelessWidget {
                       : 'Guest');
 
             Future<void> handlePrimaryAction() async {
-              if (memberSignedIn) {
-                await AuthStore.instance.signOut();
-                HouseholdStore.instance.clear();
-                await CartStore.instance.refreshForCurrentSession();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        AppRuntimeCopy.text([
-                          'my',
-                          'logoutDoneMessage',
-                        ], '로그아웃되었어요'),
-                      ),
-                    ),
-                  );
-                }
-                return;
-              }
-
               final result = await Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => LoginPage(preferSignup: isGuestMode),
@@ -657,76 +1117,38 @@ class _AccountHubCard extends StatelessWidget {
                                     ),
                                     if (memberSignedIn) ...[
                                       const SizedBox(width: 12),
-                                      Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.end,
-                                        children: [
-                                          OutlinedButton(
-                                            style:
-                                                CartlyButtonStyles.secondaryOutline(
-                                                  foregroundColor: CartlyColors
-                                                      .textSecondary,
-                                                  borderColor:
-                                                      CartlyColors.line,
-                                                  radius: CartlyRadii.pill,
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 14,
-                                                        vertical: 10,
-                                                      ),
-                                                ).copyWith(
-                                                  minimumSize:
-                                                      const WidgetStatePropertyAll(
-                                                        Size(0, 36),
-                                                      ),
-                                                  tapTargetSize:
-                                                      MaterialTapTargetSize
-                                                          .shrinkWrap,
-                                                  visualDensity:
-                                                      VisualDensity.compact,
-                                                ),
-                                            onPressed: handlePrimaryAction,
-                                            child: Text(
-                                              AppRuntimeCopy.text([
-                                                'my',
-                                                'logoutAction',
-                                              ], '로그아웃'),
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          TextButton(
-                                            onPressed: () =>
-                                                _handleMemberProfileEdit(
-                                                  context,
-                                                ),
-                                            style: TextButton.styleFrom(
+                                      OutlinedButton(
+                                        style:
+                                            CartlyButtonStyles.secondaryOutline(
                                               foregroundColor:
                                                   CartlyColors.textSecondary,
+                                              borderColor: CartlyColors.line,
+                                              radius: CartlyRadii.pill,
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                    horizontal: 4,
-                                                    vertical: 0,
+                                                    horizontal: 14,
+                                                    vertical: 10,
                                                   ),
-                                              visualDensity:
-                                                  VisualDensity.compact,
+                                            ).copyWith(
+                                              minimumSize:
+                                                  const WidgetStatePropertyAll(
+                                                    Size(0, 36),
+                                                  ),
                                               tapTargetSize:
                                                   MaterialTapTargetSize
                                                       .shrinkWrap,
+                                              visualDensity:
+                                                  VisualDensity.compact,
                                             ),
-                                            child: const Text(
-                                              '개인정보 수정',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
+                                        onPressed: () =>
+                                            _showMemberActionMenu(context),
+                                        child: const Text(
+                                          '가족공유/수정',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
                                           ),
-                                        ],
+                                        ),
                                       ),
                                     ],
                                   ],
@@ -806,28 +1228,6 @@ class _AccountHubCard extends StatelessWidget {
                       height: 1.5,
                     ),
                   ),
-                  if (memberSignedIn) ...[
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => _handleMemberAccountDeletion(context),
-                        style: TextButton.styleFrom(
-                          foregroundColor: CartlyColors.textSecondary,
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          visualDensity: VisualDensity.compact,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: const Text(
-                          '회원 탈퇴',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                   if (!memberSignedIn) ...[
                     const SizedBox(height: 14),
                     SizedBox(

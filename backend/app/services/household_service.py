@@ -123,6 +123,38 @@ def join_household_by_invite_code(db: OrmSession, user: User, invite_code: str) 
     return household
 
 
+def leave_household(db: OrmSession, user: User) -> None:
+    membership = get_membership(db, user.id)
+    if membership is None:
+        raise HouseholdError('HOUSEHOLD_NOT_FOUND', '가족 그룹에 참여 중이 아니야')
+
+    household = db.get(Household, membership.household_id)
+    if household is None:
+        db.delete(membership)
+        db.commit()
+        return
+
+    member_rows = list(
+        db.scalars(
+            select(HouseholdMembership)
+            .where(HouseholdMembership.household_id == household.id)
+            .order_by(HouseholdMembership.created_at.asc())
+        ).all()
+    )
+
+    if membership.role == 'owner':
+        for row in member_rows:
+            db.delete(row)
+        db.delete(household)
+        db.commit()
+        return
+
+    db.delete(membership)
+    household.updated_at = datetime.utcnow()
+    db.add(household)
+    db.commit()
+
+
 def serialize_household_state(db: OrmSession, user: User) -> dict:
     membership = get_membership(db, user.id)
     if membership is None:

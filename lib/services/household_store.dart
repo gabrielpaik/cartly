@@ -9,14 +9,19 @@ class HouseholdStore {
   static final HouseholdStore instance = HouseholdStore._();
 
   RemoteHouseholdRepository? _repository;
-  RemoteHouseholdRepository get _remote => _repository ??= RemoteHouseholdRepository();
+  RemoteHouseholdRepository get _remote =>
+      _repository ??= RemoteHouseholdRepository();
 
-  final ValueNotifier<HouseholdState> state = ValueNotifier(HouseholdState.empty);
+  final ValueNotifier<HouseholdState> state = ValueNotifier(
+    HouseholdState.empty,
+  );
   final ValueNotifier<bool> isLoading = ValueNotifier(false);
 
   Future<void> refresh() async {
     final session = AuthStore.instance.session.value;
-    if (session == null || session.authToken.trim().isEmpty || session.isGuest) {
+    if (session == null ||
+        session.authToken.trim().isEmpty ||
+        session.isGuest) {
       state.value = HouseholdState.empty;
       return;
     }
@@ -47,6 +52,16 @@ class HouseholdStore {
       authToken: session.authToken,
       inviteCode: inviteCode,
     );
+    state.value = next;
+    return next;
+  }
+
+  Future<HouseholdState> leaveHousehold() async {
+    final session = AuthStore.instance.session.value;
+    if (session == null || session.authToken.trim().isEmpty) {
+      throw const RemoteHouseholdException('로그인이 필요해');
+    }
+    final next = await _remote.leaveHousehold(session.authToken);
     state.value = next;
     return next;
   }

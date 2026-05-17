@@ -16,12 +16,20 @@ class RemoteHouseholdRepository {
   Uri _uri(String path) => Uri.parse('${getCartlyApiBaseUrl()}$path');
 
   Future<HouseholdState> getHousehold(String authToken) async {
-    final response = await _send('GET', '/v1/households/me', authToken: authToken);
+    final response = await _send(
+      'GET',
+      '/v1/households/me',
+      authToken: authToken,
+    );
     return _readState(response);
   }
 
   Future<HouseholdState> generateInviteCode(String authToken) async {
-    final response = await _send('POST', '/v1/households/invite-code', authToken: authToken);
+    final response = await _send(
+      'POST',
+      '/v1/households/invite-code',
+      authToken: authToken,
+    );
     return _readState(response);
   }
 
@@ -34,6 +42,15 @@ class RemoteHouseholdRepository {
       '/v1/households/join',
       authToken: authToken,
       body: {'inviteCode': inviteCode},
+    );
+    return _readState(response);
+  }
+
+  Future<HouseholdState> leaveHousehold(String authToken) async {
+    final response = await _send(
+      'POST',
+      '/v1/households/leave',
+      authToken: authToken,
     );
     return _readState(response);
   }
@@ -56,7 +73,10 @@ class RemoteHouseholdRepository {
       request.write(jsonEncode(body));
     }
     final response = await request.close().timeout(_requestTimeout);
-    final responseBody = await response.transform(utf8.decoder).join().timeout(_requestTimeout);
+    final responseBody = await response
+        .transform(utf8.decoder)
+        .join()
+        .timeout(_requestTimeout);
     final decoded = responseBody.isEmpty
         ? <String, dynamic>{}
         : jsonDecode(responseBody) as Map<String, dynamic>;

@@ -52,23 +52,37 @@ Important review notes:
 
 ## Metadata progress update
 - App Store Connect app info localization has now been updated to:
-  - name: `Cartly` (fixed earlier `Cartrly` typo)
+  - name: `카트리`
   - subtitle: `장보기 기록과 대체안 탐색`
   - privacy policy URL: `https://scan-api.seoa-nas.com/privacy`
 - App Store Connect version localization has now been updated to:
   - Korean description
-  - keywords
+  - expanded keywords including Korean/English variants and common typo coverage
   - marketing URL: `https://scan-api.seoa-nas.com/`
   - support URL: `https://scan-api.seoa-nas.com/support`
 - Public support page is now live at `https://scan-api.seoa-nas.com/support` and exposes the reachable support email `scancart.wimc@gmail.com`.
+- App Review contact is now saved:
+  - contact email: `scancart.wimc@gmail.com`
+  - contact phone: `+82 10-9112-5123`
+- Current App Store version `1.0` is now attached to build `1.0.4 (25)` (`52229c14-bfeb-42ef-83ae-3a72c4f4cd8c`).
 
 ## Remaining non-code submission tasks
-- fill App Review notes in App Store Connect using the draft above
-- provide a valid App Review contact phone number in international format (`+82 ...`) because Apple currently rejects review-detail creation without `contactPhone`
 - confirm screenshots match the current family-sharing/settings UI, not the older popup/menu variant
-- add a short note that guest mode exists and login is only required for member features
+- complete Age Rating questionnaire in App Store Connect
+- complete / verify App Privacy questionnaire in App Store Connect
+- final submit for review
+
+## Android / Google Play launch snapshot
+- Android release AAB build now succeeds locally: `build/app/outputs/bundle/release/app-release.aab`
+- current Android package id: `com.seungdae.cartly`
+- release signing is now wired to `android/key.properties` when present, with debug-signing fallback only when local signing data is absent
+- a local upload keystore has been created outside the repo and connected for release builds
+- helper script added: `scripts/build-android-play-release.sh`
+- there is still no Play Console automation path in-repo (no `fastlane supply`, no Play service-account credential found)
 
 ## Current judgment
+- iOS metadata, screenshots, privacy/support URLs, review contact, and build attachment are now substantially cleaned up
 - code-side review readiness looks close
 - biggest avoidable iOS review footgun was the unnecessary always-location plist key, and that is now removed
-- the next practical step is metadata/review-note cleanup in App Store Connect, then final submission prep
+- Android is now buildable as a signed release AAB locally, but Google Play launch is still blocked on Play Console-side work: app creation/access, Data safety, Content rating, App access, and actual upload/release-track submission
+- the next practical step is final store-console submission prep on iOS plus Play Console setup/upload on Android

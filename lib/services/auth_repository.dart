@@ -41,5 +41,10 @@ abstract class AuthRepository {
 
   Future<UserSession> refreshSession(UserSession current);
 
+  Future<UserSession> updateProfile({
+    required UserSession current,
+    required String displayName,
+  });
+
   Future<void> deleteAccount(String authToken);
 }

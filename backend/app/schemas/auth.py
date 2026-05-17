@@ -50,3 +50,7 @@ class PasswordResetConfirmRequest(BaseModel):
     email: EmailStr
     code: str
     newPassword: str
+
+
+class ProfileUpdateRequest(BaseModel):
+    displayName: str

@@ -236,6 +236,96 @@ class _HouseholdSectionState extends State<_HouseholdSection> {
   }
 }
 
+Future<void> _handleMemberProfileEdit(BuildContext context) async {
+  final current = AuthStore.instance.session.value;
+  if (current == null || current.isGuest) {
+    return;
+  }
+
+  final controller = TextEditingController(text: current.displayName.trim());
+  final submitted = await showDialog<String>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('개인정보 수정'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: controller,
+            textInputAction: TextInputAction.done,
+            decoration: const InputDecoration(
+              labelText: '이름',
+              hintText: '이름을 입력해 주세요',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          if (current.email.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              current.email.trim(),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: CartlyColors.textSecondary,
+              ),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('취소'),
+        ),
+        TextButton(
+          onPressed: () =>
+              Navigator.of(dialogContext).pop(controller.text.trim()),
+          child: const Text('저장'),
+        ),
+      ],
+    ),
+  );
+
+  controller.dispose();
+
+  if (submitted == null || !context.mounted) {
+    return;
+  }
+
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    await AuthStore.instance.updateProfile(displayName: submitted);
+    HouseholdStore.instance.refresh();
+    await CartStore.instance.refreshForCurrentSession();
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('개인정보를 수정했어요')));
+    }
+  } on AuthRepositoryException catch (error) {
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  } catch (_) {
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('개인정보를 수정하지 못했어요. 잠시 후 다시 시도해 주세요.')),
+      );
+    }
+  }
+}
+
 Future<void> _handleMemberAccountDeletion(BuildContext context) async {
   final confirmed = await showDialog<bool>(
     context: context,
@@ -567,40 +657,76 @@ class _AccountHubCard extends StatelessWidget {
                                     ),
                                     if (memberSignedIn) ...[
                                       const SizedBox(width: 12),
-                                      OutlinedButton(
-                                        style:
-                                            CartlyButtonStyles.secondaryOutline(
+                                      Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          OutlinedButton(
+                                            style:
+                                                CartlyButtonStyles.secondaryOutline(
+                                                  foregroundColor: CartlyColors
+                                                      .textSecondary,
+                                                  borderColor:
+                                                      CartlyColors.line,
+                                                  radius: CartlyRadii.pill,
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 14,
+                                                        vertical: 10,
+                                                      ),
+                                                ).copyWith(
+                                                  minimumSize:
+                                                      const WidgetStatePropertyAll(
+                                                        Size(0, 36),
+                                                      ),
+                                                  tapTargetSize:
+                                                      MaterialTapTargetSize
+                                                          .shrinkWrap,
+                                                  visualDensity:
+                                                      VisualDensity.compact,
+                                                ),
+                                            onPressed: handlePrimaryAction,
+                                            child: Text(
+                                              AppRuntimeCopy.text([
+                                                'my',
+                                                'logoutAction',
+                                              ], '로그아웃'),
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          TextButton(
+                                            onPressed: () =>
+                                                _handleMemberProfileEdit(
+                                                  context,
+                                                ),
+                                            style: TextButton.styleFrom(
                                               foregroundColor:
                                                   CartlyColors.textSecondary,
-                                              borderColor: CartlyColors.line,
-                                              radius: CartlyRadii.pill,
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                    horizontal: 14,
-                                                    vertical: 10,
+                                                    horizontal: 4,
+                                                    vertical: 0,
                                                   ),
-                                            ).copyWith(
-                                              minimumSize:
-                                                  const WidgetStatePropertyAll(
-                                                    Size(0, 36),
-                                                  ),
+                                              visualDensity:
+                                                  VisualDensity.compact,
                                               tapTargetSize:
                                                   MaterialTapTargetSize
                                                       .shrinkWrap,
-                                              visualDensity:
-                                                  VisualDensity.compact,
                                             ),
-                                        onPressed: handlePrimaryAction,
-                                        child: Text(
-                                          AppRuntimeCopy.text([
-                                            'my',
-                                            'logoutAction',
-                                          ], '로그아웃'),
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700,
+                                            child: const Text(
+                                              '개인정보 수정',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
                                           ),
-                                        ),
+                                        ],
                                       ),
                                     ],
                                   ],

@@ -143,6 +143,19 @@ class AuthStore {
     return next;
   }
 
+  Future<UserSession> updateProfile({required String displayName}) async {
+    final current = session.value;
+    if (current == null || current.authToken.trim().isEmpty) {
+      throw const AuthRepositoryException('로그인이 필요합니다');
+    }
+    final next = await _authRepository.updateProfile(
+      current: current,
+      displayName: displayName,
+    );
+    await _persist(next);
+    return next;
+  }
+
   Future<void> deleteAccount() async {
     final current = session.value;
     if (current == null || current.authToken.trim().isEmpty) {

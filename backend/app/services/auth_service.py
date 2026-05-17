@@ -38,6 +38,13 @@ class AccountDeletionError(Exception):
         self.message = message
 
 
+class ProfileUpdateError(Exception):
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode('utf-8')).hexdigest()
 
@@ -268,6 +275,33 @@ def get_user_by_token(db: OrmSession, token: str) -> Optional[User]:
         user.last_seen_at = datetime.utcnow()
         db.add(user)
     db.commit()
+    return user
+
+
+def update_profile(
+    db: OrmSession,
+    user: Optional[User],
+    *,
+    display_name: str,
+) -> User:
+    if user is None:
+        raise ProfileUpdateError('UNAUTHORIZED', '로그인이 필요합니다')
+    if user.status != 'active':
+        raise ProfileUpdateError('ACCOUNT_NOT_ACTIVE', '사용할 수 없는 계정입니다')
+    if user.is_guest:
+        raise ProfileUpdateError('GUEST_ACCOUNT_NOT_SUPPORTED', '게스트 계정은 개인정보를 수정할 수 없어요')
+
+    next_display_name = display_name.strip()
+    if not next_display_name:
+        raise ProfileUpdateError('DISPLAY_NAME_REQUIRED', '이름을 입력해 주세요')
+    if len(next_display_name) > 40:
+        raise ProfileUpdateError('DISPLAY_NAME_TOO_LONG', '이름은 40자 이하로 입력해 주세요')
+
+    user.display_name = next_display_name
+    user.updated_at = datetime.utcnow()
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     return user
 
 

@@ -131,6 +131,28 @@ class RemoteAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<UserSession> updateProfile({
+    required UserSession current,
+    required String displayName,
+  }) async {
+    final trimmedToken = current.authToken.trim();
+    if (trimmedToken.isEmpty) {
+      throw const AuthRepositoryException('세션 토큰이 비어 있습니다');
+    }
+    final response = await _requestJson(
+      'PATCH',
+      '/v1/auth/me',
+      authToken: trimmedToken,
+      body: {'displayName': displayName.trim()},
+    );
+    return _sessionFromResponse(
+      response,
+      fallbackProvider: current.provider,
+      currentSession: current,
+    );
+  }
+
+  @override
   Future<void> deleteAccount(String authToken) async {
     final trimmedToken = authToken.trim();
     if (trimmedToken.isEmpty) {

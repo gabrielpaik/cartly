@@ -13,6 +13,7 @@ from ..schemas.auth import (
     PasswordLoginRequest,
     PasswordResetConfirmRequest,
     PasswordResetRequest,
+    ProfileUpdateRequest,
 )
 from ..services.auth_password_service import (
     AuthFlowError,
@@ -22,7 +23,15 @@ from ..services.auth_password_service import (
     reset_password_with_code,
     validate_email_code,
 )
-from ..services.auth_service import AccountDeletionError, create_guest_session, delete_account, login_or_create_user, revoke_session_by_token
+from ..services.auth_service import (
+    AccountDeletionError,
+    ProfileUpdateError,
+    create_guest_session,
+    delete_account,
+    login_or_create_user,
+    revoke_session_by_token,
+    update_profile,
+)
 
 router = APIRouter()
 
@@ -245,6 +254,42 @@ def me(current_user=Depends(current_user_dep)):
             }
         },
     }
+
+@router.patch('/me')
+def update_me(
+    payload: ProfileUpdateRequest,
+    db: OrmSession = Depends(db_dep),
+    current_user=Depends(current_user_dep),
+):
+    try:
+        updated_user = update_profile(
+            db,
+            current_user,
+            display_name=payload.displayName,
+        )
+    except ProfileUpdateError as exc:
+        return {
+            'ok': False,
+            'error': {
+                'code': exc.code,
+                'message': exc.message,
+            },
+        }
+
+    return {
+        'ok': True,
+        'data': {
+            'user': {
+                'id': updated_user.id,
+                'displayName': updated_user.display_name,
+                'guestCode': updated_user.guest_code,
+                'email': updated_user.email,
+                'provider': updated_user.auth_provider,
+                'isGuest': updated_user.is_guest,
+            }
+        },
+    }
+
 
 @router.delete('/me')
 def delete_me(

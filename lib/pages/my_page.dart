@@ -12,6 +12,8 @@ import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_category_catalog.dart';
 import '../services/cart_store.dart';
+import '../services/current_cart_store.dart';
+import '../services/remote_auth_repository.dart';
 import '../services/cart_title_formatter.dart';
 import '../services/my_page_insights.dart';
 import '../widgets/cartly_info_card.dart';
@@ -38,6 +40,63 @@ class MyPage extends StatelessWidget {
         _MyComplianceSection(),
       ],
     );
+  }
+}
+
+Future<void> _handleMemberAccountDeletion(BuildContext context) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('회원 탈퇴'),
+      content: const Text('계정과 저장 기록이 삭제돼요. 계속할까요?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('취소'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('탈퇴할게요'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed != true || !context.mounted) {
+    return;
+  }
+
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    await AuthStore.instance.deleteAccount();
+    await CartStore.instance.clearLocalState();
+    await CurrentCartStore.instance.clear();
+    await CartStore.instance.refreshForCurrentSession();
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('회원 탈퇴가 완료되었어요')));
+    }
+  } on AuthRepositoryException catch (error) {
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  } catch (_) {
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('회원 탈퇴를 완료하지 못했어요. 잠시 후 다시 시도해 주세요.')),
+      );
+    }
   }
 }
 
@@ -426,6 +485,28 @@ class _AccountHubCard extends StatelessWidget {
                       height: 1.5,
                     ),
                   ),
+                  if (memberSignedIn) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => _handleMemberAccountDeletion(context),
+                        style: TextButton.styleFrom(
+                          foregroundColor: CartlyColors.textSecondary,
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          visualDensity: VisualDensity.compact,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text(
+                          '회원 탈퇴',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   if (!memberSignedIn) ...[
                     const SizedBox(height: 14),
                     SizedBox(

@@ -79,9 +79,8 @@ class CurrentCartStore {
           ? consideredRaw
                 .whereType<Map>()
                 .map(
-                  (entry) => _consideredItemFromJson(
-                    Map<String, dynamic>.from(entry),
-                  ),
+                  (entry) =>
+                      _consideredItemFromJson(Map<String, dynamic>.from(entry)),
                 )
                 .toList(growable: false)
           : const <ConsideredProductEntry>[];
@@ -97,6 +96,12 @@ class CurrentCartStore {
         consideredItems: [],
       );
     }
+  }
+
+  Future<void> clear() async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.remove(_snapshotKey);
+    await sp.remove(_ownerKey);
   }
 
   Future<void> save({

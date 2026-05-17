@@ -3,14 +3,37 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Literal, Optional, Tuple
 
-from sqlalchemy import update, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session as OrmSession
 
-from ..db.models import AdImpression, AppEvent, Cart, ScanFailureLog, ScanFeedback, ScanJob, Session, User
+from ..db.models import (
+    AdImpression,
+    AppEvent,
+    Cart,
+    CartItem,
+    EmailAuthCode,
+    PushDevice,
+    Receipt,
+    ReceiptLineItem,
+    ScanFailureLog,
+    ScanFeedback,
+    ScanJob,
+    Session,
+    User,
+    UserRegionEvent,
+    UserRegionProfile,
+)
 
 AuthProvider = Literal['email', 'google', 'kakao']
 
 GUEST_CODE_SPACE = 10_000
+
+
+class AccountDeletionError(Exception):
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+        self.message = message
 
 
 def _hash_token(token: str) -> str:
@@ -243,4 +266,81 @@ def get_user_by_token(db: OrmSession, token: str) -> Optional[User]:
         user.last_seen_at = datetime.utcnow()
         db.add(user)
     db.commit()
+    return user
+
+
+def delete_account(db: OrmSession, user: Optional[User]) -> User:
+    if user is None:
+        raise AccountDeletionError('UNAUTHORIZED', '로그인이 필요합니다')
+    if user.status != 'active':
+        raise AccountDeletionError('ACCOUNT_NOT_ACTIVE', '이미 비활성화된 계정입니다')
+    if user.is_guest:
+        raise AccountDeletionError('GUEST_ACCOUNT_NOT_SUPPORTED', '게스트 계정은 탈퇴할 수 없어요. 회원 계정으로 로그인해 주세요')
+
+    now = datetime.utcnow()
+    original_email = (user.email or '').strip().lower()
+
+    session_ids = list(db.scalars(select(Session.id).where(Session.user_id == user.id)).all())
+
+    if session_ids:
+        db.execute(delete(AppEvent).where(AppEvent.session_id.in_(session_ids)))
+        db.execute(update(ScanJob).where(ScanJob.session_id.in_(session_ids)).values(session_id=None, updated_at=now))
+        db.execute(update(AdImpression).where(AdImpression.session_id.in_(session_ids)).values(session_id=None))
+
+    receipt_ids = list(db.scalars(select(Receipt.id).where(Receipt.user_id == user.id)).all())
+    if receipt_ids:
+        db.execute(delete(ReceiptLineItem).where(ReceiptLineItem.receipt_id.in_(receipt_ids)))
+        db.execute(delete(Receipt).where(Receipt.id.in_(receipt_ids)))
+
+    db.execute(delete(UserRegionEvent).where(UserRegionEvent.user_id == user.id))
+    db.execute(delete(UserRegionProfile).where(UserRegionProfile.user_id == user.id))
+    db.execute(delete(ScanFeedback).where(ScanFeedback.user_id == user.id))
+    db.execute(delete(ScanFailureLog).where(ScanFailureLog.user_id == user.id))
+    db.execute(delete(ScanJob).where(ScanJob.user_id == user.id))
+    db.execute(delete(AppEvent).where(AppEvent.user_id == user.id))
+    db.execute(delete(AdImpression).where(AdImpression.user_id == user.id))
+    db.execute(delete(CartItem).where(CartItem.cart_id.in_(select(Cart.id).where(Cart.user_id == user.id))))
+    db.execute(delete(Cart).where(Cart.user_id == user.id))
+    db.execute(delete(Session).where(Session.user_id == user.id))
+    db.execute(
+        update(PushDevice)
+        .where(PushDevice.user_id == user.id)
+        .values(
+            user_id=None,
+            push_token=None,
+            push_provider=None,
+            notifications_enabled=False,
+            status='deleted',
+            push_debug_json=None,
+            updated_at=now,
+            last_seen_at=now,
+        )
+    )
+
+    if original_email:
+        db.execute(delete(EmailAuthCode).where(EmailAuthCode.email == original_email))
+
+    user.display_name = 'Deleted User'
+    user.email = None
+    user.auth_provider = 'deleted'
+    user.status = 'deleted'
+    user.is_guest = False
+    user.guest_code = None
+    user.password_hash = None
+    user.email_verified_at = None
+    user.guest_key = None
+    user.last_device_platform = None
+    user.last_app_version = None
+    user.merged_into_user_id = None
+    user.merged_at = None
+    user.last_region_city = None
+    user.last_region_district = None
+    user.last_region_neighborhood = None
+    user.last_region_label = None
+    user.last_region_captured_at = None
+    user.last_seen_at = None
+    user.updated_at = now
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     return user

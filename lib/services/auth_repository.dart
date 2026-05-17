@@ -20,10 +20,7 @@ abstract class AuthRepository {
 
   Future<void> requestSignupCode(String email);
 
-  Future<void> verifySignupCode({
-    required String email,
-    required String code,
-  });
+  Future<void> verifySignupCode({required String email, required String code});
 
   Future<UserSession> registerWithEmail(EmailRegisterDraft draft);
 
@@ -43,4 +40,6 @@ abstract class AuthRepository {
   Future<UserSession> continueAsGuest();
 
   Future<UserSession> refreshSession(UserSession current);
+
+  Future<void> deleteAccount(String authToken);
 }

@@ -85,10 +85,7 @@ class AuthStore {
     return _authRepository.requestSignupCode(email);
   }
 
-  Future<void> verifySignupCode({
-    required String email,
-    required String code,
-  }) {
+  Future<void> verifySignupCode({required String email, required String code}) {
     return _authRepository.verifySignupCode(email: email, code: code);
   }
 
@@ -144,6 +141,15 @@ class AuthStore {
     final next = await _authRepository.continueAsGuest();
     await _persist(next);
     return next;
+  }
+
+  Future<void> deleteAccount() async {
+    final current = session.value;
+    if (current == null || current.authToken.trim().isEmpty) {
+      throw const AuthRepositoryException('로그인이 필요합니다');
+    }
+    await _authRepository.deleteAccount(current.authToken);
+    await _persist(null);
   }
 
   Future<void> signOut() async {

@@ -131,6 +131,15 @@ class RemoteAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> deleteAccount(String authToken) async {
+    final trimmedToken = authToken.trim();
+    if (trimmedToken.isEmpty) {
+      throw const AuthRepositoryException('세션 토큰이 비어 있습니다');
+    }
+    await _requestJson('DELETE', '/v1/auth/me', authToken: trimmedToken);
+  }
+
+  @override
   Future<UserSession> refreshSession(UserSession current) async {
     final authToken = current.authToken.trim();
     if (authToken.isEmpty) {

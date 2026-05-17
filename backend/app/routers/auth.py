@@ -22,7 +22,7 @@ from ..services.auth_password_service import (
     reset_password_with_code,
     validate_email_code,
 )
-from ..services.auth_service import create_guest_session, login_or_create_user, revoke_session_by_token
+from ..services.auth_service import AccountDeletionError, create_guest_session, delete_account, login_or_create_user, revoke_session_by_token
 
 router = APIRouter()
 
@@ -245,3 +245,31 @@ def me(current_user=Depends(current_user_dep)):
             }
         },
     }
+
+@router.delete('/me')
+def delete_me(
+    db: OrmSession = Depends(db_dep),
+    current_user=Depends(current_user_dep),
+):
+    try:
+        deleted_user = delete_account(db, current_user)
+    except AccountDeletionError as exc:
+        return {
+            'ok': False,
+            'error': {
+                'code': exc.code,
+                'message': exc.message,
+            },
+        }
+
+    return {
+        'ok': True,
+        'data': {
+            'deleted': True,
+            'user': {
+                'id': deleted_user.id,
+                'status': deleted_user.status,
+            },
+        },
+    }
+

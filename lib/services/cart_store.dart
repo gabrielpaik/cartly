@@ -271,6 +271,15 @@ class CartStore {
     await load();
   }
 
+  Future<void> clearLocalState() async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.remove(_key);
+    await sp.remove(_ownerKey);
+    await sp.remove(_pendingOpKey);
+    carts.value = const [];
+    pendingCartIds.value = <String>{};
+  }
+
   Future<_LocalCartState> _readLocalState() async {
     final sp = await SharedPreferences.getInstance();
     final raw = sp.getString(_key);

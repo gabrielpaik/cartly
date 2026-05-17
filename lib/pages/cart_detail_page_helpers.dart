@@ -15,6 +15,10 @@ SavedCart cloneSavedCartSnapshot(SavedCart source) {
     isExpired: source.isExpired,
     retentionExtensionCount: source.retentionExtensionCount,
     canExtendRetention: source.canExtendRetention,
+    viewerCanEdit: source.viewerCanEdit,
+    isSharedWithHousehold: source.isSharedWithHousehold,
+    owner: source.owner,
+    household: source.household,
     receiptStatus: source.receiptStatus == null
         ? null
         : SavedCartReceiptStatus(

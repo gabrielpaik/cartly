@@ -109,12 +109,13 @@ class _SavedTabListEntryState extends State<SavedTabListEntry>
 
   @override
   Widget build(BuildContext context) {
+    final canDelete = widget.cart.viewerCanEdit;
     return Column(
       children: [
         Slidable(
           key: ValueKey('saved-cart-${widget.cart.id}'),
           controller: _slidableController,
-          endActionPane: ActionPane(
+          endActionPane: canDelete ? ActionPane(
             motion: const DrawerMotion(),
             extentRatio: 0.26,
             children: [
@@ -136,7 +137,7 @@ class _SavedTabListEntryState extends State<SavedTabListEntry>
                 ),
               ),
             ],
-          ),
+          ) : null,
           child: SavedCartListCard(
             cart: widget.cart,
             onTap: widget.onTap,

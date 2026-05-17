@@ -1,3 +1,45 @@
+
+class SavedCartUserSummary {
+  final String id;
+  final String displayName;
+  final String? email;
+  final bool isGuest;
+
+  const SavedCartUserSummary({
+    required this.id,
+    required this.displayName,
+    this.email,
+    required this.isGuest,
+  });
+
+  static SavedCartUserSummary? fromJsonOrNull(dynamic json) {
+    if (json is! Map) return null;
+    final map = Map<String, dynamic>.from(json);
+    return SavedCartUserSummary(
+      id: (map['id'] ?? '') as String,
+      displayName: (map['displayName'] ?? '') as String,
+      email: map['email'] as String?,
+      isGuest: map['isGuest'] == true,
+    );
+  }
+}
+
+class SavedCartHouseholdSummary {
+  final String id;
+  final String name;
+
+  const SavedCartHouseholdSummary({required this.id, required this.name});
+
+  static SavedCartHouseholdSummary? fromJsonOrNull(dynamic json) {
+    if (json is! Map) return null;
+    final map = Map<String, dynamic>.from(json);
+    return SavedCartHouseholdSummary(
+      id: (map['id'] ?? '') as String,
+      name: (map['name'] ?? '') as String,
+    );
+  }
+}
+
 class SavedCartReceiptStatus {
   final String receiptId;
   final String receiptStatus;
@@ -120,6 +162,10 @@ class SavedCart {
   bool isExpired;
   int retentionExtensionCount;
   bool canExtendRetention;
+  bool viewerCanEdit;
+  bool isSharedWithHousehold;
+  SavedCartUserSummary? owner;
+  SavedCartHouseholdSummary? household;
   SavedCartReceiptStatus? receiptStatus;
 
   SavedCart({
@@ -132,6 +178,10 @@ class SavedCart {
     this.isExpired = false,
     this.retentionExtensionCount = 0,
     this.canExtendRetention = false,
+    this.viewerCanEdit = true,
+    this.isSharedWithHousehold = false,
+    this.owner,
+    this.household,
     this.receiptStatus,
   }) : updatedAt = updatedAt ?? createdAt;
 
@@ -166,6 +216,10 @@ class SavedCart {
     'isExpired': isExpired,
     'retentionExtensionCount': retentionExtensionCount,
     'canExtendRetention': canExtendRetention,
+    'viewerCanEdit': viewerCanEdit,
+    'isSharedWithHousehold': isSharedWithHousehold,
+    'user': owner == null ? null : {'id': owner!.id, 'displayName': owner!.displayName, 'email': owner!.email, 'isGuest': owner!.isGuest},
+    'household': household == null ? null : {'id': household!.id, 'name': household!.name},
     'receiptStatus': receiptStatus?.toJson(),
     'items': items.map((e) => e.toJson()).toList(),
   };
@@ -183,6 +237,10 @@ class SavedCart {
     isExpired: json['isExpired'] == true,
     retentionExtensionCount: (json['retentionExtensionCount'] ?? 0) as int,
     canExtendRetention: json['canExtendRetention'] == true,
+    viewerCanEdit: json['viewerCanEdit'] != false,
+    isSharedWithHousehold: json['isSharedWithHousehold'] == true,
+    owner: SavedCartUserSummary.fromJsonOrNull(json['user']),
+    household: SavedCartHouseholdSummary.fromJsonOrNull(json['household']),
     receiptStatus: json['receiptStatus'] is Map<String, dynamic>
         ? SavedCartReceiptStatus.fromJson(
             json['receiptStatus'] as Map<String, dynamic>,

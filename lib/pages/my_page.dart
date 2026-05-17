@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app/cartly_ui.dart';
+import '../models/household_state.dart';
 import '../models/saved_cart.dart';
 import '../pages/cart_detail_page.dart';
 import '../pages/cart_detail_page_helpers.dart';
@@ -12,6 +13,7 @@ import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_category_catalog.dart';
 import '../services/cart_store.dart';
+import '../services/household_store.dart';
 import '../services/current_cart_store.dart';
 import '../services/remote_auth_repository.dart';
 import '../services/cart_title_formatter.dart';
@@ -33,12 +35,203 @@ class MyPage extends StatelessWidget {
       children: const [
         _AccountHubCard(),
         SizedBox(height: CartlySpacing.section),
+        _HouseholdSection(),
+        SizedBox(height: CartlySpacing.section),
         _MyPageOrderedSections(),
         SizedBox(height: CartlySpacing.lg),
         _MySecondarySections(),
         SizedBox(height: 28),
         _MyComplianceSection(),
       ],
+    );
+  }
+}
+
+class _HouseholdSection extends StatefulWidget {
+  const _HouseholdSection();
+
+  @override
+  State<_HouseholdSection> createState() => _HouseholdSectionState();
+}
+
+class _HouseholdSectionState extends State<_HouseholdSection> {
+  final _joinCtrl = TextEditingController();
+  bool _busy = false;
+  String? _loadedUserId;
+
+  @override
+  void dispose() {
+    _joinCtrl.dispose();
+    super.dispose();
+  }
+
+  void _ensureLoaded() {
+    final session = AuthStore.instance.session.value;
+    if (session == null || session.isGuest) {
+      _loadedUserId = null;
+      HouseholdStore.instance.clear();
+      return;
+    }
+    if (_loadedUserId == session.id) return;
+    _loadedUserId = session.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      HouseholdStore.instance.refresh();
+    });
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await action();
+      if (!mounted) return;
+      await CartStore.instance.refreshForCurrentSession();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _ensureLoaded();
+    return ValueListenableBuilder(
+      valueListenable: AuthStore.instance.session,
+      builder: (context, session, _) {
+        if (session == null || session.isGuest) {
+          return const SizedBox.shrink();
+        }
+        return ValueListenableBuilder<HouseholdState>(
+          valueListenable: HouseholdStore.instance.state,
+          builder: (context, householdState, _) {
+            final household = householdState.household;
+            final inviteCode = household?.inviteCode?.trim() ?? '';
+            return CartlySurfaceCard(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '가족 공유',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    householdState.hasHousehold
+                        ? '${household?.name ?? '우리 집'} · ${household?.memberCount ?? 0}명'
+                        : '아직 가족 그룹이 없어요. 초대 코드를 만들거나, 받은 코드로 참여해 보세요.',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.black54,
+                      height: 1.45,
+                    ),
+                  ),
+                  if (householdState.members.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      householdState.members
+                          .map((member) => member.displayName)
+                          .join(' · '),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Text(
+                            inviteCode.isEmpty ? '초대 코드 없음' : inviteCode,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.4,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: _busy
+                            ? null
+                            : () => _run(() async {
+                                final messenger = ScaffoldMessenger.of(context);
+                                final next = await HouseholdStore.instance
+                                    .generateInviteCode();
+                                final code =
+                                    next.household?.inviteCode?.trim() ?? '';
+                                if (code.isNotEmpty) {
+                                  await Clipboard.setData(
+                                    ClipboardData(text: code),
+                                  );
+                                  if (mounted) {
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text('초대 코드를 만들고 복사했어요'),
+                                      ),
+                                    );
+                                  }
+                                }
+                              }),
+                        child: Text(inviteCode.isEmpty ? '코드 만들기' : '새 코드'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _joinCtrl,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(
+                      hintText: '초대 코드 입력',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton(
+                      onPressed: _busy || householdState.hasHousehold
+                          ? null
+                          : () => _run(() async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              await HouseholdStore.instance.joinByCode(
+                                _joinCtrl.text.trim(),
+                              );
+                              _joinCtrl.clear();
+                              if (mounted) {
+                                messenger.showSnackBar(
+                                  const SnackBar(content: Text('가족 그룹에 참여했어요')),
+                                );
+                              }
+                            }),
+                      child: Text(
+                        householdState.hasHousehold ? '다른 코드는 불가' : '코드로 참여',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -74,6 +267,7 @@ Future<void> _handleMemberAccountDeletion(BuildContext context) async {
 
   try {
     await AuthStore.instance.deleteAccount();
+    HouseholdStore.instance.clear();
     await CartStore.instance.clearLocalState();
     await CurrentCartStore.instance.clear();
     await CartStore.instance.refreshForCurrentSession();
@@ -222,6 +416,7 @@ class _AccountHubCard extends StatelessWidget {
             Future<void> handlePrimaryAction() async {
               if (memberSignedIn) {
                 await AuthStore.instance.signOut();
+                HouseholdStore.instance.clear();
                 await CartStore.instance.refreshForCurrentSession();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

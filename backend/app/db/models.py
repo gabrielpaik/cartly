@@ -178,6 +178,34 @@ class Cart(Base):
     items: Mapped[List['CartItem']] = relationship(back_populates='cart', cascade='all, delete-orphan')
 
 
+
+
+class Household(Base):
+    __tablename__ = 'households'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name: Mapped[str] = mapped_column(String(120), default='우리 집')
+    invite_code: Mapped[Optional[str]] = mapped_column(String(12), nullable=True)
+    invite_code_created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_by_user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class HouseholdMembership(Base):
+    __tablename__ = 'household_memberships'
+    __table_args__ = (
+        UniqueConstraint('household_id', 'user_id', name='uq_household_memberships_household_user'),
+        UniqueConstraint('user_id', name='uq_household_memberships_user'),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    household_id: Mapped[str] = mapped_column(ForeignKey('households.id'), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), index=True)
+    role: Mapped[str] = mapped_column(String(20), default='member')
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 class CartItem(Base):
     __tablename__ = 'cart_items'
 

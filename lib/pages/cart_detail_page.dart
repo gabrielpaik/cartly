@@ -58,13 +58,15 @@ class _CartDetailPageState extends State<CartDetailPage> {
     super.dispose();
   }
 
+  bool get _viewerCanEdit => _cart.viewerCanEdit;
+
   bool get _isExpiredGuestLocked {
     final session = AuthStore.instance.session.value;
     return _cart.isExpired && session != null && session.isGuest;
   }
 
   void _toggleEditMode() {
-    if (_isSaving || _isExpiredGuestLocked) return;
+    if (_isSaving || _isExpiredGuestLocked || !_viewerCanEdit) return;
     setState(() {
       _isEditing = !_isEditing;
       if (!_isEditing) {
@@ -138,7 +140,7 @@ class _CartDetailPageState extends State<CartDetailPage> {
   }
 
   Future<void> _save() async {
-    if (_isSaving || _isExpiredGuestLocked) return;
+    if (_isSaving || _isExpiredGuestLocked || !_viewerCanEdit) return;
 
     final validationMessage = cartDetailSaveValidationMessage(_cart.items);
     if (validationMessage != null) {
@@ -182,7 +184,7 @@ class _CartDetailPageState extends State<CartDetailPage> {
   }
 
   Future<void> _extendRetention() async {
-    if (_isExtendingRetention) return;
+    if (_isExtendingRetention || !_viewerCanEdit) return;
 
     final session = AuthStore.instance.session.value;
     if (session == null || !session.isGuest) {
@@ -243,7 +245,7 @@ class _CartDetailPageState extends State<CartDetailPage> {
   }
 
   void _addItem(String name, int price) {
-    if (_isExpiredGuestLocked) return;
+    if (_isExpiredGuestLocked || !_viewerCanEdit) return;
 
     setState(() {
       _markReceiptApplyEdited();
@@ -314,7 +316,7 @@ class _CartDetailPageState extends State<CartDetailPage> {
   }
 
   Future<void> _openReceiptCompare() async {
-    if (_isEditing || _isSaving || _isExpiredGuestLocked) return;
+    if (_isEditing || _isSaving || _isExpiredGuestLocked || !_viewerCanEdit) return;
 
     final result = await Navigator.of(
       context,
@@ -358,10 +360,25 @@ class _CartDetailPageState extends State<CartDetailPage> {
         foregroundColor: CartlyColors.textPrimary,
         centerTitle: false,
         title: Text(titleText),
+        bottom: !_cart.viewerCanEdit && _cart.owner != null
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(28),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '공유 카트 · ${_cart.owner!.displayName}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              )
+            : null,
         actions: [
           CartDetailAppBarActions(
             isEditing: _isEditing,
-            isExpiredGuestLocked: _isExpiredGuestLocked,
+            isExpiredGuestLocked: _isExpiredGuestLocked || !_viewerCanEdit,
             receiptStatus: _cart.receiptStatus,
             onToggleEditMode: _toggleEditMode,
             onDelete: _confirmDelete,
@@ -418,7 +435,7 @@ class _CartDetailPageState extends State<CartDetailPage> {
                     ),
                   Expanded(
                     child: CartDetailBody(
-                      isExpiredGuestLocked: _isExpiredGuestLocked,
+                      isExpiredGuestLocked: _isExpiredGuestLocked || !_viewerCanEdit,
                       canExtendRetention: _cart.canExtendRetention,
                       items: _cart.items,
                       isEditing: _isEditing,
@@ -446,7 +463,7 @@ class _CartDetailPageState extends State<CartDetailPage> {
         ),
       ),
       bottomNavigationBar: CartDetailEditActionsSection(
-        isVisible: !_isExpiredGuestLocked,
+        isVisible: !_isExpiredGuestLocked && _viewerCanEdit,
         isEditing: _isEditing,
         onAddItem: _addItem,
         totalPriceText: '₩${_fmt(_cart.totalPrice)}',

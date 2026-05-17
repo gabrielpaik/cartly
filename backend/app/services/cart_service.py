@@ -13,6 +13,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session as OrmSession, selectinload
 
 from ..db.models import Cart, CartItem, Receipt, User
+from .household_service import get_household_for_user, list_household_member_ids
 from .category_override_service import TARGET_TYPE_CART_ITEM, TARGET_TYPE_SCAN_JOB, load_category_overrides, override_to_category_meta
 from .scan_category_service import infer_large_category
 
@@ -235,11 +236,15 @@ def _serialize_cart(
     latest_receipt: Optional[Receipt] = None,
     cart_item_overrides_by_id: Optional[dict[str, object]] = None,
     scan_job_overrides_by_id: Optional[dict[str, object]] = None,
+    viewer_user_id: Optional[str] = None,
+    household: Optional[dict] = None,
 ) -> dict:
     is_member_cart = user is not None and not user.is_guest
     expires_at = None if is_member_cart else cart.expires_at
     is_expired = expires_at is not None and expires_at <= datetime.utcnow()
     purchase_completed, purchase_completed_at, purchase_completion_source = _purchase_completion_status(cart, latest_receipt)
+    viewer_can_edit = not viewer_user_id or viewer_user_id == cart.user_id
+    is_shared_with_household = bool(viewer_user_id and cart.user_id and viewer_user_id != cart.user_id and household is not None)
     data = {
         'id': cart.id,
         'userId': cart.user_id,
@@ -260,6 +265,8 @@ def _serialize_cart(
         'purchaseCompleted': purchase_completed,
         'purchaseCompletedAt': purchase_completed_at.isoformat() if purchase_completed_at else None,
         'purchaseCompletionSource': purchase_completion_source,
+        'viewerCanEdit': viewer_can_edit,
+        'isSharedWithHousehold': is_shared_with_household,
     }
     if user is not None:
         data['user'] = {
@@ -270,6 +277,8 @@ def _serialize_cart(
             'isGuest': user.is_guest,
             'provider': user.auth_provider,
         }
+    if household is not None:
+        data['household'] = household
     if include_items:
         data['items'] = [
             _serialize_cart_item(
@@ -288,6 +297,8 @@ def serialize_cart_with_receipt(
     *,
     include_items: bool = True,
     user: Optional[User] = None,
+    viewer_user_id: Optional[str] = None,
+    household: Optional[dict] = None,
 ) -> dict:
     latest_receipt = _load_latest_receipts_for_carts(db, [cart]).get(cart.id)
     cart_item_overrides_by_id, scan_job_overrides_by_id = _load_category_override_maps_for_carts(db, [cart])
@@ -298,6 +309,8 @@ def serialize_cart_with_receipt(
         latest_receipt=latest_receipt,
         cart_item_overrides_by_id=cart_item_overrides_by_id,
         scan_job_overrides_by_id=scan_job_overrides_by_id,
+        viewer_user_id=viewer_user_id,
+        household=household,
     )
 
 
@@ -306,7 +319,9 @@ def serialize_carts_with_receipts(
     carts: list[Cart],
     *,
     include_items: bool = True,
-    user: Optional[User] = None,
+    users_by_id: Optional[dict[str, User]] = None,
+    viewer_user_id: Optional[str] = None,
+    household_by_user_id: Optional[dict[str, Optional[dict]]] = None,
 ) -> list[dict]:
     latest_by_cart_id = _load_latest_receipts_for_carts(db, carts)
     cart_item_overrides_by_id, scan_job_overrides_by_id = _load_category_override_maps_for_carts(db, carts)
@@ -314,10 +329,12 @@ def serialize_carts_with_receipts(
         _serialize_cart(
             cart,
             include_items=include_items,
-            user=user,
+            user=(users_by_id or {}).get(cart.user_id or ''),
             latest_receipt=latest_by_cart_id.get(cart.id),
             cart_item_overrides_by_id=cart_item_overrides_by_id,
             scan_job_overrides_by_id=scan_job_overrides_by_id,
+            viewer_user_id=viewer_user_id,
+            household=(household_by_user_id or {}).get(cart.user_id or ''),
         )
         for cart in carts
     ]
@@ -396,18 +413,36 @@ def create_cart(db: OrmSession, user_id: str, payload: dict, *, is_guest: bool =
     return cart
 
 
+def _shared_household_cart_stmt(db: OrmSession, user_id: str):
+    household = get_household_for_user(db, user_id)
+    if household is None:
+        return None
+    member_ids = list_household_member_ids(db, household.id)
+    if not member_ids:
+        return None
+    return household, member_ids
+
+
 def list_user_carts(db: OrmSession, user_id: str, limit: int = 100) -> list[Cart]:
-    stmt = (
-        _active_cart_stmt()
-        .where(Cart.user_id == user_id)
-        .order_by(Cart.created_at.desc())
-        .limit(limit)
-    )
+    shared = _shared_household_cart_stmt(db, user_id)
+    stmt = _active_cart_stmt()
+    if shared is None:
+        stmt = stmt.where(Cart.user_id == user_id)
+    else:
+        _, member_ids = shared
+        stmt = stmt.where(Cart.user_id.in_(member_ids))
+    stmt = stmt.order_by(Cart.created_at.desc()).limit(limit)
     return list(db.scalars(stmt).all())
 
 
 def get_user_cart(db: OrmSession, cart_id: str, user_id: str) -> Optional[Cart]:
-    stmt = _active_cart_stmt().where(Cart.id == cart_id, Cart.user_id == user_id)
+    shared = _shared_household_cart_stmt(db, user_id)
+    stmt = _active_cart_stmt().where(Cart.id == cart_id)
+    if shared is None:
+        stmt = stmt.where(Cart.user_id == user_id)
+    else:
+        _, member_ids = shared
+        stmt = stmt.where(Cart.user_id.in_(member_ids))
     return db.scalar(stmt)
 
 

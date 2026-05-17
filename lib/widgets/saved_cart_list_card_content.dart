@@ -24,6 +24,12 @@ class SavedCartListCardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ownerName = cart.owner?.displayName.trim() ?? '';
+    final sharedText = cart.isSharedWithHousehold
+        ? '공유 카트 · $ownerName'
+        : !cart.viewerCanEdit && ownerName.isNotEmpty
+        ? '읽기 전용 · $ownerName'
+        : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -72,6 +78,19 @@ class SavedCartListCardContent extends StatelessWidget {
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: cart.isExpired ? const Color(0xFFE31837) : Colors.black45,
+            ),
+          ),
+        ],
+        if (sharedText != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            sharedText,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF2563EB),
             ),
           ),
         ],

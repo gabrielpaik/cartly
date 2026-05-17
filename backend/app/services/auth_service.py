@@ -12,6 +12,8 @@ from ..db.models import (
     Cart,
     CartItem,
     EmailAuthCode,
+    Household,
+    HouseholdMembership,
     PushDevice,
     Receipt,
     ReceiptLineItem,
@@ -287,10 +289,30 @@ def delete_account(db: OrmSession, user: Optional[User]) -> User:
         db.execute(update(ScanJob).where(ScanJob.session_id.in_(session_ids)).values(session_id=None, updated_at=now))
         db.execute(update(AdImpression).where(AdImpression.session_id.in_(session_ids)).values(session_id=None))
 
+    household_ids = list(
+        db.scalars(select(HouseholdMembership.household_id).where(HouseholdMembership.user_id == user.id)).all()
+    )
+
     receipt_ids = list(db.scalars(select(Receipt.id).where(Receipt.user_id == user.id)).all())
     if receipt_ids:
         db.execute(delete(ReceiptLineItem).where(ReceiptLineItem.receipt_id.in_(receipt_ids)))
         db.execute(delete(Receipt).where(Receipt.id.in_(receipt_ids)))
+
+    db.execute(delete(HouseholdMembership).where(HouseholdMembership.user_id == user.id))
+    for household_id in household_ids:
+        remaining_member_ids = list(
+            db.scalars(select(HouseholdMembership.user_id).where(HouseholdMembership.household_id == household_id)).all()
+        )
+        household = db.get(Household, household_id)
+        if household is None:
+            continue
+        if not remaining_member_ids:
+            db.execute(delete(Household).where(Household.id == household_id))
+            continue
+        if household.created_by_user_id == user.id:
+            household.created_by_user_id = remaining_member_ids[0]
+            household.updated_at = now
+            db.add(household)
 
     db.execute(delete(UserRegionEvent).where(UserRegionEvent.user_id == user.id))
     db.execute(delete(UserRegionProfile).where(UserRegionProfile.user_id == user.id))

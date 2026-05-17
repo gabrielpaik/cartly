@@ -177,6 +177,10 @@ class CartStore {
       isExpired: updated.isExpired,
       retentionExtensionCount: updated.retentionExtensionCount,
       canExtendRetention: updated.canExtendRetention,
+      viewerCanEdit: updated.viewerCanEdit,
+      isSharedWithHousehold: updated.isSharedWithHousehold,
+      owner: updated.owner,
+      household: updated.household,
       receiptStatus: updated.receiptStatus,
     );
     final next = [

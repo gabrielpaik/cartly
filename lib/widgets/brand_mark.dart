@@ -3,6 +3,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../services/app_config_store.dart';
 
+const _bundledCartlyLogoAsset =
+    'assets/images/branding/cartly_logo_vectorized.svg';
+
 class BrandMark extends StatelessWidget {
   final double fontSize;
   final Color color;
@@ -50,6 +53,7 @@ class BrandMark extends StatelessWidget {
     final trimmed = url.trim();
     final height = fontSize + 14;
     final isSvg = trimmed.toLowerCase().split('?').first.endsWith('.svg');
+    final placeholder = _logoPlaceholder(trimmed, fallbackText, height);
     if (isSvg) {
       return SizedBox(
         width: double.infinity,
@@ -58,10 +62,7 @@ class BrandMark extends StatelessWidget {
           trimmed,
           fit: BoxFit.fitHeight,
           alignment: Alignment.centerLeft,
-          placeholderBuilder: (_) => Align(
-            alignment: Alignment.centerLeft,
-            child: _textLogo(fallbackText),
-          ),
+          placeholderBuilder: (_) => placeholder,
         ),
       );
     }
@@ -72,11 +73,28 @@ class BrandMark extends StatelessWidget {
         trimmed,
         fit: BoxFit.fitHeight,
         alignment: Alignment.centerLeft,
-        errorBuilder: (context, error, stackTrace) => Align(
-          alignment: Alignment.centerLeft,
-          child: _textLogo(fallbackText),
-        ),
+        errorBuilder: (context, error, stackTrace) => placeholder,
       ),
+    );
+  }
+
+  Widget _logoPlaceholder(String url, String fallbackText, double height) {
+    final lowerPath =
+        Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
+    if (lowerPath.endsWith('cartly_logo_vectorized.svg')) {
+      return SizedBox(
+        width: double.infinity,
+        height: height,
+        child: SvgPicture.asset(
+          _bundledCartlyLogoAsset,
+          fit: BoxFit.fitHeight,
+          alignment: Alignment.centerLeft,
+        ),
+      );
+    }
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: _textLogo(fallbackText),
     );
   }
 

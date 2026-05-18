@@ -35,6 +35,34 @@ class _CartlyEndDrawerState extends State<CartlyEndDrawer> {
     });
   }
 
+  Future<bool> _confirmSignOut() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(AppRuntimeCopy.text(['my', 'logoutConfirmTitle'], '로그아웃')),
+        content: Text(
+          AppRuntimeCopy.text(
+            ['my', 'logoutConfirmBody'],
+            '정말 로그아웃할까요? 게스트 모드로 돌아가요.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(AppRuntimeCopy.text(['common', 'cancel'], '취소')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(
+              AppRuntimeCopy.text(['my', 'logoutConfirmAction'], '로그아웃'),
+            ),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
@@ -152,6 +180,9 @@ class _CartlyEndDrawerState extends State<CartlyEndDrawer> {
                                   }
                                   return;
                                 }
+
+                                final confirmed = await _confirmSignOut();
+                                if (!confirmed) return;
 
                                 await AuthStore.instance.signOut();
                                 await CartStore.instance

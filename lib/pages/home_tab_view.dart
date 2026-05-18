@@ -55,6 +55,7 @@ class HomeTabView extends StatelessWidget {
         CartlyPageHeader(
           title: const BrandMark(fontSize: 28),
           titleHeight: 40,
+          subtitleHeight: 24,
           subtitle: AppRuntimeCopy.text([
             'home',
             'subtitle',

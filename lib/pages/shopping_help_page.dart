@@ -1103,6 +1103,8 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
               children: [
                 CartlyPageHeader(
+                  titleHeight: 40,
+                  subtitleHeight: 24,
                   title: Text(
                     AppRuntimeCopy.text(['help', 'pageTitle'], 'Explore'),
                     maxLines: 1,

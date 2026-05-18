@@ -463,6 +463,40 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
     );
   }
 
+  Future<void> _confirmSignOut() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(AppRuntimeCopy.text(['my', 'logoutConfirmTitle'], '로그아웃')),
+        content: Text(
+          AppRuntimeCopy.text(
+            ['my', 'logoutConfirmBody'],
+            '정말 로그아웃할까요? 게스트 모드로 돌아가요.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(AppRuntimeCopy.text(['common', 'cancel'], '취소')),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: CartlyColors.brand,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(
+              AppRuntimeCopy.text(['my', 'logoutConfirmAction'], '로그아웃'),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _signOut();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
@@ -1028,7 +1062,7 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                               foregroundColor: CartlyColors.textSecondary,
                               borderColor: CartlyColors.line,
                             ),
-                            onPressed: _signOut,
+                            onPressed: _confirmSignOut,
                             child: Text(_myCopy('logoutAction', '로그아웃')),
                           ),
                         ),

@@ -5,6 +5,7 @@ import '../services/app_config_store.dart';
 
 const _bundledCartlyLogoAsset =
     'assets/images/branding/cartly_logo_vectorized.svg';
+const _cartlyBrandRed = Color(0xFFE31837);
 
 class BrandMark extends StatelessWidget {
   final double fontSize;
@@ -51,9 +52,10 @@ class BrandMark extends StatelessWidget {
 
   Widget _networkLogo(String url, {required String fallbackText}) {
     final trimmed = url.trim();
-    final height = fontSize + 14;
+    final height = fontSize + 10;
     final isSvg = trimmed.toLowerCase().split('?').first.endsWith('.svg');
     final placeholder = _logoPlaceholder(trimmed, fallbackText, height);
+    final logoColorFilter = _logoColorFilter(trimmed);
     if (isSvg) {
       return SizedBox(
         width: double.infinity,
@@ -62,6 +64,7 @@ class BrandMark extends StatelessWidget {
           trimmed,
           fit: BoxFit.fitHeight,
           alignment: Alignment.centerLeft,
+          colorFilter: logoColorFilter,
           placeholderBuilder: (_) => placeholder,
         ),
       );
@@ -79,9 +82,7 @@ class BrandMark extends StatelessWidget {
   }
 
   Widget _logoPlaceholder(String url, String fallbackText, double height) {
-    final lowerPath =
-        Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
-    if (lowerPath.endsWith('cartly_logo_vectorized.svg')) {
+    if (_isBundledCartlyLogo(url)) {
       return SizedBox(
         width: double.infinity,
         height: height,
@@ -89,6 +90,7 @@ class BrandMark extends StatelessWidget {
           _bundledCartlyLogoAsset,
           fit: BoxFit.fitHeight,
           alignment: Alignment.centerLeft,
+          colorFilter: _logoColorFilter(url),
         ),
       );
     }
@@ -96,6 +98,19 @@ class BrandMark extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: _textLogo(fallbackText),
     );
+  }
+
+  bool _isBundledCartlyLogo(String url) {
+    final lowerPath =
+        Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
+    return lowerPath.endsWith('cartly_logo_vectorized.svg');
+  }
+
+  ColorFilter? _logoColorFilter(String url) {
+    if (!_isBundledCartlyLogo(url)) {
+      return null;
+    }
+    return const ColorFilter.mode(_cartlyBrandRed, BlendMode.srcIn);
   }
 
   Widget _textLogo(String text) {

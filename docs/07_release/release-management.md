@@ -10,12 +10,16 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 ### 기본 규칙
 - 릴리즈용 앱 빌드를 만들기 전에 **반드시 build number를 먼저 올린다**.
 - 사용자가 명시적으로 멈추라고 하지 않는 한, **성공한 iOS 빌드는 TestFlight/App Store Connect 업로드까지 이어간다**.
+- Android도 같은 release cycle에서 함께 빌드하고, 가능하면 **internal testing track 업로드까지 같은 턴에 진행한다**.
+- Cartly release 기본 운영 규칙은 **iOS TestFlight와 Android internal testing을 같은 build cycle에서 같이 돌리는 것**이다.
+- 최종 store 승인/제출도 특별한 예외 지시가 없으면 **iOS와 Android를 한 세트로 맞춰 동시에 진행**한다.
 - release 변경은 가능하면 별도 release commit으로 남긴다.
 - 스크린샷/메타데이터/리뷰 노트까지 같이 관리해야 진짜 release readiness다.
 
 ### 현재 기준 버전
-- current app version/build: `1.0.4+26`
-- latest shipped iOS build label: `1.0.4 (26)`
+- current app version/build: `1.0.4+27`
+- latest uploaded iOS build label: `1.0.4 (27)`
+- latest uploaded Android internal-track build label: `1.0.4 (27)`
 
 ## 2. iOS release 흐름
 
@@ -54,7 +58,7 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - encryption = `false`
 
 ## 3. 현재 iOS / App Store Connect 기준 정보
-- latest delivery UUID: `fcc14698-3433-4fd6-9a79-402dfebc0508`
+- latest delivery UUID: `9ee9152a-588d-430c-a627-aa164d37b137`
 - current App Store version id: `a173b232-fe9b-4fdd-9557-a784bd7a36d2`
 - App Store version localization id: `64db26e7-c8a0-480e-9b9f-fb06c78a1ad5`
 - App info localization id: `57760505-1949-4e93-b21c-9502891d493c`
@@ -159,6 +163,7 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 ### package / artifact
 - package id: `com.seungdae.cartly`
 - release AAB: `/Users/sdpaik/dev/cartly/build/app/outputs/bundle/release/app-release.aab`
+- default Android release policy: **internal testing track first**, then iOS/Android eye review, then dual-platform final submission
 
 ### 빌드 스크립트
 ```bash
@@ -182,6 +187,17 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 - SHA1: `8E:98:D2:62:DC:4A:50:73:75:BB:B9:45:78:94:2D:51:5B:9F:CF:32`
 - SHA256: `7F:A5:4B:B0:8E:E8:7D:F1:AA:96:BA:5F:4F:0B:9D:FC:B2:60:A7:E7:E6:79:12:FB:0B:07:4A:87:F4:0D:31:21`
 
+### Android Publisher API 연결 상태
+- Google Cloud project: `cartly-e36ee`
+- service account email: `cartly-play-api@cartly-e36ee.iam.gserviceaccount.com`
+- Google Play Android Developer API enabled 확인 완료
+- Play Console `사용자 및 권한`에 service account 활성 연결 완료
+- 2026-05-18 기준 Android Publisher API로 edit 생성 및 internal track upload/commit 성공
+- internal track release:
+  - track: `internal`
+  - build/versionCode: `27`
+  - release name: `1.0.4 (27)`
+
 ## 8. Google Play Console 현재 상태
 - 개발자 계정 signup 및 console verification 완료
 - proof-of-address 제출/검증 단계는 지난 상태이며, 이제 운영 문맥에서는 완료된 것으로 본다.
@@ -189,8 +205,9 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 - 현재 기준 관심사는 **실제 app creation / listing / AAB upload / track submission / review 대응 운영**이다.
 
 ### 현재 원칙
-- Play Console은 아직 repo 내부 API 자동화가 없다.
-- 즉, Android는 build/signing은 로컬 자동화, console 제출은 수동 운영이 기본이다.
+- 이제 Android도 완전 수동-only가 아니다.
+- build/signing은 로컬 스크립트로, Play 업로드/track 반영은 service account + Android Publisher API로 자동화할 수 있다.
+- 다만 listing/data safety/content rating/app access/review questionnaire는 여전히 콘솔 운영이 필요하다.
 - 문서와 체크리스트도 이제 “인증 준비”가 아니라 “실출시 운영” 기준으로 유지한다.
 
 ## 9. Google Play 제출 체크리스트
@@ -217,11 +234,11 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 - iOS와 Android 모두 build artifact뿐 아니라 store console 상태를 함께 기록해야 한다.
 
 ## 12. 다음 release 작업
-1. 상단 로고 fallback이 반영된 다음 iOS build 업로드
-2. 필요 시 App Store screenshot 재캡처
-3. Age Rating / App Privacy / Submit for Review 완료
-4. Google Play app creation, AAB 업로드, listing/review 질문 답변 정리
-5. Apple metadata/screenshot automation 스크립트를 repo 안 `scripts/release/`로 승격할지 결정
+1. build `1.0.4 (27)`를 iOS TestFlight와 Android internal testing에서 함께 눈검수
+2. 필요 시 App Store / Play screenshot 및 listing copy 동시 정리
+3. Age Rating / App Privacy / Submit for Review와 Play review 질문 답변을 한 세트로 정리
+4. iOS와 Android 최종 제출 타이밍을 같은 승인 wave로 맞추기
+5. Apple metadata/screenshot automation과 Android Publisher API upload flow를 repo 안 `scripts/release/`로 승격할지 결정
 
 ## Related notes
 - [[01_brand/brand-system]]

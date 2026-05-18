@@ -17,12 +17,14 @@ It is a personal decision-support tool for real grocery planning and review.
 ## Current product/runtime status
 
 ### Customer app
-- Latest shipped iOS build on TestFlight/App Store Connect: `1.0.4 (26)`
+- Latest uploaded iOS build on App Store Connect: `1.0.4 (27)`
+- Latest uploaded Android internal-testing build: `1.0.4 (27)`
 - Shared household current-cart collaboration v2 is implemented and shipped in build 25.
 - Guest mode exists.
 - Member-only features include profile management, family sharing, and account deletion.
 - Receipt flow is customer-facing source-of-truth apply/undo, not cart-vs-receipt comparison review.
 - Location usage remains foreground-only and purpose-limited to nearby market discount information.
+- Latest polish pass added: home logo Cartly-red rendering hardening, home/explore header height alignment, and logout confirmation popup.
 
 ### Admin / operator surfaces
 The admin relayout is no longer a proposal-only state.
@@ -70,15 +72,17 @@ This fix exists in source but is **not yet on the user’s phone** until the nex
 ## Store/release status
 
 ### iOS / App Store Connect
-- Current review candidate build: `1.0.4 (26)`
-- Build delivery UUID: `52229c14-bfeb-42ef-83ae-3a72c4f4cd8c`
+- Current review candidate build: `1.0.4 (27)`
+- Build delivery UUID: `9ee9152a-588d-430c-a627-aa164d37b137`
 - Metadata, screenshots, privacy URL, support URL, and review contact have already been prepared.
+- Build 27 is uploaded; TestFlight visibility/final eye review should be checked alongside Android internal testing.
 - Remaining manual console work still includes final App Store Connect questionnaire/submission steps.
 
 ### Android / Google Play
 - Signed release AAB builds locally.
-- Upload signing is prepared.
-- Play Console-side submission work remains manual.
+- Play service-account automation is now connected and usable.
+- Internal testing track upload for build `27` is complete.
+- Remaining work is no longer auth/setup; it is listing, data safety, content rating, app access, and final review/submission ops.
 
 ## Public URLs
 - App/public root: `https://scan-api.seoa-nas.com/`
@@ -90,9 +94,11 @@ This fix exists in source but is **not yet on the user’s phone** until the nex
 - Treat live-served runtime behavior as the source of truth for admin/public verification.
 - After admin-web/public-site changes, refresh the served runtime before reporting success.
 - For screenshot-driven public-site presentation, prefer real app captures over mock or invented compositions.
+- Release cadence rule: run iOS TestFlight and Android internal testing together by default, then align final platform approval/submission together unless the user explicitly wants a split rollout.
 - Use this document as the primary current-state entry point instead of chaining multiple handoff/checkpoint notes.
 
 ## Open next actions
-1. Ship the next iOS/TestFlight build so the bundled wordmark fallback reaches the real app.
-2. Final-verify the public site after the latest screenshot and footer/logo adjustments.
-3. Resume store-console submission work once public/app branding is accepted.
+1. Eye-review build `1.0.4 (27)` on both iOS TestFlight and Android internal testing together.
+2. Finish the latest-only MD cleanup pass so canonical docs stay foreground and superseded notes stay archived.
+3. Final-verify the public site after the latest screenshot and footer/logo adjustments.
+4. Resume synchronized iOS/Android store-console submission work once build 27 is accepted.

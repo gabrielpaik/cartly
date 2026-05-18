@@ -36,6 +36,12 @@ Time-bound checkpoint/handoff/prep notes should move under:
 
 They are historical references, not the primary source of truth.
 
+## Obsidian latest-only rule
+- Obsidian working folders should keep **latest canonical files** as the active reading set.
+- Superseded notes should not compete with current-state docs in the main reading path.
+- Older notes should be moved into a simple archive/old area, which for the current Cartly raw-doc sync structure maps to `08_Archive/`.
+- Archive is for storage, not for default reading order.
+
 ## Update rule
 When work materially changes state:
 1. update `CURRENT_STATE.md`
@@ -46,3 +52,6 @@ When work materially changes state:
 ## Practical rule of thumb
 If a doc requires another doc to understand current reality, it should not be a top-level current-state doc.
 Top-level current-state docs should be readable on their own.
+
+## Release-doc rule
+- The release docs cleanup must preserve the new operating rule: iOS TestFlight and Android internal testing move together by default, and final platform approval/submission also moves together unless the user explicitly chooses a split rollout.

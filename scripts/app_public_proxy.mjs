@@ -29,6 +29,8 @@ const dynamicSupportRoutes = new Set(['/support', '/support/'])
 const supportEmail = 'scancart.wimc@gmail.com'
 const businessEmail = 'gabriel.paik@gmail.com'
 const currentAppVersionLabel = '앱 버전 1.0.4 (25)'
+const defaultLogoImageUrl = 'https://scan-api.seoa-nas.com/assets/branding/cartly_logo_vectorized.svg'
+const defaultSplashImageUrl = 'https://scan-api.seoa-nas.com/assets/branding/cartly_splash_default.png'
 const fallbackLogoUrl = '/assets/branding/cartly_logo_vectorized.svg'
 const fallbackAppIconUrl = '/site-media/app-icon.png'
 const supportUrl = 'https://scan-api.seoa-nas.com/support'
@@ -47,10 +49,10 @@ const allowedPrefixes = [
 
 const fallbackAppConfig = {
   branding: {
-    logoType: 'text',
+    logoType: 'image',
     logoText: 'Cartly',
-    logoImageUrl: null,
-    splashImageUrl: null,
+    logoImageUrl: defaultLogoImageUrl,
+    splashImageUrl: defaultSplashImageUrl,
     loginHeroImageUrl: null,
   },
   copy: {

@@ -53,6 +53,7 @@ def admin_config(db: OrmSession = Depends(db_dep)):
                 'dynamicLandingEnabled': True,
                 'landingRoutes': ['/', '/partners'],
                 'privacyRoutes': ['/privacy'],
+                'supportRoutes': ['/support'],
                 'assetsRoutePrefix': '/assets/branding',
             },
             'coupangPartners': coupang_runtime,

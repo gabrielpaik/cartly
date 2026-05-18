@@ -53,10 +53,11 @@ Current direction:
 ## Branding state
 
 ### Public/admin/runtime config
-Current branding runtime is expected to return:
+Current branding runtime target/state:
 - `logoType: image`
 - `logoText: Cartly`
 - `logoImageUrl: https://scan-api.seoa-nas.com/assets/branding/cartly_logo_vectorized.svg`
+- `splashImageUrl: https://scan-api.seoa-nas.com/assets/branding/cartly_splash_default.png`
 
 ### App-side caution
 A real-device issue surfaced where the top home header could still fall back to plain text if the remote SVG logo did not render as expected on-device.

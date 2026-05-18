@@ -89,6 +89,7 @@ type ConfigDto = {
     dynamicLandingEnabled: boolean
     landingRoutes: string[]
     privacyRoutes: string[]
+    supportRoutes?: string[]
     assetsRoutePrefix: string
   }
   coupangPartners: {
@@ -319,7 +320,7 @@ function ConfigPageInner() {
         <div className="opsSignalCard" style={{ borderColor: cfg.publicSite.dynamicLandingEnabled ? 'rgba(34,197,94,0.18)' : 'rgba(245,158,11,0.24)', background: cfg.publicSite.dynamicLandingEnabled ? 'rgba(240,253,244,0.7)' : 'rgba(255,247,237,0.9)' }}>
           <div className="opsSignalLabel">공개 랜딩</div>
           <div className="opsSignalValue">{cfg.publicSite.dynamicLandingEnabled ? '동적' : '정적'}</div>
-          <div className="opsSignalHint">랜딩 {cfg.publicSite.landingRoutes.join(', ')} · 약관 {cfg.publicSite.privacyRoutes.join(', ')}</div>
+          <div className="opsSignalHint">랜딩 {cfg.publicSite.landingRoutes.join(', ')} · 약관 {cfg.publicSite.privacyRoutes.join(', ')} · 지원 {(cfg.publicSite.supportRoutes ?? ['/support']).join(', ')}</div>
         </div>
         <div className="opsSignalCard" style={{ borderColor: cfg.coupangPartners.affiliateReady ? 'rgba(34,197,94,0.18)' : 'rgba(245,158,11,0.24)', background: cfg.coupangPartners.affiliateReady ? 'rgba(240,253,244,0.7)' : 'rgba(255,247,237,0.9)' }}>
           <div className="opsSignalLabel">쿠팡 제휴</div>
@@ -540,6 +541,7 @@ function ConfigPageInner() {
                 <tr><td>동작 방식</td><td>{cfg.publicSite.dynamicLandingEnabled ? 'app-config 연동' : '정적 페이지'}</td></tr>
                 <tr><td>랜딩 경로</td><td>{cfg.publicSite.landingRoutes.join(', ')}</td></tr>
                 <tr><td>약관 경로</td><td>{cfg.publicSite.privacyRoutes.join(', ')}</td></tr>
+                <tr><td>지원 경로</td><td>{(cfg.publicSite.supportRoutes ?? ['/support']).join(', ')}</td></tr>
                 <tr><td>브랜딩 자산 prefix</td><td>{cfg.publicSite.assetsRoutePrefix}</td></tr>
               </tbody>
             </table>

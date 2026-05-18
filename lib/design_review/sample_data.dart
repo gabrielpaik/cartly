@@ -6,13 +6,13 @@ import '../models/saved_cart.dart';
 import '../models/user_session.dart';
 
 final reviewBranding = AppBranding(
-  logoType: 'text',
+  logoType: 'image',
   logoText: 'Cartly',
-  logoImageUrl: null,
-  splashImageUrl: null,
+  logoImageUrl: AppBranding.defaultLogoImageUrl,
+  splashImageUrl: AppBranding.defaultSplashImageUrl,
   loginHeroImageUrl: null,
   homeTabLabel: 'Home',
-  helpTabLabel: '도움',
+  helpTabLabel: '탐색',
   myTabLabel: 'My',
 );
 
@@ -32,6 +32,9 @@ final reviewAdSlots = <AppAdSlot>[
       targetUrl: null,
       imageUrl: null,
       campaignId: null,
+      landing: null,
+      creatives: [],
+      rotationMode: 'single',
     ),
   ),
   const AppAdSlot(
@@ -49,6 +52,9 @@ final reviewAdSlots = <AppAdSlot>[
       targetUrl: null,
       imageUrl: null,
       campaignId: null,
+      landing: null,
+      creatives: [],
+      rotationMode: 'single',
     ),
   ),
   const AppAdSlot(
@@ -66,6 +72,9 @@ final reviewAdSlots = <AppAdSlot>[
       targetUrl: null,
       imageUrl: null,
       campaignId: null,
+      landing: null,
+      creatives: [],
+      rotationMode: 'single',
     ),
   ),
   const AppAdSlot(
@@ -83,6 +92,9 @@ final reviewAdSlots = <AppAdSlot>[
       targetUrl: null,
       imageUrl: null,
       campaignId: null,
+      landing: null,
+      creatives: [],
+      rotationMode: 'single',
     ),
   ),
 ];

@@ -94,7 +94,7 @@ def app_config(
                 'loginHeroImageUrl': branding.get('loginHeroImageUrl'),
                 'tabs': {
                     'home': branding.get('homeTabLabel'),
-                    'help': branding.get('helpTabLabel') or '도움',
+                    'help': branding.get('helpTabLabel') or '탐색',
                     'my': branding.get('myTabLabel'),
                 },
             },

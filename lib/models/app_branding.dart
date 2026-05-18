@@ -1,4 +1,9 @@
 class AppBranding {
+  static const defaultLogoImageUrl =
+      'https://scan-api.seoa-nas.com/assets/branding/cartly_logo_vectorized.svg';
+  static const defaultSplashImageUrl =
+      'https://scan-api.seoa-nas.com/assets/branding/cartly_splash_default.png';
+
   final String logoType;
   final String logoText;
   final String? logoImageUrl;
@@ -20,13 +25,13 @@ class AppBranding {
   });
 
   static const fallback = AppBranding(
-    logoType: 'text',
+    logoType: 'image',
     logoText: 'Cartly',
-    logoImageUrl: null,
-    splashImageUrl: null,
+    logoImageUrl: defaultLogoImageUrl,
+    splashImageUrl: defaultSplashImageUrl,
     loginHeroImageUrl: null,
     homeTabLabel: 'Home',
-    helpTabLabel: '도움',
+    helpTabLabel: '탐색',
     myTabLabel: 'My',
   );
 
@@ -34,7 +39,9 @@ class AppBranding {
     final data = json ?? const {};
     final fallback = AppBranding.fallback;
     final tabs = data['tabs'];
-    final tabsMap = tabs is Map ? Map<String, dynamic>.from(tabs) : const <String, dynamic>{};
+    final tabsMap = tabs is Map
+        ? Map<String, dynamic>.from(tabs)
+        : const <String, dynamic>{};
 
     String stringValue(String key, String fallbackValue) {
       final value = data[key];
@@ -66,8 +73,16 @@ class AppBranding {
       logoImageUrl: nullableString('logoImageUrl'),
       splashImageUrl: nullableString('splashImageUrl'),
       loginHeroImageUrl: nullableString('loginHeroImageUrl'),
-      homeTabLabel: nestedTabValue('home', 'homeTabLabel', fallback.homeTabLabel),
-      helpTabLabel: nestedTabValue('help', 'helpTabLabel', fallback.helpTabLabel),
+      homeTabLabel: nestedTabValue(
+        'home',
+        'homeTabLabel',
+        fallback.homeTabLabel,
+      ),
+      helpTabLabel: nestedTabValue(
+        'help',
+        'helpTabLabel',
+        fallback.helpTabLabel,
+      ),
       myTabLabel: nestedTabValue('my', 'myTabLabel', fallback.myTabLabel),
     );
   }

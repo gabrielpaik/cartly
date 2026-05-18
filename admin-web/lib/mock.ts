@@ -372,25 +372,25 @@ export const mockSlots = [
 ]
 
 export const mockBranding = {
-  logoType: 'text',
+  logoType: 'image',
   logoText: 'Cartly',
-  logoImageUrl: null,
-  splashImageUrl: null,
+  logoImageUrl: 'https://scan-api.seoa-nas.com/assets/branding/cartly_logo_vectorized.svg',
+  splashImageUrl: 'https://scan-api.seoa-nas.com/assets/branding/cartly_splash_default.png',
   loginHeroImageUrl: null,
-  homeTabLabel: '홈',
+  homeTabLabel: 'Home',
   helpTabLabel: '탐색',
-  myTabLabel: '마이',
+  myTabLabel: 'My',
 }
 
 export const mockContentSettings = {
-  logoType: 'text',
+  logoType: 'image',
   logoText: 'Cartly',
-  logoImageUrl: null,
-  splashImageUrl: null,
+  logoImageUrl: 'https://scan-api.seoa-nas.com/assets/branding/cartly_logo_vectorized.svg',
+  splashImageUrl: 'https://scan-api.seoa-nas.com/assets/branding/cartly_splash_default.png',
   loginHeroImageUrl: null,
-  homeTabLabel: '홈',
+  homeTabLabel: 'Home',
   helpTabLabel: '탐색',
-  myTabLabel: '마이',
+  myTabLabel: 'My',
   homePageTitle: 'Cartly',
   helpPageTitle: '탐색',
   savedPageTitle: '지난 카트',
@@ -1044,6 +1044,7 @@ export const mockConfig = {
     dynamicLandingEnabled: true,
     landingRoutes: ['/', '/partners'],
     privacyRoutes: ['/privacy'],
+    supportRoutes: ['/support'],
     assetsRoutePrefix: '/assets/branding',
   },
   runtimeSettings: {

@@ -7,22 +7,40 @@ from sqlalchemy.orm import Session as OrmSession
 from ..db.models import AppSetting
 
 BRANDING_KEY = 'branding'
+DEFAULT_LOGO_IMAGE_URL = 'https://scan-api.seoa-nas.com/assets/branding/cartly_logo_vectorized.svg'
+DEFAULT_SPLASH_IMAGE_URL = 'https://scan-api.seoa-nas.com/assets/branding/cartly_splash_default.png'
 DEFAULT_BRANDING: Dict[str, Any] = {
-    'logoType': 'text',
+    'logoType': 'image',
     'logoText': 'Cartly',
-    'logoImageUrl': None,
-    'splashImageUrl': None,
+    'logoImageUrl': DEFAULT_LOGO_IMAGE_URL,
+    'splashImageUrl': DEFAULT_SPLASH_IMAGE_URL,
     'loginHeroImageUrl': None,
     'homeTabLabel': 'Home',
-    'helpTabLabel': '도움',
+    'helpTabLabel': '탐색',
     'myTabLabel': 'My',
 }
 BRANDING_FIELD_KEYS = tuple(DEFAULT_BRANDING.keys())
 
 
+def _normalize_branding_value(key: str, value: Any) -> Any:
+    if key == 'loginHeroImageUrl':
+        if isinstance(value, str):
+            trimmed = value.strip()
+            return trimmed or None
+        return None
+
+    default = DEFAULT_BRANDING[key]
+    if value is None:
+        return default
+    if isinstance(value, str):
+        trimmed = value.strip()
+        return trimmed or default
+    return value
+
+
 def project_branding(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {
-        key: payload.get(key, DEFAULT_BRANDING[key])
+        key: _normalize_branding_value(key, payload.get(key))
         for key in BRANDING_FIELD_KEYS
     }
 
@@ -34,9 +52,7 @@ def get_branding(db: OrmSession) -> Dict[str, Any]:
     try:
         payload = json.loads(setting.value_json)
         if isinstance(payload, dict):
-            merged = dict(DEFAULT_BRANDING)
-            merged.update(payload)
-            return merged
+            return project_branding(payload)
     except json.JSONDecodeError:
         pass
     return dict(DEFAULT_BRANDING)

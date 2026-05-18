@@ -14,8 +14,8 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - 스크린샷/메타데이터/리뷰 노트까지 같이 관리해야 진짜 release readiness다.
 
 ### 현재 기준 버전
-- current app version/build: `1.0.4+25`
-- latest shipped iOS build label: `1.0.4 (25)`
+- current app version/build: `1.0.4+26`
+- latest shipped iOS build label: `1.0.4 (26)`
 
 ## 2. iOS release 흐름
 
@@ -54,7 +54,7 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - encryption = `false`
 
 ## 3. 현재 iOS / App Store Connect 기준 정보
-- latest delivery UUID: `52229c14-bfeb-42ef-83ae-3a72c4f4cd8c`
+- latest delivery UUID: `fcc14698-3433-4fd6-9a79-402dfebc0508`
 - current App Store version id: `a173b232-fe9b-4fdd-9557-a784bd7a36d2`
 - App Store version localization id: `64db26e7-c8a0-480e-9b9f-fb06c78a1ad5`
 - App info localization id: `57760505-1949-4e93-b21c-9502891d493c`

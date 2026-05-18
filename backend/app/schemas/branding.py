@@ -9,6 +9,6 @@ class BrandingRequest(BaseModel):
     logoImageUrl: Optional[str] = 'https://scan-api.seoa-nas.com/assets/branding/cartly_logo_vectorized.svg'
     splashImageUrl: Optional[str] = 'https://scan-api.seoa-nas.com/assets/branding/cartly_splash_default.png'
     loginHeroImageUrl: Optional[str] = None
-    homeTabLabel: str = 'Home'
+    homeTabLabel: str = '홈'
     helpTabLabel: str = '탐색'
-    myTabLabel: str = 'My'
+    myTabLabel: str = '마이페이지'

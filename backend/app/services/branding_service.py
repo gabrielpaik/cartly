@@ -15,9 +15,9 @@ DEFAULT_BRANDING: Dict[str, Any] = {
     'logoImageUrl': DEFAULT_LOGO_IMAGE_URL,
     'splashImageUrl': DEFAULT_SPLASH_IMAGE_URL,
     'loginHeroImageUrl': None,
-    'homeTabLabel': 'Home',
+    'homeTabLabel': '홈',
     'helpTabLabel': '탐색',
-    'myTabLabel': 'My',
+    'myTabLabel': '마이페이지',
 }
 BRANDING_FIELD_KEYS = tuple(DEFAULT_BRANDING.keys())
 

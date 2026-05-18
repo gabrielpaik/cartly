@@ -11,9 +11,9 @@ final reviewBranding = AppBranding(
   logoImageUrl: AppBranding.defaultLogoImageUrl,
   splashImageUrl: AppBranding.defaultSplashImageUrl,
   loginHeroImageUrl: null,
-  homeTabLabel: 'Home',
+  homeTabLabel: '홈',
   helpTabLabel: '탐색',
-  myTabLabel: 'My',
+  myTabLabel: '마이페이지',
 );
 
 final reviewAdSlots = <AppAdSlot>[

@@ -17,7 +17,7 @@ It is a personal decision-support tool for real grocery planning and review.
 ## Current product/runtime status
 
 ### Customer app
-- Latest shipped iOS build on TestFlight/App Store Connect: `1.0.4 (25)`
+- Latest shipped iOS build on TestFlight/App Store Connect: `1.0.4 (26)`
 - Shared household current-cart collaboration v2 is implemented and shipped in build 25.
 - Guest mode exists.
 - Member-only features include profile management, family sharing, and account deletion.
@@ -70,7 +70,7 @@ This fix exists in source but is **not yet on the user’s phone** until the nex
 ## Store/release status
 
 ### iOS / App Store Connect
-- Current review candidate build: `1.0.4 (25)`
+- Current review candidate build: `1.0.4 (26)`
 - Build delivery UUID: `52229c14-bfeb-42ef-83ae-3a72c4f4cd8c`
 - Metadata, screenshots, privacy URL, support URL, and review contact have already been prepared.
 - Remaining manual console work still includes final App Store Connect questionnaire/submission steps.

@@ -30,9 +30,9 @@ class AppBranding {
     logoImageUrl: defaultLogoImageUrl,
     splashImageUrl: defaultSplashImageUrl,
     loginHeroImageUrl: null,
-    homeTabLabel: 'Home',
+    homeTabLabel: '홈',
     helpTabLabel: '탐색',
-    myTabLabel: 'My',
+    myTabLabel: '마이페이지',
   );
 
   factory AppBranding.fromJson(Map<String, dynamic>? json) {

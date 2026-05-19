@@ -76,7 +76,7 @@ This fix path is now on the current review build line through `1.0.5 (10)`.
 - Current review candidate build: `1.0.5 (10)`
 - Build delivery UUID: `90a8d53b-1417-40d8-b263-d227a0d43293`
 - Metadata, screenshots, privacy URL, support URL, and review contact have already been prepared.
-- Build `1.0.5 (10)` is uploaded and ready to be attached to the current App Store version for review submission.
+- As of 2026-05-19 night, the iOS App Store review submission was completed manually in App Store Connect after filling the missing console-side metadata/questionnaire fields.
 - Remaining caution: if the admin splash changes again later, the iPhone native first screen still requires a fresh bundled-asset rebuild and new upload.
 
 ### Android / Google Play
@@ -85,7 +85,8 @@ This fix path is now on the current review build line through `1.0.5 (10)`.
 - Latest uploaded Android internal-testing build is `1.0.5 (39)`.
 - The dedicated Play-linked service-account JSON is now restored at `~/Library/Application Support/Cartly/play/cartly-play-api.json`, copied from the NAS-mounted file `/Volumes/downloads/cartly-e36ee-dcb07ec17251.json`.
 - Re-test on 2026-05-19 confirmed the available Firebase Admin SDK JSON (`firebase-adminsdk-fbsvc@cartly-e36ee.iam.gserviceaccount.com`) still fails Android Publisher at edit creation with `403 PERMISSION_DENIED`, so it cannot substitute for the dedicated Play-linked service-account key.
-- Remaining work is listing, data safety, content rating, app access, and final review/submission ops.
+- Store listing/app-content setup was pushed much farther on 2026-05-19 night, but final production launch is still blocked by Google Play's personal-account closed-testing gate: before production access, Cartly must run a closed test with at least 12 opted-in testers for 14 days.
+- Immediate Android release work is therefore no longer binary/upload work. It is tester recruitment, closed-test launch, and waiting out the Play-required test window.
 
 ## Public URLs
 - App/public root: `https://scan-api.seoa-nas.com/`
@@ -101,6 +102,7 @@ This fix path is now on the current review build line through `1.0.5 (10)`.
 - Use this document as the primary current-state entry point instead of chaining multiple handoff/checkpoint notes.
 
 ## Open next actions
-1. Submit iOS build `1.0.5 (10)` and the matching Android `1.0.5 (39)` release line into store review together.
-2. If Google Play install/listing surfaces still look generic, clean up the Play listing high-res icon and store metadata separately from the binary.
-3. If the admin splash changes again, re-sync bundled splash assets and ship a new paired build before expecting native iPhone launch parity.
+1. Watch the iOS App Store review for build `1.0.5 (10)` and respond quickly if Apple asks follow-up questions.
+2. Launch the required Google Play closed test, recruit at least 12 opted-in testers, and keep that test running for 14 days so production access can unlock.
+3. If Google Play install/listing surfaces still look generic during the closed-test period, keep cleaning up the Play listing high-res icon and store metadata separately from the binary.
+4. If the admin splash changes again, re-sync bundled splash assets and ship a new paired build before expecting native iPhone launch parity.

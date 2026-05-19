@@ -285,11 +285,11 @@ PLAY_RELEASE_NAME='1.0.5 (33)' \
 - iOS와 Android 모두 build artifact뿐 아니라 store console 상태를 함께 기록해야 한다.
 
 ## 12. 다음 release 작업
-1. build `1.0.5 (10)`를 iOS TestFlight와 Android internal testing 기준으로 함께 마지막 눈검수
-2. iOS current App Store version에 build `1.0.5 (10)`를 연결하고 review contact / notes를 최신 support 메일 기준으로 다시 확인
-3. Android production/review 흐름에 `versionCode 39`를 올리고, Play listing high-res icon / store 표면이 generic 하게 보이면 listing metadata 쪽을 별도로 정리
-4. Age Rating / App Privacy / Submit for Review와 Play review 질문 답변을 한 세트로 정리
-5. iOS와 Android 최종 제출 타이밍을 같은 승인 wave로 맞추기
+1. iOS `1.0.5 (10)` App Store review 상태를 추적하고, Apple follow-up 질문이 오면 같은 wave 안에서 바로 응답한다.
+2. Android는 production upload/release 버튼을 다시 누르기 전에, Google Play personal-account gate를 먼저 해소한다. 현재 필요한 것은 closed test 생성, 12명 이상의 opted-in tester 확보, 14일 유지다.
+3. Android closed-test 기간 동안 Play listing high-res icon / store 표면이 generic 하게 보이면 listing metadata 쪽을 계속 정리한다.
+4. 향후 production access가 열리면 그때 기존 release line 기준으로 Android production/review submission을 재개한다.
+5. 다음 paired public-release wave를 다시 맞출 때는 iOS 승인 상태와 Android closed-test eligibility 상태를 함께 본다.
 
 ## 13. 2026-05-19 검수 마감 UI 체크포인트
 ### 확정된 탐색 / 장보기 헤더 규칙
@@ -336,13 +336,14 @@ PLAY_RELEASE_NAME='1.0.5 (33)' \
 - regenerated `admin-web/public/app-preview/main.dart.js` 가 최신 preview defaults 를 반영했는지 확인
 
 #### E. store console 마지막 인간 체크
-- iOS: Age Rating, App Privacy questionnaire, review contact, privacy/support URL, screenshots 최종 확인
-- Android: store listing, Data safety, Content rating, App access, internal/prod track release note 최종 확인
+- iOS: Age Rating, App Privacy questionnaire, review contact, privacy/support URL, screenshots 최종 확인 후 review submission 완료 여부 확인
+- Android: store listing, Data safety, Content rating, App access, internal/prod track release note 최종 확인 + closed test gate(12 testers / 14 days) 상태 확인
 - 두 플랫폼 모두 동일한 customer-facing naming/copy 로 보이는지 마지막 눈검수
 
 ### 제출 판단 규칙
 - A~D 중 하나라도 drift 가 보이면 제출 전에 먼저 고친다.
-- A~D 가 깨끗하면 E 를 마치고 iOS/Android 를 같은 release wave 로 진행한다.
+- iOS는 A~D 가 깨끗하고 store questionnaire가 끝나면 review submission까지 진행한다.
+- Android는 A~D/E 가 깨끗해도, Play closed-test gate(12 testers / 14 days)가 풀리기 전에는 production submission이 막힐 수 있음을 전제로 운영한다.
 
 ## Related notes
 - [[01_brand/brand-system]]

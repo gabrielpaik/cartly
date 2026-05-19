@@ -15,6 +15,8 @@ class CartTitleSuggestion {
 class CartTitleSuggester {
   const CartTitleSuggester._();
 
+  static String? inferMartBrand(List<CartItem> items) => _inferMartBrand(items);
+
   static Future<CartTitleSuggestion> suggest(List<CartItem> items) async {
     final now = DateTime.now();
     final brand = _inferMartBrand(items);

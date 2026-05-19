@@ -75,7 +75,7 @@ public site는 두 레이어가 있다.
 - public app config 및 branding asset 접근 경로
 
 ## 8. 지원/연락처 규칙
-- customer support: `scancart.wimc@gmail.com`
+- customer support: `cartly.support@gmail.com`
 - business proposal: `gabriel.paik@gmail.com`
 - support phone은 현재 공개 운영 정보에 두지 않는다.
 

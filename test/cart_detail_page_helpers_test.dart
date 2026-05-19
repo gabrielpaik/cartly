@@ -17,6 +17,7 @@ void main() {
           receiptStatus: 'ready',
           merchantName: 'Cartly Mart',
           hasReceipt: true,
+          purchasedAt: DateTime(2026, 4, 23, 11, 30),
           updatedAt: DateTime(2026, 4, 23, 12),
           completedAt: DateTime(2026, 4, 23, 12, 5),
         ),

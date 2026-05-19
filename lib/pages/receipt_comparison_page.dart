@@ -758,7 +758,7 @@ class _ReceiptCompareErrorCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CartlyInfoCard(
-      backgroundColor: const Color(0xFFFFF1F2),
+      backgroundColor: CartlyColors.warningSurface,
       title: '영수증 정리를 끝내지 못했어요',
       body: message,
       footer: Row(
@@ -1911,7 +1911,7 @@ class _ReceiptApplyToCartCard extends StatelessWidget {
                       ),
                     )
                   : const CartlySymbolIcon.sf(
-                      'arrow.triangle.branch',
+                      'cart.badge.plus',
                       size: 18,
                     ),
               label: Text(

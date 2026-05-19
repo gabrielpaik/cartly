@@ -239,11 +239,11 @@ Map<String, dynamic> _defaultContentSettings() => {
   'loginHeroImageUrl': null,
   'homePageTitle': 'Cartly',
   'homeSubtitle': '결제 전에 더 똑똑하게 비교해보세요',
-  'helpPageTitle': 'Explore',
+  'helpPageTitle': '탐색',
   'helpSubtitle': '지금 다시 보면 좋은 비교만 골라 보여드릴게요.',
   'homeTabLabel': '홈',
   'helpTabLabel': '탐색',
-  'myTabLabel': '마이',
+  'myTabLabel': '마이페이지',
   'savedPageTitle': '지난 카트',
   'savedSubtitle': '지난 장보기를 다시 꺼내 보고, 다음 선택까지 이어가보세요.',
   'savedEmptyTitle': '아직 저장된 카트가 없어요',
@@ -518,7 +518,7 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
     'home': {
       'pageTitle': text('homePageTitle', 'Cartly'),
       'subtitle': text('homeSubtitle', '결제 전에 더 똑똑하게 비교해보세요'),
-      'tabLabel': text('homeTabLabel', 'Home'),
+      'tabLabel': text('homeTabLabel', '홈'),
       'recentScanTitle': text('homeRecentScanTitle', '스캔 보관함'),
       'recentScanSubtitle': text(
         'homeRecentScanSubtitle',
@@ -545,7 +545,7 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
       ),
     },
     'help': {
-      'pageTitle': text('helpPageTitle', 'Explore'),
+      'pageTitle': text('helpPageTitle', '탐색'),
       'subtitle': text('helpSubtitle', '지금 다시 보면 좋은 비교만 골라 보여드릴게요.'),
     },
     'saved': {
@@ -573,7 +573,7 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
       ),
     },
     'my': {
-      'pageTitle': text('myPageTitle', '마이'),
+      'pageTitle': text('myPageTitle', '마이페이지'),
       'subtitle': text('mySubtitle', '계정, 지난 카트, 장보기 흐름을 한곳에서 관리해보세요.'),
       'guestModeLabel': text('myGuestModeLabel', '게스트로 사용 중이에요'),
       'guestTitle': text('drawerGuestTitle', '게스트로 사용 중이에요'),
@@ -617,7 +617,7 @@ Map<String, dynamic> _buildPreviewCopy(Map<String, dynamic> form) {
         'https://scan-api.seoa-nas.com/privacy',
       ),
       'supportEmailLabel': text('mySupportEmailLabel', '문의'),
-      'supportEmail': text('mySupportEmail', 'scancart.wimc@gmail.com'),
+      'supportEmail': text('mySupportEmail', 'cartly.support@gmail.com'),
       'supportPhoneLabel': text('mySupportPhoneLabel', '고객센터 연락처'),
       'supportPhone': text('mySupportPhone', ''),
       'supportHoursLabel': text('mySupportHoursLabel', '응답 안내'),
@@ -766,7 +766,7 @@ UserSession _memberSession() => UserSession(
   id: 'preview-member',
   provider: AuthProviderType.email,
   displayName: '백승대',
-  email: 'gabriel.paik@gmail.com',
+  email: 'preview-member@cartly.app',
   isGuest: false,
   signedInAt: DateTime.now().subtract(const Duration(days: 2)),
   authToken: 'preview',

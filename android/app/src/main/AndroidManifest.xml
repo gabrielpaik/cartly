@@ -7,6 +7,9 @@
         android:label="Cartly"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-7326648056182385~9903617195" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

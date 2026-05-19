@@ -50,113 +50,129 @@ class HomeTabView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+      padding: EdgeInsets.zero,
       children: [
-        CartlyPageHeader(
-          title: const BrandMark(fontSize: 28),
-          titleHeight: 40,
-          subtitleHeight: 24,
-          subtitle: AppRuntimeCopy.text([
-            'home',
-            'subtitle',
-          ], '지금 담은 상품과 합계를 한눈에 확인해보세요'),
-        ),
-        const SizedBox(height: CartlySpacing.sectionLoose),
-        SectionHeader(
-          title: AppRuntimeCopy.text(['home', 'addSectionTitle'], '새 상품 추가'),
-          subtitle: AppRuntimeCopy.text([
-            'home',
-            'addSectionSubtitle',
-          ], '스캔하거나 직접 담아보세요'),
-        ),
-        const SizedBox(height: CartlySpacing.md),
-        ItemAddSection(
-          key: const ValueKey('home-item-add-section'),
-          cameras: cameras,
-          scanRepository: scanRepository,
-          onRecognized: onRecognized,
-          onDismissRecognized: onDismissRecognized,
-          onAdd: (item) async {
-            final added = await onAdd(item);
-            if (!context.mounted || !added) return false;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  AppRuntimeCopy.text([
-                    'home',
-                    'addToCurrentCartDone',
-                  ], '현재 카트에 담았어요'),
-                ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: SizedBox(
+            height: 84,
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: CartlyPageHeader(
+                title: const BrandMark(fontSize: 28),
+                titleHeight: 40,
+                subtitleHeight: 24,
+                subtitle: AppRuntimeCopy.text([
+                  'home',
+                  'subtitle',
+                ], '지금 담은 상품과 합계를 한눈에 확인해보세요'),
               ),
-            );
-            return true;
-          },
-          addButtonText: AppRuntimeCopy.text([
-            'home',
-            'addToCurrentCartButton',
-          ], '현재 카트에 담기'),
-        ),
-        if (recentScans.isNotEmpty) ...[
-          const SizedBox(height: CartlySpacing.sectionLoose),
-          SectionHeader(
-            title: AppRuntimeCopy.text(['home', 'recentScanTitle'], '스캔 보관함'),
-            subtitle: AppRuntimeCopy.text([
-              'home',
-              'recentScanSubtitle',
-            ], '검토 대기 결과를 한 번에 정리해'),
+            ),
           ),
-          const SizedBox(height: CartlySpacing.md),
-          RecentScanCarousel(
-            entries: recentScans,
-            onAdd: (entry) {
-              unawaited(() async {
-                final added = await onAddRecentScan(entry);
-                if (!context.mounted || !added) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      AppRuntimeCopy.text([
-                        'home',
-                        'addToCurrentCartDone',
-                      ], '현재 카트에 담았어요'),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, CartlySpacing.sectionLoose, 16, 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SectionHeader(
+                title: AppRuntimeCopy.text(['home', 'addSectionTitle'], '새 상품 추가'),
+                subtitle: AppRuntimeCopy.text([
+                  'home',
+                  'addSectionSubtitle',
+                ], '스캔하거나 직접 담아보세요'),
+              ),
+              const SizedBox(height: CartlySpacing.md),
+              ItemAddSection(
+                key: const ValueKey('home-item-add-section'),
+                cameras: cameras,
+                scanRepository: scanRepository,
+                onRecognized: onRecognized,
+                onDismissRecognized: onDismissRecognized,
+                onAdd: (item) async {
+                  final added = await onAdd(item);
+                  if (!context.mounted || !added) return false;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        AppRuntimeCopy.text([
+                          'home',
+                          'addToCurrentCartDone',
+                        ], '현재 카트에 담았어요'),
+                      ),
                     ),
-                  ),
-                );
-              }());
-            },
-            onDismiss: onDismissRecentScan,
+                  );
+                  return true;
+                },
+                addButtonText: AppRuntimeCopy.text([
+                  'home',
+                  'addToCurrentCartButton',
+                ], '현재 카트에 담기'),
+              ),
+              if (recentScans.isNotEmpty) ...[
+                const SizedBox(height: CartlySpacing.sectionLoose),
+                SectionHeader(
+                  title: AppRuntimeCopy.text(['home', 'recentScanTitle'], '스캔 보관함'),
+                  subtitle: AppRuntimeCopy.text([
+                    'home',
+                    'recentScanSubtitle',
+                  ], '검토 대기 결과를 한 번에 정리해'),
+                ),
+                const SizedBox(height: CartlySpacing.md),
+                RecentScanCarousel(
+                  entries: recentScans,
+                  onAdd: (entry) {
+                    unawaited(() async {
+                      final added = await onAddRecentScan(entry);
+                      if (!context.mounted || !added) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            AppRuntimeCopy.text([
+                              'home',
+                              'addToCurrentCartDone',
+                            ], '현재 카트에 담았어요'),
+                          ),
+                        ),
+                      );
+                    }());
+                  },
+                  onDismiss: onDismissRecentScan,
+                ),
+              ],
+              const SizedBox(height: CartlySpacing.sectionLoose),
+              SectionHeader(
+                title: AppRuntimeCopy.text(['home', 'currentCartTitle'], '현재 카트'),
+                subtitle: AppRuntimeCopy.text([
+                  'home',
+                  'currentCartSubtitle',
+                ], '지금 담은 상품과 합계를 확인해보세요'),
+              ),
+              const SizedBox(height: CartlySpacing.md),
+              CurrentCartSection(
+                items: items,
+                onRemove: onRemove,
+                onChanged: onChangeCurrentCartItem,
+              ),
+              const SizedBox(height: CartlySpacing.xl),
+              CartlyActionTile(
+                icon: const CartlySymbolIcon.sf('sparkle.magnifyingglass'),
+                title: AppRuntimeCopy.text([
+                  'home',
+                  'exploreEntryTitle',
+                ], '탐색에서 다음 판단 이어가기'),
+                body: AppRuntimeCopy.text([
+                  'home',
+                  'exploreEntryBody',
+                ], '비교 후보와 대안을 한 번에 보고 결정해보세요'),
+                onTap: onGoExplore,
+                showChevron: true,
+                backgroundColor: CartlyColors.surface1,
+                iconBackgroundColor: CartlyColors.surface2,
+                border: Border.all(color: CartlyColors.line, width: 0.5),
+              ),
+            ],
           ),
-        ],
-        const SizedBox(height: CartlySpacing.sectionLoose),
-        SectionHeader(
-          title: AppRuntimeCopy.text(['home', 'currentCartTitle'], '현재 카트'),
-          subtitle: AppRuntimeCopy.text([
-            'home',
-            'currentCartSubtitle',
-          ], '지금 담은 상품과 합계를 확인해보세요'),
-        ),
-        const SizedBox(height: CartlySpacing.md),
-        CurrentCartSection(
-          items: items,
-          onRemove: onRemove,
-          onChanged: onChangeCurrentCartItem,
-        ),
-        const SizedBox(height: CartlySpacing.xl),
-        CartlyActionTile(
-          icon: const CartlySymbolIcon.sf('sparkle.magnifyingglass'),
-          title: AppRuntimeCopy.text([
-            'home',
-            'exploreEntryTitle',
-          ], '탐색에서 다음 판단 이어가기'),
-          body: AppRuntimeCopy.text([
-            'home',
-            'exploreEntryBody',
-          ], '비교 후보와 대안을 한 번에 보고 결정해보세요'),
-          onTap: onGoExplore,
-          showChevron: true,
-          backgroundColor: CartlyColors.surface1,
-          iconBackgroundColor: CartlyColors.surface2,
-          border: Border.all(color: CartlyColors.line, width: 0.5),
         ),
       ],
     );

@@ -130,6 +130,9 @@ class _ScreenshotShell extends StatelessWidget {
     final items = _mockCurrentCartItems;
     final recentScans = _mockRecentScans;
     final consideredItems = _mockConsideredItems;
+    final activeShopping = items.isNotEmpty || recentScans.isNotEmpty;
+    final exploreTabLabel = activeShopping ? '지금 장보는중!' : branding.helpTabLabel;
+
     final body = IndexedStack(
       index: initialTabIndex,
       children: [
@@ -206,7 +209,7 @@ class _ScreenshotShell extends StatelessWidget {
                   'sparkle.magnifyingglass',
                   size: 28,
                 ),
-                label: branding.helpTabLabel,
+                label: exploreTabLabel,
               ),
               NavigationDestination(
                 icon: const CartlySymbolIcon.sf(
@@ -286,7 +289,7 @@ final _memberSession = UserSession(
   id: 'screenshot-member',
   provider: AuthProviderType.email,
   displayName: '백승대',
-  email: 'gabriel.paik@gmail.com',
+  email: 'preview-member@cartly.app',
   isGuest: false,
   signedInAt: DateTime.now().subtract(const Duration(days: 12)),
   authToken: 'screenshot-session-token',
@@ -317,7 +320,7 @@ const _mockHouseholdState = HouseholdState(
     HouseholdMemberSummary(
       userId: 'screenshot-member',
       displayName: '백승대',
-      email: 'gabriel.paik@gmail.com',
+      email: 'preview-member@cartly.app',
       role: 'owner',
       isMe: true,
     ),
@@ -427,7 +430,7 @@ final _mockSavedCarts = <SavedCart>[
     owner: const SavedCartUserSummary(
       id: 'screenshot-member',
       displayName: '백승대',
-      email: 'gabriel.paik@gmail.com',
+      email: 'preview-member@cartly.app',
       isGuest: false,
     ),
     household: const SavedCartHouseholdSummary(
@@ -473,7 +476,7 @@ final _mockSavedCarts = <SavedCart>[
     owner: const SavedCartUserSummary(
       id: 'screenshot-member',
       displayName: '백승대',
-      email: 'gabriel.paik@gmail.com',
+      email: 'preview-member@cartly.app',
       isGuest: false,
     ),
   ),
@@ -492,7 +495,7 @@ const _fallbackCopy = {
     'exploreEntryBody': '비교 후보와 대안을 한 번에 보고 결정해보세요',
   },
   'help': {
-    'pageTitle': 'Explore',
+    'pageTitle': '탐색',
     'subtitle': '지금 살 상품 결정과 지난 장보기 회고를 한 곳에서 이어가요',
   },
   'my': {

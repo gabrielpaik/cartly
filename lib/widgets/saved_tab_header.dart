@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app/cartly_ui.dart';
 import '../services/app_runtime_copy.dart';
 import '../widgets/inline_promo_slot.dart';
 
@@ -37,7 +38,7 @@ class _SavedTabTitle extends StatelessWidget {
         fontWeight: FontWeight.w700,
         letterSpacing: -1.2,
         height: 0.95,
-        color: Color(0xFFE31837),
+        color: CartlyColors.brand,
       ),
     );
   }

@@ -1,6 +1,6 @@
 # Cartly Release Management
 
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 Status: canonical
 Purpose: release operations contract for iOS, TestFlight, App Store Connect, and Google Play
 Use this doc when: building, uploading, patching store metadata, or preparing submission/review steps
@@ -11,15 +11,34 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - 릴리즈용 앱 빌드를 만들기 전에 **반드시 build number를 먼저 올린다**.
 - 사용자가 명시적으로 멈추라고 하지 않는 한, **성공한 iOS 빌드는 TestFlight/App Store Connect 업로드까지 이어간다**.
 - Android도 같은 release cycle에서 함께 빌드하고, 가능하면 **internal testing track 업로드까지 같은 턴에 진행한다**.
+- 사용자 현재 운영 원칙: iOS TestFlight만 따로 밀지 말고, Android도 계속 같은 버전 흐름으로 함께 올리며 중간중간 실제 Android 폰에서 함께 눈검수한다.
 - Cartly release 기본 운영 규칙은 **iOS TestFlight와 Android internal testing을 같은 build cycle에서 같이 돌리는 것**이다.
 - 최종 store 승인/제출도 특별한 예외 지시가 없으면 **iOS와 Android를 한 세트로 맞춰 동시에 진행**한다.
 - release 변경은 가능하면 별도 release commit으로 남긴다.
 - 스크린샷/메타데이터/리뷰 노트까지 같이 관리해야 진짜 release readiness다.
 
 ### 현재 기준 버전
-- current app version/build: `1.0.4+27`
-- latest uploaded iOS build label: `1.0.4 (27)`
-- latest uploaded Android internal-track build label: `1.0.4 (27)`
+- current working app version/build: `1.0.5+4`
+- latest uploaded iOS build after the reset: `1.0.5 (4)`
+- latest iOS delivery UUID after the reset: `99b0f9e6-b316-4d42-92be-decba498e416`
+- latest visible iOS TestFlight Cartly build on device before this reset: `1.0.4 (29)`
+- latest uploaded Android internal-track build label before this reset: `1.0.4 (27)`
+- latest prepared Android release artifact after this reset: versionName `1.0.5`, versionCode `33`, AAB `build/app/outputs/bundle/release/app-release.aab`
+
+### 2026-05-19 version reset policy
+- `1.0.4` 라인은 TestFlight/App Store Connect 쪽 build numbering 혼선 때문에 더 늘리지 않는다.
+- 모든 개발 검수 / 디자인 튜닝 / TestFlight 확인은 이제 `1.0.5 (xx)` 라인에서 진행한다.
+- Android도 별도 보류하지 말고 같은 `1.0.5 (xx)` 흐름으로 internal testing 업로드를 계속 맞춘다.
+- 단, Google Play `versionCode` 는 전역 증가 제약이 있으므로 `1.0.5 (1)` 리셋과 별개로 Android 업로드 코드는 이전 `27` 보다 큰 값으로 계속 증가시킨다. 현재 최신 준비 값은 `versionCode 33` 이다.
+- 이 리셋의 시작점은 `1.0.5 (1)` 이다.
+- 최종 출시 라인은 `1.0.6 (1)` 부터 시작하는 것으로 고정한다.
+- 따라서 다음 업로드부터는 customer-facing version surface도 `1.0.5 (1)` 기준으로 다시 정렬하는 것을 기본 원칙으로 삼는다.
+
+### 2026-05-18 release surface alignment note
+- app, admin, 공개 웹 customer-facing copy 기준값은 `1.0.4 (27)` 로 맞춘다.
+- 공개 지원 메일은 `cartly.support@gmail.com` 을 기준으로 유지한다.
+- `Explore` 같은 예전 customer-facing 표현은 공개 표면에서는 `탐색` 또는 한국어 문맥 표현으로 정리한다.
+- 소스 수정만으로 끝내지 말고, `app_copy` 런타임 값과 공개 웹 응답까지 같이 확인한다.
 
 ## 2. iOS release 흐름
 
@@ -58,14 +77,14 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - encryption = `false`
 
 ## 3. 현재 iOS / App Store Connect 기준 정보
-- latest delivery UUID: `9ee9152a-588d-430c-a627-aa164d37b137`
+- latest delivery UUID: `99b0f9e6-b316-4d42-92be-decba498e416`
 - current App Store version id: `a173b232-fe9b-4fdd-9557-a784bd7a36d2`
 - App Store version localization id: `64db26e7-c8a0-480e-9b9f-fb06c78a1ad5`
 - App info localization id: `57760505-1949-4e93-b21c-9502891d493c`
 - App Store review detail id: `784f5c12-b1f5-4651-bbd6-812255bb6fb5`
 
 ### review contact
-- email: `scancart.wimc@gmail.com`
+- email: `cartly.support@gmail.com`
 - phone: `+82 10-9112-5123`
 - name: `Seungdae Paik`
 
@@ -162,6 +181,7 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 
 ### package / artifact
 - package id: `com.seungdae.cartly`
+- Android AdMob app ID: `ca-app-pub-7326648056182385~9903617195`
 - release AAB: `/Users/sdpaik/dev/cartly/build/app/outputs/bundle/release/app-release.aab`
 - default Android release policy: **internal testing track first**, then iOS/Android eye review, then dual-platform final submission
 
@@ -175,6 +195,29 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 - `flutter build appbundle --release`
 - `jarsigner` verify
 - `keytool -list -v`로 keystore 검증 정보 출력
+
+추가 규칙:
+- Android는 Play 업로드용 `versionCode` 를 되돌릴 수 없으므로, 필요하면 `CARTLY_ANDROID_VERSION_CODE=<증가값>` 환경변수로 업로드 코드만 별도 override 한다.
+- 2026-05-19 `1.0.5` 리셋 라인 Android AAB는 Play 증가 제약에 맞춰 최신 준비 값 `CARTLY_ANDROID_VERSION_CODE=33` 로 다시 빌드했다.
+
+### Play internal upload 스크립트
+```bash
+PLAY_VERSION_NAME=1.0.5 \
+PLAY_RELEASE_NAME='1.0.5 (33)' \
+/Users/sdpaik/dev/cartly/scripts/upload-android-play-internal.rb
+```
+
+역할:
+- service account JWT 로 Android Publisher access token 발급
+- edit 생성
+- release AAB 업로드
+- `internal` track release 반영
+- edit commit
+
+주의:
+- 이 스크립트는 **Play Console 에 권한이 연결된 전용 service account JSON** 이 필요하다.
+- 기본 탐색 경로는 `~/Library/Application Support/Cartly/play/cartly-play-api.json` 이다. 다른 위치를 쓰려면 `PLAY_SERVICE_ACCOUNT_JSON=/path/to/file.json` 으로 override 한다.
+- 현재 로컬에서 확인된 Firebase admin JSON 은 token 발급은 되지만 Android Publisher 권한이 없어 `403 PERMISSION_DENIED` 를 반환했다.
 
 ### signing 구조
 - local keystore: `~/Library/Application Support/Cartly/android-release/cartly-upload-key.jks`
@@ -209,6 +252,11 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 - build/signing은 로컬 스크립트로, Play 업로드/track 반영은 service account + Android Publisher API로 자동화할 수 있다.
 - 다만 listing/data safety/content rating/app access/review questionnaire는 여전히 콘솔 운영이 필요하다.
 - 문서와 체크리스트도 이제 “인증 준비”가 아니라 “실출시 운영” 기준으로 유지한다.
+- 2026-05-18 기준 Android startup blocker였던 AdMob application ID는 AdMob 콘솔 앱 설정에서 실제 값 `ca-app-pub-7326648056182385~9903617195` 로 확인되었고, review/release 빌드는 더 이상 test app ID에 의존하지 않는다.
+- 같은 날 Android release smoke에서 `flutter_local_notifications` 의 receipt reminder cancel 경로가 startup 직후 `Missing type parameter` 예외를 만들 수 있음이 확인되었고, `ShoppingNudgeService` 에 Android 방어 처리를 넣은 뒤 release APK 재설치/재실행 기준으로 `MainActivity` resumed, `MobileAdsInitProvider` crash 없음, final startup logcat clean 상태까지 다시 검증했다.
+- 같은 날 최종 release 표면 점검에서 iOS/Android/live runtime/public web/customer-facing support/version 값이 다시 교차 확인되었고, admin `app-preview` fallback 탭 라벨도 `홈 / 탐색 / 마이페이지` 기준으로 재빌드해 맞췄다.
+- 같은 날 이어진 마지막 교차 점검에서 live runtime은 `my.pageTitle = 마이페이지` 로 이미 정렬되어 있었지만 preview/mock 기본값 일부가 아직 `마이` 로 남아 있는 drift가 한 번 더 발견되었다. `admin-web/lib/mock.ts`, `lib/preview_main.dart`, 재생성된 `admin-web/public/app-preview/main.dart.js` 까지 다시 맞춰 preview에서도 `마이페이지` 기준이 유지되도록 정리했다.
+- 같은 날 lower-priority 공개 웹 polish로 `scripts/public-site/site.css` 의 파란 톤 기본 팔레트를 Cartly red + warm neutral 계열로 조정해 앱 브랜드와 공개 웹의 첫인상 색감이 더 가깝게 맞도록 정리했다.
 
 ## 9. Google Play 제출 체크리스트
 - app 생성
@@ -234,11 +282,61 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 - iOS와 Android 모두 build artifact뿐 아니라 store console 상태를 함께 기록해야 한다.
 
 ## 12. 다음 release 작업
-1. build `1.0.4 (27)`를 iOS TestFlight와 Android internal testing에서 함께 눈검수
+1. build `1.0.5 (4)`를 iOS TestFlight와 Android internal testing 준비본 기준으로 함께 눈검수
 2. 필요 시 App Store / Play screenshot 및 listing copy 동시 정리
 3. Age Rating / App Privacy / Submit for Review와 Play review 질문 답변을 한 세트로 정리
-4. iOS와 Android 최종 제출 타이밍을 같은 승인 wave로 맞추기
-5. Apple metadata/screenshot automation과 Android Publisher API upload flow를 repo 안 `scripts/release/`로 승격할지 결정
+4. dedicated Play service-account JSON 을 표준 경로 `~/Library/Application Support/Cartly/play/cartly-play-api.json` 에 배치해 Android 자동 internal upload 를 복구
+5. iOS와 Android 최종 제출 타이밍을 같은 승인 wave로 맞추기
+
+## 13. 2026-05-19 검수 마감 UI 체크포인트
+### 확정된 탐색 / 장보기 헤더 규칙
+- Home 과 Explore 는 상단 헤더 리듬과 하단 여백이 같이 흔들리지 않도록 같은 문법을 유지한다.
+- Explore 에서 shopping mode 가 활성화되면 red header band 는 상태바 아래까지 이어지는 immersive block 으로 보인다.
+- red band 는 floating card 처럼 보이면 안 되고, background block 이 더 아래로 내려온 상태여야 한다.
+- 헤더 텍스트와 우상단 mode toggle 아이콘 위치는 유지하고, 배경 블록 높이만 조정한다.
+- body 는 bottom SafeArea 로 인해 탭 전환 때 높이가 흔들리지 않도록 관리한다.
+
+### 현재 검수 기준값
+- working source version: `1.0.5+4`
+- latest iOS review build: `1.0.5 (4)`
+- latest Android prepared review build: `1.0.5 / versionCode 33`
+- support email baseline: `cartly.support@gmail.com`
+- customer-facing Explore wording baseline: `탐색`
+
+### 최종 제출 전 5분 체크리스트
+#### A. 빌드 / 앱 표면
+- `pubspec.yaml` 버전이 `1.0.5+4` 인지 확인
+- iOS `CFBundleDisplayName = Cartly` 확인
+- Android `android:label = Cartly` 확인
+- Android merged manifest에 AdMob app ID `ca-app-pub-7326648056182385~9903617195` 가 들어 있는지 확인
+- 최근 smoke 기준 Android startup crash, asset load crash, notification startup exception이 다시 재발하지 않았는지 확인
+
+#### B. 런타임 / 고객-facing copy
+- `/v1/app-config` 에서 `help.pageTitle = 탐색` 확인
+- `/v1/app-config` 에서 `my.supportEmail = cartly.support@gmail.com` 확인
+- `/v1/app-config` 에서 public eyebrow/version 값이 최신 검수 빌드 라인과 맞는지 확인
+- branding 값에서 `logoType = image`, live Cartly SVG `logoImageUrl`, expected `splashImageUrl` 를 확인
+
+#### C. 공개 웹
+- `/` title 이 `Cartly | 장보기 기록과 대체안 탐색` 인지 확인
+- `/privacy` title 이 `Cartly | 개인정보 안내` 인지 확인
+- `/support` title 이 `Cartly | 지원 안내` 인지 확인
+- `/`, `/privacy`, `/support` 어디에서도 support/business/version 문구 drift 가 없는지 확인
+- support email `cartly.support@gmail.com`, business email `gabriel.paik@gmail.com` 가 일관적인지 확인
+
+#### D. admin preview / fallback
+- preview fallback tab labels 가 `홈 / 탐색 / 마이페이지` 인지 확인
+- preview/default `myPageTitle` 이 더 이상 `마이` 로 남아 있지 않고 `마이페이지` 인지 확인
+- regenerated `admin-web/public/app-preview/main.dart.js` 가 최신 preview defaults 를 반영했는지 확인
+
+#### E. store console 마지막 인간 체크
+- iOS: Age Rating, App Privacy questionnaire, review contact, privacy/support URL, screenshots 최종 확인
+- Android: store listing, Data safety, Content rating, App access, internal/prod track release note 최종 확인
+- 두 플랫폼 모두 동일한 customer-facing naming/copy 로 보이는지 마지막 눈검수
+
+### 제출 판단 규칙
+- A~D 중 하나라도 drift 가 보이면 제출 전에 먼저 고친다.
+- A~D 가 깨끗하면 E 를 마치고 iOS/Android 를 같은 release wave 로 진행한다.
 
 ## Related notes
 - [[01_brand/brand-system]]

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../app/cartly_ui.dart';
 import '../models/saved_cart.dart';
 import 'cartly_symbol_icon.dart';
 
@@ -27,12 +28,12 @@ class CartDetailGuestRetentionSection extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: cart.isExpired
-              ? const Color(0xFFFFF4F5)
-              : Colors.grey.shade100,
+              ? CartlyColors.warningSurface
+              : CartlyColors.surfaceNeutral,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: cart.isExpired
-                ? const Color(0xFFFFD7DE)
+                ? CartlyColors.warningLine
                 : Colors.transparent,
           ),
         ),
@@ -72,7 +73,7 @@ class CartDetailGuestRetentionSection extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE31837),
+                    backgroundColor: CartlyColors.brand,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -110,9 +111,9 @@ class CartDetailGuestLockedView extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
           decoration: BoxDecoration(
-            color: const Color(0xFFF6F7F9),
+            color: CartlyColors.surfaceNeutral,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
+            border: Border.all(color: CartlyColors.line),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -120,7 +121,7 @@ class CartDetailGuestLockedView extends StatelessWidget {
               const CartlySymbolIcon.sf(
                 'lock',
                 size: 42,
-                color: Color(0xFFE31837),
+                color: CartlyColors.brand,
               ),
               const SizedBox(height: 14),
               const Text(

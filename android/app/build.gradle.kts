@@ -14,6 +14,8 @@ if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
+val androidVersionCodeOverride = System.getenv("CARTLY_ANDROID_VERSION_CODE")?.toIntOrNull()
+
 android {
     namespace = "com.seungdae.cartly"
     compileSdk = flutter.compileSdkVersion
@@ -36,7 +38,7 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
+        versionCode = androidVersionCodeOverride ?: flutter.versionCode
         versionName = flutter.versionName
     }
 

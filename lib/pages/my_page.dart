@@ -3016,7 +3016,7 @@ class _MyPrivacyPolicyPage extends StatelessWidget {
         final supportEmail = AppRuntimeCopy.text([
           'my',
           'supportEmail',
-        ], 'scancart.wimc@gmail.com').trim();
+        ], 'cartly.support@gmail.com').trim();
 
         return Scaffold(
           backgroundColor: CartlyColors.surface0,

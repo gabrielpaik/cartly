@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app/cartly_ui.dart';
 import 'context_pill.dart';
 
 class SavedCartListCardHeader extends StatelessWidget {
@@ -28,7 +29,7 @@ class SavedCartListCardHeader extends StatelessWidget {
           ),
         ),
         if (isExpired)
-          const ContextPill(label: '만료됨', color: Color(0xFFE31837)),
+          const ContextPill(label: '만료됨', color: CartlyColors.brand),
       ],
     );
   }

@@ -93,6 +93,9 @@ Avoid:
 ### Header behavior
 - Home and Explore top header heights should align so the app feels stable, not shaky.
 - The top brand area should support the real wordmark height, not crush it into a fallback text state.
+- Explore shopping mode should use an immersive red background band that starts under the status bar, not a floating inset card.
+- When the shopping-mode red band needs stronger emphasis, prefer extending the background block downward while keeping text and toggle positions stable.
+- Body and bottom spacing must not change across Home / Explore / shopping-mode switches just because SafeArea or list padding differs.
 
 ### Spacing behavior
 - use spacing to create hierarchy before adding new visual styles

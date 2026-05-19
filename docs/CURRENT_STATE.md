@@ -1,6 +1,6 @@
 # Cartly Current State
 
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 Status: canonical current-state document
 
 ## What Cartly is now
@@ -17,14 +17,14 @@ It is a personal decision-support tool for real grocery planning and review.
 ## Current product/runtime status
 
 ### Customer app
-- Latest uploaded iOS build on App Store Connect: `1.0.4 (27)`
-- Latest uploaded Android internal-testing build: `1.0.4 (27)`
+- Latest uploaded iOS build on App Store Connect: `1.0.5 (4)`
+- Latest prepared Android review build: `1.0.5 / versionCode 33`
 - Shared household current-cart collaboration v2 is implemented and shipped in build 25.
 - Guest mode exists.
 - Member-only features include profile management, family sharing, and account deletion.
 - Receipt flow is customer-facing source-of-truth apply/undo, not cart-vs-receipt comparison review.
 - Location usage remains foreground-only and purpose-limited to nearby market discount information.
-- Latest polish pass added: home logo Cartly-red rendering hardening, home/explore header height alignment, and logout confirmation popup.
+- Latest polish pass added: home/explore shared header rhythm stabilization, shopping-mode immersive red header band, bottom/body anti-shake cleanup, and the final red-band height extension accepted in review.
 
 ### Admin / operator surfaces
 The admin relayout is no longer a proposal-only state.
@@ -67,22 +67,23 @@ To harden this, source now includes:
 - bundled local SVG fallback in `lib/widgets/brand_mark.dart`
 - increased header title height in `lib/pages/home_tab_view.dart`
 
-This fix exists in source but is **not yet on the user’s phone** until the next iOS/TestFlight build is shipped.
+This fix path is now on the current review build line through `1.0.5 (4)`.
 
 ## Store/release status
 
 ### iOS / App Store Connect
-- Current review candidate build: `1.0.4 (27)`
-- Build delivery UUID: `9ee9152a-588d-430c-a627-aa164d37b137`
+- Current review candidate build: `1.0.5 (4)`
+- Build delivery UUID: `99b0f9e6-b316-4d42-92be-decba498e416`
 - Metadata, screenshots, privacy URL, support URL, and review contact have already been prepared.
-- Build 27 is uploaded; TestFlight visibility/final eye review should be checked alongside Android internal testing.
+- Build `1.0.5 (4)` is uploaded; TestFlight visibility/final eye review should be checked alongside the latest Android prepared review build.
 - Remaining manual console work still includes final App Store Connect questionnaire/submission steps.
 
 ### Android / Google Play
 - Signed release AAB builds locally.
-- Play service-account automation is now connected and usable.
-- Internal testing track upload for build `27` is complete.
-- Remaining work is no longer auth/setup; it is listing, data safety, content rating, app access, and final review/submission ops.
+- Repo-side Play internal upload automation now exists at `scripts/upload-android-play-internal.rb`.
+- Latest prepared review build is `1.0.5 / versionCode 33`.
+- Automatic Play upload is still blocked by the missing dedicated service-account JSON at `~/Library/Application Support/Cartly/play/cartly-play-api.json`.
+- Remaining work is listing, data safety, content rating, app access, Play key placement, and final review/submission ops.
 
 ## Public URLs
 - App/public root: `https://scan-api.seoa-nas.com/`
@@ -98,7 +99,7 @@ This fix exists in source but is **not yet on the user’s phone** until the nex
 - Use this document as the primary current-state entry point instead of chaining multiple handoff/checkpoint notes.
 
 ## Open next actions
-1. Eye-review build `1.0.4 (27)` on both iOS TestFlight and Android internal testing together.
-2. Finish the latest-only MD cleanup pass so canonical docs stay foreground and superseded notes stay archived.
-3. Final-verify the public site after the latest screenshot and footer/logo adjustments.
-4. Resume synchronized iOS/Android store-console submission work once build 27 is accepted.
+1. Eye-review build `1.0.5 (4)` on iOS TestFlight and the matching Android prepared review build together.
+2. Place the dedicated Play service-account JSON at `~/Library/Application Support/Cartly/play/cartly-play-api.json` so Android auto-upload rejoins the same release cycle.
+3. Finish the latest-only MD cleanup pass so canonical docs stay foreground and superseded notes stay archived.
+4. Resume synchronized iOS/Android store-console submission work once the `1.0.5` review line is accepted.

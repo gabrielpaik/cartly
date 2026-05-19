@@ -25,6 +25,8 @@ landing은 단순 “앱이 있어요”가 아니라 아래를 동시에 만족
 - 앱 버전 뱃지
 - CTA
 - 짧은 핵심 포인트
+- 상단 brand lockup은 app icon + wordmark 조합을 안정적으로 보여줘야 하며, 아이콘을 과하게 cramped 하게 자르지 않는다.
+- hero title은 과하게 축소하지 말고, 1~2줄 안에서 균형 있게 읽히도록 유지한다.
 
 ### feature preview
 현재 다루는 기능 예시:
@@ -38,11 +40,14 @@ landing은 단순 “앱이 있어요”가 아니라 아래를 동시에 만족
 원칙:
 - feature preview는 실제 앱 화면과 매칭되어야 한다.
 - 설명은 screenshot과 같은 기능을 말해야 한다.
+- feature list는 clickable navigator처럼 동작해 대표 screenshot과 설명이 함께 바뀌어야 한다.
+- 가능하면 중복되는 탭 줄을 늘리기보다 screenshot thumb 자체를 navigator로 쓰는 편이 더 낫다.
+- screenshot thumb와 대표 preview는 같은 device 비율/스케일 감각으로 정리한다.
 
-### status / trust
-- 현재 운영 상태
-- guest/member/family share 등 제품 경계
-- 외부 링크가 사용자 탭 이후에만 열린다는 점
+### lower sections / trust
+- hero와 feature preview 이후 섹션은 card 남발보다 flatter proposal-style section 구성이 낫다.
+- 중복 카피를 줄이고, 실제로 하는 일 / 운영 원칙 / 문의 경로를 짧게 분리해 trust를 만든다.
+- guest/member/family share 등 제품 경계와 외부 링크가 사용자 탭 이후에만 열린다는 점은 계속 분명해야 한다.
 
 ## 4. privacy 페이지 목적
 privacy는 법적 문서이면서 제품 설명이기도 하다.
@@ -53,12 +58,22 @@ privacy는 법적 문서이면서 제품 설명이기도 하다.
 - 외부 링크는 언제 열리는지
 - 문의 이메일은 무엇인지
 
+구조 원칙:
+- 서두는 한 번에 읽히는 intro block으로 두고
+- 본문은 `수집 및 사용`, `외부 링크 원칙`, `현재 운영 상태`처럼 짧은 section 단위로 나눈다.
+- 문의 메일은 하단 contact block으로 분리해 landing/support와 같은 hierarchy를 유지한다.
+
 ## 5. support 페이지 목적
 support는 App Review와 실제 사용자 문의를 동시에 감당해야 한다.
 따라서:
 - reachable email이 보여야 하고
 - 제품명/운영 상태와 어긋나지 않아야 하며
 - privacy와 상호 일관적이어야 한다.
+
+구조 원칙:
+- intro에서 어떤 문의를 받는지 먼저 짧게 설명한다.
+- `지원 범위`와 `연락처`를 분리해 사용자가 바로 읽고 행동할 수 있게 한다.
+- landing과 마찬가지로 card를 과하게 쌓기보다 간결한 hierarchy와 contact block 중심으로 유지한다.
 
 ## 6. public copy 운영 규칙
 - 문장은 짧게
@@ -80,7 +95,7 @@ support는 App Review와 실제 사용자 문의를 동시에 감당해야 한�
 - privacy/support는 숨기지 말고 쉽게 닿게 둔다.
 
 ## 9. 지금 유지해야 할 사실
-- support email: `scancart.wimc@gmail.com`
+- support email: `cartly.support@gmail.com`
 - business proposal email: `gabriel.paik@gmail.com`
 - current version label은 shipped state와 함께 맞춰야 함
 - 주요 scan screenshot은 실제 캡처 사용

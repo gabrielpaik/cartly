@@ -10,14 +10,15 @@ import '../models/explore_offer.dart';
 import '../models/saved_cart.dart';
 import '../pages/cart_detail_page.dart';
 import '../services/app_config_store.dart';
+import '../services/app_location_service.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/cart_store.dart';
 import '../services/cart_title_formatter.dart';
+import '../services/cart_title_suggester.dart';
 import '../services/explore_intent_normalizer.dart';
 import '../services/explore_offer_service.dart';
 import '../widgets/cartly_action_tile.dart';
 import '../widgets/cartly_badge.dart';
-import '../widgets/cartly_page_header.dart';
 import '../widgets/cartly_surface_card.dart';
 import '../widgets/cartly_symbol_icon.dart';
 import '../widgets/section_header.dart';
@@ -34,6 +35,9 @@ class ShoppingHelpPage extends StatefulWidget {
   final List<CartItem> items;
   final List<RecentScanEntry> recentScans;
   final List<ConsideredProductEntry> consideredItems;
+  final bool? shoppingModeOverride;
+  final VoidCallback? onUseDefaultExploreMode;
+  final VoidCallback? onUseShoppingMode;
   final VoidCallback onGoHome;
   final VoidCallback onGoSaved;
 
@@ -42,6 +46,9 @@ class ShoppingHelpPage extends StatefulWidget {
     required this.items,
     required this.recentScans,
     this.consideredItems = const [],
+    this.shoppingModeOverride,
+    this.onUseDefaultExploreMode,
+    this.onUseShoppingMode,
     required this.onGoHome,
     required this.onGoSaved,
   });
@@ -71,6 +78,86 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
       widget.items.fold(0, (sum, item) => sum + item.quantity);
   bool get _hasActiveShoppingContext =>
       widget.items.isNotEmpty || widget.recentScans.isNotEmpty;
+  bool get _showShoppingMode =>
+      widget.shoppingModeOverride ?? _hasActiveShoppingContext;
+
+  String _pageTitle() {
+    if (_showShoppingMode) {
+      return '지금 장보는중!';
+    }
+    return AppRuntimeCopy.text(['help', 'pageTitle'], '탐색');
+  }
+
+  String _pageSubtitle(AppLocationSnapshot? locationSnapshot) {
+    if (!_showShoppingMode) {
+      return AppRuntimeCopy.text(
+        ['help', 'subtitle'],
+        '다음 장보기에 도움을 드려요',
+      );
+    }
+
+    final shoppingContextLabel = _shoppingContextLabel(locationSnapshot);
+    if (shoppingContextLabel != null) {
+      return shoppingContextLabel;
+    }
+    return '지금 위치와 담은 상품을 바탕으로 장보기 흐름을 맞춰드릴게요';
+  }
+
+  String? _shoppingContextLabel(AppLocationSnapshot? locationSnapshot) {
+    final brand = CartTitleSuggester.inferMartBrand(widget.items);
+    final region = locationSnapshot?.customerFacingRegionLabel?.trim();
+
+    if (brand != null && region != null && region.isNotEmpty) {
+      return '$brand · $region 근처 장보기로 추정돼요';
+    }
+    if (brand != null) {
+      return '$brand 장보기로 추정돼요';
+    }
+    if (region != null && region.isNotEmpty) {
+      return '$region 근처 장보기로 추정돼요';
+    }
+    return null;
+  }
+
+  Widget _modeToggleIconButton({
+    required bool shoppingMode,
+    required VoidCallback? onPressed,
+  }) {
+    if (onPressed == null) {
+      return const SizedBox(width: 32, height: 32);
+    }
+
+    final iconName = shoppingMode
+        ? 'arrow.uturn.backward.circle'
+        : 'sparkle.magnifyingglass';
+    final foregroundColor = shoppingMode
+        ? CartlyColors.onBrandPrimary
+        : CartlyColors.textSecondary;
+    final backgroundColor = shoppingMode
+        ? Colors.white.withValues(alpha: 0.14)
+        : CartlyColors.surface2;
+
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: IconButton(
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        style: IconButton.styleFrom(
+          backgroundColor: backgroundColor,
+          foregroundColor: foregroundColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        icon: CartlySymbolIcon.sf(
+          iconName,
+          size: 18,
+          color: foregroundColor,
+        ),
+      ),
+    );
+  }
 
   int _configInt(Map<String, dynamic> config, String key, int fallback) {
     final value = config[key];
@@ -381,7 +468,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
       return forcedState;
     }
 
-    if (_hasActiveShoppingContext) {
+    if (_showShoppingMode) {
       return _exploreStateActiveShopping;
     }
     if (_isLikelyPostSave(latest)) {
@@ -1100,26 +1187,103 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
             }
 
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              padding: EdgeInsets.zero,
               children: [
-                CartlyPageHeader(
-                  titleHeight: 40,
-                  subtitleHeight: 24,
-                  title: Text(
-                    AppRuntimeCopy.text(['help', 'pageTitle'], 'Explore'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: CartlyText.pageHero.copyWith(
-                      color: CartlyColors.subBrand,
-                    ),
-                  ),
-                  subtitle: AppRuntimeCopy.text([
-                    'help',
-                    'subtitle',
-                  ], '지금 필요한 비교를 한곳에서 이어서 보실 수 있어요'),
+                ValueListenableBuilder<AppLocationSnapshot?>(
+                  valueListenable: AppLocationService.instance.snapshot,
+                  builder: (context, locationSnapshot, _) {
+                    final shoppingMode = _showShoppingMode;
+                    final subtitle = _pageSubtitle(locationSnapshot);
+                    final quietAction = shoppingMode
+                        ? widget.onUseDefaultExploreMode
+                        : widget.onUseShoppingMode;
+                    final topInset = MediaQuery.paddingOf(context).top;
+
+                    return Container(
+                      width: double.infinity,
+                      color: shoppingMode
+                          ? CartlyColors.brand
+                          : Colors.transparent,
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        shoppingMode ? topInset + 12 : 12,
+                        16,
+                        0,
+                      ),
+                      child: SizedBox(
+                        height: 84,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              height: 40,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        _pageTitle(),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: shoppingMode
+                                            ? CartlyText.pageHeroCompact.copyWith(
+                                                color: CartlyColors.onBrandPrimary,
+                                              )
+                                            : CartlyText.pageHero.copyWith(
+                                                color: CartlyColors.subBrand,
+                                              ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: _modeToggleIconButton(
+                                      shoppingMode: shoppingMode,
+                                      onPressed: quietAction,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              height: 24,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  subtitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: CartlyText.pageSubtitle.copyWith(
+                                    color: shoppingMode
+                                        ? Colors.white.withValues(alpha: 0.92)
+                                        : CartlyColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const Spacer(),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                const SizedBox(height: CartlySpacing.sectionLoose),
-                ...sectionWidgets,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    16,
+                    CartlySpacing.sectionLoose,
+                    16,
+                    28,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: sectionWidgets,
+                  ),
+                ),
               ],
             );
           },
@@ -2148,11 +2312,14 @@ class _StoreContextPromoCard extends StatelessWidget {
     return CartlySurfaceCard(
       radius: CartlyRadii.hero,
       gradient: const LinearGradient(
-        colors: [Color(0xFFFEF2F2), Color(0xFFFFFBEB)],
+        colors: [
+          CartlyColors.softWarmSurface,
+          CartlyColors.surface1,
+        ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
-      border: Border.all(color: const Color(0xFFFECACA)),
+      border: Border.all(color: CartlyColors.lineWarm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2195,7 +2362,7 @@ class _StoreContextPromoCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: CartlyColors.surface1,
                   borderRadius: BorderRadius.circular(CartlyRadii.control),
-                  border: Border.all(color: const Color(0xFFFDE68A)),
+                  border: Border.all(color: CartlyColors.lineWarm),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2472,7 +2639,7 @@ class _AlternativeOfferThumbnail extends StatelessWidget {
         child: trimmed.isEmpty
             ? const Center(
                 child: CartlySymbolIcon.sf(
-                  'photo',
+                  'photo.on.rectangle.angled',
                   size: 22,
                   color: CartlyColors.textTertiary,
                 ),
@@ -2483,7 +2650,7 @@ class _AlternativeOfferThumbnail extends StatelessWidget {
                 errorBuilder: (context, error, stackTrace) {
                   return const Center(
                     child: CartlySymbolIcon.sf(
-                      'photo',
+                      'photo.on.rectangle.angled',
                       size: 22,
                       color: CartlyColors.textTertiary,
                     ),

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -69,31 +70,39 @@ class ShoppingNudgeService {
 
     final scheduledAt = tz.TZDateTime.now(tz.local).add(_receiptReminderDelay);
 
-    await _notifications.zonedSchedule(
-      _receiptReminderId,
-      '장보기가 끝나셨나요?',
-      '저장하고 영수증을 등록해보세요!',
-      scheduledAt,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'shopping_nudges',
-          'Shopping nudges',
-          channelDescription: '장보기 저장 및 영수증 등록 리마인더',
-          importance: Importance.high,
-          priority: Priority.high,
+    try {
+      await _notifications.zonedSchedule(
+        _receiptReminderId,
+        '장보기가 끝나셨나요?',
+        '저장하고 영수증을 등록해보세요!',
+        scheduledAt,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'shopping_nudges',
+            'Shopping nudges',
+            channelDescription: '장보기 저장 및 영수증 등록 리마인더',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(),
         ),
-        iOS: DarwinNotificationDetails(),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      payload: '{"targetTab":"home","kind":"receipt-reminder"}',
-    );
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: '{"targetTab":"home","kind":"receipt-reminder"}',
+      );
 
-    await _prefs?.setInt(
-      _receiptReminderScheduledAtKey,
-      scheduledAt.millisecondsSinceEpoch,
-    );
+      await _prefs?.setInt(
+        _receiptReminderScheduledAtKey,
+        scheduledAt.millisecondsSinceEpoch,
+      );
+    } catch (error, stackTrace) {
+      debugPrint(
+        'ShoppingNudgeService.refreshReceiptReminder schedule failed: $error',
+      );
+      debugPrintStack(stackTrace: stackTrace);
+      await _prefs?.remove(_receiptReminderScheduledAtKey);
+    }
   }
 
   Future<void> syncHomeAttentionFromReminderStatus() async {
@@ -114,8 +123,20 @@ class ShoppingNudgeService {
 
   Future<void> cancelReceiptReminder() async {
     await initialize();
-    await _notifications.cancel(_receiptReminderId);
-    await _prefs?.remove(_receiptReminderScheduledAtKey);
+    final hadScheduledAt = _prefs?.containsKey(_receiptReminderScheduledAtKey) ??
+        false;
+    if (!hadScheduledAt) return;
+
+    try {
+      await _notifications.cancel(_receiptReminderId);
+    } catch (error, stackTrace) {
+      debugPrint(
+        'ShoppingNudgeService.cancelReceiptReminder cancel failed: $error',
+      );
+      debugPrintStack(stackTrace: stackTrace);
+    } finally {
+      await _prefs?.remove(_receiptReminderScheduledAtKey);
+    }
   }
 
   Future<void> _requestPermissionsIfNeeded() async {

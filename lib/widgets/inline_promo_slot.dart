@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../app/cartly_ui.dart';
 import '../models/app_ad_slot.dart';
 import '../models/user_session.dart';
 import '../services/ad_tracking_service.dart';
@@ -215,12 +216,15 @@ class _InlinePromoSlotState extends State<InlinePromoSlot> {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFFFFF4F5), Color(0xFFF7F9FC)],
+                colors: [
+                  CartlyColors.softWarmSurface,
+                  CartlyColors.surface1,
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE9E9E9)),
+              border: Border.all(color: CartlyColors.line),
             ),
             child: Row(
               children: [
@@ -275,7 +279,9 @@ class _InlinePromoSlotState extends State<InlinePromoSlot> {
                               height: 6,
                               margin: EdgeInsets.only(right: index == creatives.length - 1 ? 0 : 4),
                               decoration: BoxDecoration(
-                                color: selected ? const Color(0xFFE31837) : const Color(0xFFD0D5DD),
+                                color: selected
+                                    ? CartlyColors.brand
+                                    : const Color(0xFFD0D5DD),
                                 borderRadius: BorderRadius.circular(999),
                               ),
                             );
@@ -298,7 +304,7 @@ class _InlinePromoSlotState extends State<InlinePromoSlot> {
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                       color: hasTapAction
-                          ? const Color(0xFFE31837)
+                          ? CartlyColors.brand
                           : Colors.black54,
                     ),
                   ),
@@ -335,12 +341,12 @@ class PromoSlotIcon extends StatelessWidget {
       width: 52,
       height: 52,
       decoration: BoxDecoration(
-        color: const Color(0xFFE31837).withValues(alpha: 0.12),
+        color: CartlyColors.brand.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: CartlySymbolIcon.sf(
         hasTapAction ? 'square.and.arrow.up' : 'tag',
-        color: const Color(0xFFE31837),
+        color: CartlyColors.brand,
       ),
     );
   }

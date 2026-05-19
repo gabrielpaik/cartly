@@ -3,7 +3,7 @@ description: "Cartly shopping assistant."
 
 publish_to: 'none'
 
-version: 1.0.4+27
+version: 1.0.5+4
 
 environment:
   sdk: ^3.10.7
@@ -41,6 +41,7 @@ flutter:
   assets:
     - assets/fonts/
     - assets/images/
+    - assets/images/branding/
     - assets/icons/
     - assets/icons/sf/
 

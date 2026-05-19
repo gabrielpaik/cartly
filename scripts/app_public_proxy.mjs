@@ -26,9 +26,9 @@ const publicAssetRoutes = new Map([
 const dynamicLandingRoutes = new Set(['/', '/partners', '/partners/'])
 const dynamicPrivacyRoutes = new Set(['/privacy', '/privacy/'])
 const dynamicSupportRoutes = new Set(['/support', '/support/'])
-const supportEmail = 'scancart.wimc@gmail.com'
+const supportEmail = 'cartly.support@gmail.com'
 const businessEmail = 'gabriel.paik@gmail.com'
-const currentAppVersionLabel = '앱 버전 1.0.4 (26)'
+const currentAppVersionLabel = '앱 버전 1.0.4 (27)'
 const defaultLogoImageUrl = 'https://scan-api.seoa-nas.com/assets/branding/cartly_logo_vectorized.svg'
 const defaultSplashImageUrl = 'https://scan-api.seoa-nas.com/assets/branding/cartly_splash_default.png'
 const fallbackLogoUrl = '/assets/branding/cartly_logo_vectorized.svg'
@@ -79,7 +79,7 @@ const fallbackAppConfig = {
       privacyCollectionTitle: '수집 및 사용',
       privacyCollectionPoints: '상품명, 가격, 수량, 저장 카트 제목 등 장보기 기록\n스캔 이미지와 인식 결과\n현재 위치 또는 대략적 지역 정보(근처 마트 할인정보 확인 목적)\n품질 개선을 위한 최소 운영 로그',
       privacyExternalTitle: '외부 링크',
-      privacyExternalBody: '외부 쇼핑 링크는 Explore에서 특정 후보를 선택했을 때만 열립니다. 자동 리디렉션은 사용하지 않습니다.',
+      privacyExternalBody: '외부 쇼핑 링크는 탐색에서 특정 후보를 선택했을 때만 열립니다. 자동 리디렉션은 사용하지 않습니다.',
       privacyStatusTitle: '현재 상태',
       privacyStatusBody: `현재 안내는 ${currentAppVersionLabel} 기준입니다. 외부 링크는 비교와 검토를 돕는 경우에만 사용됩니다.`,
       privacyBackAction: '메인 페이지로 돌아가기',
@@ -214,7 +214,7 @@ function renderScreenshotGallery() {
   return `<section class="grid" id="section-screenshots">
       <article class="card">
         <h2>실제 서비스 화면</h2>
-        <p>현재 서비스 화면입니다. 스캔, 카트 검토, Explore 흐름을 확인할 수 있습니다.</p>
+        <p>현재 서비스 화면입니다. 스캔, 카트 검토, 탐색 흐름을 확인할 수 있습니다.</p>
         <div class="shot-grid">
           <figure class="shot">
             <img src="/site-media/home.png" alt="Cartly iPhone home screen" />
@@ -222,7 +222,7 @@ function renderScreenshotGallery() {
           </figure>
           <figure class="shot">
             <img src="/site-media/explore.png" alt="Cartly iPhone explore screen" />
-            <figcaption>Explore 화면. 같은 구매 의도 안에서 다시 볼 대체안을 정리합니다.</figcaption>
+            <figcaption>탐색 화면. 같은 구매 의도 안에서 다시 볼 대체안을 정리합니다.</figcaption>
           </figure>
         </div>
         <p class="inline-note">iPad는 별도 메인 비주얼 없이도 사용할 수 있는 수준으로 지원합니다.</p>
@@ -243,7 +243,7 @@ function renderLandingSection(sectionId, publicSite) {
           <ol class="steps">
             <li><strong>Scan</strong> 상품을 촬영하거나 직접 추가합니다.</li>
             <li><strong>Review</strong> 인식 결과를 확인하고 현재 카트에 담습니다.</li>
-            <li><strong>Explore</strong> 같은 상품군 안에서 다시 볼 후보와 대체안을 정리합니다.</li>
+            <li><strong>탐색</strong> 같은 상품군 안에서 다시 볼 후보와 대체안을 정리합니다.</li>
             <li><strong>Save</strong> 장보기 결과를 저장해 다음 구매 판단에 이어서 활용합니다.</li>
           </ol>
         </article>
@@ -368,7 +368,7 @@ function buildLandingHtml(config) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(branding.logoText || 'Cartly')} | Smart grocery planning and same-intent alternatives</title>
+    <title>${escapeHtml(branding.logoText || 'Cartly')} | 장보기 기록과 대체안 탐색</title>
     <meta name="description" content="${escapeHtml(publicSite.heroBody)}" />
     <link rel="stylesheet" href="/site.css" />
   </head>
@@ -399,7 +399,7 @@ function buildLandingHtml(config) {
             <a class="button secondary" href="/privacy">${escapeHtml(publicSite.secondaryCtaLabel)}</a>
           </div>
           <div class="hero-meta">
-            <div><strong>핵심 흐름</strong><span>Scan, Review, Save, Explore</span></div>
+            <div><strong>핵심 흐름</strong><span>Scan, Review, Save, 탐색</span></div>
             <div><strong>지원 디바이스</strong><span>iPhone 중심 제공, iPad 사용 가능</span></div>
           </div>
           <div class="hero-scope">
@@ -415,17 +415,24 @@ function buildLandingHtml(config) {
           </div>
         </div>
         <div class="hero-visual">
-          <div class="visual-head">
+          <div class="visual-head" id="section-features">
             <strong>실제 앱 화면</strong>
-            <span>기능을 누르면 대표 화면이 바뀝니다.</span>
+            <span>대표 화면과 기능 목록을 함께 보며 현재 제품 범위를 확인할 수 있습니다.</span>
           </div>
-          <div class="feature-preview-shell">
-            <div class="device-frame preview-frame">
-              <img id="feature-preview-image" src="${escapeHtml(initialFeature.image)}" alt="${escapeHtml(initialFeature.title)}" />
+          <div class="feature-stage">
+            <div class="feature-preview-shell">
+              <div class="device-frame preview-frame">
+                <img id="feature-preview-image" src="${escapeHtml(initialFeature.image)}" alt="${escapeHtml(initialFeature.title)}" />
+              </div>
+            </div>
+            <div class="feature-navigator">
+              <div class="feature-nav-head">
+                <strong>기능 목록</strong>
+                <span>각 항목을 누르면 대표 화면과 설명이 같이 바뀝니다.</span>
+              </div>
+              <div class="feature-thumb-grid">${featureThumbs}</div>
             </div>
           </div>
-          <div class="feature-tabs" id="section-features">${featureButtons}</div>
-          <div class="feature-thumb-grid">${featureThumbs}</div>
           <div class="feature-summary">
             <strong id="feature-preview-title">${escapeHtml(initialFeature.title)}</strong>
             <p id="feature-preview-body">${escapeHtml(initialFeature.body)}</p>
@@ -433,37 +440,45 @@ function buildLandingHtml(config) {
         </div>
       </section>
 
-      <section class="content-section">
-        <div class="section-kicker">Cartly가 하는 일</div>
-        <h2>장보기 기록, 현재 카트, 대체안 검토를 한 흐름으로 연결합니다.</h2>
-        <p>단순한 쇼핑 메모가 아니라, 장보기 판단의 앞뒤 맥락을 정리하는 구조로 설계했습니다. 현재 제공하는 기능만 설명하고, 외부 링크는 사용자가 직접 고른 경우에만 엽니다.</p>
+      <section class="content-section story-block">
+        <div class="section-kicker">서비스 개요</div>
+        <h2>Cartly는 장보기 판단을 대신하는 앱이 아니라, 이미 진행 중인 선택을 더 잘 이어가게 돕는 도구입니다.</h2>
+        <p>상품 스캔, 현재 카트 검토, 저장 기록 재사용, 같은 구매 의도 안에서의 대체안 탐색을 하나의 흐름으로 묶었습니다. 소개 문구도 실제 앱에서 이미 제공하는 범위 안에서만 설명합니다.</p>
       </section>
 
-      <section class="content-section three-up">
+      <section class="content-section three-up summary-strip">
         <div>
           <div class="section-kicker">기록</div>
-          <p>스캔한 상품과 현재 카트, 저장한 장보기 기록이 분리되지 않고 한 흐름으로 이어집니다.</p>
+          <p>스캔한 상품과 현재 카트를 끊기지 않게 이어서 지금 장보는 흐름을 정리합니다.</p>
         </div>
         <div>
-          <div class="section-kicker">비교</div>
-          <p>대체안은 무관한 광고 피드가 아니라, 이미 진행 중인 구매 의도 안에서 다시 검토할 후보로 정리됩니다.</p>
+          <div class="section-kicker">탐색</div>
+          <p>탐색은 무관한 광고 피드가 아니라 같은 구매 의도 안에서 다시 볼 후보를 정리하는 단계입니다.</p>
         </div>
         <div>
-          <div class="section-kicker">재방문</div>
-          <p>한 번 저장한 기록은 다음 장보기 판단의 출발점이 되어 반복 구매와 대체안 검토에 이어집니다.</p>
+          <div class="section-kicker">재사용</div>
+          <p>저장한 장보기 기록은 다음 구매 판단의 출발점이 되어 반복 구매와 비교 검토에 이어집니다.</p>
         </div>
       </section>
 
-      <section class="content-section compact">
-        <div>
+      <section class="content-section proposal-grid">
+        <div class="proposal-panel">
+          <div class="section-kicker">현재 하는 일</div>
+          <ul class="bullet-list compact-list">
+            <li>OCR 상품 스캔과 직접 추가를 현재 카트 흐름에 연결합니다.</li>
+            <li>저장한 장보기 기록을 다시 열어 다음 장보기 판단에 이어서 사용합니다.</li>
+            <li>같은 구매 의도 안에서만 대체안과 외부 링크 검토 맥락을 제공합니다.</li>
+          </ul>
+        </div>
+        <div class="proposal-panel">
           <div class="section-kicker">운영 원칙</div>
           <ul class="bullet-list compact-list">
             <li>현재 제공하는 실제 앱 기능만 소개합니다.</li>
             <li>외부 링크는 사용자가 직접 선택한 경우에만 엽니다.</li>
-            <li>장보기 판단과 무관한 과장 표현은 사용하지 않습니다.</li>
+            <li>장보기 판단과 무관한 과장 표현은 의도적으로 피합니다.</li>
           </ul>
         </div>
-        <div>
+        <div class="proposal-panel proposal-contact">
           <div class="section-kicker">지원 및 문의</div>
           <div class="contact-lines">
             <p><strong>고객 지원</strong> <a href="mailto:${escapeHtml(supportEmail)}">${escapeHtml(supportEmail)}</a></p>
@@ -521,7 +536,7 @@ function buildPrivacyHtml(config) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(branding.logoText || 'Cartly')} Privacy</title>
+    <title>${escapeHtml(branding.logoText || 'Cartly')} | 개인정보 안내</title>
     <link rel="stylesheet" href="/site.css" />
   </head>
   <body>
@@ -535,19 +550,47 @@ function buildPrivacyHtml(config) {
         </nav>
       </header>
       <section class="card legal">
-        <div class="eyebrow">${escapeHtml(branding.logoText || 'Cartly')}</div>
-        <h1>${escapeHtml(publicSite.privacyTitle)}</h1>
-        <p>${escapeHtml(publicSite.privacyIntro)}</p>
-        <h2>${escapeHtml(publicSite.privacyCollectionTitle)}</h2>
-        <ul class="bullet-list">${renderBulletList(publicSite.privacyCollectionPoints)}</ul>
-        <h2>${escapeHtml(publicSite.privacyExternalTitle)}</h2>
-        <p>${escapeHtml(publicSite.privacyExternalBody)}</p>
-        <h2>${escapeHtml(publicSite.privacyStatusTitle)}</h2>
-        <p>${escapeHtml(publicSite.privacyStatusBody)}</p>
-        <h2>문의</h2>
-        <p>지원 문의: <a href="mailto:${escapeHtml(supportEmail)}">${escapeHtml(supportEmail)}</a></p>
-        <p>비즈니스 제안: <a href="mailto:${escapeHtml(businessEmail)}">${escapeHtml(businessEmail)}</a></p>
-        <p><a class="button secondary" href="/">${escapeHtml(publicSite.privacyBackAction)}</a></p>
+        <div class="legal-intro">
+          <div class="eyebrow">${escapeHtml(branding.logoText || 'Cartly')}</div>
+          <h1>${escapeHtml(publicSite.privacyTitle)}</h1>
+          <p>${escapeHtml(publicSite.privacyIntro)}</p>
+        </div>
+
+        <div class="legal-section-grid">
+          <section class="legal-section">
+            <div class="section-kicker">수집 및 사용</div>
+            <h2>${escapeHtml(publicSite.privacyCollectionTitle)}</h2>
+            <ul class="bullet-list">${renderBulletList(publicSite.privacyCollectionPoints)}</ul>
+          </section>
+
+          <section class="legal-section">
+            <div class="section-kicker">외부 링크 원칙</div>
+            <h2>${escapeHtml(publicSite.privacyExternalTitle)}</h2>
+            <p>${escapeHtml(publicSite.privacyExternalBody)}</p>
+          </section>
+
+          <section class="legal-section">
+            <div class="section-kicker">현재 운영 상태</div>
+            <h2>${escapeHtml(publicSite.privacyStatusTitle)}</h2>
+            <p>${escapeHtml(publicSite.privacyStatusBody)}</p>
+          </section>
+        </div>
+
+        <section class="legal-contact-box">
+          <div>
+            <div class="section-kicker">문의</div>
+            <h2>연락 방법</h2>
+            <p>서비스 사용, 계정, 개인정보, 외부 링크 동작 관련 문의를 아래 메일로 받고 있습니다.</p>
+          </div>
+          <div class="contact-lines">
+            <p><strong>고객 지원</strong> <a href="mailto:${escapeHtml(supportEmail)}">${escapeHtml(supportEmail)}</a></p>
+            <p><strong>비즈니스 제안</strong> <a href="mailto:${escapeHtml(businessEmail)}">${escapeHtml(businessEmail)}</a></p>
+          </div>
+        </section>
+
+        <div class="legal-actions">
+          <a class="button secondary" href="/">${escapeHtml(publicSite.privacyBackAction)}</a>
+        </div>
       </section>
     </main>
   </body>
@@ -561,7 +604,7 @@ function buildSupportHtml(config) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(branding.logoText || 'Cartly')} Support</title>
+    <title>${escapeHtml(branding.logoText || 'Cartly')} | 지원 안내</title>
     <link rel="stylesheet" href="/site.css" />
   </head>
   <body>
@@ -575,13 +618,39 @@ function buildSupportHtml(config) {
         </nav>
       </header>
       <section class="card legal">
-        <div class="eyebrow">${escapeHtml(branding.logoText || 'Cartly')}</div>
-        <h1>지원 안내</h1>
-        <p>계정, 로그인, 개인정보, 서비스 사용 관련 문의를 이메일로 받고 있습니다.</p>
-        <p><strong>고객 지원 · <a href="mailto:${escapeHtml(supportEmail)}">${escapeHtml(supportEmail)}</a></strong></p>
-        <p><strong>비즈니스 제안 · <a href="mailto:${escapeHtml(businessEmail)}">${escapeHtml(businessEmail)}</a></strong></p>
-        <p>제품 범위나 외부 링크 동작에 대한 질문도 같은 주소로 받을 수 있습니다.</p>
-        <p><a class="button secondary" href="/">메인 페이지로 돌아가기</a></p>
+        <div class="legal-intro">
+          <div class="eyebrow">${escapeHtml(branding.logoText || 'Cartly')}</div>
+          <h1>지원 안내</h1>
+          <p>계정, 로그인, 개인정보, 서비스 사용 관련 문의를 이메일로 받고 있습니다. 제품 범위나 외부 링크 동작에 대한 질문도 같은 흐름에서 안내합니다.</p>
+        </div>
+
+        <div class="support-grid">
+          <section class="legal-section">
+            <div class="section-kicker">지원 범위</div>
+            <h2>무엇을 도와드리나</h2>
+            <ul class="bullet-list compact-list">
+              <li>로그인, 계정, 게스트/회원 전환 관련 문의</li>
+              <li>개인정보와 외부 링크 동작 관련 안내</li>
+              <li>현재 앱 기능 범위와 사용 흐름에 대한 확인</li>
+            </ul>
+          </section>
+
+          <section class="legal-contact-box support-contact-box">
+            <div>
+              <div class="section-kicker">연락처</div>
+              <h2>메일로 문의</h2>
+              <p>사용자 지원과 비즈니스 제안은 분리된 메일 주소로 받고 있습니다.</p>
+            </div>
+            <div class="contact-lines">
+              <p><strong>고객 지원</strong> <a href="mailto:${escapeHtml(supportEmail)}">${escapeHtml(supportEmail)}</a></p>
+              <p><strong>비즈니스 제안</strong> <a href="mailto:${escapeHtml(businessEmail)}">${escapeHtml(businessEmail)}</a></p>
+            </div>
+          </section>
+        </div>
+
+        <div class="legal-actions">
+          <a class="button secondary" href="/">메인 페이지로 돌아가기</a>
+        </div>
       </section>
     </main>
   </body>

@@ -205,7 +205,7 @@ class _CurrentCartItemCardState extends State<CurrentCartItemCard> {
                               ),
                               decoration: BoxDecoration(
                                 color: _expanded
-                                    ? CartlyColors.softPink
+                                    ? CartlyColors.softWarmSurface
                                     : CartlyColors.surface1,
                                 borderRadius: BorderRadius.circular(
                                   CartlyRadii.pill,

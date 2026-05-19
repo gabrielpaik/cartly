@@ -45,6 +45,7 @@ class _HomePageState extends State<HomePage> {
   bool _savingCurrentCart = false;
   bool _showHomeDot = false;
   bool _showExploreDot = false;
+  bool? _exploreShoppingModeOverride;
   String? _loadedCurrentCartOwnerId;
   Timer? _sharedCurrentCartPollTimer;
   bool _sharedCurrentCartEnabled = false;
@@ -72,6 +73,29 @@ class _HomePageState extends State<HomePage> {
   );
 
   int get totalPrice => items.fold(0, (sum, item) => sum + item.totalPrice);
+  bool get _hasActiveShoppingContext =>
+      items.isNotEmpty || recentScans.isNotEmpty;
+  bool get _showExploreShoppingMode =>
+      _exploreShoppingModeOverride ?? _hasActiveShoppingContext;
+
+  String _exploreTabLabel(String fallback) {
+    return _showExploreShoppingMode ? '지금 장보는중!' : fallback;
+  }
+
+  void _normalizeExploreModeOverride() {
+    if (_hasActiveShoppingContext || _exploreShoppingModeOverride == null) {
+      return;
+    }
+    setState(() {
+      _exploreShoppingModeOverride = null;
+    });
+  }
+
+  void _setExploreShoppingMode(bool enabled) {
+    setState(() {
+      _exploreShoppingModeOverride = enabled;
+    });
+  }
 
   @override
   void initState() {
@@ -393,6 +417,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _refreshShoppingNudge() {
+    _normalizeExploreModeOverride();
     unawaited(
       ShoppingNudgeService.instance.refreshReceiptReminder(
         hasPendingShoppingContext: items.isNotEmpty || recentScans.isNotEmpty,
@@ -733,6 +758,14 @@ class _HomePageState extends State<HomePage> {
           items: items,
           recentScans: recentScans,
           consideredItems: consideredItems,
+          shoppingModeOverride: _exploreShoppingModeOverride,
+          onUseDefaultExploreMode: _hasActiveShoppingContext
+              ? () => _setExploreShoppingMode(false)
+              : null,
+          onUseShoppingMode: _hasActiveShoppingContext &&
+                  !_showExploreShoppingMode
+              ? () => _setExploreShoppingMode(true)
+              : null,
           onGoHome: () => _selectTab(0),
           onGoSaved: _openSavedCartsList,
         ),
@@ -741,13 +774,23 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildScaffoldBody() {
+    final body = _buildBody();
+    final showImmersiveExploreHeader =
+        _tabIndex == 1 && _showExploreShoppingMode;
+    if (showImmersiveExploreHeader) {
+      return body;
+    }
+    return SafeArea(top: true, bottom: false, child: body);
+  }
+
   @override
   Widget build(BuildContext context) {
     final branding = AppConfigStore.instance.branding.value;
 
     return Scaffold(
       backgroundColor: CartlyColors.surface0,
-      body: SafeArea(child: _buildBody()),
+      body: _buildScaffoldBody(),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -802,7 +845,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   showDot: _showExploreDot,
                 ),
-                label: branding.helpTabLabel,
+                label: _exploreTabLabel(branding.helpTabLabel),
               ),
               NavigationDestination(
                 icon: _navIcon(

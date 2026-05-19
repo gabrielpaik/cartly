@@ -18,18 +18,19 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - 스크린샷/메타데이터/리뷰 노트까지 같이 관리해야 진짜 release readiness다.
 
 ### 현재 기준 버전
-- current working app version/build: `1.0.5+4`
-- latest uploaded iOS build after the reset: `1.0.5 (4)`
-- latest iOS delivery UUID after the reset: `99b0f9e6-b316-4d42-92be-decba498e416`
+- current working app version/build: `1.0.5+10`
+- latest uploaded iOS build after the reset: `1.0.5 (10)`
+- latest iOS delivery UUID after the reset: `90a8d53b-1417-40d8-b263-d227a0d43293`
+- most recent earlier iOS validation uploads in the same pass: `1.0.5 (9)` / `a9a554ed-9dce-4df1-8494-e016f23669ec`, `1.0.5 (8)` / `0f4f6e2a-a7c1-45fe-96f8-dd1292ac6cce`, `1.0.5 (7)` / `c0dd5a78-1a57-4464-9db6-d8cc2c1b93bc`
 - latest visible iOS TestFlight Cartly build on device before this reset: `1.0.4 (29)`
-- latest uploaded Android internal-track build label before this reset: `1.0.4 (27)`
-- latest prepared Android release artifact after this reset: versionName `1.0.5`, versionCode `33`, AAB `build/app/outputs/bundle/release/app-release.aab`
+- latest uploaded Android internal-track build after this reset: `1.0.5 (39)`
+- latest prepared Android release artifact after this reset: versionName `1.0.5`, versionCode `39`, AAB `build/app/outputs/bundle/release/app-release.aab`
 
 ### 2026-05-19 version reset policy
 - `1.0.4` 라인은 TestFlight/App Store Connect 쪽 build numbering 혼선 때문에 더 늘리지 않는다.
 - 모든 개발 검수 / 디자인 튜닝 / TestFlight 확인은 이제 `1.0.5 (xx)` 라인에서 진행한다.
 - Android도 별도 보류하지 말고 같은 `1.0.5 (xx)` 흐름으로 internal testing 업로드를 계속 맞춘다.
-- 단, Google Play `versionCode` 는 전역 증가 제약이 있으므로 `1.0.5 (1)` 리셋과 별개로 Android 업로드 코드는 이전 `27` 보다 큰 값으로 계속 증가시킨다. 현재 최신 준비 값은 `versionCode 33` 이다.
+- 단, Google Play `versionCode` 는 전역 증가 제약이 있으므로 `1.0.5 (1)` 리셋과 별개로 Android 업로드 코드는 이전 `27` 보다 큰 값으로 계속 증가시킨다. 현재 최신 업로드 값은 `versionCode 39` 이다.
 - 이 리셋의 시작점은 `1.0.5 (1)` 이다.
 - 최종 출시 라인은 `1.0.6 (1)` 부터 시작하는 것으로 고정한다.
 - 따라서 다음 업로드부터는 customer-facing version surface도 `1.0.5 (1)` 기준으로 다시 정렬하는 것을 기본 원칙으로 삼는다.
@@ -77,7 +78,7 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - encryption = `false`
 
 ## 3. 현재 iOS / App Store Connect 기준 정보
-- latest delivery UUID: `99b0f9e6-b316-4d42-92be-decba498e416`
+- latest delivery UUID: `c0dd5a78-1a57-4464-9db6-d8cc2c1b93bc`
 - current App Store version id: `a173b232-fe9b-4fdd-9557-a784bd7a36d2`
 - App Store version localization id: `64db26e7-c8a0-480e-9b9f-fb06c78a1ad5`
 - App info localization id: `57760505-1949-4e93-b21c-9502891d493c`
@@ -217,6 +218,7 @@ PLAY_RELEASE_NAME='1.0.5 (33)' \
 주의:
 - 이 스크립트는 **Play Console 에 권한이 연결된 전용 service account JSON** 이 필요하다.
 - 기본 탐색 경로는 `~/Library/Application Support/Cartly/play/cartly-play-api.json` 이다. 다른 위치를 쓰려면 `PLAY_SERVICE_ACCOUNT_JSON=/path/to/file.json` 으로 override 한다.
+- 2026-05-19 기준 실제 작동이 확인된 전용 키는 `cartly-play-api@cartly-e36ee.iam.gserviceaccount.com` 이며, NAS 마운트 경로 `/Volumes/downloads/cartly-e36ee-dcb07ec17251.json` 에 있던 파일을 표준 경로 `~/Library/Application Support/Cartly/play/cartly-play-api.json` 로 복사해 로컬 기본 경로도 복구했다.
 - 현재 로컬에서 확인된 Firebase admin JSON 은 token 발급은 되지만 Android Publisher 권한이 없어 `403 PERMISSION_DENIED` 를 반환했다.
 
 ### signing 구조
@@ -236,10 +238,11 @@ PLAY_RELEASE_NAME='1.0.5 (33)' \
 - Google Play Android Developer API enabled 확인 완료
 - Play Console `사용자 및 권한`에 service account 활성 연결 완료
 - 2026-05-18 기준 Android Publisher API로 edit 생성 및 internal track upload/commit 성공
+- 2026-05-19 기준 NAS에 있던 동일 service-account JSON으로 `1.0.5 (34)` internal track upload/commit 재성공, 이후 표준 경로 `~/Library/Application Support/Cartly/play/cartly-play-api.json` 도 복구 완료
 - internal track release:
   - track: `internal`
-  - build/versionCode: `27`
-  - release name: `1.0.4 (27)`
+  - build/versionCode: `34`
+  - release name: `1.0.5 (34)`
 
 ## 8. Google Play Console 현재 상태
 - 개발자 계정 signup 및 console verification 완료
@@ -282,10 +285,10 @@ PLAY_RELEASE_NAME='1.0.5 (33)' \
 - iOS와 Android 모두 build artifact뿐 아니라 store console 상태를 함께 기록해야 한다.
 
 ## 12. 다음 release 작업
-1. build `1.0.5 (4)`를 iOS TestFlight와 Android internal testing 준비본 기준으로 함께 눈검수
-2. 필요 시 App Store / Play screenshot 및 listing copy 동시 정리
-3. Age Rating / App Privacy / Submit for Review와 Play review 질문 답변을 한 세트로 정리
-4. dedicated Play service-account JSON 을 표준 경로 `~/Library/Application Support/Cartly/play/cartly-play-api.json` 에 배치해 Android 자동 internal upload 를 복구
+1. build `1.0.5 (10)`를 iOS TestFlight와 Android internal testing 기준으로 함께 마지막 눈검수
+2. iOS current App Store version에 build `1.0.5 (10)`를 연결하고 review contact / notes를 최신 support 메일 기준으로 다시 확인
+3. Android production/review 흐름에 `versionCode 39`를 올리고, Play listing high-res icon / store 표면이 generic 하게 보이면 listing metadata 쪽을 별도로 정리
+4. Age Rating / App Privacy / Submit for Review와 Play review 질문 답변을 한 세트로 정리
 5. iOS와 Android 최종 제출 타이밍을 같은 승인 wave로 맞추기
 
 ## 13. 2026-05-19 검수 마감 UI 체크포인트
@@ -297,18 +300,20 @@ PLAY_RELEASE_NAME='1.0.5 (33)' \
 - body 는 bottom SafeArea 로 인해 탭 전환 때 높이가 흔들리지 않도록 관리한다.
 
 ### 현재 검수 기준값
-- working source version: `1.0.5+4`
-- latest iOS review build: `1.0.5 (4)`
-- latest Android prepared review build: `1.0.5 / versionCode 33`
+- working source version: `1.0.5+10`
+- latest iOS review build: `1.0.5 (10)`
+- latest Android internal-testing build: `1.0.5 (39)`
 - support email baseline: `cartly.support@gmail.com`
 - customer-facing Explore wording baseline: `탐색`
 
 ### 최종 제출 전 5분 체크리스트
 #### A. 빌드 / 앱 표면
-- `pubspec.yaml` 버전이 `1.0.5+4` 인지 확인
+- `pubspec.yaml` 버전이 `1.0.5+10` 인지 확인
 - iOS `CFBundleDisplayName = Cartly` 확인
 - Android `android:label = Cartly` 확인
-- Android merged manifest에 AdMob app ID `ca-app-pub-7326648056182385~9903617195` 가 들어 있는지 확인
+- Android launcher icon 이 iOS와 같은 cart icon 기준으로 정렬되었는지 확인
+- native launch / Flutter splash 기본 자산이 모두 cart-pushing photo 기준인지 확인
+- Android merged manifest에 `android:versionCode="39"`, `android:versionName="1.0.5"`, AdMob app ID `ca-app-pub-7326648056182385~9903617195` 가 들어 있는지 확인
 - 최근 smoke 기준 Android startup crash, asset load crash, notification startup exception이 다시 재발하지 않았는지 확인
 
 #### B. 런타임 / 고객-facing copy
@@ -316,6 +321,7 @@ PLAY_RELEASE_NAME='1.0.5 (33)' \
 - `/v1/app-config` 에서 `my.supportEmail = cartly.support@gmail.com` 확인
 - `/v1/app-config` 에서 public eyebrow/version 값이 최신 검수 빌드 라인과 맞는지 확인
 - branding 값에서 `logoType = image`, live Cartly SVG `logoImageUrl`, expected `splashImageUrl` 를 확인
+- release 검증 시 app startup 이 `https://scan-api.seoa-nas.com` 기준 runtime/admin surface 를 바라보는지 확인하고, local backend access log 는 Cloudflare/Tunnel 경유 public hit 로도 찍힐 수 있다는 점을 감안해 함께 판단
 
 #### C. 공개 웹
 - `/` title 이 `Cartly | 장보기 기록과 대체안 탐색` 인지 확인

@@ -1,6 +1,6 @@
 # Cartly Family Cart System
 
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 Status: canonical
 Purpose: member-only family sharing and shared cart system contract
 Use this doc when: changing household rules, shared current cart behavior, or admin/operator handling
@@ -57,12 +57,14 @@ Cartly family cart는 단순 초대 기능이 아니라, **가족 단위 장보�
 - 현재 카트는 remote shared current cart 사용
 - 저장 카트/지난 카트 공유 가시화
 - household 상태는 My 페이지에서 관리
+- 새 구성원 초대는 owner에게 요청한다.
 
 ## 6. 참여 / 해제 규칙
 
 ### 생성
 - owner가 invite code를 만든다.
-- 코드 생성/새로고침/복사가 가능하다.
+- owner만 코드 생성/새로고침/복사를 관리한다.
+- member는 household 상태와 구성원 목록은 보되, live invite code 자체는 보지 않는다.
 
 ### 참여
 - member는 invite code 입력으로 참여한다.

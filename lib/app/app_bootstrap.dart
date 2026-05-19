@@ -38,9 +38,9 @@ Future<CartlyAppBootstrap> initializeCartlyApp() async {
     await CartStore.instance.load().timeout(const Duration(seconds: 6));
   } catch (_) {}
 
-  try {
-    await AppConfigStore.instance.load().timeout(const Duration(seconds: 4));
-  } catch (_) {}
+  unawaited(
+    AppConfigStore.instance.load().timeout(const Duration(seconds: 4)),
+  );
 
   unawaited(AdMobService.instance.initialize());
 

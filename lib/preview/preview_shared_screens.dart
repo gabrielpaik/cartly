@@ -378,7 +378,7 @@ class _PreviewMyHeader extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              AppRuntimeCopy.text(['my', 'pageTitle'], '마이'),
+                              AppRuntimeCopy.text(['my', 'pageTitle'], '마이페이지'),
                               style: const TextStyle(
                                 fontFamily: 'SpaceGrotesk',
                                 fontSize: 30,

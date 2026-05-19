@@ -1,6 +1,6 @@
 # Cartly App Design
 
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 Status: canonical
 Purpose: product UI design system and screen grammar for implementation work
 Use this doc when: designing or refactoring customer-facing app UI, shared components, or screenshot-facing surfaces
@@ -96,6 +96,7 @@ Avoid:
 - Explore shopping mode should use an immersive red background band that starts under the status bar, not a floating inset card.
 - When the shopping-mode red band needs stronger emphasis, prefer extending the background block downward while keeping text and toggle positions stable.
 - Body and bottom spacing must not change across Home / Explore / shopping-mode switches just because SafeArea or list padding differs.
+- launch surfaces should also feel cross-platform consistent: launcher icon baseline should match the iPhone cart icon, and default native/app splash should use the same bundled cart-pushing photo until admin swaps in a new splash.
 
 ### Spacing behavior
 - use spacing to create hierarchy before adding new visual styles

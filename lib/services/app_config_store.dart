@@ -9,6 +9,8 @@ import 'app_location_service.dart';
 import 'auth_store.dart';
 import 'my_page_insights.dart';
 
+const _cartlyPublicBaseUrl = 'https://scan-api.seoa-nas.com';
+
 class AppConfigStore {
   AppConfigStore._();
   static final AppConfigStore instance = AppConfigStore._();
@@ -22,12 +24,22 @@ class AppConfigStore {
   final ValueNotifier<Map<String, dynamic>> runtime = ValueNotifier(const {});
 
   String get _baseUrl {
-    const env = String.fromEnvironment(
+    const appConfigEnv = String.fromEnvironment(
       'CARTLY_APP_CONFIG_BASE_URL',
       defaultValue: '',
     );
-    if (env.trim().isNotEmpty) {
-      return env.trim().replaceAll(RegExp(r'/$'), '');
+    if (appConfigEnv.trim().isNotEmpty) {
+      return appConfigEnv.trim().replaceAll(RegExp(r'/$'), '');
+    }
+    const remoteEnv = String.fromEnvironment(
+      'CARTLY_REMOTE_BASE_URL',
+      defaultValue: '',
+    );
+    if (remoteEnv.trim().isNotEmpty) {
+      return remoteEnv.trim().replaceAll(RegExp(r'/$'), '');
+    }
+    if (kReleaseMode) {
+      return _cartlyPublicBaseUrl;
     }
     if (Platform.isAndroid) {
       return 'http://10.0.2.2:8011';

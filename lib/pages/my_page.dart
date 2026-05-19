@@ -40,8 +40,45 @@ String _applyCopyTemplate(String template, Map<String, String> values) {
   return result;
 }
 
-class MyPage extends StatelessWidget {
+class MyPage extends StatefulWidget {
   const MyPage({super.key});
+
+  @override
+  State<MyPage> createState() => _MyPageState();
+}
+
+class _MyPageState extends State<MyPage> {
+  @override
+  void initState() {
+    super.initState();
+    AuthStore.instance.session.addListener(_handleSessionChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _primeHouseholdState();
+    });
+  }
+
+  @override
+  void dispose() {
+    AuthStore.instance.session.removeListener(_handleSessionChanged);
+    super.dispose();
+  }
+
+  void _handleSessionChanged() {
+    _primeHouseholdState();
+  }
+
+  Future<void> _primeHouseholdState() async {
+    final session = AuthStore.instance.session.value;
+    if (session == null ||
+        session.isGuest ||
+        session.authToken.trim().isEmpty) {
+      HouseholdStore.instance.clear();
+      return;
+    }
+    try {
+      await HouseholdStore.instance.refresh();
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -122,15 +159,14 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
   Future<void> _saveDisplayName() async {
     final displayName = _nameCtrl.text.trim();
     if (displayName.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            AppRuntimeCopy.text(
-              ['login', 'validation', 'nameRequired'],
-              '이름을 입력해 주세요',
-            ),
+            AppRuntimeCopy.text([
+              'login',
+              'validation',
+              'nameRequired',
+            ], '이름을 입력해 주세요'),
           ),
         ),
       );
@@ -143,13 +179,13 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
       await HouseholdStore.instance.refresh();
       await CartStore.instance.refreshForCurrentSession();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Text(
             _myCopy('settingsShareNicknameSavedMessage', '닉네임을 변경했어요'),
           ),
-        ));
+        ),
+      );
     } on AuthRepositoryException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -168,16 +204,16 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
     try {
       await AuthStore.instance.requestPasswordResetCode(email);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Text(
             _myCopy(
               'settingsSharePasswordCodeSentMessage',
               '비밀번호 재설정 코드를 보냈어요',
             ),
           ),
-        ));
+        ),
+      );
     } on AuthRepositoryException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -195,45 +231,42 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
     final password = _passwordCtrl.text.trim();
     final confirm = _passwordConfirmCtrl.text.trim();
     if (code.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            AppRuntimeCopy.text(
-              ['login', 'validation', 'codeRequired'],
-              '인증 코드를 입력해 주세요',
-            ),
+            AppRuntimeCopy.text([
+              'login',
+              'validation',
+              'codeRequired',
+            ], '인증 코드를 입력해 주세요'),
           ),
         ),
       );
       return;
     }
     if (password.length < 8) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            AppRuntimeCopy.text(
-              ['login', 'validation', 'passwordTooShort'],
-              '비밀번호는 8자 이상이어야 해요',
-            ),
+            AppRuntimeCopy.text([
+              'login',
+              'validation',
+              'passwordTooShort',
+            ], '비밀번호는 8자 이상이어야 해요'),
           ),
         ),
       );
       return;
     }
     if (password != confirm) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            AppRuntimeCopy.text(
-              ['login', 'validation', 'passwordMismatch'],
-              '비밀번호 확인이 일치하지 않아요',
-            ),
+            AppRuntimeCopy.text([
+              'login',
+              'validation',
+              'passwordMismatch',
+            ], '비밀번호 확인이 일치하지 않아요'),
           ),
         ),
       );
@@ -253,13 +286,13 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
       _passwordCtrl.clear();
       _passwordConfirmCtrl.clear();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Text(
             _myCopy('settingsSharePasswordSavedMessage', '비밀번호를 변경했어요'),
           ),
-        ));
+        ),
+      );
     } on AuthRepositoryException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -285,7 +318,8 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(code.isNotEmpty
+          content: Text(
+            code.isNotEmpty
                 ? _myCopy(
                     'settingsShareInviteCodeCreatedAndCopiedMessage',
                     '초대 코드를 만들고 복사했어요',
@@ -293,7 +327,8 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                 : _myCopy(
                     'settingsShareInviteCodeCreatedMessage',
                     '초대 코드를 만들었어요',
-                  )),
+                  ),
+          ),
         ),
       );
     } on RemoteHouseholdException catch (error) {
@@ -310,42 +345,39 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
 
   Future<void> _copyInviteCode(String inviteCode) async {
     if (inviteCode.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Text(
             _myCopy(
               'settingsShareInviteCodeMissingMessage',
               '복사할 초대 코드가 아직 없어요',
             ),
           ),
-        ));
+        ),
+      );
       return;
     }
     await Clipboard.setData(ClipboardData(text: inviteCode.trim()));
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
         content: Text(
           _myCopy('settingsShareInviteCodeCopiedMessage', '초대 코드를 복사했어요'),
         ),
-      ));
+      ),
+    );
   }
 
   Future<void> _joinHousehold() async {
     final inviteCode = _inviteJoinCtrl.text.trim();
     if (inviteCode.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Text(
-            _myCopy(
-              'settingsShareInviteCodeRequiredMessage',
-              '초대 코드를 입력해 주세요',
-            ),
+            _myCopy('settingsShareInviteCodeRequiredMessage', '초대 코드를 입력해 주세요'),
           ),
-        ));
+        ),
+      );
       return;
     }
     if (_shareBusy) return;
@@ -355,13 +387,13 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
       _inviteJoinCtrl.clear();
       await CartStore.instance.refreshForCurrentSession();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Text(
             _myCopy('settingsShareJoinDoneMessage', '가족 공유에 참여했어요'),
           ),
-        ));
+        ),
+      );
     } on RemoteHouseholdException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -469,10 +501,10 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
       builder: (dialogContext) => AlertDialog(
         title: Text(AppRuntimeCopy.text(['my', 'logoutConfirmTitle'], '로그아웃')),
         content: Text(
-          AppRuntimeCopy.text(
-            ['my', 'logoutConfirmBody'],
-            '정말 로그아웃할까요? 게스트 모드로 돌아가요.',
-          ),
+          AppRuntimeCopy.text([
+            'my',
+            'logoutConfirmBody',
+          ], '정말 로그아웃할까요? 게스트 모드로 돌아가요.'),
         ),
         actions: [
           TextButton(
@@ -544,6 +576,7 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
             builder: (context, householdState, _) {
               final household = householdState.household;
               final inviteCode = household?.inviteCode?.trim() ?? '';
+              final hasHousehold = householdState.hasHousehold;
               HouseholdMemberSummary? me;
               for (final member in householdState.members) {
                 if (member.isMe) {
@@ -552,6 +585,7 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                 }
               }
               final isOwner = me?.role == 'owner';
+              final canManageInviteCode = !hasHousehold || isOwner;
 
               return ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
@@ -576,219 +610,21 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _myCopy('settingsShareProfileTitle', '기본 정보'),
-                          style: CartlyText.cardTitle,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _myCopy(
-                            'settingsShareProfileBody',
-                            '닉네임과 로그인 정보를 여기서 바로 관리할 수 있어요',
-                          ),
-                          style: CartlyText.cardBody,
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: _nameCtrl,
-                          decoration: InputDecoration(
-                            labelText: _myCopy(
-                              'settingsShareNicknameFieldLabel',
-                              '닉네임',
-                            ),
-                            hintText: _myCopy(
-                              'settingsShareNicknameFieldHint',
-                              '닉네임을 입력해 주세요',
-                            ),
-                            border: const OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        if (session.email.trim().isNotEmpty)
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: CartlyColors.surfaceNeutral,
-                              borderRadius: BorderRadius.circular(
-                                CartlyRadii.control,
-                              ),
-                              border: Border.all(color: CartlyColors.line),
-                            ),
-                            child: Text(
-                              session.email.trim(),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: CartlyColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton(
-                            style: CartlyButtonStyles.primary(),
-                            onPressed: _profileSaving ? null : _saveDisplayName,
-                            child: Text(_profileSaving
-                                  ? AppRuntimeCopy.text(['common', 'loading'], '저장 중')
-                                  : _myCopy(
-                                      'settingsShareNicknameSaveAction',
-                                      '닉네임 변경하기',
-                                    )),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: CartlySpacing.section),
-                  CartlySurfaceCard(
-                    padding: const EdgeInsets.all(18),
-                    backgroundColor: CartlyColors.surface1,
-                    radius: CartlyRadii.hero,
-                    border: Border.all(color: CartlyColors.line, width: 0.5),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _myCopy('settingsSharePasswordTitle', '비밀번호'),
-                          style: CartlyText.cardTitle,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          canChangePassword
-                              ? _myCopy(
-                                  'settingsSharePasswordBody',
-                                  '이메일로 받은 인증 코드로 비밀번호를 바로 바꿀 수 있어요',
-                                )
-                              : _myCopy(
-                                  'settingsSharePasswordUnsupportedBody',
-                                  '이 계정은 앱 안에서 비밀번호를 바꿀 수 없어요',
-                                ),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: CartlyColors.textSecondary,
-                            height: 1.45,
-                          ),
-                        ),
-                        if (canChangePassword) ...[
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _passwordCodeCtrl,
-                                  decoration: InputDecoration(
-                                    labelText: _myCopy(
-                                      'settingsSharePasswordCodeFieldLabel',
-                                      '인증 코드',
-                                    ),
-                                    border: const OutlineInputBorder(),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              OutlinedButton(
-                                style: CartlyButtonStyles.secondaryOutline(
-                                  foregroundColor: CartlyColors.textSecondary,
-                                  borderColor: CartlyColors.line,
-                                ),
-                                onPressed:
-                                    _passwordCodeSending || _passwordSaving
-                                    ? null
-                                    : () => _sendPasswordResetCode(
-                                        session.email.trim(),
-                                      ),
-                                child: Text(
-                                  _passwordCodeSending
-                                      ? _myCopy(
-                                          'settingsSharePasswordCodeSending',
-                                          '전송 중',
-                                        )
-                                      : _myCopy(
-                                          'settingsSharePasswordCodeSendAction',
-                                          '코드 받기',
-                                        ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _passwordCtrl,
-                            obscureText: true,
-                            decoration: InputDecoration(
-                              labelText: _myCopy(
-                                'settingsSharePasswordNewFieldLabel',
-                                '새 비밀번호',
-                              ),
-                              border: const OutlineInputBorder(),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _passwordConfirmCtrl,
-                            obscureText: true,
-                            decoration: InputDecoration(
-                              labelText: _myCopy(
-                                'settingsSharePasswordConfirmFieldLabel',
-                                '비밀번호 확인',
-                              ),
-                              border: const OutlineInputBorder(),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton(
-                              style: CartlyButtonStyles.primary(),
-                              onPressed: _passwordSaving
-                                  ? null
-                                  : () => _changePassword(session.email.trim()),
-                              child: Text(
-                                _passwordSaving
-                                    ? _myCopy(
-                                        'settingsSharePasswordSaving',
-                                        '저장 중',
-                                      )
-                                    : _myCopy(
-                                        'settingsSharePasswordSaveAction',
-                                        '비밀번호 변경하기',
-                                      ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: CartlySpacing.section),
-                  CartlySurfaceCard(
-                    padding: const EdgeInsets.all(18),
-                    backgroundColor: CartlyColors.surface1,
-                    radius: CartlyRadii.hero,
-                    border: Border.all(color: CartlyColors.line, width: 0.5),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
                           _myCopy('settingsShareHouseholdTitle', '가족공유'),
                           style: CartlyText.cardTitle,
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          householdState.hasHousehold
+                          hasHousehold
                               ? _applyCopyTemplate(
                                   _myCopy(
                                     'settingsShareHouseholdJoinedBody',
-                                    '{householdName} · {memberCount}명과 저장 카트를 함께 보고 있어요',
+                                    '{householdName} · {memberCount}명과 현재 카트와 지난 카트를 함께 쓰고 있어요',
                                   ),
                                   {
                                     'householdName': household?.name ?? '우리 집',
-                                    'memberCount': '${household?.memberCount ?? 0}',
+                                    'memberCount':
+                                        '${household?.memberCount ?? 0}',
                                   },
                                 )
                               : _myCopy(
@@ -803,79 +639,123 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: CartlyColors.surfaceNeutral,
-                                  borderRadius: BorderRadius.circular(
-                                    CartlyRadii.control,
+                        if (canManageInviteCode) ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 12,
                                   ),
-                                  border: Border.all(color: CartlyColors.line),
+                                  decoration: BoxDecoration(
+                                    color: CartlyColors.surfaceNeutral,
+                                    borderRadius: BorderRadius.circular(
+                                      CartlyRadii.control,
+                                    ),
+                                    border: Border.all(
+                                      color: CartlyColors.line,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    inviteCode.isEmpty
+                                        ? _myCopy(
+                                            'settingsShareInviteCodeEmpty',
+                                            '초대 코드 없음',
+                                          )
+                                        : inviteCode,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.2,
+                                      color: CartlyColors.textPrimary,
+                                    ),
+                                  ),
                                 ),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton(
+                                style: CartlyButtonStyles.secondaryOutline(
+                                  foregroundColor: CartlyColors.textSecondary,
+                                  borderColor: CartlyColors.line,
+                                ),
+                                onPressed: _shareBusy
+                                    ? null
+                                    : _generateInviteCode,
                                 child: Text(
                                   inviteCode.isEmpty
                                       ? _myCopy(
-                                          'settingsShareInviteCodeEmpty',
-                                          '초대 코드 없음',
+                                          'settingsShareInviteCodeCreateAction',
+                                          '코드 만들기',
                                         )
-                                      : inviteCode,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.2,
-                                    color: CartlyColors.textPrimary,
+                                      : _myCopy(
+                                          'settingsShareInviteCodeRefreshAction',
+                                          '새 코드',
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _myCopy(
+                              'settingsShareInviteOwnerHint',
+                              '새 구성원을 초대하려면 이 코드를 공유해 주세요.',
+                            ),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: CartlyColors.textSecondary,
+                              height: 1.4,
+                            ),
+                          ),
+                          if (inviteCode.isNotEmpty)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: _shareBusy
+                                    ? null
+                                    : () => _copyInviteCode(inviteCode),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: CartlyColors.textSecondary,
+                                ),
+                                child: Text(
+                                  _myCopy(
+                                    'settingsShareInviteCodeCopyAction',
+                                    '초대 코드 복사',
                                   ),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            OutlinedButton(
-                              style: CartlyButtonStyles.secondaryOutline(
-                                foregroundColor: CartlyColors.textSecondary,
-                                borderColor: CartlyColors.line,
-                              ),
-                              onPressed: _shareBusy
-                                  ? null
-                                  : _generateInviteCode,
-                              child: Text(
-                                inviteCode.isEmpty
-                                    ? _myCopy(
-                                        'settingsShareInviteCodeCreateAction',
-                                        '코드 만들기',
-                                      )
-                                    : _myCopy(
-                                        'settingsShareInviteCodeRefreshAction',
-                                        '새 코드',
-                                      ),
-                              ),
+                        ] else ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: _shareBusy
-                                ? null
-                                : () => _copyInviteCode(inviteCode),
-                            style: TextButton.styleFrom(
-                              foregroundColor: CartlyColors.textSecondary,
+                            decoration: BoxDecoration(
+                              color: CartlyColors.surfaceNeutral,
+                              borderRadius: BorderRadius.circular(
+                                CartlyRadii.control,
+                              ),
+                              border: Border.all(color: CartlyColors.line),
                             ),
                             child: Text(
                               _myCopy(
-                                'settingsShareInviteCodeCopyAction',
-                                '초대 코드 복사',
+                                'settingsShareInviteMemberHint',
+                                '새 구성원 초대는 가족 관리자에게 요청해 주세요.',
+                              ),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: CartlyColors.textSecondary,
+                                height: 1.4,
                               ),
                             ),
                           ),
-                        ),
-                        if (!householdState.hasHousehold) ...[
+                        ],
+                        if (!hasHousehold) ...[
                           const SizedBox(height: 8),
                           TextField(
                             controller: _inviteJoinCtrl,
@@ -1051,6 +931,210 @@ class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
+                          _myCopy('settingsShareProfileTitle', '기본 정보'),
+                          style: CartlyText.cardTitle,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _myCopy(
+                            'settingsShareProfileBody',
+                            '닉네임과 로그인 정보를 여기서 바로 관리할 수 있어요',
+                          ),
+                          style: CartlyText.cardBody,
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _nameCtrl,
+                          decoration: InputDecoration(
+                            labelText: _myCopy(
+                              'settingsShareNicknameFieldLabel',
+                              '닉네임',
+                            ),
+                            hintText: _myCopy(
+                              'settingsShareNicknameFieldHint',
+                              '닉네임을 입력해 주세요',
+                            ),
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        if (session.email.trim().isNotEmpty)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: CartlyColors.surfaceNeutral,
+                              borderRadius: BorderRadius.circular(
+                                CartlyRadii.control,
+                              ),
+                              border: Border.all(color: CartlyColors.line),
+                            ),
+                            child: Text(
+                              session.email.trim(),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: CartlyColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            style: CartlyButtonStyles.primary(),
+                            onPressed: _profileSaving ? null : _saveDisplayName,
+                            child: Text(
+                              _profileSaving
+                                  ? AppRuntimeCopy.text([
+                                      'common',
+                                      'loading',
+                                    ], '저장 중')
+                                  : _myCopy(
+                                      'settingsShareNicknameSaveAction',
+                                      '닉네임 변경하기',
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: CartlySpacing.section),
+                  CartlySurfaceCard(
+                    padding: const EdgeInsets.all(18),
+                    backgroundColor: CartlyColors.surface1,
+                    radius: CartlyRadii.hero,
+                    border: Border.all(color: CartlyColors.line, width: 0.5),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _myCopy('settingsSharePasswordTitle', '비밀번호'),
+                          style: CartlyText.cardTitle,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          canChangePassword
+                              ? _myCopy(
+                                  'settingsSharePasswordBody',
+                                  '이메일로 받은 인증 코드로 비밀번호를 바로 바꿀 수 있어요',
+                                )
+                              : _myCopy(
+                                  'settingsSharePasswordUnsupportedBody',
+                                  '이 계정은 앱 안에서 비밀번호를 바꿀 수 없어요',
+                                ),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: CartlyColors.textSecondary,
+                            height: 1.45,
+                          ),
+                        ),
+                        if (canChangePassword) ...[
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _passwordCodeCtrl,
+                                  decoration: InputDecoration(
+                                    labelText: _myCopy(
+                                      'settingsSharePasswordCodeFieldLabel',
+                                      '인증 코드',
+                                    ),
+                                    border: const OutlineInputBorder(),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton(
+                                style: CartlyButtonStyles.secondaryOutline(
+                                  foregroundColor: CartlyColors.textSecondary,
+                                  borderColor: CartlyColors.line,
+                                ),
+                                onPressed:
+                                    _passwordCodeSending || _passwordSaving
+                                    ? null
+                                    : () => _sendPasswordResetCode(
+                                        session.email.trim(),
+                                      ),
+                                child: Text(
+                                  _passwordCodeSending
+                                      ? _myCopy(
+                                          'settingsSharePasswordCodeSending',
+                                          '전송 중',
+                                        )
+                                      : _myCopy(
+                                          'settingsSharePasswordCodeSendAction',
+                                          '코드 받기',
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _passwordCtrl,
+                            obscureText: true,
+                            decoration: InputDecoration(
+                              labelText: _myCopy(
+                                'settingsSharePasswordNewFieldLabel',
+                                '새 비밀번호',
+                              ),
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _passwordConfirmCtrl,
+                            obscureText: true,
+                            decoration: InputDecoration(
+                              labelText: _myCopy(
+                                'settingsSharePasswordConfirmFieldLabel',
+                                '비밀번호 확인',
+                              ),
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton(
+                              style: CartlyButtonStyles.primary(),
+                              onPressed: _passwordSaving
+                                  ? null
+                                  : () => _changePassword(session.email.trim()),
+                              child: Text(
+                                _passwordSaving
+                                    ? _myCopy(
+                                        'settingsSharePasswordSaving',
+                                        '저장 중',
+                                      )
+                                    : _myCopy(
+                                        'settingsSharePasswordSaveAction',
+                                        '비밀번호 변경하기',
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: CartlySpacing.section),
+                  CartlySurfaceCard(
+                    padding: const EdgeInsets.all(18),
+                    backgroundColor: CartlyColors.surface1,
+                    radius: CartlyRadii.hero,
+                    border: Border.all(color: CartlyColors.line, width: 0.5),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
                           _myCopy('settingsShareAccountTitle', '계정 마무리'),
                           style: CartlyText.cardTitle,
                         ),
@@ -1103,10 +1187,7 @@ Future<void> _handleMemberAccountDeletion(BuildContext context) async {
     builder: (dialogContext) => AlertDialog(
       title: Text(_myCopy('settingsShareDeleteConfirmTitle', '회원 탈퇴')),
       content: Text(
-        _myCopy(
-          'settingsShareDeleteConfirmBody',
-          '계정과 저장 기록이 삭제돼요. 계속할까요?',
-        ),
+        _myCopy('settingsShareDeleteConfirmBody', '계정과 저장 기록이 삭제돼요. 계속할까요?'),
       ),
       actions: [
         TextButton(
@@ -1115,9 +1196,7 @@ Future<void> _handleMemberAccountDeletion(BuildContext context) async {
         ),
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: Text(
-            _myCopy('settingsShareDeleteConfirmAction', '탈퇴할게요'),
-          ),
+          child: Text(_myCopy('settingsShareDeleteConfirmAction', '탈퇴할게요')),
         ),
       ],
     ),
@@ -1141,9 +1220,7 @@ Future<void> _handleMemberAccountDeletion(BuildContext context) async {
     await CartStore.instance.refreshForCurrentSession();
     if (context.mounted) {
       Navigator.of(context, rootNavigator: true).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             _myCopy('settingsShareDeleteDoneMessage', '회원 탈퇴가 완료되었어요'),
@@ -1375,7 +1452,7 @@ class _AccountHubCard extends StatelessWidget {
                                   AppRuntimeCopy.text([
                                     'my',
                                     'pageTitle',
-                                  ], '마이'),
+                                  ], '마이페이지'),
                                   style: CartlyText.pageHeroCompact,
                                 ),
                                 const SizedBox(height: 8),
@@ -1387,14 +1464,64 @@ class _AccountHubCard extends StatelessWidget {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            displayName,
-                                            style: const TextStyle(
-                                              fontSize: 21,
-                                              fontWeight: FontWeight.w800,
-                                              letterSpacing: -0.4,
-                                              color: CartlyColors.textPrimary,
-                                            ),
+                                          ValueListenableBuilder<
+                                            HouseholdState
+                                          >(
+                                            valueListenable:
+                                                HouseholdStore.instance.state,
+                                            builder: (context, householdState, _) {
+                                              final sharedHousehold =
+                                                  memberSignedIn &&
+                                                  householdState.hasHousehold;
+                                              return Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      displayName,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                        fontSize: 21,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                        letterSpacing: -0.4,
+                                                        color: CartlyColors
+                                                            .textPrimary,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  if (sharedHousehold) ...[
+                                                    const SizedBox(width: 8),
+                                                    Container(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                            6,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: CartlyColors
+                                                            .surfaceNeutral,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              CartlyRadii.pill,
+                                                            ),
+                                                        border: Border.all(
+                                                          color:
+                                                              CartlyColors.line,
+                                                        ),
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons
+                                                            .people_alt_rounded,
+                                                        size: 14,
+                                                        color:
+                                                            CartlyColors.brand,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              );
+                                            },
                                           ),
                                           if (memberSignedIn &&
                                               session.email.isNotEmpty) ...[

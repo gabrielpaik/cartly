@@ -499,7 +499,7 @@ const _fallbackCopy = {
     'subtitle': '지금 살 상품 결정과 지난 장보기 회고를 한 곳에서 이어가요',
   },
   'my': {
-    'pageTitle': '마이',
+    'pageTitle': '마이페이지',
     'subtitle': '내 계정과 저장한 카트를 확인해.',
     'subtitleMember': '내 계정과 저장한 카트를 확인해.',
     'settingsShareEntryAction': '수정 및 가족공유',

@@ -80,7 +80,9 @@ def ensure_household_for_user(db: OrmSession, user: User) -> tuple[Household, Ho
 
 
 def generate_invite_code(db: OrmSession, user: User) -> Household:
-    household, _ = ensure_household_for_user(db, user)
+    household, membership = ensure_household_for_user(db, user)
+    if membership.role != 'owner':
+        raise HouseholdError('HOUSEHOLD_OWNER_ONLY', '초대 코드는 가족 관리자만 만들 수 있어')
     for _ in range(12):
         code = _generate_invite_code()
         exists = db.scalar(select(func.count(Household.id)).where(Household.invite_code == code)) or 0
@@ -211,13 +213,14 @@ def serialize_household_state(db: OrmSession, user: User) -> dict:
                 'isMe': member_user.id == user.id,
             }
         )
+    can_manage_invite_code = membership.role == 'owner'
     return {
         'hasHousehold': True,
         'household': {
             'id': household.id,
             'name': household.name,
-            'inviteCode': household.invite_code,
-            'inviteCodeCreatedAt': household.invite_code_created_at.isoformat() if household.invite_code_created_at else None,
+            'inviteCode': household.invite_code if can_manage_invite_code else None,
+            'inviteCodeCreatedAt': household.invite_code_created_at.isoformat() if can_manage_invite_code and household.invite_code_created_at else None,
             'memberCount': len(members),
             'createdByUserId': household.created_by_user_id,
         },

@@ -23,8 +23,7 @@ import '../widgets/cartly_surface_card.dart';
 import '../widgets/cartly_symbol_icon.dart';
 import '../widgets/section_header.dart';
 
-const ExploreOfferProvider _offerProvider =
-    PendingCoupangPartnersOfferProvider();
+const ExploreOfferProvider _offerProvider = HybridExploreOfferProvider();
 
 const String _exploreStateActiveShopping = 'activeShopping';
 const String _exploreStatePostSave = 'postSave';
@@ -1841,7 +1840,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                 ),
                 if (detail.offerQuery != null) ...[
                   const SizedBox(height: 18),
-                  FutureBuilder<List<ExploreAlternativeOffer>>(
+                  FutureBuilder<ExploreOfferResult>(
                     future: _offerProvider.fetchOffers(detail.offerQuery!),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState != ConnectionState.done) {
@@ -1851,11 +1850,22 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                         );
                       }
 
-                      final offers = snapshot.data ?? const [];
-                      if (offers.isEmpty) {
+                      final result = snapshot.data ?? const ExploreOfferResult.none();
+                      if (result.shouldShowGenericHint) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: _EmptyInfoCard(
+                            title: '대안이 있을 수 있어요',
+                            body: result.genericMessage!,
+                          ),
+                        );
+                      }
+
+                      if (!result.hasVisibleOffers) {
                         return const SizedBox.shrink();
                       }
 
+                      final offers = result.offers;
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -2774,7 +2784,7 @@ class _IntentDetail {
         '같은 용도의 다른 브랜드/구성 비교',
         '묶음 상품 또는 대용량 단가 비교',
       ],
-      futureNote: '여기에 같은 구매 의도를 유지하는 Coupang Partners 대안 CTA가 연결될 예정이에요.',
+      futureNote: '여기서 필터된 네이버쇼핑 결과를 바로 비교해볼 수 있어요.',
       offerQuery: ExploreOfferQuery(
         intentKey: ExploreIntentNormalizer.normalize(item.name).intentKey,
         queryText: ExploreIntentNormalizer.normalize(
@@ -2799,7 +2809,7 @@ class _IntentDetail {
         '묶음 상품이나 대용량 옵션 비교',
         '다시 살 만한 구성인지 확인',
       ],
-      futureNote: '자주 사는 상품일수록 비슷한 대안을 함께 보는 게 더 자연스러워요.',
+      futureNote: '자주 사는 상품도 필터된 네이버쇼핑 결과로 먼저 비교해볼 수 있어요.',
       offerQuery: ExploreOfferQuery(
         intentKey: ExploreIntentNormalizer.normalize(candidate.name).intentKey,
         queryText: ExploreIntentNormalizer.normalize(
@@ -2818,7 +2828,7 @@ class _IntentDetail {
       badge: slot.sourceLabel,
       summary: '${slot.sourceLabel} 기준으로 함께 볼 만한 비슷한 상품을 모아둔 자리예요.',
       comparePoints: slot.comparePoints,
-      futureNote: '연결이 준비되면 이 자리에서 비슷한 상품을 바로 이어서 비교하실 수 있어요.',
+      futureNote: '이 자리에서 필터된 네이버쇼핑 결과를 먼저 비교해볼 수 있어요.',
       offerQuery: slot.query,
     );
   }

@@ -3,7 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import hashlib
 import hmac
+import html
 import json
+import re
 from typing import Any, Optional
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -15,6 +17,17 @@ from .explore_intent_normalizer import normalize_explore_intent
 _COUPANG_API_DOMAIN = 'https://api-gateway.coupang.com'
 _COUPANG_DEEPLINK_PATH = '/v2/providers/affiliate_open_api/apis/openapi/v1/deeplink'
 _COUPANG_HMAC_ALGORITHM = 'HmacSHA256'
+_NAVER_SHOPPING_API_URL = 'https://openapi.naver.com/v1/search/shop.json'
+_HTML_TAG_RE = re.compile(r'<[^>]+>')
+_PACK_COUNT_RE = re.compile(r'(\d+)\s*(개|입|팩|봉|병|캔|세트)')
+_QUERY_TITLE_NEGATIVE_RULES: list[tuple[str, set[str]]] = [
+    ('우유', {'분유', '탈지분유', '전지분유', '두유', '연유', '요거트', '요구르트'}),
+    ('생수', {'탄산수', '두유', '주스'}),
+    ('물', {'탄산수', '주스'}),
+    ('계란', {'메추리알'}),
+    ('휴지', {'키친타월', '물티슈'}),
+]
+_GENERIC_BLOCKED_TITLE_HINTS = {'도매', '업소용', '10판이상주문'}
 
 
 def _normalize_source_type(value: str) -> str:
@@ -26,6 +39,10 @@ def _normalize_source_type(value: str) -> str:
 
 def _affiliate_keys_ready(*, enabled: bool, access_key: str, secret_key: str) -> bool:
     return bool(enabled and access_key.strip() and secret_key.strip())
+
+
+def _naver_keys_ready(*, enabled: bool, client_id: str, client_secret: str) -> bool:
+    return bool(enabled and client_id.strip() and client_secret.strip())
 
 
 def _signed_datetime() -> str:
@@ -127,6 +144,354 @@ def issue_coupang_affiliate_url(target_url: str, *, enabled: bool, access_key: s
         return None
 
     return _extract_affiliate_url(payload)
+
+
+def _clean_html_text(value: Any) -> str:
+    text = html.unescape(str(value or ''))
+    text = _HTML_TAG_RE.sub(' ', text)
+    return re.sub(r'\s+', ' ', text).strip()
+
+
+def _parse_int(value: Any) -> Optional[int]:
+    digits = re.sub(r'[^0-9]', '', str(value or ''))
+    if not digits:
+        return None
+    try:
+        return int(digits)
+    except ValueError:
+        return None
+
+
+def _format_price_delta(reference_price: int, candidate_price: int) -> str:
+    delta = candidate_price - reference_price
+    if delta == 0:
+        return '기준 가격과 같아요'
+    direction = '비싸요' if delta > 0 else '저렴해요'
+    return f'기준가 대비 {abs(delta):,}원 {direction}'
+
+
+def _extract_pack_count(text: str) -> Optional[int]:
+    match = _PACK_COUNT_RE.search(text or '')
+    if not match:
+        return None
+    try:
+        value = int(match.group(1))
+    except ValueError:
+        return None
+    if value <= 0:
+        return None
+    return value
+
+
+def _contains_any(text: str, words: set[str]) -> bool:
+    return any(word in text for word in words)
+
+
+def _matches_negative_family_rule(query_text: str, title_text: str) -> bool:
+    normalized_query = (query_text or '').lower()
+    normalized_title = (title_text or '').lower()
+    for query_hint, blocked_words in _QUERY_TITLE_NEGATIVE_RULES:
+        if query_hint in normalized_query and _contains_any(normalized_title, blocked_words):
+            return True
+    return False
+
+
+def _is_price_outlier(reference_price: Optional[int], candidate_price: Optional[int], *, allow_multipack: bool) -> bool:
+    if reference_price is None or candidate_price is None or reference_price <= 0 or allow_multipack:
+        return False
+    ratio = candidate_price / reference_price
+    return ratio > 2.2 or ratio < 0.35
+
+
+def _score_naver_item(
+    *,
+    query_text: str,
+    query_tokens: list[str],
+    title_text: str,
+    item: dict[str, Any],
+    reference_price: Optional[int],
+) -> int:
+    title_lower = title_text.lower()
+    score = 0
+
+    normalized_query_text = (query_text or '').strip().lower()
+    if normalized_query_text and normalized_query_text in title_lower:
+        score += 24
+
+    for token in query_tokens:
+        token = (token or '').strip().lower()
+        if token and token in title_lower:
+            score += 10
+
+    pack_count = _extract_pack_count(title_text)
+    if pack_count is None or pack_count <= 1:
+        score += 8
+    elif pack_count == 2:
+        score += 1
+    else:
+        score -= min((pack_count - 1) * 2, 14)
+
+    candidate_price = _parse_int(item.get('lprice'))
+    if reference_price is not None and candidate_price is not None and reference_price > 0:
+        ratio = candidate_price / reference_price
+        if 0.7 <= ratio <= 1.35:
+            score += 16
+        elif 0.5 <= ratio <= 1.7:
+            score += 8
+        elif ratio > 2.2 or ratio < 0.35:
+            score -= 20
+
+    mall_name = _clean_html_text(item.get('mallName'))
+    if mall_name:
+        score += 2
+
+    return score
+
+
+def _is_candidate_naver_item_acceptable(
+    *,
+    query_text: str,
+    query_tokens: list[str],
+    title_text: str,
+    item: dict[str, Any],
+    reference_price: Optional[int],
+) -> bool:
+    if not title_text.strip():
+        return False
+
+    if _matches_negative_family_rule(query_text, title_text):
+        return False
+
+    title_lower = title_text.lower()
+    if any(hint in title_lower for hint in _GENERIC_BLOCKED_TITLE_HINTS):
+        return False
+
+    query_pack_count = _extract_pack_count(query_text)
+    title_pack_count = _extract_pack_count(title_text)
+    allow_multipack = bool(query_pack_count and query_pack_count > 1)
+
+    if not allow_multipack and title_pack_count is not None and title_pack_count > 2:
+        return False
+
+    candidate_price = _parse_int(item.get('lprice'))
+    if _is_price_outlier(reference_price, candidate_price, allow_multipack=allow_multipack):
+        return False
+
+    title_lower = title_text.lower()
+    matched_token_count = sum(1 for token in query_tokens if token and token.lower() in title_lower)
+    if query_tokens and matched_token_count == 0:
+        return False
+
+    return True
+
+
+def _is_cheaper_than_reference(reference_price: Optional[int], candidate_price: Optional[int]) -> bool:
+    if reference_price is None or candidate_price is None or reference_price <= 0:
+        return False
+    return candidate_price < int(reference_price * 0.95)
+
+
+def _is_strong_same_product_candidate(
+    *,
+    query_text: str,
+    query_tokens: list[str],
+    title_text: str,
+) -> bool:
+    normalized_query = (query_text or '').strip().lower()
+    normalized_title = (title_text or '').strip().lower()
+    if not normalized_query or not normalized_title:
+        return False
+
+    query_pack_count = _extract_pack_count(normalized_query)
+    title_pack_count = _extract_pack_count(normalized_title)
+    if query_pack_count is not None and title_pack_count is not None and query_pack_count != title_pack_count:
+        return False
+
+    if normalized_query in normalized_title:
+        return True
+
+    return False
+
+
+def _build_naver_highlights(item: dict[str, Any], *, reference_price: Optional[int]) -> list[str]:
+    highlights: list[str] = []
+
+    mall_name = _clean_html_text(item.get('mallName'))
+    brand = _clean_html_text(item.get('brand'))
+    maker = _clean_html_text(item.get('maker'))
+    lprice = _parse_int(item.get('lprice'))
+    hprice = _parse_int(item.get('hprice'))
+
+    if mall_name:
+        highlights.append(f'판매처: {mall_name}')
+    seller_bits = [value for value in (brand, maker) if value]
+    if seller_bits:
+        highlights.append('브랜드/제조사: ' + ' · '.join(dict.fromkeys(seller_bits)))
+    if reference_price is not None and lprice is not None:
+        highlights.append(_format_price_delta(reference_price, lprice))
+    elif lprice is not None and hprice is not None and hprice > lprice:
+        highlights.append(f'네이버 최저가 {lprice:,}원, 최고가 {hprice:,}원')
+
+    categories = [
+        _clean_html_text(item.get(key))
+        for key in ('category1', 'category2', 'category3', 'category4')
+    ]
+    categories = [value for value in categories if value]
+    if categories:
+        highlights.append('카테고리: ' + ' > '.join(categories[:3]))
+
+    return highlights[:4]
+
+
+def search_naver_shopping_offers(
+    *,
+    intent_key: str,
+    query_text: str,
+    source_type: str,
+    reference_price: Optional[int],
+    enabled: Optional[bool] = None,
+    client_id: Optional[str] = None,
+    client_secret: Optional[str] = None,
+) -> dict[str, Any]:
+    normalized = normalize_explore_intent(query_text)
+    normalized_source_type = _normalize_source_type(source_type)
+    effective_intent_key = (intent_key or '').strip() or normalized.intent_key
+    effective_enabled = settings.naver_shopping_search_enabled if enabled is None else enabled
+    effective_client_id = settings.naver_shopping_client_id if client_id is None else client_id
+    effective_client_secret = settings.naver_shopping_client_secret if client_secret is None else client_secret
+    search_ready = _naver_keys_ready(
+        enabled=effective_enabled,
+        client_id=effective_client_id,
+        client_secret=effective_client_secret,
+    )
+
+    offers: list[dict[str, Any]] = []
+    error_code: Optional[str] = None
+
+    if search_ready:
+        request_url = _NAVER_SHOPPING_API_URL + '?' + urlencode(
+            {
+                'query': normalized.normalized_query_text,
+                'display': 8,
+                'sort': 'sim',
+            }
+        )
+        request = Request(
+            url=request_url,
+            headers={
+                'X-Naver-Client-Id': effective_client_id.strip(),
+                'X-Naver-Client-Secret': effective_client_secret.strip(),
+                'Accept': 'application/json',
+            },
+        )
+        try:
+            with urlopen(request, timeout=5) as response:
+                payload = json.loads(response.read().decode('utf-8'))
+            items = payload.get('items') if isinstance(payload, dict) else None
+            if isinstance(items, list):
+                for item in items:
+                    if not isinstance(item, dict):
+                        continue
+                    title = _clean_html_text(item.get('title'))
+                    link = str(item.get('link') or '').strip()
+                    if not title or not link:
+                        continue
+                    if not _is_candidate_naver_item_acceptable(
+                        query_text=normalized.normalized_query_text,
+                        query_tokens=normalized.intent_tokens,
+                        title_text=title,
+                        item=item,
+                        reference_price=reference_price,
+                    ):
+                        continue
+                    offers.append(
+                        {
+                            'provider': 'naver-shopping',
+                            'title': title,
+                            'subtitle': _clean_html_text(item.get('mallName')) or '네이버쇼핑',
+                            'price': _parse_int(item.get('lprice')),
+                            'thumbnailUrl': str(item.get('image') or '').strip() or None,
+                            'deeplinkUrl': link,
+                            '_score': _score_naver_item(
+                                query_text=normalized.normalized_query_text,
+                                query_tokens=normalized.intent_tokens,
+                                title_text=title,
+                                item=item,
+                                reference_price=reference_price,
+                            ),
+                            'highlights': _build_naver_highlights(
+                                item,
+                                reference_price=reference_price,
+                            ),
+                        }
+                    )
+        except HTTPError as exc:
+            error_code = f'http_{exc.code}'
+        except (URLError, TimeoutError, json.JSONDecodeError):
+            error_code = 'fetch_failed'
+    else:
+        error_code = 'naver_not_configured'
+
+    deduped_offers: list[dict[str, Any]] = []
+    seen_urls: set[str] = set()
+    for offer in sorted(
+        offers,
+        key=lambda offer: (
+            int(offer.get('_score') or 0),
+            -int(offer.get('price') or 0) if offer.get('price') else 0,
+        ),
+        reverse=True,
+    ):
+        deeplink = str(offer.get('deeplinkUrl') or '').strip()
+        if not deeplink or deeplink in seen_urls:
+            continue
+        seen_urls.add(deeplink)
+        offer.pop('_score', None)
+        deduped_offers.append(offer)
+        if len(deduped_offers) >= 5:
+            break
+
+    exact_cheaper_offers = [
+        offer
+        for offer in deduped_offers
+        if _is_strong_same_product_candidate(
+            query_text=normalized.normalized_query_text,
+            query_tokens=normalized.intent_tokens,
+            title_text=str(offer.get('title') or ''),
+        )
+        and _is_cheaper_than_reference(reference_price, _parse_int(offer.get('price')))
+    ]
+
+    presentation_mode = 'show_offers' if deduped_offers else 'none'
+    generic_message = None
+    visible_offers: list[dict[str, Any]] = deduped_offers
+
+    return {
+        'version': 1,
+        'enabled': effective_enabled,
+        'provider': 'naver-shopping',
+        'query': {
+            'intentKey': effective_intent_key,
+            'rawQueryText': query_text,
+            'normalizedQueryText': normalized.normalized_query_text,
+            'intentTokens': normalized.intent_tokens,
+            'sourceType': normalized_source_type,
+            'referencePrice': reference_price,
+        },
+        'bridge': {
+            'mode': 'naver_shopping_search',
+            'searchReady': search_ready,
+            'fallbackProvider': 'coupang-partners',
+            'errorCode': error_code,
+        },
+        'presentation': {
+            'mode': presentation_mode,
+            'genericMessage': generic_message,
+            'linkWrappingReady': False,
+            'exactCheaperCandidateFound': bool(exact_cheaper_offers),
+        },
+        'offers': visible_offers,
+    }
 
 
 def build_coupang_offer_preview(

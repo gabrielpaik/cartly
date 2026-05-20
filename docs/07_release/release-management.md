@@ -1,6 +1,6 @@
 # Cartly Release Management
 
-Last updated: 2026-05-20
+Last updated: 2026-05-21
 Status: canonical
 Purpose: release operations contract for iOS, TestFlight, App Store Connect, and Google Play
 Use this doc when: building, uploading, patching store metadata, or preparing submission/review steps
@@ -18,14 +18,14 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - 스크린샷/메타데이터/리뷰 노트까지 같이 관리해야 진짜 release readiness다.
 
 ### 현재 기준 버전
-- current working app version/build: `1.0.6+7`
+- current working app version/build: `1.0.6+8`
 - latest shipped iOS public release line: `1.0.5 (10)`
 - current public App Store URL: `https://apps.apple.com/kr/app/카트리/id6763728346`
-- latest uploaded iOS TestFlight build: `1.0.6 (7)` / delivery UUID `9fac0cc3-5b5e-4afc-8f5c-7dc72218007c`
-- most recent earlier iOS validation uploads in the same pass: `1.0.6 (6)` / `7556a88b-ff5d-4463-bda8-443fd0a62e67`, `1.0.6 (5)` / `67277251-f32b-49b4-b387-5a8685838302`, `1.0.6 (4)` / `fa7ab355-9cad-4e0d-9069-739e4158c3c3`, `1.0.6 (3)` / `78503721-943b-4ffb-b235-b4718599a65c`, `1.0.6 (2)` / `90900a45-8ca2-4c7b-9000-f88bcd786ac2`, `1.0.6 (1)` / `c0096c2b-95b5-482c-8a72-4ea5da0dfddb`
+- latest uploaded iOS TestFlight build: `1.0.6 (8)` / delivery UUID `d176d4a8-f775-4a2e-8edd-47b518873c3c`
+- most recent earlier iOS validation uploads in the same pass: `1.0.6 (7)` / `9fac0cc3-5b5e-4afc-8f5c-7dc72218007c`, `1.0.6 (6)` / `7556a88b-ff5d-4463-bda8-443fd0a62e67`, `1.0.6 (5)` / `67277251-f32b-49b4-b387-5a8685838302`, `1.0.6 (4)` / `fa7ab355-9cad-4e0d-9069-739e4158c3c3`, `1.0.6 (3)` / `78503721-943b-4ffb-b235-b4718599a65c`, `1.0.6 (2)` / `90900a45-8ca2-4c7b-9000-f88bcd786ac2`, `1.0.6 (1)` / `c0096c2b-95b5-482c-8a72-4ea5da0dfddb`
 - latest visible iOS TestFlight Cartly build on device before this reset: `1.0.4 (29)`
-- latest uploaded Android internal-track build after this reset: `1.0.6 (40)`
-- latest prepared Android release artifact after this reset: versionName `1.0.6`, versionCode `40`, AAB `build/app/outputs/bundle/release/app-release.aab`
+- latest uploaded Android internal-track build after this reset: `1.0.6 (41)`
+- latest prepared Android release artifact after this reset: versionName `1.0.6`, versionCode `41`, AAB `build/app/outputs/bundle/release/app-release.aab`
 
 ### 2026-05-19 version reset policy
 - `1.0.4` 라인은 TestFlight/App Store Connect 쪽 build numbering 혼선 때문에 더 늘리지 않는다.
@@ -79,8 +79,8 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - encryption = `false`
 
 ## 3. 현재 iOS / App Store Connect 기준 정보
-- latest uploaded delivery UUID: `9fac0cc3-5b5e-4afc-8f5c-7dc72218007c`
-- latest uploaded build line: `1.0.6 (7)`
+- latest uploaded delivery UUID: `d176d4a8-f775-4a2e-8edd-47b518873c3c`
+- latest uploaded build line: `1.0.6 (8)`
 - current App Store version id: `a173b232-fe9b-4fdd-9557-a784bd7a36d2`
 - App Store version localization id: `64db26e7-c8a0-480e-9b9f-fb06c78a1ad5`
 - App info localization id: `57760505-1949-4e93-b21c-9502891d493c`
@@ -180,6 +180,7 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 - direct App Store URL은 immediately usable 하지만, App Store search / web indexing 반영은 잠시 지연될 수 있다.
 - 출시 직후 홍보는 검색 유도보다 direct App Store URL 공유를 우선한다.
 - 2026-05-20 night 기준 `1.0.6 (7)` 업로드까지 완료되었고, delivery UUID는 `9fac0cc3-5b5e-4afc-8f5c-7dc72218007c` 이다. 이 빌드에는 family-share/logout current-cart default fix, first-launch guest bootstrap + authenticated `app_open` tracking, and the iOS location-permission review-warning mitigation pass가 포함된다.
+- 2026-05-21 early-morning 기준 `1.0.6 (8)` 업로드까지 완료되었고, delivery UUID는 `d176d4a8-f775-4a2e-8edd-47b518873c3c` 이다. 이 빌드에는 Explore에서 필터된 Naver Shopping 결과를 바로 보여주는 현재 정책이 반영된다.
 
 ## 7. Android / Google Play release 흐름
 
@@ -204,6 +205,7 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 - Android는 Play 업로드용 `versionCode` 를 되돌릴 수 없으므로, 필요하면 `CARTLY_ANDROID_VERSION_CODE=<증가값>` 환경변수로 업로드 코드만 별도 override 한다.
 - 2026-05-19 `1.0.5` 리셋 라인 Android AAB는 Play 증가 제약에 맞춰 최신 준비 값 `CARTLY_ANDROID_VERSION_CODE=33` 로 다시 빌드했다.
 - 2026-05-20 night 기준 최신 Android release verification build는 `CARTLY_ANDROID_VERSION_CODE=40` 로 다시 통과했고, customer-facing versionName 은 `1.0.6` 이다.
+- 2026-05-21 early-morning 기준 최신 Android release verification build는 `CARTLY_ANDROID_VERSION_CODE=41` 로 다시 통과했고, customer-facing versionName 은 `1.0.6` 이다.
 
 ### Play internal upload 스크립트
 ```bash
@@ -245,14 +247,16 @@ PLAY_RELEASE_NAME='1.0.5 (33)' \
 - 2026-05-19 기준 NAS에 있던 동일 service-account JSON으로 `1.0.5 (34)` internal track upload/commit 재성공, 이후 표준 경로 `~/Library/Application Support/Cartly/play/cartly-play-api.json` 도 복구 완료
 - 2026-05-20 night 기준 같은 service-account 경로로 Android internal track 업로드를 다시 실행했고, `1.0.6 (40)` releaseName 으로 upload/commit 성공했다.
 - 같은 night 기준 closed-test 쪽 alpha track 도 기존 build `39` 에서 `1.0.6 (40)` 로 맞췄다. 이미 등록된 versionCode `40` 을 재업로드하지 않고 track release update 로 연결했다.
+- 2026-05-21 early-morning 기준 같은 service-account 경로로 Android internal track에 `1.0.6 (41)` upload/commit 성공했다.
+- 같은 시점 기준 alpha track 도 기존 build `40` 에서 `1.0.6 (41)` 로 다시 맞췄다. 이미 업로드된 versionCode `41` 을 alpha release update 로 연결했다.
 - internal track release:
   - track: `internal`
-  - build/versionCode: `40`
-  - release name: `1.0.6 (40)`
+  - build/versionCode: `41`
+  - release name: `1.0.6 (41)`
 - closed-test track release:
   - track: `alpha`
-  - build/versionCode: `40`
-  - release name: `1.0.6 (40)`
+  - build/versionCode: `41`
+  - release name: `1.0.6 (41)`
 
 ## 8. Google Play Console 현재 상태
 - 개발자 계정 signup 및 console verification 완료

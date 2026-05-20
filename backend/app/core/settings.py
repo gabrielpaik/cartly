@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     coupang_partners_enabled: bool = False
     coupang_partners_access_key: str = ''
     coupang_partners_secret_key: str = ''
+    naver_shopping_search_enabled: bool = False
+    naver_shopping_client_id: str = ''
+    naver_shopping_client_secret: str = ''
     remote_scan_enabled: bool = True
     ads_enabled: bool = True
     openclaw_scan_command: str = ''

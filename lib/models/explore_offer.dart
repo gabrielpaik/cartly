@@ -135,6 +135,32 @@ class ExploreStorePromo {
   }
 }
 
+
+enum ExploreOfferPresentationMode { none, genericHint, showOffers }
+
+class ExploreOfferResult {
+  final ExploreOfferPresentationMode mode;
+  final List<ExploreAlternativeOffer> offers;
+  final String? genericMessage;
+
+  const ExploreOfferResult({
+    required this.mode,
+    this.offers = const [],
+    this.genericMessage,
+  });
+
+  const ExploreOfferResult.none()
+      : mode = ExploreOfferPresentationMode.none,
+        offers = const [],
+        genericMessage = null;
+
+  bool get hasVisibleOffers =>
+      mode == ExploreOfferPresentationMode.showOffers && offers.isNotEmpty;
+  bool get shouldShowGenericHint =>
+      mode == ExploreOfferPresentationMode.genericHint &&
+      (genericMessage?.trim().isNotEmpty ?? false);
+}
+
 class ExploreAlternativeOffer {
   final String provider;
   final String title;

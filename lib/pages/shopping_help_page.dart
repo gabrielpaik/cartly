@@ -338,75 +338,13 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
         .map(
           (item) => ExploreStorePromo.fromJson(Map<String, dynamic>.from(item)),
         )
-        .toList();
-    if (promos != null && promos.isNotEmpty) {
-      return _applyPromoPolicy(promos, config, state);
+        .toList(growable: false);
+
+    if (promos == null || promos.isEmpty) {
+      return const [];
     }
 
-    final body = _configText(
-      config,
-      'storeContextPromoBody',
-      '자주 사는 상품군과 겹치는 할인 행사부터 먼저 보여줘요.',
-    );
-    final storeName = _configText(config, 'storeContextStoreName', '이마트 양재점');
-    final ctaLabel = _configText(config, 'storeContextPromoCtaLabel', '행사 보기');
-    final seeds =
-        _configText(
-              config,
-              'storeContextPromoSeedLabels',
-              '유제품 세일,음료 행사,오늘의 마트 추천',
-            )
-            .split(',')
-            .map((item) => item.trim())
-            .where((item) => item.isNotEmpty)
-            .toList(growable: false);
-    final maxPromos = _stateRuleInt(config, state, 'storeContextMaxPromos', 3);
-    final sourceType = _configText(
-      config,
-      'storeContextPromoSourceType',
-      'storeSale',
-    );
-    final isSponsored = _configBool(
-      config,
-      'storeContextPromoSponsored',
-      false,
-    );
-    final sponsorLabel = _configText(
-      config,
-      'storeContextPromoSponsorLabel',
-      '',
-    );
-    final priorityStart = _configInt(
-      config,
-      'storeContextPromoPriorityStart',
-      100,
-    );
-
-    final generated = List.generate(
-      seeds.take(maxPromos).length,
-      (index) => ExploreStorePromo(
-        id: 'store-promo-${index + 1}',
-        title: '${seeds[index]} 확인',
-        body: body,
-        badgeLabel: seeds[index],
-        storeName: storeName,
-        ctaLabel: ctaLabel,
-        placementLabel: '매장 프로모션',
-        intentHint: '같은 구매 의도 기준',
-        source: 'store-context-preview',
-        sourceType: isSponsored && index == 0
-            ? 'sponsoredPlacement'
-            : sourceType,
-        priority: (priorityStart - (index * 10)) < 0
-            ? 0
-            : (priorityStart - (index * 10)),
-        isSponsored: isSponsored && index == 0,
-        sponsorLabel: isSponsored && sponsorLabel.isNotEmpty && index == 0
-            ? sponsorLabel
-            : null,
-      ),
-    );
-    return _applyPromoPolicy(generated, config, state);
+    return _applyPromoPolicy(promos, config, state);
   }
 
   Set<String> _enabledSections(Map<String, dynamic> config) {
@@ -494,6 +432,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     Map<String, dynamic> config, {
     required bool hasOfferSlots,
     required bool hasEditorialPicks,
+    required bool hasStoreContextPromos,
     required String state,
   }) {
     final enabled = _enabledSections(config);
@@ -537,6 +476,9 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
         return;
       }
       if (sectionId == 'editorialPicks' && !hasEditorialPicks) {
+        return;
+      }
+      if (sectionId == 'storeContextPromo' && !hasStoreContextPromos) {
         return;
       }
       ordered.add(sectionId);
@@ -832,6 +774,10 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                 )
                 .toList(growable: false);
             final hiddenOfferCount = baseOfferSlots.length - offerSlots.length;
+            final storeContextPromos = _buildStoreContextPromos(
+              exploreConfig,
+              currentState,
+            );
             final decisionInboxEntries = _buildDecisionInboxEntries(
               revisitItems: revisitItems,
               offerSlots: offerSlots,
@@ -842,6 +788,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
               exploreConfig,
               hasOfferSlots: offerSlots.isNotEmpty || hiddenOfferCount > 0,
               hasEditorialPicks: editorialOffers.isNotEmpty,
+              hasStoreContextPromos: storeContextPromos.isNotEmpty,
               state: currentState,
             );
             final sectionWidgets = <Widget>[];
@@ -1147,10 +1094,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                         'storeContextEnabled',
                         false,
                       ),
-                      promos: _buildStoreContextPromos(
-                        exploreConfig,
-                        currentState,
-                      ),
+                      promos: storeContextPromos,
                     ),
                   );
                   sectionWidgets.add(const SizedBox(height: 20));

@@ -244,8 +244,13 @@ PLAY_RELEASE_NAME='1.0.5 (33)' \
 - 2026-05-18 기준 Android Publisher API로 edit 생성 및 internal track upload/commit 성공
 - 2026-05-19 기준 NAS에 있던 동일 service-account JSON으로 `1.0.5 (34)` internal track upload/commit 재성공, 이후 표준 경로 `~/Library/Application Support/Cartly/play/cartly-play-api.json` 도 복구 완료
 - 2026-05-20 night 기준 같은 service-account 경로로 Android internal track 업로드를 다시 실행했고, `1.0.6 (40)` releaseName 으로 upload/commit 성공했다.
+- 같은 night 기준 closed-test 쪽 alpha track 도 기존 build `39` 에서 `1.0.6 (40)` 로 맞췄다. 이미 등록된 versionCode `40` 을 재업로드하지 않고 track release update 로 연결했다.
 - internal track release:
   - track: `internal`
+  - build/versionCode: `40`
+  - release name: `1.0.6 (40)`
+- closed-test track release:
+  - track: `alpha`
   - build/versionCode: `40`
   - release name: `1.0.6 (40)`
 
@@ -291,7 +296,7 @@ PLAY_RELEASE_NAME='1.0.5 (33)' \
 
 ## 12. 다음 release 작업
 1. iOS `1.0.5 (10)` App Store review 상태를 추적하고, Apple follow-up 질문이 오면 같은 wave 안에서 바로 응답한다.
-2. Android는 production upload/release 버튼을 다시 누르기 전에, Google Play personal-account gate를 먼저 해소한다. 현재 필요한 것은 closed test 생성, 12명 이상의 opted-in tester 확보, 14일 유지다.
+2. Android는 production upload/release 버튼을 다시 누르기 전에, Google Play personal-account gate를 먼저 해소한다. closed-test binary line 은 now `alpha = 1.0.6 (40)` 로 맞췄고, 현재 필요한 것은 12명 이상의 opted-in tester 확보와 14일 유지다.
 3. Android closed-test 기간 동안 Play listing high-res icon / store 표면이 generic 하게 보이면 listing metadata 쪽을 계속 정리한다.
 4. 향후 production access가 열리면 그때 기존 release line 기준으로 Android production/review submission을 재개한다.
 5. 다음 paired public-release wave를 다시 맞출 때는 iOS 승인 상태와 Android closed-test eligibility 상태를 함께 본다.

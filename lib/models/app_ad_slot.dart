@@ -13,10 +13,12 @@ class AppAdLanding {
 
   static AppAdLanding? fromMap(Map<String, dynamic>? json) {
     final data = json ?? const <String, dynamic>{};
-    final type = (data['landingType'] as String?)?.trim() ??
+    final type =
+        (data['landingType'] as String?)?.trim() ??
         (data['type'] as String?)?.trim() ??
         '';
-    final key = (data['landingKey'] as String?)?.trim() ??
+    final key =
+        (data['landingKey'] as String?)?.trim() ??
         (data['key'] as String?)?.trim() ??
         '';
     final rawParams = data['landingParams'] ?? data['params'];
@@ -58,7 +60,8 @@ class AppAdCreative {
   });
 
   bool get hasAction {
-    return (targetUrl?.trim().isNotEmpty ?? false) || (landing?.isValid ?? false);
+    return (targetUrl?.trim().isNotEmpty ?? false) ||
+        (landing?.isValid ?? false);
   }
 
   factory AppAdCreative.fromJson(Map<String, dynamic>? json) {
@@ -81,7 +84,8 @@ class AppAdCreative {
 
     return AppAdCreative(
       campaignId: nullableString('campaignId') ?? '',
-      creativeId: nullableString('creativeId') ?? nullableString('campaignId') ?? '',
+      creativeId:
+          nullableString('creativeId') ?? nullableString('campaignId') ?? '',
       title: nullableString('title') ?? '',
       message: nullableString('message') ?? '',
       ctaLabel: nullableString('ctaLabel'),
@@ -109,6 +113,7 @@ class AppAdSlotConfig {
   final AppAdLanding? landing;
   final List<AppAdCreative> creatives;
   final String rotationMode;
+  final int showDelayMs;
 
   const AppAdSlotConfig({
     required this.maxHeight,
@@ -124,6 +129,7 @@ class AppAdSlotConfig {
     required this.landing,
     required this.creatives,
     required this.rotationMode,
+    required this.showDelayMs,
   });
 
   AppAdCreative? get primaryCreative {
@@ -131,7 +137,8 @@ class AppAdSlotConfig {
       return creatives.first;
     }
     final fallbackCampaignId = campaignId?.trim() ?? '';
-    final hasContent = title.trim().isNotEmpty ||
+    final hasContent =
+        title.trim().isNotEmpty ||
         message.trim().isNotEmpty ||
         (imageUrl?.trim().isNotEmpty ?? false);
     if (fallbackCampaignId.isEmpty && !hasContent) {
@@ -171,9 +178,22 @@ class AppAdSlotConfig {
         ? const <AppAdCreative>[]
         : creativesJson
               .whereType<Map>()
-              .map((item) => AppAdCreative.fromJson(Map<String, dynamic>.from(item)))
+              .map(
+                (item) =>
+                    AppAdCreative.fromJson(Map<String, dynamic>.from(item)),
+              )
               .where((item) => item.campaignId.trim().isNotEmpty)
               .toList();
+
+    int intValue(String key, int fallback) {
+      final value = data[key];
+      if (value is num) return value.toInt();
+      if (value is String) {
+        final parsed = int.tryParse(value.trim());
+        if (parsed != null) return parsed;
+      }
+      return fallback;
+    }
 
     return AppAdSlotConfig(
       maxHeight: doubleValue('maxHeight', 96),
@@ -188,8 +208,10 @@ class AppAdSlotConfig {
       campaignId: nullableString('campaignId'),
       landing: AppAdLanding.fromMap(data),
       creatives: creatives,
-      rotationMode: nullableString('rotationMode') ??
+      rotationMode:
+          nullableString('rotationMode') ??
           (creatives.length > 1 ? 'ordered' : 'single'),
+      showDelayMs: intValue('showDelayMs', 1400),
     );
   }
 }
@@ -235,6 +257,7 @@ class AppAdSlot {
       landing: null,
       creatives: <AppAdCreative>[],
       rotationMode: 'single',
+      showDelayMs: 1400,
     ),
   );
 }

@@ -8,9 +8,12 @@ import '../services/admob_service.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/auth_store.dart';
 import '../services/cart_store.dart';
+import '../services/household_store.dart';
 import '../services/cart_title_formatter.dart';
 import '../app/cartly_ui.dart';
 import 'cart_detail_page_helpers.dart';
+import 'login_page.dart';
+import 'my_page.dart';
 import 'receipt_comparison_page.dart';
 import '../widgets/cart_detail_app_bar_actions.dart';
 import '../widgets/cart_detail_body.dart';
@@ -316,7 +319,9 @@ class _CartDetailPageState extends State<CartDetailPage> {
   }
 
   Future<void> _openReceiptCompare() async {
-    if (_isEditing || _isSaving || _isExpiredGuestLocked || !_viewerCanEdit) return;
+    if (_isEditing || _isSaving || _isExpiredGuestLocked || !_viewerCanEdit) {
+      return;
+    }
 
     final result = await Navigator.of(
       context,
@@ -344,6 +349,90 @@ class _CartDetailPageState extends State<CartDetailPage> {
     await _refreshCartFromStore();
   }
 
+  Future<void> _toggleHouseholdShare() async {
+    final session = AuthStore.instance.session.value;
+    if (session == null || session.isGuest) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('회원가입이 필요해요'),
+          content: const Text('가족과 지난 카트를 공유하려면 먼저 회원가입이 필요해요.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('나중에'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('회원가입하기'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true && mounted) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const LoginPage(preferSignup: true),
+          ),
+        );
+      }
+      return;
+    }
+    if (!_cart.viewerCanEdit) {
+      return;
+    }
+    await HouseholdStore.instance.refresh();
+    if (!mounted) return;
+    if (!HouseholdStore.instance.state.value.hasHousehold) {
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const SettingsAndHouseholdPage()),
+      );
+      return;
+    }
+
+    final nextShared = !_cart.isSharedWithHousehold;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(nextShared ? '가족 공유 켜기' : '가족 공유 끄기'),
+        content: Text(
+          nextShared ? '이 지난 카트를 가족에게 공유할까요?' : '이 지난 카트를 개인 카트로 전환할까요?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('변경'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      final updated = await CartStore.instance.setHouseholdShare(
+        cartId: _cart.id,
+        shareWithHousehold: nextShared,
+      );
+      if (!mounted) return;
+      setState(() {
+        _cart = cloneSavedCartSnapshot(updated);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(nextShared ? '가족 공유로 전환했어요' : '개인 카트로 전환했어요')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final dateText = DateFormat('M월 d일').format(_cart.customerTimelineAt);
@@ -369,7 +458,10 @@ class _CartDetailPageState extends State<CartDetailPage> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       '공유 카트 · ${_cart.owner!.displayName}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
@@ -430,12 +522,33 @@ class _CartDetailPageState extends State<CartDetailPage> {
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                       child: _CartReceiptStatusCard(
                         status: _cart.receiptStatus!,
+                        isSharedWithHousehold: _cart.isSharedWithHousehold,
+                        viewerCanEdit: _cart.viewerCanEdit,
+                        onHouseholdShareTap: _toggleHouseholdShare,
                         onTap: _openReceiptCompare,
+                      ),
+                    ),
+                  if (_cart.receiptStatus == null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: _CartHouseholdShareInlineSwitch(
+                          isShared: _cart.isSharedWithHousehold,
+                          enabled: _cart.viewerCanEdit,
+                          onPersonalTap: _cart.isSharedWithHousehold
+                              ? _toggleHouseholdShare
+                              : null,
+                          onSharedTap: _cart.isSharedWithHousehold
+                              ? null
+                              : _toggleHouseholdShare,
+                        ),
                       ),
                     ),
                   Expanded(
                     child: CartDetailBody(
-                      isExpiredGuestLocked: _isExpiredGuestLocked || !_viewerCanEdit,
+                      isExpiredGuestLocked:
+                          _isExpiredGuestLocked || !_viewerCanEdit,
                       canExtendRetention: _cart.canExtendRetention,
                       items: _cart.items,
                       isEditing: _isEditing,
@@ -480,9 +593,18 @@ class _CartDetailPageState extends State<CartDetailPage> {
 
 class _CartReceiptStatusCard extends StatelessWidget {
   final SavedCartReceiptStatus status;
+  final bool isSharedWithHousehold;
+  final bool viewerCanEdit;
+  final VoidCallback onHouseholdShareTap;
   final VoidCallback onTap;
 
-  const _CartReceiptStatusCard({required this.status, required this.onTap});
+  const _CartReceiptStatusCard({
+    required this.status,
+    required this.isSharedWithHousehold,
+    required this.viewerCanEdit,
+    required this.onHouseholdShareTap,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -532,23 +654,38 @@ class _CartReceiptStatusCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: badgeColor,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        badgeText,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: badgeForeground,
+                    Row(
+                      children: [
+                        _CartHouseholdShareInlineSwitch(
+                          isShared: isSharedWithHousehold,
+                          enabled: viewerCanEdit,
+                          onPersonalTap: isSharedWithHousehold
+                              ? onHouseholdShareTap
+                              : null,
+                          onSharedTap: isSharedWithHousehold
+                              ? null
+                              : onHouseholdShareTap,
                         ),
-                      ),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: badgeColor,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            badgeText,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: badgeForeground,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 10),
                     Text(
@@ -576,6 +713,95 @@ class _CartReceiptStatusCard extends StatelessWidget {
               const SizedBox(width: 12),
               const CartlySymbolIcon.sf('chevron.right'),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CartHouseholdShareInlineSwitch extends StatelessWidget {
+  final bool isShared;
+  final bool enabled;
+  final VoidCallback? onPersonalTap;
+  final VoidCallback? onSharedTap;
+
+  const _CartHouseholdShareInlineSwitch({
+    required this.isShared,
+    required this.enabled,
+    required this.onPersonalTap,
+    required this.onSharedTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: enabled ? 1 : 0.8,
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: CartlyColors.surface1,
+          borderRadius: BorderRadius.circular(CartlyRadii.pill),
+          border: Border.all(color: CartlyColors.line, width: 0.5),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _CartHouseholdShareInlineChip(
+              label: '개인',
+              selected: !isShared,
+              selectedBackgroundColor: CartlyColors.surface2,
+              selectedForegroundColor: CartlyColors.textPrimary,
+              onTap: enabled ? onPersonalTap : null,
+            ),
+            _CartHouseholdShareInlineChip(
+              label: '공유',
+              selected: isShared,
+              selectedBackgroundColor: CartlyColors.brand,
+              selectedForegroundColor: CartlyColors.onBrandPrimary,
+              onTap: enabled ? onSharedTap : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CartHouseholdShareInlineChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final Color selectedBackgroundColor;
+  final Color selectedForegroundColor;
+  final VoidCallback? onTap;
+
+  const _CartHouseholdShareInlineChip({
+    required this.label,
+    required this.selected,
+    required this.selectedBackgroundColor,
+    required this.selectedForegroundColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? selectedBackgroundColor : Colors.transparent,
+      borderRadius: BorderRadius.circular(CartlyRadii.pill),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(CartlyRadii.pill),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: selected
+                  ? selectedForegroundColor
+                  : CartlyColors.textSecondary,
+            ),
           ),
         ),
       ),

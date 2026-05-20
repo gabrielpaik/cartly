@@ -26,7 +26,7 @@ class AuthStore {
     final sp = await SharedPreferences.getInstance();
     final raw = sp.getString(_sessionKey);
     if (raw == null || raw.isEmpty) {
-      session.value = null;
+      await _createGuestSession();
       return;
     }
 
@@ -34,14 +34,12 @@ class AuthStore {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final next = UserSession.fromJson(decoded);
       if (next.authToken.trim().isEmpty) {
-        session.value = null;
-        await sp.remove(_sessionKey);
+        await _createGuestSession();
         return;
       }
       if (next.sessionExpiresAt != null &&
           next.sessionExpiresAt!.isBefore(DateTime.now())) {
-        session.value = null;
-        await sp.remove(_sessionKey);
+        await _createGuestSession();
         return;
       }
 
@@ -52,7 +50,7 @@ class AuthStore {
         await _persist(refreshed);
       } on AuthRepositoryException catch (error) {
         if (error.code == 'UNAUTHORIZED') {
-          await _persist(null);
+          await _createGuestSession();
           return;
         }
         session.value = next;
@@ -60,7 +58,29 @@ class AuthStore {
         session.value = next;
       }
     } catch (_) {
-      session.value = null;
+      await _createGuestSession();
+    }
+  }
+
+  Future<UserSession?> ensureGuestSession() async {
+    final current = session.value;
+    if (current != null && current.authToken.trim().isNotEmpty) {
+      if (current.sessionExpiresAt == null ||
+          current.sessionExpiresAt!.isAfter(DateTime.now())) {
+        return current;
+      }
+    }
+    return _createGuestSession();
+  }
+
+  Future<UserSession?> _createGuestSession() async {
+    try {
+      final next = await _authRepository.continueAsGuest();
+      await _persist(next);
+      return next;
+    } catch (_) {
+      await _persist(null);
+      return null;
     }
   }
 
@@ -162,7 +182,7 @@ class AuthStore {
       throw const AuthRepositoryException('로그인이 필요합니다');
     }
     await _authRepository.deleteAccount(current.authToken);
-    await _persist(null);
+    await _createGuestSession();
   }
 
   Future<void> signOut() async {
@@ -184,6 +204,6 @@ class AuthStore {
         // local sign-out should still complete even if backend revoke fails
       }
     }
-    await _persist(null);
+    await _createGuestSession();
   }
 }

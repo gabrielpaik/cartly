@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session as OrmSession
 
 from ..deps import admin_token_dep, db_dep
-from ..schemas.push import AdminPushAudiencePreviewRequest, AdminPushBroadcastRequest, AdminPushSegmentPreviewRequest
-from ..services.push_service import create_push_campaign, get_push_runtime_status, list_push_campaigns, list_push_devices, preview_push_audience, preview_push_segment
+from ..schemas.push import AdminPushAudiencePreviewRequest, AdminPushBroadcastRequest, AdminPushScheduleRequest, AdminPushSegmentPreviewRequest
+from ..services.push_service import create_push_campaign, get_push_runtime_status, get_push_schedule, list_push_campaigns, list_push_devices, preview_push_audience, preview_push_segment, save_push_schedule
 from .admin_common import ADMIN_ROUTE_DEP
 
 router = APIRouter(dependencies=ADMIN_ROUTE_DEP)
@@ -22,6 +22,21 @@ def admin_push_devices(db: OrmSession = Depends(db_dep)):
 @router.get('/push/campaigns')
 def admin_push_campaigns(db: OrmSession = Depends(db_dep)):
     return {'ok': True, 'data': {'campaigns': list_push_campaigns(db)}}
+
+
+@router.get('/push/schedule')
+def admin_push_schedule(db: OrmSession = Depends(db_dep)):
+    return {'ok': True, 'data': get_push_schedule(db)}
+
+
+@router.put('/push/schedule')
+def admin_push_schedule_save(
+    payload: AdminPushScheduleRequest,
+    admin=Depends(admin_token_dep),
+    db: OrmSession = Depends(db_dep),
+):
+    data = save_push_schedule(db, payload.model_dump())
+    return {'ok': True, 'data': {**data, 'updatedBy': admin.token[-8:], 'updatedBySource': admin.source}}
 
 
 @router.post('/push/audience-preview')

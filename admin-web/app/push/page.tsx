@@ -1,10 +1,10 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import PageHeader from '../../components/PageHeader'
 import { useAdminCopy } from '../../components/AdminCopyProvider'
-import { postJson } from '../../lib/api'
+import { postJson, putJson } from '../../lib/api'
 import { KOREA_CITIES, regionOptionsForLevel, regionSummaryFromKeys, type RegionLevel } from '../../lib/koreaRegions'
 import { mockPushAdmin } from '../../lib/mock'
 import { useAdminData } from '../../lib/useAdminData'
@@ -75,6 +75,30 @@ type BroadcastResponse = {
   }
 }
 
+type PushScheduleDto = {
+  enabled: boolean
+  cadence: 'weekly' | string
+  weekday: 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun' | string
+  time: string
+  timezone: string
+  kind: 'notice' | 'promotion' | string
+  audience: 'all' | 'members' | 'guests' | string
+  title: string
+  message: string
+  targetTab: 'home' | 'explore' | 'my' | null
+  targetUrl: string | null
+  segment?: PushRegionSegment | null
+  updatedAt?: string | null
+  updatedBy?: string | null
+  updatedBySource?: string | null
+  lastDispatchSlotKey?: string | null
+  lastDispatchedAt?: string | null
+  lastDispatchCampaignId?: string | null
+  lastDispatchStatus?: string | null
+  lastDispatchError?: string | null
+  nextDispatchAt?: string | null
+}
+
 type AudienceMode = 'all' | 'members' | 'guests' | 'upload'
 type RegionSegmentMode = 'none' | 'recent' | 'frequent' | 'primary'
 
@@ -133,6 +157,16 @@ type SegmentPreviewResponse = {
   }
 }
 
+const SCHEDULE_WEEKDAY_LABELS: Record<string, string> = {
+  mon: '월',
+  tue: '화',
+  wed: '수',
+  thu: '목',
+  fri: '금',
+  sat: '토',
+  sun: '일',
+}
+
 const PRESETS = [
   {
     label: '운영 공지',
@@ -172,6 +206,10 @@ const PRESETS = [
 function fmt(value?: string | null) {
   if (!value) return '-'
   return value.replace('T', ' ').slice(0, 19)
+}
+
+function scheduleLabel(schedule: Pick<PushScheduleDto, 'weekday' | 'time' | 'timezone'>) {
+  return `매주 ${SCHEDULE_WEEKDAY_LABELS[schedule.weekday] ?? schedule.weekday} ${schedule.time} (${schedule.timezone})`
 }
 
 function targetLabel(campaign: Pick<PushCampaignDto, 'targetTab' | 'targetUrl'>) {
@@ -266,10 +304,15 @@ export default function PushPage() {
     ok: true,
     data: { campaigns: mockPushAdmin.campaigns as PushCampaignDto[] },
   })
+  const scheduleRes = useAdminData<{ ok: boolean; data: PushScheduleDto }>('/admin/push/schedule', {
+    ok: true,
+    data: mockPushAdmin.schedule as PushScheduleDto,
+  })
 
   const status = statusRes.data.data
   const devices = devicesRes.data.data.devices
   const campaigns = campaignsRes.data.data.campaigns
+  const schedule = scheduleRes.data.data
 
   const [kind, setKind] = useState<'notice' | 'promotion'>('notice')
   const [audienceMode, setAudienceMode] = useState<AudienceMode>('all')
@@ -279,6 +322,8 @@ export default function PushPage() {
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [sendMessage, setSendMessage] = useState<string | null>(null)
+  const [scheduleSaving, setScheduleSaving] = useState(false)
+  const [scheduleMessage, setScheduleMessage] = useState<string | null>(null)
   const [selectedPresetIndex, setSelectedPresetIndex] = useState<number | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [campaignQuery, setCampaignQuery] = useState('')
@@ -299,9 +344,18 @@ export default function PushPage() {
   const [regionPickerDraftKeys, setRegionPickerDraftKeys] = useState<string[]>([])
   const [regionPickerCity, setRegionPickerCity] = useState('')
   const [regionPickerDistrict, setRegionPickerDistrict] = useState('')
+  const [scheduleEnabled, setScheduleEnabled] = useState(false)
+  const [scheduleWeekday, setScheduleWeekday] = useState<PushScheduleDto['weekday']>('fri')
+  const [scheduleTime, setScheduleTime] = useState('18:30')
+  const [scheduleAudience, setScheduleAudience] = useState<'all' | 'members' | 'guests'>('all')
+  const [scheduleKind, setScheduleKind] = useState<'notice' | 'promotion'>('promotion')
+  const [scheduleTargetTab, setScheduleTargetTab] = useState<'home' | 'explore' | 'my' | ''>('home')
+  const [scheduleTargetUrl, setScheduleTargetUrl] = useState('')
+  const [scheduleTitle, setScheduleTitle] = useState('이번 주말 장보기')
+  const [scheduleBody, setScheduleBody] = useState('이번주말 카트리로 쇼핑 어때요?')
 
-  const loading = statusRes.loading || devicesRes.loading || campaignsRes.loading
-  const usingFallback = statusRes.usingFallback || devicesRes.usingFallback || campaignsRes.usingFallback
+  const loading = statusRes.loading || devicesRes.loading || campaignsRes.loading || scheduleRes.loading
+  const usingFallback = statusRes.usingFallback || devicesRes.usingFallback || campaignsRes.usingFallback || scheduleRes.usingFallback
   const activeDeviceCount = status.devices.active
   const tokenReadyCount = status.devices.tokenReady
   const pushReady = status.ready && tokenReadyCount > 0
@@ -314,6 +368,18 @@ export default function PushPage() {
     if (regionLevel === 'district') return districtOptions
     return neighborhoodOptions
   }, [districtOptions, neighborhoodOptions, regionLevel])
+
+  useEffect(() => {
+    setScheduleEnabled(Boolean(schedule.enabled))
+    setScheduleWeekday((schedule.weekday as PushScheduleDto['weekday']) || 'fri')
+    setScheduleTime(schedule.time || '18:30')
+    setScheduleAudience((schedule.audience as 'all' | 'members' | 'guests') || 'all')
+    setScheduleKind((schedule.kind as 'notice' | 'promotion') || 'promotion')
+    setScheduleTargetTab((schedule.targetTab as 'home' | 'explore' | 'my' | null) ?? 'home')
+    setScheduleTargetUrl(schedule.targetUrl || '')
+    setScheduleTitle(schedule.title || '이번 주말 장보기')
+    setScheduleBody(schedule.message || '이번주말 카트리로 쇼핑 어때요?')
+  }, [schedule])
 
   function currentRegionSegmentPayload(): PushRegionSegment | null {
     if (regionSegmentMode === 'none' || selectedRegionKeys.length === 0) return null
@@ -523,11 +589,50 @@ export default function PushPage() {
       } else {
         setSendMessage(`저장했어. status ${response.data.campaign.status}`)
       }
-      await Promise.allSettled([statusRes.reload(), devicesRes.reload(), campaignsRes.reload()])
+      await Promise.allSettled([statusRes.reload(), devicesRes.reload(), campaignsRes.reload(), scheduleRes.reload()])
     } catch (error) {
       setSendMessage(error instanceof Error ? error.message : '푸시 발송에 실패했어')
     } finally {
       setSending(false)
+    }
+  }
+
+  function copyComposerToSchedule() {
+    setScheduleTitle(title.trim() || '이번 주말 장보기')
+    setScheduleBody(message.trim() || '이번주말 카트리로 쇼핑 어때요?')
+    setScheduleAudience((audienceMode === 'upload' ? 'all' : audienceMode) as 'all' | 'members' | 'guests')
+    setScheduleKind(kind)
+    setScheduleTargetTab(targetTab || '')
+    setScheduleTargetUrl(targetUrl.trim())
+    setScheduleMessage('지금 composer 내용을 예약 푸시에 복사했어')
+  }
+
+  async function saveSchedule() {
+    if (!scheduleTitle.trim() || !scheduleBody.trim()) {
+      setScheduleMessage('예약 푸시도 제목과 본문이 필요해')
+      return
+    }
+    setScheduleSaving(true)
+    setScheduleMessage(null)
+    try {
+      const response = await putJson<{ ok: boolean; data: PushScheduleDto }>('/admin/push/schedule', {
+        enabled: scheduleEnabled,
+        weekday: scheduleWeekday,
+        time: scheduleTime || '18:30',
+        timezone: 'Asia/Seoul',
+        kind: scheduleKind,
+        audience: scheduleAudience,
+        title: scheduleTitle.trim(),
+        message: scheduleBody.trim(),
+        targetTab: scheduleTargetTab || null,
+        targetUrl: scheduleTargetUrl.trim() || null,
+      })
+      setScheduleMessage(`저장했어. ${scheduleLabel(response.data)} · next ${fmt(response.data.nextDispatchAt)}`)
+      await Promise.allSettled([scheduleRes.reload(), campaignsRes.reload()])
+    } catch (error) {
+      setScheduleMessage(error instanceof Error ? error.message : '예약 푸시 저장 실패')
+    } finally {
+      setScheduleSaving(false)
     }
   }
 
@@ -538,7 +643,7 @@ export default function PushPage() {
         title={t('admin.push.title', 'Push')}
         description={t('admin.push.desc', '운영 공지와 혜택 알림을 다루는 Growth operator surface')}
         onRefresh={() => {
-          void Promise.allSettled([statusRes.reload(), devicesRes.reload(), campaignsRes.reload()])
+          void Promise.allSettled([statusRes.reload(), devicesRes.reload(), campaignsRes.reload(), scheduleRes.reload()])
         }}
         refreshing={loading}
       />
@@ -586,6 +691,108 @@ export default function PushPage() {
         {platformSummary.map(([platform, count]) => (
           <span key={platform} className="metaPill">{platform} {count}</span>
         ))}
+      </div>
+
+      <div className="exploreActionBar exploreActionBarSingle section" style={{ marginTop: 8 }}>
+        <div className="exploreActionPanel exploreActionPanelTight">
+          <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 0 }}>
+            <h2 className="panelTitle" style={{ marginBottom: 0 }}>Recurring Friday push</h2>
+            <div className="metaRow" style={{ marginTop: 0 }}>
+              <span className="metaPill">{scheduleEnabled ? 'enabled' : 'paused'}</span>
+              <span className="metaPill">{scheduleLabel({ weekday: scheduleWeekday, time: scheduleTime || '18:30', timezone: 'Asia/Seoul' })}</span>
+              <span className="metaPill">next {fmt(schedule.nextDispatchAt)}</span>
+            </div>
+          </div>
+
+          <div className="exploreSheetFilterGrid compactFilterGrid" style={{ gridTemplateColumns: 'repeat(5, minmax(140px, 1fr))', marginTop: 8 }}>
+            <label className="field" style={{ margin: 0 }}>
+              <div className="exploreSheetFieldLabel">상태</div>
+              <select className="textInput exploreSheetInput" value={scheduleEnabled ? 'enabled' : 'paused'} onChange={(event) => setScheduleEnabled(event.target.value === 'enabled')}>
+                <option value="enabled">enabled</option>
+                <option value="paused">paused</option>
+              </select>
+            </label>
+            <label className="field" style={{ margin: 0 }}>
+              <div className="exploreSheetFieldLabel">요일</div>
+              <select className="textInput exploreSheetInput" value={scheduleWeekday} onChange={(event) => setScheduleWeekday(event.target.value as PushScheduleDto['weekday'])}>
+                {Object.entries(SCHEDULE_WEEKDAY_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="field" style={{ margin: 0 }}>
+              <div className="exploreSheetFieldLabel">시간</div>
+              <input className="textInput exploreSheetInput" type="time" value={scheduleTime} onChange={(event) => setScheduleTime(event.target.value)} />
+            </label>
+            <label className="field" style={{ margin: 0 }}>
+              <div className="exploreSheetFieldLabel">kind</div>
+              <select className="textInput exploreSheetInput" value={scheduleKind} onChange={(event) => setScheduleKind(event.target.value as 'notice' | 'promotion')}>
+                <option value="promotion">promotion</option>
+                <option value="notice">notice</option>
+              </select>
+            </label>
+            <label className="field" style={{ margin: 0 }}>
+              <div className="exploreSheetFieldLabel">audience</div>
+              <select className="textInput exploreSheetInput" value={scheduleAudience} onChange={(event) => setScheduleAudience(event.target.value as 'all' | 'members' | 'guests')}>
+                <option value="all">all</option>
+                <option value="members">members</option>
+                <option value="guests">guests</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="exploreSheetFilterGrid" style={{ gridTemplateColumns: 'minmax(220px, 0.9fr) minmax(320px, 1.4fr) auto', alignItems: 'end', marginTop: 8 }}>
+            <label className="field" style={{ margin: 0 }}>
+              <div className="exploreSheetFieldLabel">예약 제목</div>
+              <input className="textInput exploreSheetInput" value={scheduleTitle} onChange={(event) => setScheduleTitle(event.target.value)} placeholder="예: 이번 주말 장보기" />
+            </label>
+            <label className="field" style={{ margin: 0 }}>
+              <div className="exploreSheetFieldLabel">예약 본문</div>
+              <textarea className="textInput exploreSheetInput" value={scheduleBody} onChange={(event) => setScheduleBody(event.target.value)} placeholder="예: 이번주말 카트리로 쇼핑 어때요?" rows={3} />
+            </label>
+            <div style={{ display: 'grid', gap: 8 }}>
+              <button className="primaryBtn pageActionBtn" type="button" onClick={() => void saveSchedule()} disabled={scheduleSaving}>
+                {scheduleSaving ? '저장중...' : '예약 저장'}
+              </button>
+              <button className="ghostBtn ghostBtnSmall" type="button" onClick={copyComposerToSchedule}>
+                composer 내용 복사
+              </button>
+            </div>
+          </div>
+
+          <div className="exploreSheetFilterGrid compactFilterGrid" style={{ gridTemplateColumns: 'repeat(2, minmax(180px, 1fr))', marginTop: 8 }}>
+            <label className="field" style={{ margin: 0 }}>
+              <div className="exploreSheetFieldLabel">target tab</div>
+              <select className="textInput exploreSheetInput" value={scheduleTargetTab} onChange={(event) => setScheduleTargetTab(event.target.value as 'home' | 'explore' | 'my' | '')}>
+                <option value="">없음</option>
+                <option value="home">home</option>
+                <option value="explore">explore</option>
+                <option value="my">my</option>
+              </select>
+            </label>
+            <label className="field" style={{ margin: 0 }}>
+              <div className="exploreSheetFieldLabel">target url</div>
+              <input className="textInput exploreSheetInput" value={scheduleTargetUrl} onChange={(event) => setScheduleTargetUrl(event.target.value)} placeholder="선택, target tab보다 우선" />
+            </label>
+          </div>
+
+          <div className="metaRow" style={{ marginTop: 8 }}>
+            <span className="metaPill">last {fmt(schedule.lastDispatchedAt)}</span>
+            <span className="metaPill">last status {schedule.lastDispatchStatus ?? '-'}</span>
+            <span className="metaPill">campaign {schedule.lastDispatchCampaignId ?? '-'}</span>
+            <span className="metaPill">updated {fmt(schedule.updatedAt)}</span>
+          </div>
+          {schedule.lastDispatchError ? (
+            <div className="loginError" style={{ marginTop: 8, marginBottom: 0 }}>
+              last dispatch error: {schedule.lastDispatchError}
+            </div>
+          ) : null}
+          {scheduleMessage ? (
+            <div className="loginError" style={{ marginTop: 8, marginBottom: 0, borderColor: '#d1d5db', background: '#f8fafc', color: '#0f172a' }}>
+              {scheduleMessage}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {!pushReady ? (

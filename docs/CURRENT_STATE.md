@@ -1,6 +1,6 @@
 # Cartly Current State
 
-Last updated: 2026-05-19
+Last updated: 2026-05-20
 Status: canonical current-state document
 
 ## What Cartly is now
@@ -17,10 +17,14 @@ It is a personal decision-support tool for real grocery planning and review.
 ## Current product/runtime status
 
 ### Customer app
-- Latest uploaded iOS build on App Store Connect: `1.0.5 (10)`
+- iOS public release is now live on the App Store as `카트리`: `https://apps.apple.com/kr/app/카트리/id6763728346`
+- Latest shipped iOS public release line is `1.0.5 (10)`.
+- Latest uploaded iOS TestFlight update line is still `1.0.6 (4)`.
+- Latest locally built iOS candidate is `1.0.6 (5)` and is awaiting App Store Connect upload.
 - Latest uploaded Android internal-testing build: `1.0.5 (39)`
 - Shared household current-cart collaboration v2 is implemented and shipped in build 25.
 - Guest mode exists.
+- Fresh-install guest bootstrap is now hardened: if the app has no persisted session, it auto-creates a guest session and emits an authenticated `app_open` event so first visits surface in both the customer DB and activity metrics.
 - Member-only features include profile management, family sharing, and account deletion.
 - Receipt flow is customer-facing source-of-truth apply/undo, not cart-vs-receipt comparison review.
 - Location usage remains foreground-only and purpose-limited to nearby market discount information.
@@ -40,7 +44,7 @@ Growth received the active relayout passes.
 
 Implemented/accepted state includes:
 - Users: customer DB + segmentation console
-- Push: campaign console with direct-upload audience flow and server-side device-state re-resolution
+- Push: campaign console with direct-upload audience flow, server-side device-state re-resolution, and a live recurring weekly schedule surface persisted server-side
 - Ads: campaign-row source-of-truth, targeting, region handling, and live runtime verification flow
 
 ### Public/business web
@@ -73,10 +77,13 @@ This fix path is now on the current review build line through `1.0.5 (10)`.
 ## Store/release status
 
 ### iOS / App Store Connect
-- Current review candidate build: `1.0.5 (10)`
-- Build delivery UUID: `90a8d53b-1417-40d8-b263-d227a0d43293`
-- Metadata, screenshots, privacy URL, support URL, and review contact have already been prepared.
-- As of 2026-05-19 night, the iOS App Store review submission was completed manually in App Store Connect after filling the missing console-side metadata/questionnaire fields.
+- Current shipped public iOS app: `카트리`
+- Public App Store URL: `https://apps.apple.com/kr/app/카트리/id6763728346`
+- Latest shipped review build line: `1.0.5 (10)`
+- Latest uploaded TestFlight build remains `1.0.6 (4)` with delivery UUID `fa7ab355-9cad-4e0d-9069-739e4158c3c3`
+- Next prepared local candidate is `1.0.6 (5)` (`build/ios/ipa/Cartly.ipa`) and includes the guest-bootstrap + first-visit telemetry fix.
+- Metadata, screenshots, privacy URL, support URL, and review contact have already been prepared and were sufficient for release.
+- Immediate post-release nuance: direct App Store URL is live, but search/discovery indexing can lag for a while after release, so early promotion should prefer the direct link.
 - Remaining caution: if the admin splash changes again later, the iPhone native first screen still requires a fresh bundled-asset rebuild and new upload.
 
 ### Android / Google Play
@@ -102,7 +109,13 @@ This fix path is now on the current review build line through `1.0.5 (10)`.
 - Use this document as the primary current-state entry point instead of chaining multiple handoff/checkpoint notes.
 
 ## Open next actions
-1. Watch the iOS App Store review for build `1.0.5 (10)` and respond quickly if Apple asks follow-up questions.
-2. Launch the required Google Play closed test, recruit at least 12 opted-in testers, and keep that test running for 14 days so production access can unlock.
-3. If Google Play install/listing surfaces still look generic during the closed-test period, keep cleaning up the Play listing high-res icon and store metadata separately from the binary.
-4. If the admin splash changes again, re-sync bundled splash assets and ship a new paired build before expecting native iPhone launch parity.
+1. Upload the already-built iOS candidate `1.0.6 (5)` to App Store Connect / TestFlight, then validate that fresh installs now create guest users immediately and produce authenticated `app_open` activity.
+2. Monitor the live iOS release, early user feedback, and App Store indexing/search pickup.
+3. Launch the required Google Play closed test, recruit at least 12 opted-in testers, and keep that test running for 14 days so production access can unlock.
+4. If Google Play install/listing surfaces still look generic during the closed-test period, keep cleaning up the Play listing high-res icon and store metadata separately from the binary.
+5. Keep the admin customer table clean during early rollout; as of 2026-05-20 morning, old test accounts were cleaned out and only `백승대` and `이지민` remained as active pre-launch accounts.
+6. Post-launch operator focus has now shifted to the operations/growth workstream captured in `docs/operations-growth-workstream-2026-05.md`: recurring Friday push scheduling, Coupang partner-product automation, AdMob verification, and direct-banner design guidance.
+7. The first scheduled-push MVP is now implemented, deployed, and enabled live as a weekly Friday 18:30 KST push baseline. The next validation should be a real dry-run observation when that schedule actually fires or via a controlled manual send.
+8. AdMob verification has started. Real production app IDs are present on Android/iOS, app-side `admob_*` telemetry now records init/load/fail/impression/click/show/reward lifecycle events through `/v1/events`, and Android release ad unit IDs have now been swapped to Cartly production values in `lib/services/admob_service.dart`.
+9. The first practical direct-banner design guide is now drafted at `docs/02_product/direct-banner-design-guide.md`, with Cartly-aligned example mockups for the current slot shapes under `docs/02_product/direct-banner-examples/`.
+10. If the admin splash changes again, re-sync bundled splash assets and ship a new paired build before expecting native iPhone launch parity.

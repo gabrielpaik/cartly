@@ -17,8 +17,14 @@ class CartItemRequest(BaseModel):
 class CreateCartRequest(BaseModel):
     title: Optional[str] = None
     items: List[CartItemRequest]
+    shareWithHousehold: bool = False
 
 
 class UpdateCartRequest(BaseModel):
     title: Optional[str] = None
     items: Optional[List[CartItemRequest]] = None
+    shareWithHousehold: Optional[bool] = None
+
+
+class ToggleCartHouseholdShareRequest(BaseModel):
+    shareWithHousehold: bool

@@ -46,3 +46,17 @@ class AdminPushBroadcastRequest(BaseModel):
     targetUrl: Optional[str] = None
     explicitAudience: Optional[list[AdminPushAudienceEntry]] = None
     segment: Optional[AdminPushRegionSegment] = None
+
+
+class AdminPushScheduleRequest(BaseModel):
+    enabled: bool = False
+    weekday: Literal['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] = 'fri'
+    time: str = '18:30'
+    timezone: str = 'Asia/Seoul'
+    kind: Literal['notice', 'promotion'] = 'promotion'
+    audience: Literal['all', 'members', 'guests'] = 'all'
+    title: str = '이번 주말 장보기'
+    message: str = '이번주말 카트리로 쇼핑 어때요?'
+    targetTab: Optional[Literal['home', 'explore', 'my']] = 'home'
+    targetUrl: Optional[str] = None
+    segment: Optional[AdminPushRegionSegment] = None

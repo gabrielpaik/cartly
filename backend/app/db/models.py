@@ -171,6 +171,7 @@ class Cart(Base):
     total_count_cached: Mapped[int] = mapped_column(Integer, default=0)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     retention_extension_count: Mapped[int] = mapped_column(Integer, default=0)
+    share_with_household: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

@@ -1,6 +1,6 @@
 # Cartly Family Cart System
 
-Last updated: 2026-05-19
+Last updated: 2026-05-20
 Status: canonical
 Purpose: member-only family sharing and shared cart system contract
 Use this doc when: changing household rules, shared current cart behavior, or admin/operator handling
@@ -32,6 +32,7 @@ Cartly family cart는 단순 초대 기능이 아니라, **가족 단위 장보�
 - invite code 참여
 - household 상태 조회
 - shared saved/past cart visibility
+- saved cart per-cart share on/off
 - owner-only mutation enforcement
 
 ### v2에서 추가된 것
@@ -54,9 +55,11 @@ Cartly family cart는 단순 초대 기능이 아니라, **가족 단위 장보�
 - 현재 카트는 local only
 
 ### household member
-- 현재 카트는 remote shared current cart 사용
-- 저장 카트/지난 카트 공유 가시화
-- household 상태는 My 페이지에서 관리
+- 현재 카트는 `개인` / `공유` 모드를 전환해 사용할 수 있다.
+- `공유` 모드에서는 remote shared current cart를 사용한다.
+- `개인` 모드에서는 본인 local current cart를 유지한다.
+- 저장 카트/지난 카트는 cart별 공유 on/off 상태로 노출된다.
+- household 상태는 My 페이지에서 관리한다.
 - 새 구성원 초대는 owner에게 요청한다.
 
 ## 6. 참여 / 해제 규칙
@@ -121,7 +124,15 @@ Cartly family cart는 단순 초대 기능이 아니라, **가족 단위 장보�
 
 ## 10. 현재 카트 저장 시 규칙
 - household shared current cart를 저장 카트로 넘기면 **shared current cart는 비워진다**.
+- 개인 current cart는 shared current cart와 분리 저장된다.
 - 저장된 결과는 household의 다음 장보기 재시작 맥락에 쓰일 수 있다.
+
+## 10-1. 현재 UX 규칙
+- 홈 `현재 카트` 영역에는 `개인 | 공유` 전환 컨트롤이 있다.
+- guest가 `공유`를 누르면 회원가입 유도가 열린다.
+- 회원이지만 household가 없으면 설정/가족공유 페이지로 보낸다.
+- linked member는 확인 후 `개인` / `공유` 모드를 전환한다.
+- saved cart list와 cart detail에서는 `link` / `link.slash` 상태로 가족 연동 여부를 바꿀 수 있다.
 
 ## 11. 세션 / 계정 안전성 규칙
 - sign-out 시 household 상태를 정리해야 한다.

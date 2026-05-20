@@ -6,6 +6,8 @@ import '../app_support.dart';
 import '../models/recognized_item.dart';
 import 'auth_store.dart';
 
+enum CurrentCartMode { personal, shared }
+
 class CurrentCartSnapshot {
   final List<CartItem> items;
   final List<RecentScanEntry> recentScans;
@@ -23,25 +25,19 @@ class CurrentCartStore {
 
   static final CurrentCartStore instance = CurrentCartStore._();
 
-  static const _snapshotKey = 'current_cart_snapshot_v1';
-  static const _ownerKey = 'current_cart_snapshot_owner_v1';
+  static const _personalSnapshotKey = 'current_cart_personal_snapshot_v2';
+  static const _ownerKey = 'current_cart_snapshot_owner_v2';
+  static const _modeKey = 'current_cart_mode_v2';
 
   String get _currentOwnerId => AuthStore.instance.session.value?.id ?? '';
 
-  Future<CurrentCartSnapshot> load() async {
+  Future<CurrentCartSnapshot> loadPersonal() async {
     final sp = await SharedPreferences.getInstance();
-    final raw = sp.getString(_snapshotKey);
+    final raw = sp.getString(_personalSnapshotKey);
     final storedOwnerId = sp.getString(_ownerKey) ?? '';
     final currentOwnerId = _currentOwnerId;
 
-    if (raw == null || raw.trim().isEmpty) {
-      return const CurrentCartSnapshot(
-        items: [],
-        recentScans: [],
-        consideredItems: [],
-      );
-    }
-    if (storedOwnerId != currentOwnerId) {
+    if (raw == null || raw.trim().isEmpty || storedOwnerId != currentOwnerId) {
       return const CurrentCartSnapshot(
         items: [],
         recentScans: [],
@@ -98,13 +94,16 @@ class CurrentCartStore {
     }
   }
 
+  Future<CurrentCartSnapshot> load() => loadPersonal();
+
   Future<void> clear() async {
     final sp = await SharedPreferences.getInstance();
-    await sp.remove(_snapshotKey);
+    await sp.remove(_personalSnapshotKey);
     await sp.remove(_ownerKey);
+    await sp.remove(_modeKey);
   }
 
-  Future<void> save({
+  Future<void> savePersonal({
     required List<CartItem> items,
     required List<RecentScanEntry> recentScans,
     required List<ConsideredProductEntry> consideredItems,
@@ -118,7 +117,40 @@ class CurrentCartStore {
           .toList(growable: false),
     };
     await sp.setString(_ownerKey, _currentOwnerId);
-    await sp.setString(_snapshotKey, jsonEncode(payload));
+    await sp.setString(_personalSnapshotKey, jsonEncode(payload));
+  }
+
+  Future<void> save({
+    required List<CartItem> items,
+    required List<RecentScanEntry> recentScans,
+    required List<ConsideredProductEntry> consideredItems,
+  }) {
+    return savePersonal(
+      items: items,
+      recentScans: recentScans,
+      consideredItems: consideredItems,
+    );
+  }
+
+  Future<CurrentCartMode> loadMode() async {
+    final sp = await SharedPreferences.getInstance();
+    final storedOwnerId = sp.getString(_ownerKey) ?? '';
+    if (storedOwnerId != _currentOwnerId) {
+      return CurrentCartMode.personal;
+    }
+    return switch (sp.getString(_modeKey)) {
+      'shared' => CurrentCartMode.shared,
+      _ => CurrentCartMode.personal,
+    };
+  }
+
+  Future<void> saveMode(CurrentCartMode mode) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString(_ownerKey, _currentOwnerId);
+    await sp.setString(
+      _modeKey,
+      mode == CurrentCartMode.shared ? 'shared' : 'personal',
+    );
   }
 
   Map<String, dynamic> _cartItemToJson(CartItem item) => {

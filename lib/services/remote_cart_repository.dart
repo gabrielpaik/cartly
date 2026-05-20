@@ -78,6 +78,20 @@ class RemoteCartRepository {
     await _send('DELETE', '/v1/carts/$cartId', authToken: authToken);
   }
 
+  Future<SavedCart> setHouseholdShare({
+    required String authToken,
+    required String cartId,
+    required bool shareWithHousehold,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/v1/carts/$cartId/household-share',
+      authToken: authToken,
+      body: {'shareWithHousehold': shareWithHousehold},
+    );
+    return _readCart(response);
+  }
+
   Future<SavedCart> extendCartRetention({
     required String authToken,
     required String cartId,

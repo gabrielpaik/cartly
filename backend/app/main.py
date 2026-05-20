@@ -10,9 +10,11 @@ from .core.settings import settings
 from .db.init_db import init_db
 from .routers import admin, ads_runtime, auth, carts, config, events, explore, households, push, receipts, scan
 from .services.admin_snapshot_scheduler import AdminDashboardSnapshotScheduler
+from .services.push_scheduler import PushCampaignScheduler
 from .services.storage_health import ensure_storage_ready, storage_health_check
 
 snapshot_scheduler = AdminDashboardSnapshotScheduler()
+push_scheduler = PushCampaignScheduler()
 
 
 @asynccontextmanager
@@ -20,10 +22,13 @@ async def lifespan(_: FastAPI):
     await asyncio.to_thread(ensure_storage_ready)
     await asyncio.to_thread(init_db)
     await snapshot_scheduler.run_startup_catchup()
+    await push_scheduler.run_startup_catchup()
     await snapshot_scheduler.start()
+    await push_scheduler.start()
     try:
         yield
     finally:
+        await push_scheduler.stop()
         await snapshot_scheduler.stop()
 
 

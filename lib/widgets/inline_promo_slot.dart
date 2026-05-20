@@ -91,7 +91,10 @@ class _InlinePromoSlotState extends State<InlinePromoSlot> {
     final creatives = slot.config.creatives;
     if (creatives.length <= 1) return 0;
     if (slot.config.rotationMode == 'random') {
-      final seed = slot.slotKey.codeUnits.fold<int>(17, (sum, item) => sum + item);
+      final seed = slot.slotKey.codeUnits.fold<int>(
+        17,
+        (sum, item) => sum + item,
+      );
       return Random(seed + _rotationTick).nextInt(creatives.length);
     }
     return _rotationTick % creatives.length;
@@ -132,7 +135,7 @@ class _InlinePromoSlotState extends State<InlinePromoSlot> {
       screenName: slot.config.screen ?? widget.slotKey,
     );
 
-    final landing = creative.landing;
+    final landing = _resolveLanding(creative);
     if (landing != null && landing.isValid) {
       switch (landing.type) {
         case 'explore_section':
@@ -140,6 +143,9 @@ class _InlinePromoSlotState extends State<InlinePromoSlot> {
           return;
         case 'my_section':
           AppNavigationService.instance.selectTab(2);
+          if (_opensAccountSettings(landing.key)) {
+            await AppNavigationService.instance.openAccountSettings();
+          }
           return;
         case 'auth_flow':
           AppNavigationService.instance.selectTab(2);
@@ -169,6 +175,57 @@ class _InlinePromoSlotState extends State<InlinePromoSlot> {
     return trimmed != null && trimmed.isNotEmpty ? trimmed : fallback;
   }
 
+  AppAdLanding? _resolveLanding(AppAdCreative creative) {
+    final landing = creative.landing;
+    if (landing == null) return null;
+
+    final isGuest = AuthStore.instance.session.value?.isGuest ?? true;
+    final override = _landingOverride(
+      landing.params,
+      prefix: isGuest ? 'guest' : 'member',
+    );
+    return override ?? landing;
+  }
+
+  AppAdLanding? _landingOverride(
+    Map<String, dynamic> params, {
+    required String prefix,
+  }) {
+    final type = (params['${prefix}LandingType'] as String?)?.trim() ?? '';
+    final key = (params['${prefix}LandingKey'] as String?)?.trim() ?? '';
+    if (type.isEmpty || key.isEmpty) {
+      return null;
+    }
+    final nestedParams = params['${prefix}LandingParams'];
+    return AppAdLanding(
+      type: type,
+      key: key,
+      params: nestedParams is Map<String, dynamic>
+          ? nestedParams
+          : nestedParams is Map
+          ? Map<String, dynamic>.from(nestedParams)
+          : const <String, dynamic>{},
+    );
+  }
+
+  bool _opensAccountSettings(String key) {
+    return {
+      'account_settings',
+      'profile_edit',
+      'settings_share',
+      'settings',
+    }.contains(key.trim());
+  }
+
+  bool _usesFullBanner(AppAdSlot? slot, AppAdCreative? creative) {
+    final creativeStyle = (creative?.landing?.params['renderStyle'] as String?)
+        ?.trim();
+    final slotStyle = (slot?.config.landing?.params['renderStyle'] as String?)
+        ?.trim();
+    final style = creativeStyle?.isNotEmpty == true ? creativeStyle : slotStyle;
+    return style == 'full_banner';
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<List<AppAdSlot>>(
@@ -195,123 +252,232 @@ class _InlinePromoSlotState extends State<InlinePromoSlot> {
           });
         }
 
-        final slotTitle = _resolveText(activeCreative?.title, _resolveText(liveSlot?.config.title, widget.title));
-        final slotMessage = _resolveText(activeCreative?.message, _resolveText(liveSlot?.config.message, widget.message));
+        final slotTitle = _resolveText(
+          activeCreative?.title,
+          _resolveText(liveSlot?.config.title, widget.title),
+        );
+        final slotMessage = _resolveText(
+          activeCreative?.message,
+          _resolveText(liveSlot?.config.message, widget.message),
+        );
         final slotHeight = liveSlot?.config.maxHeight ?? widget.height;
-        final ctaLabel = _resolveText(activeCreative?.ctaLabel, _resolveText(liveSlot?.config.ctaLabel, widget.slotKey));
+        final ctaLabel = _resolveText(
+          activeCreative?.ctaLabel,
+          _resolveText(liveSlot?.config.ctaLabel, widget.slotKey),
+        );
         final imageUrl = activeCreative?.imageUrl?.trim().isNotEmpty == true
             ? activeCreative!.imageUrl!.trim()
             : liveSlot?.config.imageUrl?.trim();
         final creatives = liveSlot?.config.creatives ?? const <AppAdCreative>[];
-        final activeIndex = liveSlot == null ? 0 : _activeCreativeIndex(liveSlot);
+        final activeIndex = liveSlot == null
+            ? 0
+            : _activeCreativeIndex(liveSlot);
         final hasTapAction = activeCreative?.hasAction ?? false;
+
+        final useFullBanner =
+            imageUrl != null &&
+            imageUrl.isNotEmpty &&
+            _usesFullBanner(liveSlot, activeCreative);
+
+        final rotationDots = creatives.length > 1
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(creatives.length, (index) {
+                  final selected = index == activeIndex;
+                  return Container(
+                    width: selected ? 14 : 6,
+                    height: 6,
+                    margin: EdgeInsets.only(
+                      right: index == creatives.length - 1 ? 0 : 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? CartlyColors.brand
+                          : const Color(0xFFD0D5DD),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  );
+                }),
+              )
+            : null;
 
         final card = AnimatedSwitcher(
           duration: const Duration(milliseconds: 240),
-          child: Container(
-            key: ValueKey('${widget.slotKey}:${activeCreative?.campaignId ?? 'fallback'}'),
-            constraints: BoxConstraints(minHeight: slotHeight),
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  CartlyColors.softWarmSurface,
-                  CartlyColors.surface1,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: CartlyColors.line),
-            ),
-            child: Row(
-              children: [
-                if (imageUrl != null && imageUrl.isNotEmpty) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      imageUrl,
-                      width: 52,
-                      height: 52,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return PromoSlotIcon(hasTapAction: hasTapAction);
-                      },
-                    ),
+          child: useFullBanner
+              ? Container(
+                  key: ValueKey(
+                    '${widget.slotKey}:${activeCreative?.campaignId ?? 'fallback'}:full',
                   ),
-                ] else ...[
-                  PromoSlotIcon(hasTapAction: hasTapAction),
-                ],
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  height: slotHeight,
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: Stack(
                     children: [
-                      Text(
-                        slotTitle,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      CartlyColors.softWarmSurface,
+                                      CartlyColors.surface1,
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: CartlyColors.line),
+                                ),
+                                padding: const EdgeInsets.all(14),
+                                child: Row(
+                                  children: [
+                                    PromoSlotIcon(hasTapAction: hasTapAction),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            slotTitle,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            slotMessage,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.black54,
+                                              height: 1.4,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        slotMessage,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black54,
-                          height: 1.4,
+                      if (rotationDots != null)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 10,
+                          child: Center(child: rotationDots),
                         ),
-                      ),
-                      if (creatives.length > 1) ...[
-                        const SizedBox(height: 8),
-                        Row(
-                          children: List.generate(creatives.length, (index) {
-                            final selected = index == activeIndex;
-                            return Container(
-                              width: selected ? 14 : 6,
-                              height: 6,
-                              margin: EdgeInsets.only(right: index == creatives.length - 1 ? 0 : 4),
-                              decoration: BoxDecoration(
-                                color: selected
-                                    ? CartlyColors.brand
-                                    : const Color(0xFFD0D5DD),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                            );
-                          }),
-                        ),
+                    ],
+                  ),
+                )
+              : Container(
+                  key: ValueKey(
+                    '${widget.slotKey}:${activeCreative?.campaignId ?? 'fallback'}',
+                  ),
+                  constraints: BoxConstraints(minHeight: slotHeight),
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        CartlyColors.softWarmSurface,
+                        CartlyColors.surface1,
                       ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: CartlyColors.line),
+                  ),
+                  child: Row(
+                    children: [
+                      if (imageUrl != null && imageUrl.isNotEmpty) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            imageUrl,
+                            width: 52,
+                            height: 52,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return PromoSlotIcon(hasTapAction: hasTapAction);
+                            },
+                          ),
+                        ),
+                      ] else ...[
+                        PromoSlotIcon(hasTapAction: hasTapAction),
+                      ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              slotTitle,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              slotMessage,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black54,
+                                height: 1.4,
+                              ),
+                            ),
+                            if (rotationDots != null) ...[
+                              const SizedBox(height: 8),
+                              rotationDots,
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          ctaLabel,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: hasTapAction
+                                ? CartlyColors.brand
+                                : Colors.black54,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    ctaLabel,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: hasTapAction
-                          ? CartlyColors.brand
-                          : Colors.black54,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         );
 
         if (!hasTapAction || liveSlot == null || activeCreative == null) {

@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session as OrmSession
 
 from ..deps import current_user_dep, db_dep
-from ..schemas.cart import CreateCartRequest, UpdateCartRequest
-from ..services.cart_service import _load_users_for_carts, create_cart, delete_cart, extend_cart_retention, get_user_cart, list_user_carts, serialize_cart_with_receipt, serialize_carts_with_receipts, update_cart
+from ..schemas.cart import CreateCartRequest, ToggleCartHouseholdShareRequest, UpdateCartRequest
+from ..services.cart_service import _load_users_for_carts, create_cart, delete_cart, extend_cart_retention, get_user_cart, list_user_carts, serialize_cart_with_receipt, serialize_carts_with_receipts, update_cart, update_cart_household_share
 from ..services.household_service import get_household_for_user
 
 router = APIRouter()
@@ -41,7 +41,9 @@ def list_carts(
     users_by_id = _load_users_for_carts(db, carts)
     household = _serialize_household_meta(get_household_for_user(db, user.id))
     household_by_user_id = {
-        cart.user_id or '': household if household is not None and cart.user_id != user.id else None
+        cart.user_id or '': household
+        if household is not None and cart.user_id != user.id and cart.share_with_household
+        else None
         for cart in carts
     }
     return {
@@ -86,7 +88,7 @@ def get_cart(
             },
         }
     owner = cart.user_id == user.id and user or _load_users_for_carts(db, [cart]).get(cart.user_id or '')
-    household = _serialize_household_meta(get_household_for_user(db, user.id)) if cart.user_id != user.id else None
+    household = _serialize_household_meta(get_household_for_user(db, user.id)) if cart.user_id != user.id and cart.share_with_household else None
     return {'ok': True, 'data': {'cart': serialize_cart_with_receipt(db, cart, user=owner, viewer_user_id=user.id, household=household)}}
 
 
@@ -137,6 +139,31 @@ def extend_cart_retention_endpoint(
         }
 
     updated = extend_cart_retention(db, cart)
+    return {'ok': True, 'data': {'cart': serialize_cart_with_receipt(db, updated, user=user, viewer_user_id=user.id)}}
+
+
+@router.post('/{cart_id}/household-share')
+def toggle_cart_household_share_endpoint(
+    cart_id: str,
+    payload: ToggleCartHouseholdShareRequest,
+    db: OrmSession = Depends(db_dep),
+    current_user=Depends(current_user_dep),
+):
+    user = _require_current_user(current_user)
+    cart = get_user_cart(db, cart_id, user.id)
+    if cart is None or cart.user_id != user.id:
+        return {
+            'ok': False,
+            'error': {
+                'code': 'CART_NOT_FOUND',
+                'message': '수정할 수 있는 cart를 찾지 못했어',
+            },
+        }
+    updated = update_cart_household_share(
+        db,
+        cart,
+        share_with_household=payload.shareWithHousehold,
+    )
     return {'ok': True, 'data': {'cart': serialize_cart_with_receipt(db, updated, user=user, viewer_user_id=user.id)}}
 
 

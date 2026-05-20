@@ -225,6 +225,29 @@ class CartStore {
     await _persistLocal(next, ownerId: '');
   }
 
+  Future<SavedCart> setHouseholdShare({
+    required String cartId,
+    required bool shareWithHousehold,
+  }) async {
+    final currentSession = AuthStore.instance.session.value;
+    if (currentSession == null || currentSession.authToken.trim().isEmpty) {
+      throw const RemoteCartException('로그인이 필요해');
+    }
+
+    final remote = await _cartRepository.setHouseholdShare(
+      authToken: currentSession.authToken,
+      cartId: cartId,
+      shareWithHousehold: shareWithHousehold,
+    );
+    final next = [
+      remote,
+      ...carts.value.where((cart) => cart.id != cartId && cart.id != remote.id),
+    ];
+    await _persistLocal(next, ownerId: currentSession.id);
+    await _clearPendingOp(ownerId: currentSession.id, cartId: remote.id);
+    return remote;
+  }
+
   Future<SavedCart?> refreshCartById(String id) async {
     final currentSession = AuthStore.instance.session.value;
     if (currentSession == null || currentSession.authToken.trim().isEmpty) {

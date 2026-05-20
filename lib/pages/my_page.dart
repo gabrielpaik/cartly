@@ -97,15 +97,15 @@ class _MyPageState extends State<MyPage> {
   }
 }
 
-class _SettingsAndHouseholdPage extends StatefulWidget {
-  const _SettingsAndHouseholdPage();
+class SettingsAndHouseholdPage extends StatefulWidget {
+  const SettingsAndHouseholdPage({super.key});
 
   @override
-  State<_SettingsAndHouseholdPage> createState() =>
+  State<SettingsAndHouseholdPage> createState() =>
       _SettingsAndHouseholdPageState();
 }
 
-class _SettingsAndHouseholdPageState extends State<_SettingsAndHouseholdPage> {
+class _SettingsAndHouseholdPageState extends State<SettingsAndHouseholdPage> {
   final _nameCtrl = TextEditingController();
   final _inviteJoinCtrl = TextEditingController();
   final _passwordCodeCtrl = TextEditingController();
@@ -1583,7 +1583,7 @@ class _AccountHubCard extends StatelessWidget {
                                           await Navigator.of(context).push(
                                             MaterialPageRoute(
                                               builder: (_) =>
-                                                  const _SettingsAndHouseholdPage(),
+                                                  const SettingsAndHouseholdPage(),
                                             ),
                                           );
                                         },

@@ -39,6 +39,7 @@ class _AdMobBannerSlotState extends State<AdMobBannerSlot> {
       size: AdSize.banner,
       listener: BannerAdListener(
         onAdLoaded: (ad) {
+          AdMobService.instance.trackBannerLoaded();
           _retryTimer?.cancel();
           if (!mounted) {
             ad.dispose();
@@ -53,6 +54,7 @@ class _AdMobBannerSlotState extends State<AdMobBannerSlot> {
           });
         },
         onAdFailedToLoad: (ad, error) {
+          AdMobService.instance.trackBannerLoadFailed(error);
           ad.dispose();
           _isLoading = false;
           if (!mounted) return;
@@ -61,6 +63,12 @@ class _AdMobBannerSlotState extends State<AdMobBannerSlot> {
             _loaded = false;
           });
           _scheduleRetry();
+        },
+        onAdImpression: (ad) {
+          AdMobService.instance.trackBannerImpression();
+        },
+        onAdClicked: (ad) {
+          AdMobService.instance.trackBannerClick();
         },
       ),
     );

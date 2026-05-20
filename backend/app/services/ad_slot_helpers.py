@@ -77,6 +77,25 @@ DEFAULT_AD_SLOTS: List[Dict[str, Any]] = [
             'imageUrl': None,
         },
     },
+    {
+        'slotKey': 'home_floating_1',
+        'placementType': 'floating_overlay',
+        'status': 'inactive',
+        'config': {
+            'slotLabel': 'Home Floating 1',
+            'slotDescription': '홈 화면 하단에 떠오르는 dismissible 프로모션 슬롯',
+            'placementNote': '홈 화면 하단 고정 영역 위 · 약 156px',
+            'maxHeight': 156,
+            'screen': 'home',
+            'position': 'above_bottom_bar',
+            'tone': 'floating_sheet',
+            'title': '',
+            'message': '',
+            'ctaLabel': None,
+            'targetUrl': None,
+            'imageUrl': None,
+        },
+    },
 ]
 
 
@@ -108,6 +127,7 @@ def _normalize_slot_config(config: Dict[str, Any], *, include_reserved: bool = F
         'imageUrl': _clean_string(config.get('imageUrl'), empty_as_none=True),
         'liveCreatives': config.get('liveCreatives') if isinstance(config.get('liveCreatives'), list) else [],
         'liveRotationMode': _clean_string(config.get('liveRotationMode'), empty_as_none=True) or 'single',
+        'showDelayMs': config.get('showDelayMs', 1400),
     }
     if include_reserved:
         merged.update(
@@ -159,7 +179,10 @@ def _parse_optional_datetime(value: Any) -> Optional[datetime]:
     if not cleaned:
         return None
     try:
-        return datetime.fromisoformat(cleaned)
+        parsed = datetime.fromisoformat(cleaned)
+        if parsed.tzinfo is not None:
+            return parsed.astimezone().replace(tzinfo=None)
+        return parsed
     except ValueError:
         return None
 
@@ -228,7 +251,7 @@ def _upsert_campaign_history(
         if previous_campaign and previous_campaign.slot_id == row.id:
             previous_campaign.status = 'cancelled' if variant == 'reserved' else 'ended'
             if previous_campaign.end_at is None:
-                previous_campaign.end_at = _parse_optional_datetime(previous_fields.get('endAt')) or datetime.utcnow()
+                previous_campaign.end_at = _parse_optional_datetime(previous_fields.get('endAt')) or datetime.now()
             db.add(previous_campaign)
 
     campaign = AdCampaign(
@@ -292,7 +315,7 @@ def _parse_optional_date_range_end(value: Optional[str]) -> Optional[datetime]:
 
 
 def _campaign_runtime_status(campaign: AdCampaign, *, now: Optional[datetime] = None) -> str:
-    runtime_now = now or datetime.utcnow()
+    runtime_now = now or datetime.now()
     if (campaign.status or '').strip() == 'cancelled':
         return 'cancelled'
     if campaign.end_at is not None and campaign.end_at < runtime_now:

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 import firebase_admin
 from firebase_admin import credentials, messaging
@@ -12,8 +13,26 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
 
 from ..core.settings import settings
-from ..db.models import PushCampaign, PushDevice, User
+from ..db.models import AppSetting, PushCampaign, PushDevice, User
 from .user_region_service import normalize_region_keys, resolve_user_ids_for_region_segment
+
+PUSH_SCHEDULE_KEY = 'push_recurring_schedule'
+PUSH_SCHEDULE_DEFAULT_TIMEZONE = 'Asia/Seoul'
+PUSH_SCHEDULE_WEEKDAYS = ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')
+PUSH_SCHEDULE_DEFAULT: Dict[str, Any] = {
+    'enabled': False,
+    'cadence': 'weekly',
+    'weekday': 'fri',
+    'time': '18:30',
+    'timezone': PUSH_SCHEDULE_DEFAULT_TIMEZONE,
+    'kind': 'promotion',
+    'audience': 'all',
+    'title': '이번 주말 장보기',
+    'message': '이번주말 카트리로 쇼핑 어때요?',
+    'targetTab': 'home',
+    'targetUrl': None,
+    'segment': None,
+}
 
 
 def get_push_runtime_status(db: OrmSession) -> Dict[str, Any]:
@@ -214,6 +233,227 @@ def create_push_campaign(
         'campaign': serialize_push_campaign(row),
         'runtime': runtime,
     }
+
+
+def _coerce_bool(value: Any, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {'1', 'true', 'yes', 'on'}:
+            return True
+        if normalized in {'0', 'false', 'no', 'off'}:
+            return False
+    return default
+
+
+def _normalize_schedule_weekday(value: Any) -> str:
+    candidate = str(value or '').strip().lower()
+    return candidate if candidate in PUSH_SCHEDULE_WEEKDAYS else str(PUSH_SCHEDULE_DEFAULT['weekday'])
+
+
+def _normalize_schedule_time(value: Any) -> str:
+    raw = str(value or '').strip()
+    if not raw:
+        return str(PUSH_SCHEDULE_DEFAULT['time'])
+    parts = raw.split(':')
+    if len(parts) != 2:
+        return str(PUSH_SCHEDULE_DEFAULT['time'])
+    try:
+        hour = int(parts[0])
+        minute = int(parts[1])
+    except ValueError:
+        return str(PUSH_SCHEDULE_DEFAULT['time'])
+    if hour < 0 or hour > 23 or minute < 0 or minute > 59:
+        return str(PUSH_SCHEDULE_DEFAULT['time'])
+    return f'{hour:02d}:{minute:02d}'
+
+
+def _normalize_schedule_timezone(value: Any) -> str:
+    candidate = str(value or '').strip() or PUSH_SCHEDULE_DEFAULT_TIMEZONE
+    try:
+        ZoneInfo(candidate)
+        return candidate
+    except Exception:
+        return PUSH_SCHEDULE_DEFAULT_TIMEZONE
+
+
+def _normalize_push_schedule_payload(payload: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    source = payload if isinstance(payload, dict) else {}
+    kind = str(source.get('kind') or PUSH_SCHEDULE_DEFAULT['kind']).strip().lower()
+    if kind not in {'notice', 'promotion'}:
+        kind = str(PUSH_SCHEDULE_DEFAULT['kind'])
+
+    audience = str(source.get('audience') or PUSH_SCHEDULE_DEFAULT['audience']).strip().lower()
+    if audience not in {'all', 'members', 'guests'}:
+        audience = str(PUSH_SCHEDULE_DEFAULT['audience'])
+
+    target_tab = str(source.get('targetTab') or '').strip().lower() or None
+    if target_tab not in {'home', 'explore', 'my'}:
+        target_tab = None
+
+    return {
+        'enabled': _coerce_bool(source.get('enabled'), bool(PUSH_SCHEDULE_DEFAULT['enabled'])),
+        'cadence': 'weekly',
+        'weekday': _normalize_schedule_weekday(source.get('weekday')),
+        'time': _normalize_schedule_time(source.get('time')),
+        'timezone': _normalize_schedule_timezone(source.get('timezone')),
+        'kind': kind,
+        'audience': audience,
+        'title': str(source.get('title') or '').strip() or str(PUSH_SCHEDULE_DEFAULT['title']),
+        'message': str(source.get('message') or '').strip() or str(PUSH_SCHEDULE_DEFAULT['message']),
+        'targetTab': target_tab,
+        'targetUrl': str(source.get('targetUrl') or '').strip() or None,
+        'segment': _normalize_region_segment(source.get('segment')),
+    }
+
+
+def _load_push_schedule_payload(db: OrmSession) -> Dict[str, Any]:
+    row = db.get(AppSetting, PUSH_SCHEDULE_KEY)
+    if row is None:
+        return dict(PUSH_SCHEDULE_DEFAULT)
+    try:
+        payload = json.loads(row.value_json or '{}') or {}
+    except Exception:
+        payload = {}
+    normalized = _normalize_push_schedule_payload(payload)
+    for key in (
+        'updatedAt',
+        'lastDispatchSlotKey',
+        'lastDispatchedAt',
+        'lastDispatchCampaignId',
+        'lastDispatchStatus',
+        'lastDispatchError',
+    ):
+        normalized[key] = payload.get(key)
+    return normalized
+
+
+def _persist_push_schedule_payload(db: OrmSession, payload: Dict[str, Any]) -> None:
+    row = db.get(AppSetting, PUSH_SCHEDULE_KEY)
+    raw = json.dumps(payload, ensure_ascii=False)
+    if row is None:
+        row = AppSetting(key=PUSH_SCHEDULE_KEY, value_json=raw)
+        db.add(row)
+    else:
+        row.value_json = raw
+        db.add(row)
+    db.commit()
+
+
+def _schedule_zone(payload: Dict[str, Any]) -> ZoneInfo:
+    return ZoneInfo(_normalize_schedule_timezone(payload.get('timezone')))
+
+
+def _schedule_local_now(payload: Dict[str, Any], *, now: Optional[datetime] = None) -> datetime:
+    zone = _schedule_zone(payload)
+    if now is None:
+        return datetime.now(zone)
+    if now.tzinfo is None:
+        return now.replace(tzinfo=zone)
+    return now.astimezone(zone)
+
+
+def _schedule_local_datetime(payload: Dict[str, Any], target_date) -> datetime:
+    hour_text, minute_text = str(payload.get('time') or PUSH_SCHEDULE_DEFAULT['time']).split(':', 1)
+    return datetime(
+        year=target_date.year,
+        month=target_date.month,
+        day=target_date.day,
+        hour=int(hour_text),
+        minute=int(minute_text),
+        tzinfo=_schedule_zone(payload),
+    )
+
+
+def _current_schedule_slot_start(payload: Dict[str, Any], *, now: Optional[datetime] = None) -> datetime:
+    local_now = _schedule_local_now(payload, now=now)
+    weekday = PUSH_SCHEDULE_WEEKDAYS.index(str(payload.get('weekday') or PUSH_SCHEDULE_DEFAULT['weekday']))
+    delta_days = weekday - local_now.weekday()
+    slot_date = (local_now + timedelta(days=delta_days)).date()
+    return _schedule_local_datetime(payload, slot_date)
+
+
+def _schedule_slot_key(payload: Dict[str, Any], slot_start: datetime) -> str:
+    return f"weekly:{payload.get('weekday')}:{payload.get('time')}:{payload.get('timezone')}:{slot_start.isoformat()}"
+
+
+def _next_schedule_slot_start(payload: Dict[str, Any], *, now: Optional[datetime] = None) -> Optional[datetime]:
+    if not payload.get('enabled'):
+        return None
+    slot_start = _current_schedule_slot_start(payload, now=now)
+    local_now = _schedule_local_now(payload, now=now)
+    slot_key = _schedule_slot_key(payload, slot_start)
+    if slot_start > local_now:
+        return slot_start
+    if str(payload.get('lastDispatchSlotKey') or '') != slot_key:
+        return slot_start
+    return slot_start + timedelta(days=7)
+
+
+def get_push_schedule(db: OrmSession) -> Dict[str, Any]:
+    payload = _load_push_schedule_payload(db)
+    next_slot = _next_schedule_slot_start(payload)
+    return {
+        **payload,
+        'nextDispatchAt': next_slot.isoformat() if next_slot else None,
+    }
+
+
+def save_push_schedule(db: OrmSession, payload: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    existing = _load_push_schedule_payload(db)
+    normalized = _normalize_push_schedule_payload(payload)
+    merged = {
+        **normalized,
+        'updatedAt': datetime.utcnow().isoformat(),
+        'lastDispatchSlotKey': existing.get('lastDispatchSlotKey'),
+        'lastDispatchedAt': existing.get('lastDispatchedAt'),
+        'lastDispatchCampaignId': existing.get('lastDispatchCampaignId'),
+        'lastDispatchStatus': existing.get('lastDispatchStatus'),
+        'lastDispatchError': existing.get('lastDispatchError'),
+    }
+    _persist_push_schedule_payload(db, merged)
+    return get_push_schedule(db)
+
+
+def dispatch_due_push_schedule(db: OrmSession) -> Optional[Dict[str, Any]]:
+    payload = _load_push_schedule_payload(db)
+    if not payload.get('enabled'):
+        return None
+
+    local_now = _schedule_local_now(payload)
+    slot_start = _current_schedule_slot_start(payload, now=local_now)
+    slot_key = _schedule_slot_key(payload, slot_start)
+    if slot_start > local_now:
+        return None
+    if str(payload.get('lastDispatchSlotKey') or '') == slot_key:
+        return None
+
+    result = create_push_campaign(
+        db,
+        kind=str(payload.get('kind') or PUSH_SCHEDULE_DEFAULT['kind']),
+        audience=str(payload.get('audience') or PUSH_SCHEDULE_DEFAULT['audience']),
+        title=str(payload.get('title') or PUSH_SCHEDULE_DEFAULT['title']),
+        message=str(payload.get('message') or PUSH_SCHEDULE_DEFAULT['message']),
+        target_tab=payload.get('targetTab'),
+        target_url=payload.get('targetUrl'),
+        requested_by='scheduler',
+        requested_by_source='recurring_weekly',
+        segment=payload.get('segment'),
+    )
+    campaign = result.get('campaign') or {}
+    payload.update(
+        {
+            'updatedAt': datetime.utcnow().isoformat(),
+            'lastDispatchSlotKey': slot_key,
+            'lastDispatchedAt': datetime.utcnow().isoformat(),
+            'lastDispatchCampaignId': campaign.get('id'),
+            'lastDispatchStatus': campaign.get('status'),
+            'lastDispatchError': campaign.get('errorMessage'),
+        }
+    )
+    _persist_push_schedule_payload(db, payload)
+    return get_push_schedule(db)
 
 
 @lru_cache(maxsize=1)

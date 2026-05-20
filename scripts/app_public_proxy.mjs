@@ -12,6 +12,7 @@ const publicSiteDir = path.join(scriptsDir, 'public-site')
 
 const allowedExact = new Set(['/v1/app-config', '/v1/carts', '/v1/receipts', '/health'])
 const publicAssetRoutes = new Map([
+  ['/app-ads.txt', path.join(publicSiteDir, 'app-ads.txt')],
   ['/site.css', path.join(publicSiteDir, 'site.css')],
   ['/site-media/intro.png', path.join(repoRoot, 'assets/images/intro.png')],
   ['/site-media/home.png', path.join(repoRoot, 'assets/images/public-site/home.png')],
@@ -95,6 +96,7 @@ function isAllowedPath(pathname) {
 function contentTypeFor(filePath) {
   const ext = path.extname(filePath).toLowerCase()
   if (ext === '.html') return 'text/html; charset=utf-8'
+  if (ext === '.txt') return 'text/plain; charset=utf-8'
   if (ext === '.css') return 'text/css; charset=utf-8'
   if (ext === '.png') return 'image/png'
   if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg'

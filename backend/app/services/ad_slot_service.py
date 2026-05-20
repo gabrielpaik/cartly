@@ -900,7 +900,7 @@ def create_ad_campaign(db: OrmSession, payload: Dict[str, Any]) -> Dict[str, Any
         raise ValueError('slot_not_found')
 
     validated = _validate_campaign_payload(db, slot_row, normalized)
-    now = datetime.utcnow()
+    now = datetime.now()
     campaign = AdCampaign(
         slot_id=slot_row.id,
         variant='reserved' if validated['startAt'] > now else 'live',
@@ -949,7 +949,7 @@ def update_ad_campaign(db: OrmSession, campaign_id: str, payload: Dict[str, Any]
 
     previous_slot_row = db.get(AdSlot, campaign.slot_id)
     validated = _validate_campaign_payload(db, target_slot_row, normalized, exclude_campaign_id=campaign.id)
-    now = datetime.utcnow()
+    now = datetime.now()
 
     campaign.slot_id = target_slot_row.id
     campaign.title = validated['title'] or ''
@@ -1056,7 +1056,7 @@ def _effective_runtime_state(slot: Dict[str, Any]) -> str:
         return 'inactive'
 
     config = slot.get('config') or {}
-    now = datetime.utcnow()
+    now = datetime.now()
     live_title = str(config.get('title') or '').strip()
     reserved_title = str(config.get('reservedTitle') or '').strip()
     live_start = config.get('exposureStartAt')

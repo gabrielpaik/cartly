@@ -7,6 +7,7 @@
 - Do **not** run the backend as a direct launchd background process
 - Reason: direct launchd backend writes to `/Volumes/AI/Cartly` fail with `PermissionError`, while the same backend launched from the user login session writes successfully
 - Actual login-session entrypoint now starts a lightweight **runtime supervisor** that keeps backend and worker alive inside that same Terminal/login-session context
+- The backend process also owns in-process schedulers, including the admin dashboard snapshot scheduler and the recurring push scheduler
 
 ### Scan worker
 - Runs as a **Terminal login-session daemon** on the Mac mini
@@ -53,6 +54,7 @@
 - Backend listens on `127.0.0.1:8011`
 - Runtime supervisor process stays alive in the login-session context
 - Worker daemon is automatically re-started if it disappears
+- recurring push scheduler is alive as part of backend startup when the latest code is deployed
 - `/health` returns `storageWritable: true`
 - Scan job creation can write directly into `/Volumes/AI/Cartly`
 
@@ -139,6 +141,16 @@ pkill -f 'uvicorn backend.app.main:app --host 127.0.0.1 --port 8011'
 ```bash
 curl -sS http://127.0.0.1:3000/login >/dev/null && echo ok
 ```
+
+### Check recent AdMob telemetry
+Use this after real-device ad exercise to confirm init/load/fail/impression/click callbacks actually reached the backend event log:
+```bash
+psql cartly -c "select event_name, screen_name, event_props_json, created_at from app_events where event_name like 'admob_%' order by created_at desc limit 30;"
+```
+
+Important nuance:
+- real app IDs are configured on both platforms
+- Android release ad units are now set to Cartly production IDs; if telemetry shows `\"isTestUnit\": true` in release traffic, something is wrong with the shipped binary or code path and should be treated as a bug
 
 ### Canonical stale-process recovery
 If admin routes or exports behave like old code is still running, refresh the whole runtime instead of manually poking one process at a time:

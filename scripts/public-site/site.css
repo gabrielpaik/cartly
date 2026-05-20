@@ -1,8 +1,8 @@
 :root {
   color-scheme: light;
-  --bg: #f6f3f1;
-  --bg-accent: #f2e7e4;
-  --surface: rgba(255, 255, 255, 0.94);
+  --bg: #f4f1ed;
+  --bg-accent: #ece6df;
+  --surface: rgba(255, 255, 255, 0.95);
   --surface-strong: #ffffff;
   --line: rgba(44, 24, 21, 0.08);
   --line-strong: rgba(44, 24, 21, 0.14);
@@ -11,10 +11,10 @@
   --subtle: #7e6661;
   --brand: #e31736;
   --brand-strong: #c81430;
-  --highlight: #fbe4e8;
+  --highlight: #f0e9e2;
   --shadow: 0 24px 60px rgba(58, 23, 19, 0.08);
-  --soft-warm: rgba(255, 248, 246, 0.92);
-  --soft-warm-strong: rgba(251, 228, 232, 0.72);
+  --soft-warm: rgba(249, 245, 241, 0.94);
+  --soft-warm-strong: rgba(242, 236, 229, 0.84);
   --radius-xl: 30px;
   --radius-lg: 22px;
   --radius-md: 16px;
@@ -26,9 +26,9 @@ html { scroll-behavior: smooth; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(227, 23, 54, 0.08), transparent 30%),
-    radial-gradient(circle at top right, rgba(245, 158, 11, 0.08), transparent 28%),
-    linear-gradient(180deg, #fffaf8 0%, var(--bg) 44%, #fffaf8 100%);
+    radial-gradient(circle at top left, rgba(170, 95, 72, 0.05), transparent 30%),
+    radial-gradient(circle at top right, rgba(245, 158, 11, 0.06), transparent 28%),
+    linear-gradient(180deg, #fcfaf8 0%, var(--bg) 44%, #fbfaf8 100%);
   color: var(--text);
 }
 
@@ -264,7 +264,7 @@ img { display: block; max-width: 100%; }
 .hero-pillar {
   padding: 14px 14px 15px;
   border-radius: 18px;
-  background: rgba(255, 248, 246, 0.92);
+  background: var(--soft-warm);
   border: 1px solid var(--line);
 }
 
@@ -312,7 +312,7 @@ img { display: block; max-width: 100%; }
 }
 
 .device-frame {
-  background: linear-gradient(180deg, #fffaf8 0%, #f5ece8 100%);
+  background: linear-gradient(180deg, #fcfaf8 0%, #efe8e1 100%);
   border: 1px solid rgba(44, 24, 21, 0.08);
   border-radius: 26px;
   padding: 10px;
@@ -423,8 +423,8 @@ img { display: block; max-width: 100%; }
 
 .feature-thumb.active {
   border-color: var(--brand);
-  background: rgba(251, 228, 232, 0.88);
-  box-shadow: 0 0 0 2px rgba(227, 23, 54, 0.12);
+  background: rgba(240, 233, 226, 0.96);
+  box-shadow: 0 0 0 2px rgba(227, 23, 54, 0.08);
 }
 
 .feature-summary {
@@ -615,7 +615,7 @@ img { display: block; max-width: 100%; }
 .shot {
   overflow: hidden;
   border-radius: 24px;
-  background: #fff8f6;
+  background: #faf7f3;
   border: 1px solid var(--line);
 }
 

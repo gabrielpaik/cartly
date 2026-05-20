@@ -4,6 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
 import '../app_support.dart';
+import '../models/app_ad_slot.dart';
 import '../models/recognized_item.dart';
 import '../config/cartly_runtime_config.dart';
 import '../pages/home_page_cart_controller.dart';
@@ -11,6 +12,7 @@ import '../pages/home_page_cart_save_controller.dart';
 import '../pages/home_tab_view.dart';
 import '../pages/login_page.dart';
 import '../pages/saved_tab_view.dart';
+import '../services/app_event_service.dart';
 import '../services/app_navigation_service.dart';
 import '../services/cart_title_suggester.dart';
 import '../services/current_cart_store.dart';
@@ -20,12 +22,14 @@ import '../services/app_attention_service.dart';
 import '../services/app_config_store.dart';
 import '../services/auth_store.dart';
 import '../services/push_navigation_service.dart';
+import '../services/household_store.dart';
 import '../services/remote_current_cart_repository.dart';
 import '../services/remote_scan_repository.dart';
 import '../services/scan_repository.dart';
 import '../services/shopping_nudge_service.dart';
 import '../widgets/total_bar.dart';
 import '../widgets/cartly_symbol_icon.dart';
+import '../widgets/home_floating_promo_slot.dart';
 import '../app/cartly_ui.dart';
 
 class HomePage extends StatefulWidget {
@@ -49,6 +53,7 @@ class _HomePageState extends State<HomePage> {
   String? _loadedCurrentCartOwnerId;
   Timer? _sharedCurrentCartPollTimer;
   bool _sharedCurrentCartEnabled = false;
+  bool _hasHouseholdLink = false;
   int _sharedCurrentCartSyncDepth = 0;
   DateTime? _lastSharedCurrentCartMutationAt;
 
@@ -110,8 +115,10 @@ class _HomePageState extends State<HomePage> {
       selectTab: _selectTab,
       openSaved: _openSavedCartsList,
       openLogin: _openLoginPage,
+      openAccountSettings: _openAccountSettingsPage,
     );
     unawaited(_restoreCurrentCartState());
+    unawaited(_bootstrapVisitorSession());
     _syncAttentionDots();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _handlePendingTargetTab();
@@ -135,8 +142,10 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _restoreCurrentCartState() async {
     final ownerId = _currentCartOwnerId;
-    final snapshot = await CurrentCartStore.instance.load();
-    var sharedEnabled = false;
+    final snapshot = await CurrentCartStore.instance.loadPersonal();
+    final preferredMode = await CurrentCartStore.instance.loadMode();
+    var sharedEnabled = preferredMode == CurrentCartMode.shared;
+    var hasHouseholdLink = false;
     List<CartItem> nextItems = snapshot.items;
     final session = AuthStore.instance.session.value;
     if (session != null &&
@@ -145,9 +154,12 @@ class _HomePageState extends State<HomePage> {
       try {
         final sharedSnapshot = await _remoteCurrentCartRepository
             .getCurrentCart(session.authToken);
-        if (sharedSnapshot.shared) {
+        hasHouseholdLink = sharedSnapshot.shared;
+        if (sharedSnapshot.shared && preferredMode == CurrentCartMode.shared) {
           sharedEnabled = true;
           nextItems = sharedSnapshot.items;
+        } else {
+          sharedEnabled = false;
         }
       } catch (_) {}
     }
@@ -164,6 +176,7 @@ class _HomePageState extends State<HomePage> {
         ..addAll(snapshot.consideredItems);
       _loadedCurrentCartOwnerId = ownerId;
       _sharedCurrentCartEnabled = sharedEnabled;
+      _hasHouseholdLink = hasHouseholdLink;
     });
     _restartSharedCurrentCartPolling();
     _persistCurrentCartState();
@@ -171,8 +184,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _persistCurrentCartState() {
+    if (_sharedCurrentCartEnabled) {
+      return;
+    }
     unawaited(
-      CurrentCartStore.instance.save(
+      CurrentCartStore.instance.savePersonal(
         items: items,
         recentScans: recentScans,
         consideredItems: consideredItems,
@@ -336,8 +352,22 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _bootstrapVisitorSession() async {
+    final session = await AuthStore.instance.ensureGuestSession();
+    if (session == null || session.authToken.trim().isEmpty) {
+      return;
+    }
+    await AppEventService.instance.track(
+      'app_open',
+      screen: 'home',
+      onceKey: 'app_open/home',
+      props: {'userType': session.isGuest ? 'guest' : 'member'},
+    );
+  }
+
   void _handleSessionChanged() {
     final nextOwnerId = _currentCartOwnerId;
+    HouseholdStore.instance.clear();
     if (_loadedCurrentCartOwnerId == nextOwnerId) {
       return;
     }
@@ -496,6 +526,137 @@ class _HomePageState extends State<HomePage> {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => LoginPage(preferSignup: preferSignup)),
     );
+  }
+
+  Future<void> _openAccountSettingsPage() async {
+    if (!mounted) return;
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const SettingsAndHouseholdPage()));
+  }
+
+  Future<void> _showSignupPrompt() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('회원가입이 필요해요'),
+        content: const Text('가족과 현재 카트를 함께 쓰려면 먼저 회원가입이 필요해요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('나중에'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('회원가입하기'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _openLoginPage(preferSignup: true);
+    }
+  }
+
+  Future<bool> _refreshHouseholdState() async {
+    final session = AuthStore.instance.session.value;
+    if (session == null ||
+        session.isGuest ||
+        session.authToken.trim().isEmpty) {
+      if (mounted) {
+        setState(() => _hasHouseholdLink = false);
+      }
+      return false;
+    }
+    try {
+      await HouseholdStore.instance.refresh();
+      final hasHousehold = HouseholdStore.instance.state.value.hasHousehold;
+      if (mounted) {
+        setState(() => _hasHouseholdLink = hasHousehold);
+      }
+      return hasHousehold;
+    } catch (_) {
+      return _hasHouseholdLink;
+    }
+  }
+
+  Future<void> _switchCurrentCartMode(CurrentCartMode mode) async {
+    final previousMode = _sharedCurrentCartEnabled
+        ? CurrentCartMode.shared
+        : CurrentCartMode.personal;
+    if (previousMode == mode) return;
+
+    if (mode == CurrentCartMode.shared) {
+      final session = AuthStore.instance.session.value;
+      if (session == null || session.authToken.trim().isEmpty) return;
+      try {
+        final sharedSnapshot = await _remoteCurrentCartRepository
+            .getCurrentCart(session.authToken);
+        if (!mounted) return;
+        setState(() {
+          _sharedCurrentCartEnabled = true;
+          _hasHouseholdLink = sharedSnapshot.shared;
+          items
+            ..clear()
+            ..addAll(sharedSnapshot.items);
+        });
+      } catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+        return;
+      }
+      _restartSharedCurrentCartPolling();
+    } else {
+      final personalSnapshot = await CurrentCartStore.instance.loadPersonal();
+      if (!mounted) return;
+      setState(() {
+        _sharedCurrentCartEnabled = false;
+        items
+          ..clear()
+          ..addAll(personalSnapshot.items);
+        recentScans
+          ..clear()
+          ..addAll(personalSnapshot.recentScans);
+        consideredItems
+          ..clear()
+          ..addAll(personalSnapshot.consideredItems);
+      });
+      _restartSharedCurrentCartPolling();
+      _refreshShoppingNudge();
+    }
+
+    await CurrentCartStore.instance.saveMode(mode);
+    _refreshShoppingNudge();
+  }
+
+  Future<void> _handleCurrentCartModeTap(CurrentCartMode targetMode) async {
+    final currentMode = _sharedCurrentCartEnabled
+        ? CurrentCartMode.shared
+        : CurrentCartMode.personal;
+    if (currentMode == targetMode) {
+      return;
+    }
+
+    final session = AuthStore.instance.session.value;
+    if (session == null || session.isGuest) {
+      await _showSignupPrompt();
+      return;
+    }
+
+    final hasHousehold = await _refreshHouseholdState();
+    if (!hasHousehold) {
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const SettingsAndHouseholdPage()),
+      );
+      await _refreshHouseholdState();
+      return;
+    }
+
+    if (!mounted) return;
+    await _switchCurrentCartMode(targetMode);
   }
 
   Future<void> _saveCurrentCart() async {
@@ -753,6 +914,11 @@ class _HomePageState extends State<HomePage> {
           onRemove: _handleRemoveCartItem,
           onChangeCurrentCartItem: _handleChangeCartItem,
           onGoExplore: () => _selectTab(1),
+          isSharedCurrentCartMode: _sharedCurrentCartEnabled,
+          onPersonalCurrentCartTap: () =>
+              _handleCurrentCartModeTap(CurrentCartMode.personal),
+          onSharedCurrentCartTap: () =>
+              _handleCurrentCartModeTap(CurrentCartMode.shared),
         ),
         ShoppingHelpPage(
           items: items,
@@ -762,8 +928,8 @@ class _HomePageState extends State<HomePage> {
           onUseDefaultExploreMode: _hasActiveShoppingContext
               ? () => _setExploreShoppingMode(false)
               : null,
-          onUseShoppingMode: _hasActiveShoppingContext &&
-                  !_showExploreShoppingMode
+          onUseShoppingMode:
+              _hasActiveShoppingContext && !_showExploreShoppingMode
               ? () => _setExploreShoppingMode(true)
               : null,
           onGoHome: () => _selectTab(0),
@@ -778,10 +944,34 @@ class _HomePageState extends State<HomePage> {
     final body = _buildBody();
     final showImmersiveExploreHeader =
         _tabIndex == 1 && _showExploreShoppingMode;
-    if (showImmersiveExploreHeader) {
-      return body;
+    final scaffoldBody = showImmersiveExploreHeader
+        ? body
+        : SafeArea(top: true, bottom: false, child: body);
+
+    if (_tabIndex != 0) {
+      return scaffoldBody;
     }
-    return SafeArea(top: true, bottom: false, child: body);
+
+    return Stack(
+      children: [
+        scaffoldBody,
+        ValueListenableBuilder<List<AppAdSlot>>(
+          valueListenable: AppConfigStore.instance.adSlots,
+          builder: (context, slots, child) {
+            final slot = AppConfigStore.instance.slotByKey('home_floating_1');
+            if (slot == null || !slot.enabled) {
+              return const SizedBox.shrink();
+            }
+            final bottomOffset = (_tabIndex == 0 ? 78.0 + 72.0 : 78.0) + 12.0;
+            return HomeFloatingPromoSlot(
+              slotKey: slot.slotKey,
+              delay: Duration(milliseconds: slot.config.showDelayMs),
+              bottomOffset: bottomOffset,
+            );
+          },
+        ),
+      ],
+    );
   }
 
   @override

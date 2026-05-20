@@ -30,6 +30,9 @@ class HomeTabView extends StatelessWidget {
   final void Function(CartItem item) onRemove;
   final void Function(CartItem item) onChangeCurrentCartItem;
   final VoidCallback onGoExplore;
+  final bool isSharedCurrentCartMode;
+  final VoidCallback onPersonalCurrentCartTap;
+  final VoidCallback onSharedCurrentCartTap;
 
   const HomeTabView({
     super.key,
@@ -45,6 +48,9 @@ class HomeTabView extends StatelessWidget {
     required this.onRemove,
     required this.onChangeCurrentCartItem,
     required this.onGoExplore,
+    required this.isSharedCurrentCartMode,
+    required this.onPersonalCurrentCartTap,
+    required this.onSharedCurrentCartTap,
   });
 
   @override
@@ -71,12 +77,20 @@ class HomeTabView extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, CartlySpacing.sectionLoose, 16, 28),
+          padding: const EdgeInsets.fromLTRB(
+            16,
+            CartlySpacing.sectionLoose,
+            16,
+            28,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SectionHeader(
-                title: AppRuntimeCopy.text(['home', 'addSectionTitle'], '새 상품 추가'),
+                title: AppRuntimeCopy.text([
+                  'home',
+                  'addSectionTitle',
+                ], '새 상품 추가'),
                 subtitle: AppRuntimeCopy.text([
                   'home',
                   'addSectionSubtitle',
@@ -112,7 +126,10 @@ class HomeTabView extends StatelessWidget {
               if (recentScans.isNotEmpty) ...[
                 const SizedBox(height: CartlySpacing.sectionLoose),
                 SectionHeader(
-                  title: AppRuntimeCopy.text(['home', 'recentScanTitle'], '스캔 보관함'),
+                  title: AppRuntimeCopy.text([
+                    'home',
+                    'recentScanTitle',
+                  ], '스캔 보관함'),
                   subtitle: AppRuntimeCopy.text([
                     'home',
                     'recentScanSubtitle',
@@ -141,12 +158,28 @@ class HomeTabView extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: CartlySpacing.sectionLoose),
-              SectionHeader(
-                title: AppRuntimeCopy.text(['home', 'currentCartTitle'], '현재 카트'),
-                subtitle: AppRuntimeCopy.text([
-                  'home',
-                  'currentCartSubtitle',
-                ], '지금 담은 상품과 합계를 확인해보세요'),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: SectionHeader(
+                      title: AppRuntimeCopy.text([
+                        'home',
+                        'currentCartTitle',
+                      ], '현재 카트'),
+                      subtitle: AppRuntimeCopy.text([
+                        'home',
+                        'currentCartSubtitle',
+                      ], '지금 담은 상품과 합계를 확인해보세요'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _CurrentCartModeSwitch(
+                    isShared: isSharedCurrentCartMode,
+                    onPersonalTap: onPersonalCurrentCartTap,
+                    onSharedTap: onSharedCurrentCartTap,
+                  ),
+                ],
               ),
               const SizedBox(height: CartlySpacing.md),
               CurrentCartSection(
@@ -175,6 +208,90 @@ class HomeTabView extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CurrentCartModeSwitch extends StatelessWidget {
+  final bool isShared;
+  final VoidCallback onPersonalTap;
+  final VoidCallback onSharedTap;
+
+  const _CurrentCartModeSwitch({
+    required this.isShared,
+    required this.onPersonalTap,
+    required this.onSharedTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: CartlyColors.surface1,
+        borderRadius: BorderRadius.circular(CartlyRadii.pill),
+        border: Border.all(color: CartlyColors.line, width: 0.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _CurrentCartModeChip(
+            label: '개인',
+            selected: !isShared,
+            selectedBackgroundColor: CartlyColors.surface2,
+            selectedForegroundColor: CartlyColors.textPrimary,
+            onTap: onPersonalTap,
+          ),
+          _CurrentCartModeChip(
+            label: '공유',
+            selected: isShared,
+            selectedBackgroundColor: CartlyColors.brand,
+            selectedForegroundColor: CartlyColors.onBrandPrimary,
+            onTap: onSharedTap,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CurrentCartModeChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final Color selectedBackgroundColor;
+  final Color selectedForegroundColor;
+  final VoidCallback onTap;
+
+  const _CurrentCartModeChip({
+    required this.label,
+    required this.selected,
+    required this.selectedBackgroundColor,
+    required this.selectedForegroundColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? selectedBackgroundColor : Colors.transparent,
+      borderRadius: BorderRadius.circular(CartlyRadii.pill),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(CartlyRadii.pill),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: selected
+                  ? selectedForegroundColor
+                  : CartlyColors.textSecondary,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

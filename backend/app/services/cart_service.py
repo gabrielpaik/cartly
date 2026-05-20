@@ -9,7 +9,7 @@ PURCHASE_COMPLETION_WINDOW = timedelta(days=2)
 
 from openpyxl import Workbook
 from openpyxl.styles import Font
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session as OrmSession, selectinload
 
 from ..db.models import Cart, CartItem, Receipt, User
@@ -244,7 +244,7 @@ def _serialize_cart(
     is_expired = expires_at is not None and expires_at <= datetime.utcnow()
     purchase_completed, purchase_completed_at, purchase_completion_source = _purchase_completion_status(cart, latest_receipt)
     viewer_can_edit = not viewer_user_id or viewer_user_id == cart.user_id
-    is_shared_with_household = bool(viewer_user_id and cart.user_id and viewer_user_id != cart.user_id and household is not None)
+    is_shared_with_household = cart.share_with_household == True
     data = {
         'id': cart.id,
         'userId': cart.user_id,
@@ -391,6 +391,7 @@ def _create_snapshot(db: OrmSession, user_id: str, payload: dict, source_cart_id
         saved_date=date.today(),
         total_price_cached=0,
         total_count_cached=0,
+        share_with_household=payload.get('shareWithHousehold') == True,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
         deleted_at=None,
@@ -430,7 +431,16 @@ def list_user_carts(db: OrmSession, user_id: str, limit: int = 100) -> list[Cart
         stmt = stmt.where(Cart.user_id == user_id)
     else:
         _, member_ids = shared
-        stmt = stmt.where(Cart.user_id.in_(member_ids))
+        other_member_ids = [member_id for member_id in member_ids if member_id != user_id]
+        visibility_filters = [Cart.user_id == user_id]
+        if other_member_ids:
+            visibility_filters.append(
+                and_(
+                    Cart.user_id.in_(other_member_ids),
+                    Cart.share_with_household.is_(True),
+                )
+            )
+        stmt = stmt.where(or_(*visibility_filters))
     stmt = stmt.order_by(Cart.created_at.desc()).limit(limit)
     return list(db.scalars(stmt).all())
 
@@ -442,7 +452,16 @@ def get_user_cart(db: OrmSession, cart_id: str, user_id: str) -> Optional[Cart]:
         stmt = stmt.where(Cart.user_id == user_id)
     else:
         _, member_ids = shared
-        stmt = stmt.where(Cart.user_id.in_(member_ids))
+        other_member_ids = [member_id for member_id in member_ids if member_id != user_id]
+        visibility_filters = [Cart.user_id == user_id]
+        if other_member_ids:
+            visibility_filters.append(
+                and_(
+                    Cart.user_id.in_(other_member_ids),
+                    Cart.share_with_household.is_(True),
+                )
+            )
+        stmt = stmt.where(or_(*visibility_filters))
     return db.scalar(stmt)
 
 
@@ -459,6 +478,8 @@ def extend_cart_retention(db: OrmSession, cart: Cart, *, days: int = GUEST_CART_
 
 def update_cart(db: OrmSession, cart: Cart, payload: dict) -> Cart:
     cart.title = (payload.get('title') or cart.title or '').strip() or None
+    if 'shareWithHousehold' in payload and payload.get('shareWithHousehold') is not None:
+        cart.share_with_household = payload.get('shareWithHousehold') == True
     next_items = payload.get('items') if payload.get('items') is not None else [
         {
             'scanResultId': item.scan_job_id,
@@ -473,6 +494,15 @@ def update_cart(db: OrmSession, cart: Cart, payload: dict) -> Cart:
         for item in cart.items
     ]
     _apply_cart_items(cart, next_items)
+    db.add(cart)
+    db.commit()
+    db.refresh(cart)
+    return db.scalar(select(Cart).options(selectinload(Cart.items)).where(Cart.id == cart.id)) or cart
+
+
+def update_cart_household_share(db: OrmSession, cart: Cart, *, share_with_household: bool) -> Cart:
+    cart.share_with_household = share_with_household
+    cart.updated_at = datetime.utcnow()
     db.add(cart)
     db.commit()
     db.refresh(cart)

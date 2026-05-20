@@ -1,6 +1,6 @@
 # Cartly Release Management
 
-Last updated: 2026-05-19
+Last updated: 2026-05-20
 Status: canonical
 Purpose: release operations contract for iOS, TestFlight, App Store Connect, and Google Play
 Use this doc when: building, uploading, patching store metadata, or preparing submission/review steps
@@ -18,10 +18,12 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - 스크린샷/메타데이터/리뷰 노트까지 같이 관리해야 진짜 release readiness다.
 
 ### 현재 기준 버전
-- current working app version/build: `1.0.5+10`
-- latest uploaded iOS build after the reset: `1.0.5 (10)`
-- latest iOS delivery UUID after the reset: `90a8d53b-1417-40d8-b263-d227a0d43293`
-- most recent earlier iOS validation uploads in the same pass: `1.0.5 (9)` / `a9a554ed-9dce-4df1-8494-e016f23669ec`, `1.0.5 (8)` / `0f4f6e2a-a7c1-45fe-96f8-dd1292ac6cce`, `1.0.5 (7)` / `c0dd5a78-1a57-4464-9db6-d8cc2c1b93bc`
+- current working app version/build: `1.0.6+5`
+- latest shipped iOS public release line: `1.0.5 (10)`
+- current public App Store URL: `https://apps.apple.com/kr/app/카트리/id6763728346`
+- latest uploaded iOS TestFlight build: `1.0.6 (4)` / delivery UUID `fa7ab355-9cad-4e0d-9069-739e4158c3c3`
+- latest locally built iOS candidate awaiting upload: `1.0.6 (5)` / IPA `build/ios/ipa/Cartly.ipa`
+- most recent earlier iOS validation uploads in the same pass: `1.0.6 (3)` / `78503721-943b-4ffb-b235-b4718599a65c`, `1.0.6 (2)` / `90900a45-8ca2-4c7b-9000-f88bcd786ac2`, `1.0.6 (1)` / `c0096c2b-95b5-482c-8a72-4ea5da0dfddb`
 - latest visible iOS TestFlight Cartly build on device before this reset: `1.0.4 (29)`
 - latest uploaded Android internal-track build after this reset: `1.0.5 (39)`
 - latest prepared Android release artifact after this reset: versionName `1.0.5`, versionCode `39`, AAB `build/app/outputs/bundle/release/app-release.aab`
@@ -78,7 +80,8 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - encryption = `false`
 
 ## 3. 현재 iOS / App Store Connect 기준 정보
-- latest delivery UUID: `c0dd5a78-1a57-4464-9db6-d8cc2c1b93bc`
+- latest uploaded delivery UUID: `fa7ab355-9cad-4e0d-9069-739e4158c3c3`
+- current local pre-upload build line: `1.0.6 (5)`
 - current App Store version id: `a173b232-fe9b-4fdd-9557-a784bd7a36d2`
 - App Store version localization id: `64db26e7-c8a0-480e-9b9f-fb06c78a1ad5`
 - App info localization id: `57760505-1949-4e93-b21c-9502891d493c`
@@ -173,10 +176,11 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 - `NSLocationAlwaysAndWhenInUseUsageDescription` 제거 완료
 - `ITSAppUsesNonExemptEncryption = false`
 
-남은 console 작업:
-- Age Rating
-- App Privacy questionnaire 최종 확인
-- 최종 Submit for Review
+현재 상태:
+- 2026-05-20 morning 기준 iOS public release는 App Store에 live 상태다.
+- direct App Store URL은 immediately usable 하지만, App Store search / web indexing 반영은 잠시 지연될 수 있다.
+- 출시 직후 홍보는 검색 유도보다 direct App Store URL 공유를 우선한다.
+- 2026-05-20 night 기준 next TestFlight candidate는 `1.0.6 (5)` 까지 로컬 IPA 빌드가 완료되었고, 이 빌드에는 home floating promo slot, family-share late polish, and first-launch guest bootstrap + authenticated `app_open` tracking fix가 포함된다. App Store Connect upload 완료 여부는 아직 반영 대기 상태다.
 
 ## 7. Android / Google Play release 흐름
 

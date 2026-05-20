@@ -11,12 +11,14 @@ class SavedCartListCard extends StatelessWidget {
   final SavedCart cart;
   final VoidCallback onTap;
   final BorderRadius borderRadius;
+  final VoidCallback? onShareTap;
 
   const SavedCartListCard({
     super.key,
     required this.cart,
     required this.onTap,
     this.borderRadius = const BorderRadius.all(Radius.circular(16)),
+    this.onShareTap,
   });
 
   @override
@@ -60,7 +62,43 @@ class SavedCartListCard extends StatelessWidget {
                 },
               ),
             ),
-            const CartlySymbolIcon.sf('chevron.right'),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Tooltip(
+                  message: cart.isSharedWithHousehold ? '가족 공유 중' : '개인 카트',
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onShareTap,
+                      borderRadius: BorderRadius.circular(999),
+                      child: SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: Center(
+                          child: Icon(
+                            cart.isSharedWithHousehold
+                                ? Icons.link_rounded
+                                : Icons.link_off_rounded,
+                            size: 20,
+                            color: cart.isSharedWithHousehold
+                                ? const Color(0xFFE31837)
+                                : Colors.grey.shade500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 2),
+                const SizedBox(
+                  width: 24,
+                  height: 36,
+                  child: Center(child: CartlySymbolIcon.sf('chevron.right')),
+                ),
+              ],
+            ),
           ],
         ),
       ),

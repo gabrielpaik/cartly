@@ -919,54 +919,9 @@ def _normalize_state_decision_max_counts(value: Any) -> Dict[str, Dict[str, int]
 
 
 def _build_store_context_promos(data: Dict[str, Any]) -> List[Dict[str, Any]]:
-    store_name = data['storeContextStoreName']
-    cta_label = data['storeContextPromoCtaLabel']
-    body = data['storeContextPromoBody']
-    state_rules = data.get('stateRules') if isinstance(data.get('stateRules'), dict) else {}
-    store_state_rules = state_rules.get('storeContext') if isinstance(state_rules.get('storeContext'), dict) else {}
-    count = _coerce_int(
-        store_state_rules.get('storeContextMaxPromos'),
-        data['storeContextMaxPromos'],
-        0,
-        12,
-    )
-    source_type = data['storeContextPromoSourceType']
-    is_sponsored = data['storeContextPromoSponsored']
-    sponsor_label = data['storeContextPromoSponsorLabel']
-    priority_start = data['storeContextPromoPriorityStart']
-    seed_labels = [
-        part.strip()
-        for part in str(data.get('storeContextPromoSeedLabels') or '').split(',')
-        if part.strip()
-    ]
-    if not seed_labels:
-        seed_labels = [
-            '유제품 세일',
-            '음료 행사',
-            '오늘의 마트 추천',
-        ]
-
-    promos: List[Dict[str, Any]] = []
-    for index, seed in enumerate(seed_labels[:count]):
-        promo_is_sponsored = is_sponsored and index == 0
-        promos.append(
-            {
-                'id': f'store-promo-{index + 1}',
-                'title': f'{seed} 확인',
-                'body': body,
-                'badgeLabel': seed,
-                'storeName': store_name,
-                'ctaLabel': cta_label,
-                'placementLabel': '매장 프로모션',
-                'intentHint': '같은 구매 의도 기준',
-                'source': 'store-context-preview',
-                'sourceType': 'sponsoredPlacement' if promo_is_sponsored else source_type,
-                'priority': max(0, priority_start - (index * 10)),
-                'isSponsored': promo_is_sponsored,
-                'sponsorLabel': sponsor_label if promo_is_sponsored and sponsor_label else '',
-            }
-        )
-    return promos
+    # Cartly should not surface preview/demo store-sale content to customers.
+    # Until a real nearby-store sale ingestion pipeline exists, keep this empty.
+    return []
 
 
 def normalize_explore_settings(

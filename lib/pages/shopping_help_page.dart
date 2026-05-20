@@ -57,6 +57,7 @@ class ShoppingHelpPage extends StatefulWidget {
 
 class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
   final Set<String> _dismissedOfferIntentKeys = <String>{};
+  final Map<String, Future<ExploreOfferResult>> _offerResultFutures = {};
   int _editorialRefreshSeed = DateTime.now().microsecondsSinceEpoch;
 
   @override
@@ -336,6 +337,13 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
         ?.whereType<Map>()
         .map(
           (item) => ExploreStorePromo.fromJson(Map<String, dynamic>.from(item)),
+        )
+        .where(
+          (promo) =>
+              promo.source.trim().isNotEmpty &&
+              !promo.source.toLowerCase().contains('preview') &&
+              !promo.source.toLowerCase().contains('demo') &&
+              !promo.source.toLowerCase().contains('test'),
         )
         .toList(growable: false);
 
@@ -768,41 +776,48 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
               repeatOnly: currentState != _exploreStateActiveShopping,
               state: currentState,
             );
-            final offerSlots = baseOfferSlots
-                .where(
-                  (slot) => !_dismissedOfferIntentKeys.contains(slot.intentKey),
-                )
-                .toList(growable: false);
-            final hiddenOfferCount = baseOfferSlots.length - offerSlots.length;
-            final visibleOfferIntentKeys = offerSlots
-                .map((slot) => slot.intentKey)
-                .toSet();
-            final visibleRevisitItems = revisitItems
-                .where(
-                  (item) => !visibleOfferIntentKeys.contains(_normalize(item.name)),
-                )
-                .toList(growable: false);
-            final visibleRepeatCandidates = repeatCandidates
-                .where(
-                  (candidate) =>
-                      !visibleOfferIntentKeys.contains(_normalize(candidate.name)),
-                )
-                .toList(growable: false);
             final storeContextPromos = _buildStoreContextPromos(
               exploreConfig,
               currentState,
             );
-            final orderedSections = _dynamicSectionOrder(
-              exploreConfig,
-              hasOfferSlots: offerSlots.isNotEmpty || hiddenOfferCount > 0,
-              hasEditorialPicks: editorialOffers.isNotEmpty,
-              hasStoreContextPromos: storeContextPromos.isNotEmpty,
-              state: currentState,
-            );
-            final sectionWidgets = <Widget>[];
 
-            for (final sectionId in orderedSections) {
-              switch (sectionId) {
+            return FutureBuilder<List<ExploreOfferSlot>>(
+              future: _loadVisibleOfferSlots(baseOfferSlots),
+              builder: (context, offerSnapshot) {
+                final availableOfferSlots = offerSnapshot.data ?? const <ExploreOfferSlot>[];
+                final offerSlots = availableOfferSlots
+                    .where(
+                      (slot) => !_dismissedOfferIntentKeys.contains(slot.intentKey),
+                    )
+                    .toList(growable: false);
+                final hiddenOfferCount =
+                    availableOfferSlots.length - offerSlots.length;
+                final visibleOfferIntentKeys = offerSlots
+                    .map((slot) => slot.intentKey)
+                    .toSet();
+                final visibleRevisitItems = revisitItems
+                    .where(
+                      (item) => !visibleOfferIntentKeys.contains(_normalize(item.name)),
+                    )
+                    .toList(growable: false);
+                final visibleRepeatCandidates = repeatCandidates
+                    .where(
+                      (candidate) => !visibleOfferIntentKeys.contains(
+                        _normalize(candidate.name),
+                      ),
+                    )
+                    .toList(growable: false);
+                final orderedSections = _dynamicSectionOrder(
+                  exploreConfig,
+                  hasOfferSlots: offerSlots.isNotEmpty || hiddenOfferCount > 0,
+                  hasEditorialPicks: editorialOffers.isNotEmpty,
+                  hasStoreContextPromos: storeContextPromos.isNotEmpty,
+                  state: currentState,
+                );
+                final sectionWidgets = <Widget>[];
+
+                for (final sectionId in orderedSections) {
+                  switch (sectionId) {
                 case 'heroSummary':
                   sectionWidgets.add(
                     _ExploreHeroCard(
@@ -1092,105 +1107,108 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
               }
             }
 
-            return ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                ValueListenableBuilder<AppLocationSnapshot?>(
-                  valueListenable: AppLocationService.instance.snapshot,
-                  builder: (context, locationSnapshot, _) {
-                    final shoppingMode = _showShoppingMode;
-                    final subtitle = _pageSubtitle(locationSnapshot);
-                    final quietAction = shoppingMode
-                        ? widget.onUseDefaultExploreMode
-                        : widget.onUseShoppingMode;
-                    final topInset = MediaQuery.paddingOf(context).top;
+                return ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    ValueListenableBuilder<AppLocationSnapshot?>(
+                      valueListenable: AppLocationService.instance.snapshot,
+                      builder: (context, locationSnapshot, _) {
+                        final shoppingMode = _showShoppingMode;
+                        final subtitle = _pageSubtitle(locationSnapshot);
+                        final quietAction = shoppingMode
+                            ? widget.onUseDefaultExploreMode
+                            : widget.onUseShoppingMode;
+                        final topInset = MediaQuery.paddingOf(context).top;
 
-                    return Container(
-                      width: double.infinity,
-                      color: shoppingMode
-                          ? CartlyColors.brand
-                          : Colors.transparent,
-                      padding: EdgeInsets.fromLTRB(
-                        16,
-                        shoppingMode ? topInset + 12 : 12,
-                        16,
-                        0,
-                      ),
-                      child: SizedBox(
-                        height: 84,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(
-                              height: 40,
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        _pageTitle(),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: shoppingMode
-                                            ? CartlyText.pageHeroCompact.copyWith(
-                                                color: CartlyColors.onBrandPrimary,
-                                              )
-                                            : CartlyText.pageHero.copyWith(
-                                                color: CartlyColors.subBrand,
-                                              ),
+                        return Container(
+                          width: double.infinity,
+                          color: shoppingMode
+                              ? CartlyColors.brand
+                              : Colors.transparent,
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            shoppingMode ? topInset + 12 : 12,
+                            16,
+                            0,
+                          ),
+                          child: SizedBox(
+                            height: 84,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  height: 40,
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            _pageTitle(),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: shoppingMode
+                                                ? CartlyText.pageHeroCompact.copyWith(
+                                                    color: CartlyColors.onBrandPrimary,
+                                                  )
+                                                : CartlyText.pageHero.copyWith(
+                                                    color: CartlyColors.subBrand,
+                                                  ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: _modeToggleIconButton(
+                                          shoppingMode: shoppingMode,
+                                          onPressed: quietAction,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  height: 24,
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      subtitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: CartlyText.pageSubtitle.copyWith(
+                                        color: shoppingMode
+                                            ? Colors.white.withValues(alpha: 0.92)
+                                            : CartlyColors.textSecondary,
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 12),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: _modeToggleIconButton(
-                                      shoppingMode: shoppingMode,
-                                      onPressed: quietAction,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              height: 24,
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  subtitle,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: CartlyText.pageSubtitle.copyWith(
-                                    color: shoppingMode
-                                        ? Colors.white.withValues(alpha: 0.92)
-                                        : CartlyColors.textSecondary,
-                                  ),
                                 ),
-                              ),
+                                const Spacer(),
+                              ],
                             ),
-                            const Spacer(),
-                          ],
-                        ),
+                          ),
+                        );
+                      },
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        16,
+                        CartlySpacing.sectionLoose,
+                        16,
+                        28,
                       ),
-                    );
-                  },
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    16,
-                    CartlySpacing.sectionLoose,
-                    16,
-                    28,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: sectionWidgets,
-                  ),
-                ),
-              ],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: sectionWidgets,
+                      ),
+                    ),
+                  ],
+                );
+              },
             );
           },
         );
@@ -1515,52 +1533,6 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  detail.summary,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: CartlyColors.textSecondary,
-                    height: 1.45,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  '앞으로 여기서 볼 것',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 10),
-                ...detail.comparePoints.map(
-                  (point) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Padding(
-                          padding: EdgeInsets.only(top: 2),
-                          child: CartlySymbolIcon.sf(
-                            'checkmark.circle',
-                            size: 18,
-                            color: CartlyColors.subBrand,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            point,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: CartlyColors.textPrimary,
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
                 if (detail.offerQuery == null) ...[
                   const SizedBox(height: 12),
                   Container(
@@ -1583,16 +1555,8 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                 ],
                 if (detail.offerQuery != null) ...[
                   const SizedBox(height: 18),
-                  const Text(
-                    '네이버쇼핑 결과',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
                   FutureBuilder<ExploreOfferResult>(
-                    future: _offerProvider.fetchOffers(detail.offerQuery!),
+                    future: _offerResultFuture(detail.offerQuery!),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState != ConnectionState.done) {
                         return const Padding(
@@ -1613,13 +1577,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                       }
 
                       if (!result.hasVisibleOffers) {
-                        return const Padding(
-                          padding: EdgeInsets.only(top: 2),
-                          child: _EmptyInfoCard(
-                            title: '네이버쇼핑 결과를 아직 못 찾았어요',
-                            body: '이 상품은 검색어를 더 다듬거나 묶음 구성을 다시 확인해봐야 해요.',
-                          ),
-                        );
+                        return const SizedBox.shrink();
                       }
 
                       final offers = result.offers;
@@ -1627,7 +1585,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            '바로 비교할 수 있는 상품',
+                            '네이버쇼핑 결과',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
@@ -1655,6 +1613,39 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
 
   String _normalize(String value) {
     return ExploreIntentNormalizer.normalize(value).intentKey;
+  }
+
+  Future<ExploreOfferResult> _offerResultFuture(ExploreOfferQuery query) {
+    final cacheKey = [
+      query.intentKey,
+      query.queryText,
+      query.sourceType.name,
+      query.referencePrice ?? '',
+    ].join('|');
+    return _offerResultFutures.putIfAbsent(
+      cacheKey,
+      () => _offerProvider.fetchOffers(query),
+    );
+  }
+
+  Future<List<ExploreOfferSlot>> _loadVisibleOfferSlots(
+    List<ExploreOfferSlot> slots,
+  ) async {
+    if (slots.isEmpty) {
+      return const <ExploreOfferSlot>[];
+    }
+
+    final entries = await Future.wait(
+      slots.map((slot) async {
+        final result = await _offerResultFuture(slot.query);
+        return MapEntry(slot, result.hasVisibleOffers);
+      }),
+    );
+
+    return entries
+        .where((entry) => entry.value)
+        .map((entry) => entry.key)
+        .toList(growable: false);
   }
 }
 
@@ -1946,16 +1937,6 @@ class _OfferSlotCard extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                '${slot.context} 함께 살펴볼 만한 비슷한 상품이에요. 가격이나 구성 차이를 가볍게 비교해보세요.',
-                style: const TextStyle(
-                  color: CartlyColors.onBrandMuted,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  height: 1.45,
-                ),
-              ),
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
@@ -2000,8 +1981,6 @@ class _StoreContextPromoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final storeName = promos.isEmpty ? '이마트 양재점' : promos.first.storeName;
-
     return CartlySurfaceCard(
       radius: CartlyRadii.hero,
       gradient: const LinearGradient(
@@ -2016,17 +1995,6 @@ class _StoreContextPromoCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              const CartlyBadge(label: 'store context'),
-              CartlyBadge(label: enabled ? 'lane on' : 'lane off'),
-              CartlyBadge(label: storeName),
-              CartlyBadge(label: 'promo ${promos.length}개'),
-            ],
-          ),
-          const SizedBox(height: 12),
           Text(
             title,
             style: const TextStyle(
@@ -2065,13 +2033,6 @@ class _StoreContextPromoCard extends StatelessWidget {
                       runSpacing: 8,
                       children: [
                         CartlyBadge(label: promo.badgeLabel),
-                        CartlyBadge(label: promo.placementLabel),
-                        CartlyBadge(label: promo.intentHint),
-                        CartlyBadge(label: promo.sourceType),
-                        CartlyBadge(label: 'priority ${promo.priority}'),
-                        CartlyBadge(
-                          label: promo.isSponsored ? 'sponsored' : 'organic',
-                        ),
                         if (promo.sponsorLabel != null)
                           CartlyBadge(label: promo.sponsorLabel!),
                       ],
@@ -2421,8 +2382,6 @@ class _IntentDetail {
   final String name;
   final int price;
   final String badge;
-  final String summary;
-  final List<String> comparePoints;
   final String futureNote;
   final ExploreOfferQuery? offerQuery;
 
@@ -2430,8 +2389,6 @@ class _IntentDetail {
     required this.name,
     required this.price,
     required this.badge,
-    required this.summary,
-    required this.comparePoints,
     required this.futureNote,
     this.offerQuery,
   });
@@ -2441,12 +2398,6 @@ class _IntentDetail {
       name: item.name,
       price: item.price,
       badge: item.badge,
-      summary: '${item.reasonLabel} · ${item.reason}',
-      comparePoints: const [
-        '현재 담은 가격과 이후 대체안 가격 비교',
-        '같은 용도의 다른 브랜드/구성 비교',
-        '묶음 상품 또는 대용량 단가 비교',
-      ],
       futureNote: '여기서 필터된 네이버쇼핑 결과를 바로 비교해볼 수 있어요.',
       offerQuery: ExploreOfferQuery(
         intentKey: ExploreIntentNormalizer.normalize(item.name).intentKey,
@@ -2466,12 +2417,6 @@ class _IntentDetail {
       name: candidate.name,
       price: candidate.price,
       badge: '반복 구매',
-      summary: '저장한 카트에 ${candidate.repeatCount}번 담았어요. 자주 다시 찾는 상품으로 보고 있어요.',
-      comparePoints: const [
-        '지난에 샀던 가격과 지금 보이는 가격 비교',
-        '묶음 상품이나 대용량 옵션 비교',
-        '다시 살 만한 구성인지 확인',
-      ],
       futureNote: '자주 사는 상품도 필터된 네이버쇼핑 결과로 먼저 비교해볼 수 있어요.',
       offerQuery: ExploreOfferQuery(
         intentKey: ExploreIntentNormalizer.normalize(candidate.name).intentKey,
@@ -2489,8 +2434,6 @@ class _IntentDetail {
       name: slot.anchorName,
       price: slot.anchorPrice,
       badge: slot.sourceLabel,
-      summary: '${slot.sourceLabel} 기준으로 함께 볼 만한 비슷한 상품을 모아둔 자리예요.',
-      comparePoints: slot.comparePoints,
       futureNote: '이 자리에서 필터된 네이버쇼핑 결과를 먼저 비교해볼 수 있어요.',
       offerQuery: slot.query,
     );

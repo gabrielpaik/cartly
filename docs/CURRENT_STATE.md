@@ -19,8 +19,8 @@ It is a personal decision-support tool for real grocery planning and review.
 ### Customer app
 - iOS public release is now live on the App Store as `카트리`: `https://apps.apple.com/kr/app/카트리/id6763728346`
 - Latest shipped iOS public release line is `1.0.5 (10)`.
-- Latest uploaded iOS TestFlight update line is now `1.0.6 (9)`.
-- Latest iOS TestFlight delivery UUID is `28566327-afb0-48c3-9951-11b8b099dbe9`.
+- Latest uploaded iOS App Store review candidate is now `1.0.6 (10)`.
+- Latest iOS delivery UUID is `aa51303b-a5bc-4410-a5c0-e3e88eeda483`.
 - Latest uploaded Android internal-testing build: `1.0.6 (42)`.
 - Latest locally verified Android release artifact is `1.0.6 (42)`.
 - Shared household current-cart collaboration v2 is implemented and shipped in build 25.
@@ -83,10 +83,11 @@ This fix path is now on the current review build line through `1.0.5 (10)`.
 ### iOS / App Store Connect
 - Current shipped public iOS app: `카트리`
 - Public App Store URL: `https://apps.apple.com/kr/app/카트리/id6763728346`
-- Latest shipped review build line: `1.0.5 (10)`
-- Latest uploaded TestFlight build is `1.0.6 (9)` with delivery UUID `28566327-afb0-48c3-9951-11b8b099dbe9`
-- This build includes the guest-bootstrap + first-visit telemetry fix, the latest family-share late polish, the logout/current-cart default correction, the iOS location-permission review-warning mitigation, the first live Explore/Naver result display pass, the scan-state/explore-detail/store-promo bug-fix bundle, and the Explore duplicate-structure cleanup.
-- Metadata, screenshots, privacy URL, support URL, and review contact have already been prepared and were sufficient for release.
+- Latest shipped public iOS build line: `1.0.5 (10)`
+- Latest submitted App Store review build is `1.0.6 (10)` with delivery UUID `aa51303b-a5bc-4410-a5c0-e3e88eeda483`
+- App Store version `1.0.6` is now attached to build `10` and is in `WAITING_FOR_REVIEW` state.
+- This submitted build includes the guest-bootstrap + first-visit telemetry fix, the latest family-share late polish, the logout/current-cart default correction, the iOS location-permission review-warning mitigation, the first live Explore/Naver result display pass, the scan-state/explore-detail/store-promo bug-fix bundle, the Explore duplicate-structure cleanup, and the follow-up hide-empty/fake Explore surface cleanup.
+- Metadata, screenshots, privacy URL, support URL, review contact, and App Review notes were all copied forward successfully and were sufficient for submission.
 - Immediate post-release nuance: direct App Store URL is live, but search/discovery indexing can lag for a while after release, so early promotion should prefer the direct link.
 - Remaining caution: if the admin splash changes again later, the iPhone native first screen still requires a fresh bundled-asset rebuild and new upload.
 
@@ -114,8 +115,8 @@ This fix path is now on the current review build line through `1.0.5 (10)`.
 - Use this document as the primary current-state entry point instead of chaining multiple handoff/checkpoint notes.
 
 ## Open next actions
-1. Validate that fresh installs on `1.0.6 (9)` now create guest users immediately and produce authenticated `app_open` activity.
-2. Monitor the latest iOS TestFlight candidate `1.0.6 (9)`, especially the scan-state/explore-detail/store-promo fixes and the simplified Explore section structure.
+1. Monitor App Review for the submitted iOS build `1.0.6 (10)` and be ready to answer any reviewer follow-up quickly.
+2. Validate that fresh installs on `1.0.6 (10)` now create guest users immediately and produce authenticated `app_open` activity.
 3. Continue from the now-uploaded Android internal + alpha build `1.0.6 (42)` toward the Play closed-test requirement, including 12 opted-in testers and the 14-day gate.
 4. If Google Play install/listing surfaces still look generic during the closed-test period, keep cleaning up the Play listing high-res icon and store metadata separately from the binary.
 5. Keep the admin customer table clean during early rollout; as of 2026-05-20 morning, old test accounts were cleaned out and only `백승대` and `이지민` remained as active pre-launch accounts.

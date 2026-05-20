@@ -18,10 +18,10 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - 스크린샷/메타데이터/리뷰 노트까지 같이 관리해야 진짜 release readiness다.
 
 ### 현재 기준 버전
-- current working app version/build: `1.0.6+9`
+- current working app version/build: `1.0.6+10`
 - latest shipped iOS public release line: `1.0.5 (10)`
 - current public App Store URL: `https://apps.apple.com/kr/app/카트리/id6763728346`
-- latest uploaded iOS TestFlight build: `1.0.6 (9)` / delivery UUID `28566327-afb0-48c3-9951-11b8b099dbe9`
+- latest uploaded iOS App Store review candidate: `1.0.6 (10)` / delivery UUID `aa51303b-a5bc-4410-a5c0-e3e88eeda483`
 - most recent earlier iOS validation uploads in the same pass: `1.0.6 (7)` / `9fac0cc3-5b5e-4afc-8f5c-7dc72218007c`, `1.0.6 (6)` / `7556a88b-ff5d-4463-bda8-443fd0a62e67`, `1.0.6 (5)` / `67277251-f32b-49b4-b387-5a8685838302`, `1.0.6 (4)` / `fa7ab355-9cad-4e0d-9069-739e4158c3c3`, `1.0.6 (3)` / `78503721-943b-4ffb-b235-b4718599a65c`, `1.0.6 (2)` / `90900a45-8ca2-4c7b-9000-f88bcd786ac2`, `1.0.6 (1)` / `c0096c2b-95b5-482c-8a72-4ea5da0dfddb`
 - latest visible iOS TestFlight Cartly build on device before this reset: `1.0.4 (29)`
 - latest uploaded Android internal-track build after this reset: `1.0.6 (42)`
@@ -79,12 +79,14 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - encryption = `false`
 
 ## 3. 현재 iOS / App Store Connect 기준 정보
-- latest uploaded delivery UUID: `28566327-afb0-48c3-9951-11b8b099dbe9`
-- latest uploaded build line: `1.0.6 (9)`
-- current App Store version id: `a173b232-fe9b-4fdd-9557-a784bd7a36d2`
-- App Store version localization id: `64db26e7-c8a0-480e-9b9f-fb06c78a1ad5`
+- latest uploaded delivery UUID: `aa51303b-a5bc-4410-a5c0-e3e88eeda483`
+- latest uploaded build line: `1.0.6 (10)`
+- current live App Store version id: `a173b232-fe9b-4fdd-9557-a784bd7a36d2` (`1.0` / public live)
+- current submitted App Store version id: `d03d50a0-a25a-4f45-b230-adcb727669ad` (`1.0.6` / `WAITING_FOR_REVIEW`)
+- submitted App Store version localization id: `80ec3a5b-4bb7-45ea-8a2b-6b301b4464f1`
 - App info localization id: `57760505-1949-4e93-b21c-9502891d493c`
-- App Store review detail id: `784f5c12-b1f5-4651-bbd6-812255bb6fb5`
+- submitted App Store review detail id: `ad8e61ec-0e56-4ec4-b2f1-4d8fe1919239`
+- active review submission id: `0a7f0c04-86bc-42c7-a81d-5e62dd0a4c8f`
 
 ### review contact
 - email: `cartly.support@gmail.com`
@@ -137,7 +139,8 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 4. review detail create/patch
 5. screenshot set 삭제/재생성/업로드/commit
 6. uploaded asset state가 `COMPLETE` 될 때까지 polling
-7. build를 current App Store version에 연결하는 API patch까지 수행 가능한 구조를 이미 검증함
+7. build를 target App Store version에 연결하는 API patch까지 수행 가능한 구조를 이미 검증함
+8. `reviewSubmissions` 3-step flow(create submission -> add reviewSubmissionItem -> patch `submitted: true`)로 실배포 review submission까지 API로 진행 가능한 것을 검증함
 
 ### metadata automation이 다룬 항목
 - app name
@@ -182,7 +185,8 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 - 2026-05-20 night 기준 `1.0.6 (7)` 업로드까지 완료되었고, delivery UUID는 `9fac0cc3-5b5e-4afc-8f5c-7dc72218007c` 이다. 이 빌드에는 family-share/logout current-cart default fix, first-launch guest bootstrap + authenticated `app_open` tracking, and the iOS location-permission review-warning mitigation pass가 포함된다.
 - 2026-05-21 early-morning 기준 `1.0.6 (8)` 업로드까지 완료되었고, delivery UUID는 `d176d4a8-f775-4a2e-8edd-47b518873c3c` 이다. 이 빌드에는 Explore에서 필터된 Naver Shopping 결과를 바로 보여주는 현재 정책이 반영된다.
 - 2026-05-21 later 기준 `1.0.6 (9)` 업로드까지 완료되었고, delivery UUID는 `28566327-afb0-48c3-9951-11b8b099dbe9` 이다. 이 빌드에는 scan state persistence fix, Explore detail Naver-result rendering fix, fake store-promo suppression, and the Explore duplicate-structure cleanup pass가 함께 포함된다.
-- 같은 업로드는 `BUILD-STATUS: VALID`, `IMPORT-STATUS: VALID`, `IS-ON-APP-STORE-CONNECT: true`, `USES-NON-EXEMPT-ENCRYPTION: false` 까지 확인했다.
+- 2026-05-21 production submission pass 기준 `1.0.6 (10)` 업로드까지 완료되었고, delivery UUID는 `aa51303b-a5bc-4410-a5c0-e3e88eeda483` 이다. 이 빌드에는 `1.0.6 (9)` 묶음 내용에 더해 empty/fake Explore surface cleanup 후속분이 포함되며, App Store version `1.0.6` 에 attach 후 `reviewSubmissions` API flow로 review submission까지 완료했다.
+- 같은 `1.0.6 (10)` 업로드는 `BUILD-STATUS: VALID`, `IMPORT-STATUS: VALID`, `IS-ON-APP-STORE-CONNECT: true`, `USES-NON-EXEMPT-ENCRYPTION: false` 까지 확인했고, App Store version 상태는 `WAITING_FOR_REVIEW` 다.
 
 ## 7. Android / Google Play release 흐름
 

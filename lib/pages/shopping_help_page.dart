@@ -1820,26 +1820,36 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: CartlyColors.surfaceNeutral,
-                    borderRadius: BorderRadius.circular(CartlyRadii.control),
-                  ),
-                  child: Text(
-                    detail.futureNote,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: CartlyColors.subBrand,
-                      height: 1.45,
+                if (detail.offerQuery == null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: CartlyColors.surfaceNeutral,
+                      borderRadius: BorderRadius.circular(CartlyRadii.control),
+                    ),
+                    child: Text(
+                      detail.futureNote,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: CartlyColors.subBrand,
+                        height: 1.45,
+                      ),
                     ),
                   ),
-                ),
+                ],
                 if (detail.offerQuery != null) ...[
                   const SizedBox(height: 18),
+                  const Text(
+                    '네이버쇼핑 결과',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   FutureBuilder<ExploreOfferResult>(
                     future: _offerProvider.fetchOffers(detail.offerQuery!),
                     builder: (context, snapshot) {
@@ -1862,7 +1872,13 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                       }
 
                       if (!result.hasVisibleOffers) {
-                        return const SizedBox.shrink();
+                        return const Padding(
+                          padding: EdgeInsets.only(top: 2),
+                          child: _EmptyInfoCard(
+                            title: '네이버쇼핑 결과를 아직 못 찾았어요',
+                            body: '이 상품은 검색어를 더 다듬거나 묶음 구성을 다시 확인해봐야 해요.',
+                          ),
+                        );
                       }
 
                       final offers = result.offers;
@@ -1870,7 +1886,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            '함께 볼 수 있는 상품',
+                            '바로 비교할 수 있는 상품',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,

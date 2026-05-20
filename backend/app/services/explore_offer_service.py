@@ -19,7 +19,8 @@ _COUPANG_DEEPLINK_PATH = '/v2/providers/affiliate_open_api/apis/openapi/v1/deepl
 _COUPANG_HMAC_ALGORITHM = 'HmacSHA256'
 _NAVER_SHOPPING_API_URL = 'https://openapi.naver.com/v1/search/shop.json'
 _HTML_TAG_RE = re.compile(r'<[^>]+>')
-_PACK_COUNT_RE = re.compile(r'(\d+)\s*(개|입|팩|봉|병|캔|세트)')
+_PACK_COUNT_RE = re.compile(r'(\d+)\s*(개|입|팩|pack|봉|병|캔|세트)')
+_MULTIPACK_X_RE = re.compile(r'(?:x|×)\s*(\d+)')
 _QUERY_TITLE_NEGATIVE_RULES: list[tuple[str, set[str]]] = [
     ('우유', {'분유', '탈지분유', '전지분유', '두유', '연유', '요거트', '요구르트'}),
     ('생수', {'탄산수', '두유', '주스'}),
@@ -171,7 +172,18 @@ def _format_price_delta(reference_price: int, candidate_price: int) -> str:
 
 
 def _extract_pack_count(text: str) -> Optional[int]:
-    match = _PACK_COUNT_RE.search(text or '')
+    normalized_text = (text or '').lower()
+
+    x_match = _MULTIPACK_X_RE.search(normalized_text)
+    if x_match:
+        try:
+            value = int(x_match.group(1))
+        except ValueError:
+            value = 0
+        if value > 0:
+            return value
+
+    match = _PACK_COUNT_RE.search(normalized_text)
     if not match:
         return None
     try:

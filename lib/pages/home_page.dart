@@ -50,7 +50,7 @@ class _HomePageState extends State<HomePage> {
   bool _showHomeDot = false;
   bool _showExploreDot = false;
   bool? _exploreShoppingModeOverride;
-  String? _loadedCurrentCartOwnerId;
+  String? _loadedCurrentCartScopeKey;
   Timer? _sharedCurrentCartPollTimer;
   bool _sharedCurrentCartEnabled = false;
   bool _hasHouseholdLink = false;
@@ -138,26 +138,41 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  String get _currentCartOwnerId => AuthStore.instance.session.value?.id ?? '';
+  String get _currentCartScopeKey {
+    final session = AuthStore.instance.session.value;
+    if (session == null) {
+      return 'anon:';
+    }
+    return '${session.isGuest ? 'guest' : 'member'}:${session.id}';
+  }
 
   Future<void> _restoreCurrentCartState() async {
-    final ownerId = _currentCartOwnerId;
+    final session = AuthStore.instance.session.value;
+    final memberSignedIn =
+        session != null &&
+        !session.isGuest &&
+        session.authToken.trim().isNotEmpty;
     final snapshot = await CurrentCartStore.instance.loadPersonal();
-    final preferredMode = await CurrentCartStore.instance.loadMode();
-    var sharedEnabled = preferredMode == CurrentCartMode.shared;
+    final storedMode = memberSignedIn
+        ? await CurrentCartStore.instance.loadStoredMode()
+        : null;
+    var sharedEnabled = false;
     var hasHouseholdLink = false;
     List<CartItem> nextItems = snapshot.items;
-    final session = AuthStore.instance.session.value;
-    if (session != null &&
-        !session.isGuest &&
-        session.authToken.trim().isNotEmpty) {
+    if (memberSignedIn) {
       try {
         final sharedSnapshot = await _remoteCurrentCartRepository
             .getCurrentCart(session.authToken);
         hasHouseholdLink = sharedSnapshot.shared;
-        if (sharedSnapshot.shared && preferredMode == CurrentCartMode.shared) {
-          sharedEnabled = true;
-          nextItems = sharedSnapshot.items;
+        if (sharedSnapshot.shared) {
+          final shouldDefaultToShared =
+              storedMode == null || storedMode == CurrentCartMode.shared;
+          if (shouldDefaultToShared) {
+            sharedEnabled = true;
+            nextItems = sharedSnapshot.items;
+          } else {
+            sharedEnabled = false;
+          }
         } else {
           sharedEnabled = false;
         }
@@ -174,7 +189,7 @@ class _HomePageState extends State<HomePage> {
       consideredItems
         ..clear()
         ..addAll(snapshot.consideredItems);
-      _loadedCurrentCartOwnerId = ownerId;
+      _loadedCurrentCartScopeKey = _currentCartScopeKey;
       _sharedCurrentCartEnabled = sharedEnabled;
       _hasHouseholdLink = hasHouseholdLink;
     });
@@ -366,9 +381,19 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _handleSessionChanged() {
-    final nextOwnerId = _currentCartOwnerId;
+    final session = AuthStore.instance.session.value;
+    final nextScopeKey = _currentCartScopeKey;
     HouseholdStore.instance.clear();
-    if (_loadedCurrentCartOwnerId == nextOwnerId) {
+    if (session == null || session.isGuest || session.authToken.trim().isEmpty) {
+      _sharedCurrentCartPollTimer?.cancel();
+      if (_sharedCurrentCartEnabled || _hasHouseholdLink) {
+        setState(() {
+          _sharedCurrentCartEnabled = false;
+          _hasHouseholdLink = false;
+        });
+      }
+    }
+    if (_loadedCurrentCartScopeKey == nextScopeKey) {
       return;
     }
     unawaited(_restoreCurrentCartState());

@@ -3,7 +3,7 @@ description: "Cartly shopping assistant."
 
 publish_to: 'none'
 
-version: 1.0.6+5
+version: 1.0.6+7
 
 environment:
   sdk: ^3.10.7
@@ -16,7 +16,6 @@ dependencies:
   camera: ^0.11.3
   image_picker: ^1.1.2
   file_selector: ^1.1.0
-  permission_handler: ^12.0.1
   shared_preferences: ^2.2.3
   url_launcher: ^6.3.1
   google_mobile_ads: ^5.1.0

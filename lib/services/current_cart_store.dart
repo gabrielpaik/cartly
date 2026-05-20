@@ -30,6 +30,12 @@ class CurrentCartStore {
   static const _modeKey = 'current_cart_mode_v2';
 
   String get _currentOwnerId => AuthStore.instance.session.value?.id ?? '';
+  bool get _canUseSharedModePreference {
+    final session = AuthStore.instance.session.value;
+    return session != null &&
+        !session.isGuest &&
+        session.authToken.trim().isNotEmpty;
+  }
 
   Future<CurrentCartSnapshot> loadPersonal() async {
     final sp = await SharedPreferences.getInstance();
@@ -132,19 +138,30 @@ class CurrentCartStore {
     );
   }
 
-  Future<CurrentCartMode> loadMode() async {
+  Future<CurrentCartMode?> loadStoredMode() async {
+    if (!_canUseSharedModePreference) {
+      return null;
+    }
     final sp = await SharedPreferences.getInstance();
     final storedOwnerId = sp.getString(_ownerKey) ?? '';
     if (storedOwnerId != _currentOwnerId) {
-      return CurrentCartMode.personal;
+      return null;
     }
     return switch (sp.getString(_modeKey)) {
       'shared' => CurrentCartMode.shared,
-      _ => CurrentCartMode.personal,
+      'personal' => CurrentCartMode.personal,
+      _ => null,
     };
   }
 
+  Future<CurrentCartMode> loadMode() async {
+    return await loadStoredMode() ?? CurrentCartMode.personal;
+  }
+
   Future<void> saveMode(CurrentCartMode mode) async {
+    if (!_canUseSharedModePreference) {
+      return;
+    }
     final sp = await SharedPreferences.getInstance();
     await sp.setString(_ownerKey, _currentOwnerId);
     await sp.setString(

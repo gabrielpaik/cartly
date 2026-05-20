@@ -973,21 +973,20 @@ class _HomePageState extends State<HomePage> {
         ? body
         : SafeArea(top: true, bottom: false, child: body);
 
-    if (_tabIndex != 0) {
-      return scaffoldBody;
-    }
-
     return Stack(
       children: [
         scaffoldBody,
         ValueListenableBuilder<List<AppAdSlot>>(
           valueListenable: AppConfigStore.instance.adSlots,
           builder: (context, slots, child) {
+            if (_tabIndex != 0) {
+              return const SizedBox.shrink();
+            }
             final slot = AppConfigStore.instance.slotByKey('home_floating_1');
             if (slot == null || !slot.enabled) {
               return const SizedBox.shrink();
             }
-            final bottomOffset = (_tabIndex == 0 ? 78.0 + 72.0 : 78.0) + 12.0;
+            const bottomOffset = 78.0 + 72.0 + 12.0;
             return HomeFloatingPromoSlot(
               slotKey: slot.slotKey,
               delay: Duration(milliseconds: slot.config.showDelayMs),

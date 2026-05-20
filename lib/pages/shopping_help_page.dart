@@ -17,7 +17,6 @@ import '../services/cart_title_formatter.dart';
 import '../services/cart_title_suggester.dart';
 import '../services/explore_intent_normalizer.dart';
 import '../services/explore_offer_service.dart';
-import '../widgets/cartly_action_tile.dart';
 import '../widgets/cartly_badge.dart';
 import '../widgets/cartly_surface_card.dart';
 import '../widgets/cartly_symbol_icon.dart';
@@ -357,7 +356,6 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     if (parts.isEmpty) {
       return const {
         'heroSummary',
-        'decisionInbox',
         'revisitItems',
         'repeatCandidates',
         'editorialPicks',
@@ -439,17 +437,16 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     final fallback = switch (state) {
       _exploreStatePostSave => const [
         'savedContext',
-        'decisionInbox',
+        'offerSlots',
         'repeatCandidates',
         'editorialPicks',
-        'offerSlots',
       ],
       _exploreStateStoreContext => const [
         'storeContextPromo',
+        'offerSlots',
         'savedContext',
         'editorialPicks',
         'repeatCandidates',
-        'offerSlots',
       ],
       _exploreStateIdlePlanning => const [
         'savedContext',
@@ -457,7 +454,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
         'editorialPicks',
         'offerSlots',
       ],
-      _ => const ['offerSlots', 'heroSummary', 'decisionInbox', 'revisitItems'],
+      _ => const ['heroSummary', 'offerSlots', 'revisitItems'],
     };
 
     final configured = (config[_stateOrderKey(state)] as String? ?? '')
@@ -470,6 +467,9 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
 
     void addSection(String sectionId) {
       if (!enabled.contains(sectionId) || ordered.contains(sectionId)) {
+        return;
+      }
+      if (sectionId == 'decisionInbox') {
         return;
       }
       if (sectionId == 'offerSlots' && !hasOfferSlots) {
@@ -774,15 +774,23 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                 )
                 .toList(growable: false);
             final hiddenOfferCount = baseOfferSlots.length - offerSlots.length;
+            final visibleOfferIntentKeys = offerSlots
+                .map((slot) => slot.intentKey)
+                .toSet();
+            final visibleRevisitItems = revisitItems
+                .where(
+                  (item) => !visibleOfferIntentKeys.contains(_normalize(item.name)),
+                )
+                .toList(growable: false);
+            final visibleRepeatCandidates = repeatCandidates
+                .where(
+                  (candidate) =>
+                      !visibleOfferIntentKeys.contains(_normalize(candidate.name)),
+                )
+                .toList(growable: false);
             final storeContextPromos = _buildStoreContextPromos(
               exploreConfig,
               currentState,
-            );
-            final decisionInboxEntries = _buildDecisionInboxEntries(
-              revisitItems: revisitItems,
-              offerSlots: offerSlots,
-              exploreConfig: exploreConfig,
-              state: currentState,
             );
             final orderedSections = _dynamicSectionOrder(
               exploreConfig,
@@ -807,69 +815,24 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                   );
                   sectionWidgets.add(const SizedBox(height: 20));
                   break;
-                case 'decisionInbox':
-                  sectionWidgets.add(
-                    SectionHeader(
-                      title: '결정 인박스',
-                      subtitle: '최근 스캔과 비교 후보만 먼저 모아드릴게요',
-                    ),
-                  );
-                  sectionWidgets.add(const SizedBox(height: 10));
-                  if (decisionInboxEntries.isEmpty) {
-                    sectionWidgets.add(
-                      const _EmptyInfoCard(
-                        title: '지금 다시 볼 결정이 없어요',
-                        body: '홈의 전체 목록을 그대로 가져오지 않고, 지금 다시 볼 만한 항목만 보여드릴게요.',
-                      ),
-                    );
-                  } else {
-                    sectionWidgets.addAll(
-                      decisionInboxEntries.map(
-                        (entry) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _DecisionInboxCard(
-                            entry: entry,
-                            onTap: () =>
-                                _showIntentDetailSheet(context, entry.detail),
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-                  sectionWidgets.add(
-                    CartlyActionTile(
-                      icon: const CartlySymbolIcon.sf('cart.badge.plus'),
-                      title: widget.items.isEmpty
-                          ? '홈에서 장보기 시작하기'
-                          : '홈에서 실행 이어가기',
-                      body: widget.items.isEmpty
-                          ? '촬영하고 담고 저장하는 흐름은 홈에서 바로 이어가실 수 있어요.'
-                          : '수량 수정이나 저장 같은 실행은 홈에서, 비교와 판단은 Explore에서 이어가시면 돼요.',
-                      actionLabel: widget.items.isEmpty ? '홈으로 가기' : '홈에서 실행하기',
-                      onTap: widget.onGoHome,
-                      backgroundColor: CartlyColors.surface1,
-                    ),
-                  );
-                  sectionWidgets.add(const SizedBox(height: 20));
-                  break;
                 case 'revisitItems':
                   sectionWidgets.add(
                     SectionHeader(
                       title: '다시 볼 상품',
-                      subtitle: '최근 스캔과 현재 카트에서 다시 볼 상품만 골라 보여드려요',
+                      subtitle: '비교 후보로 올리지 않은 최근 스캔과 현재 카트만 골라 보여드려요',
                     ),
                   );
                   sectionWidgets.add(const SizedBox(height: 10));
-                  if (revisitItems.isEmpty) {
+                  if (visibleRevisitItems.isEmpty) {
                     sectionWidgets.add(
                       const _EmptyInfoCard(
                         title: '다시 볼 상품이 아직 없어요',
-                        body: '현재 카트와 최근 스캔이 쌓이면 다시 볼 후보를 여기 모아드릴게요.',
+                        body: '지금 다시 볼 상품은 비교 후보에 먼저 반영됐거나, 아직 후보가 충분하지 않아요.',
                       ),
                     );
                   } else {
                     sectionWidgets.addAll(
-                      revisitItems.map(
+                      visibleRevisitItems.map(
                         (item) => Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: _DecisionItemCard(
@@ -889,20 +852,20 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                   sectionWidgets.add(
                     SectionHeader(
                       title: '반복 구매',
-                      subtitle: '지난 장보기에서 자주 담은 상품부터 다시 볼 수 있어요',
+                      subtitle: '비교 후보로 아직 올리지 않은 반복 구매 상품만 따로 보여드려요',
                     ),
                   );
                   sectionWidgets.add(const SizedBox(height: 10));
-                  if (repeatCandidates.isEmpty) {
+                  if (visibleRepeatCandidates.isEmpty) {
                     sectionWidgets.add(
                       const _EmptyInfoCard(
                         title: '아직 반복 패턴이 부족해요',
-                        body: '저장한 카트가 더 쌓이면 자주 사는 상품을 자동으로 보여드릴게요.',
+                        body: '반복 구매 후보는 이미 비교 후보에 반영됐거나, 아직 반복 패턴이 더 필요해요.',
                       ),
                     );
                   } else {
                     sectionWidgets.addAll(
-                      repeatCandidates.map(
+                      visibleRepeatCandidates.map(
                         (candidate) => Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: _RepeatCandidateCard(
@@ -1250,80 +1213,6 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     return fallback;
   }
 
-  String _offerReasonLabelForState(Map<String, dynamic> config, String state) {
-    switch (state) {
-      case _exploreStatePostSave:
-        return _decisionCopyText(
-          config,
-          'offerReasonLabelPostSave',
-          '저장한 뒤 다시 보기',
-        );
-      case _exploreStateIdlePlanning:
-        return _decisionCopyText(
-          config,
-          'offerReasonLabelIdlePlanning',
-          '다음 장보기 준비',
-        );
-      case _exploreStateStoreContext:
-        return _decisionCopyText(
-          config,
-          'offerReasonLabelStoreContext',
-          '지금 매장 할인 보기',
-        );
-      case _exploreStateActiveShopping:
-      default:
-        return _decisionCopyText(
-          config,
-          'offerReasonLabelActiveShopping',
-          '지금 비교해보세요',
-        );
-    }
-  }
-
-  int _decisionPriorityInt(
-    Map<String, dynamic> config,
-    String state,
-    String key,
-    int fallback,
-  ) {
-    final priorities = config['stateDecisionPriorities'];
-    if (priorities is Map) {
-      final rawStatePriorities = priorities[state];
-      if (rawStatePriorities is Map) {
-        final value = rawStatePriorities[key];
-        if (value is int) return value;
-        if (value is num) return value.toInt();
-        final parsed = int.tryParse('$value');
-        if (parsed != null) {
-          return parsed;
-        }
-      }
-    }
-    return fallback;
-  }
-
-  int _decisionMaxCountInt(
-    Map<String, dynamic> config,
-    String state,
-    String key,
-    int fallback,
-  ) {
-    final maxCounts = config['stateDecisionMaxCounts'];
-    if (maxCounts is Map) {
-      final rawStateMaxCounts = maxCounts[state];
-      if (rawStateMaxCounts is Map) {
-        final value = rawStateMaxCounts[key];
-        if (value is int) return value;
-        if (value is num) return value.toInt();
-        final parsed = int.tryParse('$value');
-        if (parsed != null) {
-          return parsed;
-        }
-      }
-    }
-    return fallback;
-  }
-
   List<_RevisitItem> _buildRevisitItems(
     Map<String, dynamic> exploreConfig,
     String state,
@@ -1467,98 +1356,6 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
         .where((item) => deduped.add(_normalize(item.name)))
         .take(maxItems)
         .toList();
-  }
-
-  List<_DecisionInboxEntry> _buildDecisionInboxEntries({
-    required List<_RevisitItem> revisitItems,
-    required List<ExploreOfferSlot> offerSlots,
-    required Map<String, dynamic> exploreConfig,
-    required String state,
-  }) {
-    final entries = <_DecisionInboxEntry>[];
-    final offeredIntentKeys = offerSlots.map((slot) => slot.intentKey).toSet();
-
-    for (final slot in offerSlots) {
-      final offerReasonLabel = _offerReasonLabelForState(exploreConfig, state);
-      final offerBody = _decisionCopyText(
-        exploreConfig,
-        'offerBody',
-        '같은 용도의 다른 선택지를 바로 비교하실 수 있어요. 가격이나 구성만 가볍게 확인해보세요.',
-      );
-      final decisionKey = switch (slot.sourceType) {
-        ExploreOfferSourceType.currentCart => 'offerCurrentCart',
-        ExploreOfferSourceType.pendingReview => 'offerPendingReview',
-        ExploreOfferSourceType.repeatPurchase => 'offerRepeatPurchase',
-      };
-      final fallbackPriority = switch (decisionKey) {
-        'offerCurrentCart' => 280,
-        'offerRepeatPurchase' => 220,
-        _ => 300,
-      };
-      entries.add(
-        _DecisionInboxEntry(
-          title: '${slot.anchorName} 대체안 확인',
-          body: '${slot.context} $offerBody',
-          badge: '오퍼 도착',
-          decisionKey: decisionKey,
-          reasonLabel: offerReasonLabel,
-          detail: _IntentDetail.fromOfferSlot(slot),
-          priority: _decisionPriorityInt(
-            exploreConfig,
-            state,
-            decisionKey,
-            fallbackPriority,
-          ),
-        ),
-      );
-    }
-
-    for (final item in revisitItems) {
-      final intentKey = _normalize(item.name);
-      if (offeredIntentKeys.contains(intentKey)) continue;
-      entries.add(
-        _DecisionInboxEntry(
-          title: item.badge == '미결정'
-              ? '${item.name} 아직 담기 전이에요'
-              : item.badge == '재확인'
-              ? '${item.name} 다시 확인 권장'
-              : '${item.name} 비교 후보',
-          body: item.reason,
-          badge: item.badge,
-          decisionKey: item.decisionKey,
-          reasonLabel: item.reasonLabel,
-          detail: _IntentDetail.fromRevisitItem(item),
-          priority: _decisionPriorityInt(
-            exploreConfig,
-            state,
-            item.decisionKey,
-            item.badge == '미결정' ? 220 : 180,
-          ),
-        ),
-      );
-    }
-
-    entries.sort((a, b) => b.priority.compareTo(a.priority));
-    final counts = <String, int>{};
-    final filtered = <_DecisionInboxEntry>[];
-    for (final entry in entries) {
-      final maxCount = _decisionMaxCountInt(
-        exploreConfig,
-        state,
-        entry.decisionKey,
-        4,
-      );
-      final currentCount = counts[entry.decisionKey] ?? 0;
-      if (currentCount >= maxCount) {
-        continue;
-      }
-      counts[entry.decisionKey] = currentCount + 1;
-      filtered.add(entry);
-      if (filtered.length >= 4) {
-        break;
-      }
-    }
-    return filtered;
   }
 
   List<_RepeatCandidate> _buildRepeatCandidates(
@@ -2009,80 +1806,6 @@ class _DecisionItemCard extends StatelessWidget {
               const SizedBox(height: 10),
               const Text(
                 '비교 준비 보기',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: CartlyColors.subBrand,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DecisionInboxCard extends StatelessWidget {
-  final _DecisionInboxEntry entry;
-  final VoidCallback onTap;
-
-  const _DecisionInboxCard({required this.entry, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: CartlyColors.surface1,
-      borderRadius: BorderRadius.circular(CartlyRadii.card),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(CartlyRadii.card),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      entry.title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  CartlyBadge(label: entry.badge),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [CartlyBadge(label: entry.reasonLabel)],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '₩${formatPrice(entry.detail.price)}',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                entry.body,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: CartlyColors.textSecondary,
-                  height: 1.45,
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                '결정 이유 보기',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -2662,26 +2385,6 @@ class _EmptyInfoCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _DecisionInboxEntry {
-  final String title;
-  final String body;
-  final String badge;
-  final String decisionKey;
-  final String reasonLabel;
-  final _IntentDetail detail;
-  final int priority;
-
-  const _DecisionInboxEntry({
-    required this.title,
-    required this.body,
-    required this.badge,
-    required this.decisionKey,
-    required this.reasonLabel,
-    required this.detail,
-    required this.priority,
-  });
 }
 
 class _RevisitItem {

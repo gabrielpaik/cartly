@@ -21,7 +21,7 @@ It is a personal decision-support tool for real grocery planning and review.
 - Latest shipped iOS public release line is `1.0.5 (10)`.
 - Latest uploaded iOS TestFlight update line is now `1.0.6 (7)`.
 - Latest iOS TestFlight delivery UUID is `9fac0cc3-5b5e-4afc-8f5c-7dc72218007c`.
-- Latest uploaded Android internal-testing build: `1.0.5 (39)`.
+- Latest uploaded Android internal-testing build: `1.0.6 (40)`.
 - Latest locally verified Android release artifact is `1.0.6 (40)`.
 - Shared household current-cart collaboration v2 is implemented and shipped in build 25.
 - Guest mode exists.
@@ -91,7 +91,7 @@ This fix path is now on the current review build line through `1.0.5 (10)`.
 ### Android / Google Play
 - Signed release AAB builds locally.
 - Repo-side Play internal upload automation now exists at `scripts/upload-android-play-internal.rb`.
-- Latest uploaded Android internal-testing build is `1.0.5 (39)`.
+- Latest uploaded Android internal-testing build is `1.0.6 (40)`.
 - Latest locally verified Android release AAB is `1.0.6`, versionCode `40`, at `build/app/outputs/bundle/release/app-release.aab`.
 - The dedicated Play-linked service-account JSON is now restored at `~/Library/Application Support/Cartly/play/cartly-play-api.json`, copied from the NAS-mounted file `/Volumes/downloads/cartly-e36ee-dcb07ec17251.json`.
 - Re-test on 2026-05-19 confirmed the available Firebase Admin SDK JSON (`firebase-adminsdk-fbsvc@cartly-e36ee.iam.gserviceaccount.com`) still fails Android Publisher at edit creation with `403 PERMISSION_DENIED`, so it cannot substitute for the dedicated Play-linked service-account key.
@@ -114,7 +114,7 @@ This fix path is now on the current review build line through `1.0.5 (10)`.
 ## Open next actions
 1. Validate that fresh installs on `1.0.6 (7)` now create guest users immediately and produce authenticated `app_open` activity.
 2. Monitor the latest iOS TestFlight candidate `1.0.6 (7)`, early user feedback, and App Store indexing/search pickup.
-3. Decide whether to upload the already-verified Android `1.0.6 (40)` AAB to the Play internal or closed-testing track, then continue toward the 12-tester / 14-day gate.
+3. Continue from the now-uploaded Android internal build `1.0.6 (40)` toward the Play closed-test requirement, including 12 opted-in testers and the 14-day gate.
 4. If Google Play install/listing surfaces still look generic during the closed-test period, keep cleaning up the Play listing high-res icon and store metadata separately from the binary.
 5. Keep the admin customer table clean during early rollout; as of 2026-05-20 morning, old test accounts were cleaned out and only `백승대` and `이지민` remained as active pre-launch accounts.
 6. Post-launch operator focus has now shifted to the operations/growth workstream captured in `docs/operations-growth-workstream-2026-05.md`: recurring Friday push scheduling, Coupang partner-product automation, AdMob verification, and direct-banner design guidance.

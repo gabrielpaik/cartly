@@ -24,14 +24,14 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - latest uploaded iOS TestFlight build: `1.0.6 (7)` / delivery UUID `9fac0cc3-5b5e-4afc-8f5c-7dc72218007c`
 - most recent earlier iOS validation uploads in the same pass: `1.0.6 (6)` / `7556a88b-ff5d-4463-bda8-443fd0a62e67`, `1.0.6 (5)` / `67277251-f32b-49b4-b387-5a8685838302`, `1.0.6 (4)` / `fa7ab355-9cad-4e0d-9069-739e4158c3c3`, `1.0.6 (3)` / `78503721-943b-4ffb-b235-b4718599a65c`, `1.0.6 (2)` / `90900a45-8ca2-4c7b-9000-f88bcd786ac2`, `1.0.6 (1)` / `c0096c2b-95b5-482c-8a72-4ea5da0dfddb`
 - latest visible iOS TestFlight Cartly build on device before this reset: `1.0.4 (29)`
-- latest uploaded Android internal-track build after this reset: `1.0.5 (39)`
+- latest uploaded Android internal-track build after this reset: `1.0.6 (40)`
 - latest prepared Android release artifact after this reset: versionName `1.0.6`, versionCode `40`, AAB `build/app/outputs/bundle/release/app-release.aab`
 
 ### 2026-05-19 version reset policy
 - `1.0.4` 라인은 TestFlight/App Store Connect 쪽 build numbering 혼선 때문에 더 늘리지 않는다.
 - 모든 개발 검수 / 디자인 튜닝 / TestFlight 확인은 이제 `1.0.5 (xx)` 라인에서 진행한다.
 - Android도 별도 보류하지 말고 같은 `1.0.5 (xx)` 흐름으로 internal testing 업로드를 계속 맞춘다.
-- 단, Google Play `versionCode` 는 전역 증가 제약이 있으므로 `1.0.5 (1)` 리셋과 별개로 Android 업로드 코드는 이전 `27` 보다 큰 값으로 계속 증가시킨다. 현재 최신 업로드 값은 `versionCode 39` 이다.
+- 단, Google Play `versionCode` 는 전역 증가 제약이 있으므로 `1.0.5 (1)` 리셋과 별개로 Android 업로드 코드는 이전 `27` 보다 큰 값으로 계속 증가시킨다. 현재 최신 업로드 값은 `versionCode 40` 이다.
 - 이 리셋의 시작점은 `1.0.5 (1)` 이다.
 - 최종 출시 라인은 `1.0.6 (1)` 부터 시작하는 것으로 고정한다.
 - 따라서 다음 업로드부터는 customer-facing version surface도 `1.0.5 (1)` 기준으로 다시 정렬하는 것을 기본 원칙으로 삼는다.
@@ -243,10 +243,11 @@ PLAY_RELEASE_NAME='1.0.5 (33)' \
 - Play Console `사용자 및 권한`에 service account 활성 연결 완료
 - 2026-05-18 기준 Android Publisher API로 edit 생성 및 internal track upload/commit 성공
 - 2026-05-19 기준 NAS에 있던 동일 service-account JSON으로 `1.0.5 (34)` internal track upload/commit 재성공, 이후 표준 경로 `~/Library/Application Support/Cartly/play/cartly-play-api.json` 도 복구 완료
+- 2026-05-20 night 기준 같은 service-account 경로로 Android internal track 업로드를 다시 실행했고, `1.0.6 (40)` releaseName 으로 upload/commit 성공했다.
 - internal track release:
   - track: `internal`
-  - build/versionCode: `34`
-  - release name: `1.0.5 (34)`
+  - build/versionCode: `40`
+  - release name: `1.0.6 (40)`
 
 ## 8. Google Play Console 현재 상태
 - 개발자 계정 signup 및 console verification 완료

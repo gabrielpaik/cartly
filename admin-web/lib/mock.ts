@@ -912,6 +912,7 @@ export const mockExploreSettings = {
   repeatMaxItems: 4,
   offerMaxSlots: 3,
   editorialRecommendationsEnabled: true,
+  naverShoppingResultsEnabled: true,
   editorialRecommendationsTitle: "추천 제품",
   editorialRecommendationsSubtitle: "지금 카트에 많이 담는 TOP5",
   editorialRecommendationsCount: 5,

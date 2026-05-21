@@ -140,6 +140,7 @@ type ExploreSettings = {
   repeatMaxItems: number
   offerMaxSlots: number
   editorialRecommendationsEnabled: boolean
+  naverShoppingResultsEnabled: boolean
   editorialRecommendationsTitle: string
   editorialRecommendationsSubtitle: string
   editorialRecommendationsCount: number
@@ -1418,6 +1419,7 @@ export default function ExploreAdminPage() {
   function buildRecommendationSectionPatch(rows: RecommendationDraftRow[], items: EditorialRecommendationPreview[]) {
     return {
       editorialRecommendationsEnabled: form.editorialRecommendationsEnabled,
+      naverShoppingResultsEnabled: form.naverShoppingResultsEnabled,
       editorialRecommendationsTitle: form.editorialRecommendationsTitle,
       editorialRecommendationsSubtitle: form.editorialRecommendationsSubtitle,
       editorialRecommendationsCount: form.editorialRecommendationsCount,
@@ -2007,7 +2009,11 @@ export default function ExploreAdminPage() {
                 <h2 className="panelTitle" style={{ marginBottom: 0 }}>추천 제품</h2>
                 <label className="exploreSheetInlineCheck">
                   <input type="checkbox" checked={form.editorialRecommendationsEnabled} onChange={(e) => update('editorialRecommendationsEnabled', e.target.checked)} />
-                  <span>활성화</span>
+                  <span>추천 풀 활성화</span>
+                </label>
+                <label className="exploreSheetInlineCheck">
+                  <input type="checkbox" checked={form.naverShoppingResultsEnabled} onChange={(e) => update('naverShoppingResultsEnabled', e.target.checked)} />
+                  <span>네이버 결과 사용</span>
                 </label>
                 <label className="exploreSheetInlineField exploreSheetInlineFieldCount">
                   <span>노출 개수</span>

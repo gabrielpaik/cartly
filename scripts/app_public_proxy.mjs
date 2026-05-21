@@ -44,6 +44,7 @@ const allowedPrefixes = [
   '/v1/ads/',
   '/v1/push/',
   '/v1/households/',
+  '/v1/explore/',
   '/assets/branding/',
   '/assets/ads/',
 ]

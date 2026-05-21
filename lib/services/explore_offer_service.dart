@@ -4,6 +4,7 @@ import 'dart:io';
 import '../config/explore_partner_config.dart';
 import '../models/explore_offer.dart';
 import 'api_base.dart';
+import 'auth_store.dart';
 import 'explore_intent_normalizer.dart';
 
 abstract class ExploreOfferProvider {
@@ -148,7 +149,17 @@ Future<ExploreOfferResult> _fetchRemoteOffers(
   HttpClient? client;
   try {
     client = HttpClient()..connectionTimeout = const Duration(seconds: 4);
+    final session =
+        AuthStore.instance.session.value ??
+        await AuthStore.instance.ensureGuestSession();
+    final authToken = session?.authToken.trim() ?? '';
+
     final req = await client.getUrl(uri);
+    req.headers.set(HttpHeaders.acceptHeader, 'application/json');
+    if (authToken.isNotEmpty) {
+      req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $authToken');
+    }
+
     final res = await req.close();
     final body = await utf8.decodeStream(res);
     if (res.statusCode < 200 || res.statusCode >= 300) {

@@ -1,6 +1,6 @@
 # Cartly Operations / Growth Workstream (2026-05)
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
 Status: active next workstream
 Purpose: capture the post-launch operator improvements that now matter more than release packaging
 
@@ -40,6 +40,7 @@ Questions left after MVP:
 Goal:
 - stop relying on heavy manual product curation for recommended products
 - keep partner-linked recommendation candidates fresh automatically
+- eventually replace the current utility-first Naver-result bridge as the main operator-scalable external product source
 
 What "done" should mean:
 - there is a repeatable ingestion/update job instead of manual one-by-one operator work
@@ -53,6 +54,11 @@ Likely subproblems:
 - normalize / dedupe results
 - compute freshness state and replacement policy
 - separate automated candidates from hand-picked operator choices
+
+Current bridge state on 2026-05-22:
+- Explore is stable enough to pause feature development until Coupang/API work resumes
+- filtered Naver Shopping utility results remain the temporary live bridge
+- operator can now turn Naver-result exposure on/off directly from admin, default ON, without an app rebuild
 
 ### 3. AdMob integration verification
 Goal:
@@ -133,6 +139,7 @@ Current progress snapshot (2026-05-21):
 - current recommendation is to use the shipped inline promo shell as the visual ceiling: soft warm surface, light border, compact visual tile, short helper copy, small pill CTA
 - operator/runtime policy is now stricter: all current direct-banner slots are treated as `full_banner`, legacy campaign data was backfilled accordingly, and the Flutter-side rendering alignment is now bundled into the submitted `1.0.7 (13)` iOS review build plus Android `1.0.7 (44)` tester tracks
 - the immediate Explore follow-up wave has now also been built and uploaded as iOS `1.0.7 (14)` plus Android `1.0.7 (45)`, and the iOS App Store version `1.0.7` has already been reattached/resubmitted on build `14`; this wave carries the app-side admin-truth restoration for section/order behavior, `activeShopping` recommendation exposure, and the cleaned customer-facing `대안상품 보기` detail output
+- 2026-05-22 follow-up 기준 customer-update/review wave는 iOS `1.0.7 (17)` 재제출 + Android `1.0.7 (46)` internal/alpha 정렬까지 진행되었고, Explore utility bridge는 admin-controlled Naver toggle default-on 상태로 운영할 수 있게 되었다
 
 Immediate next action for this workstream:
 - surface the slot-aware size / safe-area guidance inside admin upload UX so operator uploads can be reviewed against the same house style before publish

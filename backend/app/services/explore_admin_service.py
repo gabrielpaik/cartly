@@ -222,6 +222,7 @@ DEFAULT_EXPLORE_SETTINGS: Dict[str, Any] = {
     'repeatMaxItems': 4,
     'offerMaxSlots': 3,
     'editorialRecommendationsEnabled': True,
+    'naverShoppingResultsEnabled': True,
     'editorialRecommendationsTitle': '추천 제품',
     'editorialRecommendationsSubtitle': '지금 카트에 많이 담는 TOP5',
     'editorialRecommendationsCount': 5,
@@ -1002,6 +1003,10 @@ def normalize_explore_settings(
     data['editorialRecommendationsEnabled'] = _coerce_bool(
         data.get('editorialRecommendationsEnabled'),
         DEFAULT_EXPLORE_SETTINGS['editorialRecommendationsEnabled'],
+    )
+    data['naverShoppingResultsEnabled'] = _coerce_bool(
+        data.get('naverShoppingResultsEnabled'),
+        DEFAULT_EXPLORE_SETTINGS['naverShoppingResultsEnabled'],
     )
     data['editorialRecommendationsTitle'] = _coerce_text(
         data.get('editorialRecommendationsTitle'),

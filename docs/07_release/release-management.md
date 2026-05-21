@@ -1,6 +1,6 @@
 # Cartly Release Management
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
 Status: canonical
 Purpose: release operations contract for iOS, TestFlight, App Store Connect, and Google Play
 Use this doc when: building, uploading, patching store metadata, or preparing submission/review steps
@@ -18,15 +18,16 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - 스크린샷/메타데이터/리뷰 노트까지 같이 관리해야 진짜 release readiness다.
 
 ### 현재 기준 버전
-- current working app version/build: `1.0.7+14`
+- current working app version/build: `1.0.7+17`
 - latest shipped iOS public release line: `1.0.5 (10)`
 - current public App Store URL: `https://apps.apple.com/kr/app/카트리/id6763728346`
-- latest uploaded iOS App Store build: `1.0.7 (14)` / delivery UUID `3b276e1e-12c4-4404-8fd8-824d7a1b89db`
-- latest App Store review-attached iOS candidate is now also `1.0.7 (14)` / delivery UUID `3b276e1e-12c4-4404-8fd8-824d7a1b89db`
+- latest uploaded iOS App Store build: `1.0.7 (17)` / delivery UUID `e5fb66ce-38b8-4b11-b3b8-4cb08bfe0d4b`
+- latest App Store review-attached iOS candidate is now also `1.0.7 (17)` / delivery UUID `e5fb66ce-38b8-4b11-b3b8-4cb08bfe0d4b`
+- most recent later iOS validation uploads in the same pass: `1.0.7 (15)` / `80957366-da62-4f31-9ddb-5fb5420f6e60`, `1.0.7 (16)` / `134ece29-f48f-4bc7-87ae-8a2665a1507f`, `1.0.7 (17)` / `e5fb66ce-38b8-4b11-b3b8-4cb08bfe0d4b`
 - most recent earlier iOS validation uploads in the same pass: `1.0.6 (10)` / `aa51303b-a5bc-4410-a5c0-e3e88eeda483`, `1.0.6 (9)` / `28566327-afb0-48c3-9951-11b8b099dbe9`, `1.0.6 (8)` / `d176d4a8-f775-4a2e-8edd-47b518873c3c`, `1.0.6 (7)` / `9fac0cc3-5b5e-4afc-8f5c-7dc72218007c`
 - latest visible iOS TestFlight Cartly build on device before this reset: `1.0.4 (29)`
-- latest uploaded Android internal-track build after this reset: `1.0.7 (45)`
-- latest prepared Android release artifact after this reset: versionName `1.0.7`, versionCode `45`, AAB `build/app/outputs/bundle/release/app-release.aab`
+- latest uploaded Android internal-track build after this reset: `1.0.7 (46)`
+- latest prepared Android release artifact after this reset: versionName `1.0.7`, versionCode `46`, AAB `build/app/outputs/bundle/release/app-release.aab`
 
 ### 2026-05-19 version reset policy
 - `1.0.4` 라인은 TestFlight/App Store Connect 쪽 build numbering 혼선 때문에 더 늘리지 않는다.
@@ -80,14 +81,14 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - encryption = `false`
 
 ## 3. 현재 iOS / App Store Connect 기준 정보
-- latest uploaded delivery UUID: `3b276e1e-12c4-4404-8fd8-824d7a1b89db`
-- latest uploaded build line: `1.0.7 (14)`
+- latest uploaded delivery UUID: `e5fb66ce-38b8-4b11-b3b8-4cb08bfe0d4b`
+- latest uploaded build line: `1.0.7 (17)`
 - current live App Store version id: `a173b232-fe9b-4fdd-9557-a784bd7a36d2` (`1.0` / public live)
 - current submitted App Store version id: `2f306580-9bec-438d-8705-2a1315db0305` (`1.0.7` / `WAITING_FOR_REVIEW`)
 - submitted App Store version localization id: `f85f661d-bcd5-424b-b187-e099b1f640a6`
 - App info localization id: `57760505-1949-4e93-b21c-9502891d493c`
 - submitted App Store review detail id: `46691568-16e7-4bca-a880-2c3707838d00`
-- active review submission id: `9285676a-f58a-469a-9934-910694b3169f`
+- active review submission id: `0cbf5fe0-8c67-4732-932f-523bcb788301`
 
 ### review contact
 - email: `cartly.support@gmail.com`
@@ -191,8 +192,9 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 - 이어서 Explore app-side follow-up fix를 반영한 `1.0.7 (14)` IPA 빌드와 업로드도 완료되었다. delivery UUID는 `3b276e1e-12c4-4404-8fd8-824d7a1b89db` 이다.
 - 새 `1.0.7 (14)` 빌드에는 ranked single-pool recommendation surface, admin-curated plus search alternative blending, Flutter-side full-banner promo rendering alignment, 기존 Explore cleanup/fix bundle, current-cart default correction, iOS location-permission review-warning mitigation pass, 그리고 admin-truth Explore restoration/detail-cleanup follow-up이 포함된다.
 - build `14` 는 App Store Connect processing `VALID` 까지 확인했고, 기존 `WAITING_FOR_REVIEW` 상태의 build `13` 제출을 `DELETE /v1/appStoreVersionSubmissions/{id}` 로 회수한 뒤 build relationship을 `14` 로 교체했다.
-- 그 다음 `reviewSubmissions` API flow(create submission -> add reviewSubmissionItem -> patch reviewSubmission `submitted: true`)로 build `14` 기준 review submission `9285676a-f58a-469a-9934-910694b3169f` 를 다시 생성했다.
-- 현재 App Store version 상태는 build `14` 기준 `WAITING_FOR_REVIEW` 다.
+- 이후 follow-up validation builds `15`, `16`, `17` 도 순차 업로드되었고, 최종적으로 build `17` (`e5fb66ce-38b8-4b11-b3b8-4cb08bfe0d4b`) 가 `VALID` 인 것을 확인했다.
+- 2026-05-22 기준 App Store version `1.0.7` 이 일시적으로 `DEVELOPER_REJECTED` 상태였기 때문에 build relationship을 `17` 로 직접 교체한 뒤, `reviewSubmissions` API flow(create submission -> add reviewSubmissionItem -> patch reviewSubmission `submitted: true`)로 새 review submission `0cbf5fe0-8c67-4732-932f-523bcb788301` 를 생성했다.
+- 현재 App Store version 상태는 build `17` 기준 `WAITING_FOR_REVIEW` 다.
 
 ## 7. Android / Google Play release 흐름
 
@@ -222,6 +224,7 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 - 2026-05-21 morning follow-up 기준 Android regression-fix tester build는 `CARTLY_ANDROID_VERSION_CODE=43` 으로 다시 통과했고, customer-facing versionName 은 `1.0.6` 이다.
 - 2026-05-21 afternoon release follow-up 기준 next release wave build는 `CARTLY_ANDROID_VERSION_CODE=44` 로 다시 통과했고, customer-facing versionName 은 `1.0.7` 이다.
 - 같은 날 evening follow-up 기준 Explore admin-truth restoration/detail-cleanup wave build는 `CARTLY_ANDROID_VERSION_CODE=45` 로 다시 통과했고, customer-facing versionName 은 `1.0.7` 이다.
+- 2026-05-22 morning follow-up 기준 auth-backed Explore-offer fetch/customer-update wave build는 `CARTLY_ANDROID_VERSION_CODE=46` 으로 다시 통과했고, customer-facing versionName 은 `1.0.7` 이다.
 
 ### Play internal upload 스크립트
 ```bash
@@ -271,14 +274,16 @@ PLAY_RELEASE_NAME='1.0.5 (33)' \
 - 2026-05-21 evening Explore follow-up 기준 같은 service-account 경로로 Android internal track에 `1.0.7 (45)` upload/commit 성공했다.
 - 같은 시점 기준 alpha track 도 이미 업로드된 versionCode `45` 를 release update 로 연결해 `1.0.7 (45)` 로 정렬했다.
 - 2026-05-21 morning regression-fix follow-up 기준 같은 service-account 경로로 Android internal track에 versionCode `43` upload/commit 성공했다. 이후 alpha track은 이미 업로드된 동일 versionCode `43` 을 재업로드하지 않고 track release update 로 연결해 `1.0.6 (43)` 으로 맞췄다.
+- 2026-05-22 morning follow-up 기준 같은 service-account 경로로 Android internal track에 `1.0.7 (46)` upload/commit 성공했다.
+- 같은 시점 기준 alpha track 도 이미 업로드된 versionCode `46` 을 release update 로 연결해 `1.0.7 (46)` 로 정렬했다.
 - internal track release:
   - track: `internal`
-  - build/versionCode: `45`
-  - release name: `1.0.7 (45)`
+  - build/versionCode: `46`
+  - release name: `1.0.7 (46)`
 - closed-test track release:
   - track: `alpha`
-  - build/versionCode: `45`
-  - release name: `1.0.7 (45)`
+  - build/versionCode: `46`
+  - release name: `1.0.7 (46)`
 
 ## 8. Google Play Console 현재 상태
 - 개발자 계정 signup 및 console verification 완료
@@ -321,8 +326,8 @@ PLAY_RELEASE_NAME='1.0.5 (33)' \
 - iOS와 Android 모두 build artifact뿐 아니라 store console 상태를 함께 기록해야 한다.
 
 ## 12. 다음 release 작업
-1. iOS `1.0.7 (13)` App Store review 상태를 추적하고, Apple follow-up 질문이 오면 같은 wave 안에서 바로 응답한다.
-2. Android는 production upload/release 버튼을 다시 누르기 전에, Google Play personal-account gate를 먼저 해소한다. closed-test binary line 은 now `alpha = 1.0.7 (44)` 로 맞췄고, 현재 필요한 것은 12명 이상의 opted-in tester 확보와 14일 유지다.
+1. iOS `1.0.7 (17)` App Store review 상태를 추적하고, Apple follow-up 질문이 오면 같은 wave 안에서 바로 응답한다.
+2. Android는 production upload/release 버튼을 다시 누르기 전에, Google Play personal-account gate를 먼저 해소한다. closed-test binary line 은 now `alpha = 1.0.7 (46)` 로 맞췄고, 현재 필요한 것은 12명 이상의 opted-in tester 확보와 14일 유지다.
 3. Android closed-test 기간 동안 Play listing high-res icon / store 표면이 generic 하게 보이면 listing metadata 쪽을 계속 정리한다.
 4. 향후 production access가 열리면 그때 existing `1.0.7` release line 기준으로 Android production/review submission을 재개한다.
 5. 다음 paired public-release wave를 다시 맞출 때는 iOS 승인 상태와 Android closed-test eligibility 상태를 함께 본다.

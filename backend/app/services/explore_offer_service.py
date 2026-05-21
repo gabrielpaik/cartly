@@ -608,7 +608,16 @@ def search_naver_shopping_offers(
     normalized = normalize_explore_intent(query_text)
     normalized_source_type = _normalize_source_type(source_type)
     effective_intent_key = (intent_key or '').strip() or normalized.intent_key
-    effective_enabled = settings.naver_shopping_search_enabled if enabled is None else enabled
+    admin_enabled = True
+    if enabled is None and db is not None:
+        try:
+            explore_settings = get_explore_settings(db)
+            admin_enabled = bool(explore_settings.get('naverShoppingResultsEnabled', True))
+        except Exception:
+            admin_enabled = True
+
+    env_enabled = settings.naver_shopping_search_enabled if enabled is None else enabled
+    effective_enabled = bool(env_enabled and admin_enabled)
     effective_client_id = settings.naver_shopping_client_id if client_id is None else client_id
     effective_client_secret = settings.naver_shopping_client_secret if client_secret is None else client_secret
     search_ready = _naver_keys_ready(

@@ -939,7 +939,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                   exploreConfig,
                   state: currentState,
                   offerSlots: offerSlots,
-                  revisitItems: revisitItems,
+                  revisitItems: visibleRevisitItems,
                 );
                 final orderedSections = _dynamicSectionOrder(
                   exploreConfig,
@@ -979,13 +979,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                             padding: const EdgeInsets.only(bottom: 12),
                             child: _DecisionInboxCard(
                               entry: entry,
-                              onTap: () {
-                                if (entry.opensCurrentCart) {
-                                  widget.onGoHome();
-                                  return;
-                                }
-                                _showIntentDetailSheet(context, entry.detail);
-                              },
+                              onTap: () => _handleDecisionInboxEntryTap(entry),
                             ),
                           ),
                         ),
@@ -1015,16 +1009,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                               padding: const EdgeInsets.only(bottom: 12),
                               child: _DecisionItemCard(
                                 item: item,
-                                onTap: () {
-                                  if (item.badge == '현재 카트') {
-                                    widget.onGoHome();
-                                    return;
-                                  }
-                                  _showIntentDetailSheet(
-                                    context,
-                                    _IntentDetail.fromRevisitItem(item),
-                                  );
-                                },
+                                onTap: () => _handleRevisitItemTap(item),
                               ),
                             ),
                           ),
@@ -1917,6 +1902,51 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     return _offerResultFutures.putIfAbsent(
       cacheKey,
       () => _offerProvider.fetchOffers(query),
+    );
+  }
+
+  Future<bool> _detailHasVisibleOffers(_IntentDetail detail) async {
+    final query = detail.offerQuery;
+    if (query == null) {
+      return false;
+    }
+    final result = await _offerResultFuture(query);
+    return result.hasVisibleOffers;
+  }
+
+  Future<void> _openDetailOrRouteHome(
+    _IntentDetail detail, {
+    required bool fallbackToCurrentCart,
+  }) async {
+    if (fallbackToCurrentCart) {
+      final hasVisibleOffers = await _detailHasVisibleOffers(detail);
+      if (!mounted) {
+        return;
+      }
+      if (!hasVisibleOffers) {
+        widget.onGoHome();
+        return;
+      }
+    }
+
+    if (!mounted) {
+      return;
+    }
+    await _showIntentDetailSheet(context, detail);
+  }
+
+  Future<void> _handleDecisionInboxEntryTap(_DecisionInboxEntry entry) {
+    return _openDetailOrRouteHome(
+      entry.detail,
+      fallbackToCurrentCart: entry.opensCurrentCart,
+    );
+  }
+
+  Future<void> _handleRevisitItemTap(_RevisitItem item) {
+    final detail = _IntentDetail.fromRevisitItem(item);
+    return _openDetailOrRouteHome(
+      detail,
+      fallbackToCurrentCart: item.badge == '현재 카트',
     );
   }
 

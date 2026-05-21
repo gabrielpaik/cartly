@@ -162,6 +162,7 @@ class ExploreOfferResult {
 }
 
 class ExploreAlternativeOffer {
+  final String? id;
   final String provider;
   final String title;
   final String? subtitle;
@@ -174,6 +175,7 @@ class ExploreAlternativeOffer {
   final List<String> highlights;
 
   const ExploreAlternativeOffer({
+    this.id,
     required this.provider,
     required this.title,
     this.subtitle,
@@ -192,6 +194,7 @@ class ExploreAlternativeOffer {
         ? rawDisplaySlot
         : int.tryParse('${json['displaySlot'] ?? ''}') ?? 999;
     return ExploreAlternativeOffer(
+      id: (json['id'] as String?)?.trim(),
       provider: (json['provider'] as String?)?.trim() ?? '',
       title: (json['title'] as String?)?.trim() ?? '',
       subtitle: (json['subtitle'] as String?)?.trim(),
@@ -214,6 +217,7 @@ class ExploreAlternativeOffer {
   }
 
   ExploreAlternativeOffer copyWith({
+    String? id,
     String? provider,
     String? title,
     String? subtitle,
@@ -226,6 +230,7 @@ class ExploreAlternativeOffer {
     List<String>? highlights,
   }) {
     return ExploreAlternativeOffer(
+      id: id ?? this.id,
       provider: provider ?? this.provider,
       title: title ?? this.title,
       subtitle: subtitle ?? this.subtitle,

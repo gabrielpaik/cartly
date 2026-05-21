@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import '../models/explore_offer.dart';
 import '../models/saved_cart.dart';
 import '../pages/cart_detail_page.dart';
 import '../services/app_config_store.dart';
+import '../services/app_event_service.dart';
 import '../services/app_location_service.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/cart_store.dart';
@@ -58,7 +60,7 @@ class ShoppingHelpPage extends StatefulWidget {
 class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
   final Set<String> _dismissedOfferIntentKeys = <String>{};
   final Map<String, Future<ExploreOfferResult>> _offerResultFutures = {};
-  int _editorialRefreshSeed = DateTime.now().microsecondsSinceEpoch;
+  int? _editorialRefreshSeed;
 
   @override
   void didUpdateWidget(covariant ShoppingHelpPage oldWidget) {
@@ -69,6 +71,60 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     if (oldActive != nextActive) {
       _dismissedOfferIntentKeys.clear();
     }
+  }
+
+  void _trackEditorialRecommendationImpressions(
+    List<ExploreAlternativeOffer> offers,
+  ) {
+    if (offers.isEmpty) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final entry in offers.asMap().entries) {
+        final offer = entry.value;
+        final itemId = offer.id?.trim() ?? '';
+        if (itemId.isEmpty) {
+          continue;
+        }
+        unawaited(
+          AppEventService.instance.track(
+            'explore_editorial_pick_impression',
+            screen: 'shopping_help',
+            onceKey:
+                'explore_editorial_pick_impression:${_editorialRefreshSeed ?? 0}:${entry.key}:$itemId',
+            props: {
+              'itemId': itemId,
+              'position': entry.key + 1,
+              'displaySlot': offer.displaySlot,
+            },
+          ),
+        );
+      }
+    });
+  }
+
+  void _trackEditorialClick(
+    ExploreAlternativeOffer offer, {
+    required String eventName,
+    required String placement,
+  }) {
+    final itemId = offer.id?.trim() ?? '';
+    if (itemId.isEmpty) {
+      return;
+    }
+    unawaited(
+      AppEventService.instance.track(
+        eventName,
+        screen: 'shopping_help',
+        props: {
+          'itemId': itemId,
+          'placement': placement,
+          'displaySlot': offer.displaySlot,
+          if (offer.deeplinkUrl?.trim().isNotEmpty ?? false)
+            'deeplinkUrl': offer.deeplinkUrl!.trim(),
+        },
+      ),
+    );
   }
 
   int get _totalPrice =>
@@ -534,9 +590,16 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
       return int.tryParse(digits);
     }
 
-    final itemPool = (config['editorialRecommendationsItems'] as List?)
+    final rankedItems = (config['editorialRecommendationsRankedItems'] as List?)
         ?.whereType<Map>()
-        .map((item) {
+        .toList(growable: false);
+    final rawItems = (rankedItems != null && rankedItems.isNotEmpty)
+        ? rankedItems
+        : (config['editorialRecommendationsItems'] as List?)
+            ?.whereType<Map>()
+            .toList(growable: false);
+
+    final itemPool = rawItems?.map((item) {
           final data = Map<String, dynamic>.from(item);
           final url =
               (data['deeplinkUrl'] as String?)?.trim() ??
@@ -559,6 +622,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
           }
           final providerUrl = url.isNotEmpty ? url : thumbnailUrl;
           return ExploreAlternativeOffer(
+            id: (data['id'] as String?)?.trim(),
             provider: provider == null || provider.isEmpty
                 ? _providerLabelFromUrl(providerUrl)
                 : provider,
@@ -710,18 +774,24 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
       5,
     ).clamp(1, 50);
     final fixedBySlot = <int, ExploreAlternativeOffer>{};
-    final randomPool = <ExploreAlternativeOffer>[];
+    final rankedPool = <ExploreAlternativeOffer>[];
 
     for (final offer in pool) {
       final slot = offer.displaySlot;
       if (slot >= 1 && slot <= 10 && !fixedBySlot.containsKey(slot)) {
         fixedBySlot[slot] = offer;
       } else {
-        randomPool.add(offer);
+        rankedPool.add(offer);
       }
     }
 
-    final shuffled = [...randomPool]..shuffle(Random(_editorialRefreshSeed));
+    final candidateWindow = max(visibleCount, visibleCount * 3);
+    final shortlist = rankedPool.take(candidateWindow).toList(growable: false);
+    final shuffled = _editorialRefreshSeed == null
+        ? shortlist
+        : ([...shortlist]..shuffle(Random(_editorialRefreshSeed!)));
+    final remainder = rankedPool.skip(shortlist.length);
+    final candidatePool = [...shuffled, ...remainder];
     final arranged = List<ExploreAlternativeOffer?>.filled(visibleCount, null);
 
     for (final entry in fixedBySlot.entries) {
@@ -731,12 +801,12 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
       }
     }
 
-    var randomIndex = 0;
+    var candidateIndex = 0;
     for (var index = 0; index < arranged.length; index += 1) {
       if (arranged[index] != null) continue;
-      if (randomIndex >= shuffled.length) break;
-      arranged[index] = shuffled[randomIndex];
-      randomIndex += 1;
+      if (candidateIndex >= candidatePool.length) break;
+      arranged[index] = candidatePool[candidateIndex];
+      candidateIndex += 1;
     }
 
     return arranged.whereType<ExploreAlternativeOffer>().toList(
@@ -769,6 +839,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
               state: currentState,
               pool: editorialPool,
             );
+            _trackEditorialRecommendationImpressions(editorialOffers);
             final baseOfferSlots = _buildOfferSlots(
               revisitItems: revisitItems,
               repeatCandidates: repeatCandidates,
@@ -951,10 +1022,17 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                     sectionWidgets.add(const SizedBox(height: 6));
                   }
                   sectionWidgets.addAll(
-                    editorialOffers.map(
-                      (offer) => Padding(
+                    editorialOffers.asMap().entries.map(
+                      (entry) => Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: _AlternativeOfferPreviewCard(offer: offer),
+                        child: _AlternativeOfferPreviewCard(
+                          offer: entry.value,
+                          onTap: (offer) => _trackEditorialClick(
+                            offer,
+                            eventName: 'explore_editorial_pick_click',
+                            placement: 'editorial_recommendations',
+                          ),
+                        ),
                       ),
                     ),
                   );
@@ -1595,7 +1673,14 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                           ...offers.map(
                             (offer) => Padding(
                               padding: const EdgeInsets.only(bottom: 10),
-                              child: _AlternativeOfferPreviewCard(offer: offer),
+                              child: _AlternativeOfferPreviewCard(
+                                offer: offer,
+                                onTap: (offer) => _trackEditorialClick(
+                                  offer,
+                                  eventName: 'explore_editorial_alt_click',
+                                  placement: 'offer_detail',
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -2157,8 +2242,9 @@ class _SavedContextHeroCard extends StatelessWidget {
 
 class _AlternativeOfferPreviewCard extends StatelessWidget {
   final ExploreAlternativeOffer offer;
+  final void Function(ExploreAlternativeOffer offer)? onTap;
 
-  const _AlternativeOfferPreviewCard({required this.offer});
+  const _AlternativeOfferPreviewCard({required this.offer, this.onTap});
 
   String _ctaLabel() {
     if (offer.price != null) {
@@ -2205,7 +2291,12 @@ class _AlternativeOfferPreviewCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton(
-                  onPressed: canOpen ? () => _openLink(deeplink) : null,
+                  onPressed: canOpen
+                      ? () {
+                          onTap?.call(offer);
+                          unawaited(_openLink(deeplink));
+                        }
+                      : null,
                   style: CartlyButtonStyles.secondaryOutline(
                     foregroundColor: CartlyColors.textPrimary,
                     borderColor: CartlyColors.line,

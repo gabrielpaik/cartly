@@ -14,6 +14,7 @@ from urllib.request import Request, urlopen
 from sqlalchemy.orm import Session as OrmSession
 
 from ..core.settings import settings
+from ..db.models import AppEvent
 from .explore_admin_service import get_explore_settings
 from .explore_intent_normalizer import normalize_explore_intent
 
@@ -448,6 +449,44 @@ def _build_editorial_highlights(
     return highlights[:4]
 
 
+def _record_editorial_alternative_recommendations(
+    db: Optional[OrmSession],
+    *,
+    offers: list[dict[str, Any]],
+    intent_key: str,
+    query_text: str,
+    source_type: str,
+) -> None:
+    if db is None or not offers:
+        return
+
+    now = datetime.utcnow()
+    for offer in offers:
+        item_id = str(offer.get('id') or '').strip()
+        deeplink = str(offer.get('deeplinkUrl') or '').strip()
+        if not item_id or not deeplink:
+            continue
+        db.add(
+            AppEvent(
+                event_name='explore_editorial_alt_recommended',
+                screen_name='shopping_help',
+                event_props_json=json.dumps(
+                    {
+                        'itemId': item_id,
+                        'intentKey': intent_key,
+                        'queryText': query_text,
+                        'sourceType': source_type,
+                        'deeplinkUrl': deeplink,
+                    },
+                    ensure_ascii=False,
+                ),
+                created_at=now,
+            )
+        )
+
+    db.commit()
+
+
 def _load_editorial_candidate_offers(
     *,
     db: Optional[OrmSession],
@@ -498,6 +537,7 @@ def _load_editorial_candidate_offers(
         provider = str(item.get('provider') or '').strip() or '추천'
         offers.append(
             {
+                'id': str(item.get('id') or '').strip() or None,
                 'provider': provider,
                 'title': title,
                 'subtitle': provider,
@@ -692,6 +732,14 @@ def search_naver_shopping_offers(
         offer.pop('_score', None)
         offer.pop('_sourceType', None)
         deduped_offers.append(offer)
+
+    _record_editorial_alternative_recommendations(
+        db,
+        offers=[offer for offer in deduped_offers if str(offer.get('id') or '').strip()],
+        intent_key=effective_intent_key,
+        query_text=normalized.normalized_query_text,
+        source_type=normalized_source_type,
+    )
 
     exact_cheaper_offers = [
         offer

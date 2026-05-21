@@ -1,7 +1,7 @@
 import json
 import re
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
 from html import unescape
 from html.parser import HTMLParser
 from typing import Any, Dict, Iterable, List, Optional
@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session as OrmSession
 
-from ..db.models import AppSetting
+from ..db.models import AppEvent, AppSetting
 
 EXPLORE_SETTINGS_KEY = 'explore_admin_settings'
 EXPLORE_SECTION_IDS = (
@@ -1261,10 +1261,120 @@ def resolve_editorial_recommendation_item(payload: Dict[str, Any]) -> Dict[str, 
     }
 
 
+def _safe_event_props_dict(row: AppEvent) -> Dict[str, Any]:
+    raw = row.event_props_json
+    if not raw:
+        return {}
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _editorial_metrics_by_item(db: OrmSession) -> Dict[str, Dict[str, int]]:
+    metrics: Dict[str, Dict[str, int]] = {}
+    relevant_names = {
+        'explore_editorial_alt_recommended',
+        'explore_editorial_pick_impression',
+        'explore_editorial_pick_click',
+        'explore_editorial_alt_click',
+    }
+    recent_threshold = datetime.utcnow() - timedelta(days=90)
+    rows = (
+        db.query(AppEvent)
+        .filter(AppEvent.event_name.in_(tuple(relevant_names)))
+        .filter(AppEvent.created_at >= recent_threshold)
+        .all()
+    )
+    for row in rows:
+        props = _safe_event_props_dict(row)
+        item_id = str(props.get('itemId') or '').strip()
+        if not item_id:
+            continue
+        bucket = metrics.setdefault(
+            item_id,
+            {
+                'alternativeRecommendedCount': 0,
+                'editorialImpressionCount': 0,
+                'editorialClickCount': 0,
+                'alternativeClickCount': 0,
+            },
+        )
+        if row.event_name == 'explore_editorial_alt_recommended':
+            bucket['alternativeRecommendedCount'] += 1
+        elif row.event_name == 'explore_editorial_pick_impression':
+            bucket['editorialImpressionCount'] += 1
+        elif row.event_name == 'explore_editorial_pick_click':
+            bucket['editorialClickCount'] += 1
+        elif row.event_name == 'explore_editorial_alt_click':
+            bucket['alternativeClickCount'] += 1
+    return metrics
+
+
+def _rank_editorial_recommendation_items(
+    db: OrmSession,
+    items: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    metrics_by_item = _editorial_metrics_by_item(db)
+    ranked: List[Dict[str, Any]] = []
+
+    for index, item in enumerate(items, start=1):
+        item_id = str(item.get('id') or '').strip()
+        stats = metrics_by_item.get(
+            item_id,
+            {
+                'alternativeRecommendedCount': 0,
+                'editorialImpressionCount': 0,
+                'editorialClickCount': 0,
+                'alternativeClickCount': 0,
+            },
+        )
+        display_slot = _coerce_display_slot(item.get('displaySlot'))
+        ranking_score = (
+            stats['alternativeRecommendedCount'] * 7
+            + stats['editorialClickCount'] * 12
+            + stats['alternativeClickCount'] * 5
+            + min(stats['editorialImpressionCount'], 20)
+        )
+        ranked.append(
+            {
+                **item,
+                'rankingScore': ranking_score,
+                'rankingStats': stats,
+                '_originalIndex': index,
+                '_displaySlot': display_slot,
+            }
+        )
+
+    ranked.sort(
+        key=lambda item: (
+            -int(item.get('rankingScore') or 0),
+            -int(((item.get('rankingStats') or {}).get('alternativeRecommendedCount') or 0)),
+            -int(((item.get('rankingStats') or {}).get('editorialClickCount') or 0)),
+            int(item.get('_displaySlot') or 999),
+            int(item.get('_originalIndex') or 0),
+        )
+    )
+
+    finalized: List[Dict[str, Any]] = []
+    for item in ranked:
+        cleaned = dict(item)
+        cleaned.pop('_originalIndex', None)
+        cleaned.pop('_displaySlot', None)
+        finalized.append(cleaned)
+    return finalized
+
+
 def get_explore_settings(db: OrmSession) -> Dict[str, Any]:
     setting = db.get(AppSetting, EXPLORE_SETTINGS_KEY)
     if setting is None:
-        return normalize_explore_settings(DEFAULT_EXPLORE_SETTINGS)
+        normalized = normalize_explore_settings(DEFAULT_EXPLORE_SETTINGS)
+        normalized['editorialRecommendationsRankedItems'] = _rank_editorial_recommendation_items(
+            db,
+            normalized.get('editorialRecommendationsItems') or [],
+        )
+        return normalized
 
     try:
         payload = json.loads(setting.value_json)
@@ -1272,18 +1382,33 @@ def get_explore_settings(db: OrmSession) -> Dict[str, Any]:
         payload = None
 
     if not isinstance(payload, dict):
-        return normalize_explore_settings(None)
+        normalized = normalize_explore_settings(None)
+        normalized['editorialRecommendationsRankedItems'] = _rank_editorial_recommendation_items(
+            db,
+            normalized.get('editorialRecommendationsItems') or [],
+        )
+        return normalized
 
     raw_cached_items = payload.get('editorialRecommendationsItems')
     cached_items = [item for item in raw_cached_items if isinstance(item, dict)] if isinstance(raw_cached_items, list) else None
     if _editorial_items_need_refresh(cached_items):
-        return normalize_explore_settings(
+        normalized = normalize_explore_settings(
             payload,
             enrich_editorial_items=True,
             cached_editorial_items=cached_items,
         )
+        normalized['editorialRecommendationsRankedItems'] = _rank_editorial_recommendation_items(
+            db,
+            normalized.get('editorialRecommendationsItems') or [],
+        )
+        return normalized
 
-    return normalize_explore_settings(payload, cached_editorial_items=cached_items)
+    normalized = normalize_explore_settings(payload, cached_editorial_items=cached_items)
+    normalized['editorialRecommendationsRankedItems'] = _rank_editorial_recommendation_items(
+        db,
+        normalized.get('editorialRecommendationsItems') or [],
+    )
+    return normalized
 
 
 def save_explore_settings(db: OrmSession, payload: Dict[str, Any]) -> Dict[str, Any]:

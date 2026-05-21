@@ -31,6 +31,7 @@ It is a personal decision-support tool for real grocery planning and review.
 - Location usage remains foreground-only and purpose-limited to nearby market discount information.
 - The latest iOS review-warning mitigation pass removed the unused `permission_handler` dependency and applied `BYPASS_PERMISSION_LOCATION_ALWAYS=1` to `geolocator_apple`, so the shipped build path no longer carries the previous always-location review risk.
 - Latest polish pass added: home/explore shared header rhythm stabilization, shopping-mode immersive red header band, bottom/body anti-shake cleanup, and the final red-band height extension accepted in review.
+- iOS AdMob app approval mail has arrived, `app-ads.txt` is publicly served, and real-device ad display was verified on iPhone across the currently exposed paths, so Cartly is now past configuration-only status and into real monetization observation.
 - Explore alternative-search behavior is now intentionally in a utility-first state: filtered Naver Shopping results are shown directly in-app while LinkPrice deeplink monetization is still unresolved.
 - The latest Explore cleanup pass also removed the redundant `decisionInbox` layer and separated visible `비교 후보` from non-duplicative `다시 볼 상품` / `반복 구매` lists.
 
@@ -122,6 +123,7 @@ This fix path is now on the current review build line through `1.0.5 (10)`.
 5. Keep the admin customer table clean during early rollout; as of 2026-05-20 morning, old test accounts were cleaned out and only `백승대` and `이지민` remained as active pre-launch accounts.
 6. Post-launch operator focus has now shifted to the operations/growth workstream captured in `docs/operations-growth-workstream-2026-05.md`: recurring Friday push scheduling, Coupang partner-product automation, AdMob verification, and direct-banner design guidance.
 7. The first scheduled-push MVP is now implemented, deployed, and enabled live as a weekly Friday 18:30 KST push baseline. The next validation should be a real dry-run observation when that schedule actually fires or via a controlled manual send.
-8. AdMob verification has started. Real production app IDs are present on Android/iOS, app-side `admob_*` telemetry now records init/load/fail/impression/click/show/reward lifecycle events through `/v1/events`, and Android release ad unit IDs have now been swapped to Cartly production values in `lib/services/admob_service.dart`.
+8. AdMob verification is no longer only theoretical. Real production app IDs are present on Android/iOS, `app-ads.txt` is publicly exposed, and iPhone real-device validation confirmed actual ad display on the shipped banner/interstitial/rewarded paths. The next operator check is report accumulation and revenue/impression trend observation rather than config guessing.
 9. The first practical direct-banner design guide is now drafted at `docs/02_product/direct-banner-design-guide.md`, with Cartly-aligned example mockups for the current slot shapes under `docs/02_product/direct-banner-examples/`.
-10. If the admin splash changes again, re-sync bundled splash assets and ship a new paired build before expecting native iPhone launch parity.
+10. Next monetization execution step can move toward operator-uploaded direct banner inventory now that baseline AdMob runtime behavior is verified.
+11. If the admin splash changes again, re-sync bundled splash assets and ship a new paired build before expecting native iPhone launch parity.

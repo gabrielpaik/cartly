@@ -1,6 +1,6 @@
 # Cartly Operations / Growth Workstream (2026-05)
 
-Last updated: 2026-05-20
+Last updated: 2026-05-21
 Status: active next workstream
 Purpose: capture the post-launch operator improvements that now matter more than release packaging
 
@@ -99,20 +99,25 @@ Reason:
 - monetization correctness should be verified before scaling ad traffic assumptions
 - prevents false confidence from "configured" but unverified ad runtime
 
-Current verification snapshot (2026-05-20):
+Current verification snapshot (2026-05-21):
 - platform app IDs are present with real production values on both surfaces:
   - Android app ID: `ca-app-pub-7326648056182385~9903617195`
   - iOS app ID: `ca-app-pub-7326648056182385~1227671006`
-- iOS release ad unit IDs are already mapped to real Cartly units in `lib/services/admob_service.dart`
-- Android release ad unit IDs are now set to Cartly production values in `lib/services/admob_service.dart`:
+- `app-ads.txt` is publicly exposed at `https://scan-api.seoa-nas.com/app-ads.txt`
+- iOS release ad unit IDs are mapped to real Cartly units in `lib/services/admob_service.dart`:
+  - banner: `ca-app-pub-7326648056182385/6115570564`
+  - interstitial: `ca-app-pub-7326648056182385/3149023690`
+  - rewarded: `ca-app-pub-7326648056182385/3972622950`
+- Android release ad unit IDs are set to Cartly production values in `lib/services/admob_service.dart`:
   - banner: `ca-app-pub-7326648056182385/7877427532`
   - interstitial: `ca-app-pub-7326648056182385/2241957474`
   - rewarded: `ca-app-pub-7326648056182385/5798059103`
-- lightweight runtime telemetry was added so the app now records `admob_*` lifecycle events through `/v1/events` for init, load/fail, impression, click, show, dismiss, and reward callbacks
-- operator can now distinguish "SDK loaded but test unit" from "real unit configured but no-fill / no traffic" once device traffic is observed
+- lightweight runtime telemetry was added so the app records `admob_*` lifecycle events through `/v1/events` for init, load/fail, impression, click, show, dismiss, and reward callbacks
+- AdMob console app approval mail arrived for iOS, and operator-side real-device validation confirmed live ad display on iPhone across the exposed banner/interstitial/rewarded paths
+- operator can now distinguish configuration mistakes from post-approval traffic/impression lag, because the stack has moved past "configured only" into actual device-verified serving
 
 Immediate next action for this workstream:
-- create or confirm the real Android banner / interstitial / rewarded unit IDs in AdMob, then replace the Android release test-unit fallbacks without guessing values
+- watch AdMob reporting accumulate real impressions/revenue after the newly verified iOS serving window, then start populating Cartly's direct-banner inventory with operator-uploaded campaigns
 
 ### P2. Direct banner design guide
 Reason:

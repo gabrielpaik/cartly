@@ -18,14 +18,14 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - 스크린샷/메타데이터/리뷰 노트까지 같이 관리해야 진짜 release readiness다.
 
 ### 현재 기준 버전
-- current working app version/build: `1.0.6+10`
+- current working app version/build: `1.0.6+11`
 - latest shipped iOS public release line: `1.0.5 (10)`
 - current public App Store URL: `https://apps.apple.com/kr/app/카트리/id6763728346`
 - latest uploaded iOS App Store review candidate: `1.0.6 (10)` / delivery UUID `aa51303b-a5bc-4410-a5c0-e3e88eeda483`
 - most recent earlier iOS validation uploads in the same pass: `1.0.6 (7)` / `9fac0cc3-5b5e-4afc-8f5c-7dc72218007c`, `1.0.6 (6)` / `7556a88b-ff5d-4463-bda8-443fd0a62e67`, `1.0.6 (5)` / `67277251-f32b-49b4-b387-5a8685838302`, `1.0.6 (4)` / `fa7ab355-9cad-4e0d-9069-739e4158c3c3`, `1.0.6 (3)` / `78503721-943b-4ffb-b235-b4718599a65c`, `1.0.6 (2)` / `90900a45-8ca2-4c7b-9000-f88bcd786ac2`, `1.0.6 (1)` / `c0096c2b-95b5-482c-8a72-4ea5da0dfddb`
 - latest visible iOS TestFlight Cartly build on device before this reset: `1.0.4 (29)`
-- latest uploaded Android internal-track build after this reset: `1.0.6 (42)`
-- latest prepared Android release artifact after this reset: versionName `1.0.6`, versionCode `42`, AAB `build/app/outputs/bundle/release/app-release.aab`
+- latest uploaded Android internal-track build after this reset: `1.0.6 (43)`
+- latest prepared Android release artifact after this reset: versionName `1.0.6`, versionCode `43`, AAB `build/app/outputs/bundle/release/app-release.aab`
 
 ### 2026-05-19 version reset policy
 - `1.0.4` 라인은 TestFlight/App Store Connect 쪽 build numbering 혼선 때문에 더 늘리지 않는다.
@@ -213,6 +213,7 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 - 2026-05-20 night 기준 최신 Android release verification build는 `CARTLY_ANDROID_VERSION_CODE=40` 로 다시 통과했고, customer-facing versionName 은 `1.0.6` 이다.
 - 2026-05-21 early-morning 기준 최신 Android release verification build는 `CARTLY_ANDROID_VERSION_CODE=41` 로 다시 통과했고, customer-facing versionName 은 `1.0.6` 이다.
 - 2026-05-21 later 기준 최신 Android release verification build는 `CARTLY_ANDROID_VERSION_CODE=42` 로 다시 통과했고, customer-facing versionName 은 `1.0.6` 이다.
+- 2026-05-21 morning follow-up 기준 Android regression-fix tester build는 `CARTLY_ANDROID_VERSION_CODE=43` 으로 다시 통과했고, customer-facing versionName 은 `1.0.6` 이다.
 
 ### Play internal upload 스크립트
 ```bash
@@ -257,14 +258,15 @@ PLAY_RELEASE_NAME='1.0.5 (33)' \
 - 2026-05-21 early-morning 기준 같은 service-account 경로로 Android internal track에 `1.0.6 (41)` upload/commit 성공했다.
 - 같은 시점 기준 alpha track 도 기존 build `40` 에서 `1.0.6 (41)` 로 다시 맞췄다. 이미 업로드된 versionCode `41` 을 alpha release update 로 연결했다.
 - 2026-05-21 later 기준 같은 service-account 경로로 Android internal track에 versionCode `42` upload/commit 성공했다. 첫 upload 결과의 release name 은 스크립트 env 누락으로 `1.0.5 (42)` 로 들어갔지만, 같은 날 internal/alpha track release를 모두 `1.0.6 (42)` 로 즉시 정정했다.
+- 2026-05-21 morning regression-fix follow-up 기준 같은 service-account 경로로 Android internal track에 versionCode `43` upload/commit 성공했다. 이후 alpha track은 이미 업로드된 동일 versionCode `43` 을 재업로드하지 않고 track release update 로 연결해 `1.0.6 (43)` 으로 맞췄다.
 - internal track release:
   - track: `internal`
-  - build/versionCode: `42`
-  - release name: `1.0.6 (42)`
+  - build/versionCode: `43`
+  - release name: `1.0.6 (43)`
 - closed-test track release:
   - track: `alpha`
-  - build/versionCode: `42`
-  - release name: `1.0.6 (42)`
+  - build/versionCode: `43`
+  - release name: `1.0.6 (43)`
 
 ## 8. Google Play Console 현재 상태
 - 개발자 계정 signup 및 console verification 완료

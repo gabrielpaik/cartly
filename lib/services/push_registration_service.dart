@@ -25,6 +25,7 @@ class PushRegistrationService {
   bool _initialized = false;
   bool _retryScheduled = false;
   bool _iosTokenResetAttempted = false;
+  bool _permissionPromptAttempted = false;
   String? _cachedAppVersion;
 
   Future<void> initialize() async {
@@ -40,7 +41,7 @@ class PushRegistrationService {
         ),
       );
     });
-    await refreshRegistration();
+    await refreshRegistration(requestPermissionIfNeeded: true);
   }
 
   Future<void> refreshRegistration({
@@ -48,20 +49,11 @@ class PushRegistrationService {
     String? pushToken,
     bool? notificationsEnabled,
     String? appVersion,
+    bool requestPermissionIfNeeded = false,
   }) async {
-    AuthorizationStatus? authorizationStatus;
-    try {
-      await _messaging.setAutoInitEnabled(true);
-      final settings = await _messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: true,
-      );
-      authorizationStatus = settings.authorizationStatus;
-    } catch (_) {
-      authorizationStatus = null;
-    }
+    final authorizationStatus = await _resolveAuthorizationStatus(
+      requestPermissionIfNeeded: requestPermissionIfNeeded,
+    );
 
     if (Platform.isIOS) {
       await _requestIosRemoteNotifications();
@@ -220,6 +212,33 @@ class PushRegistrationService {
       );
     } catch (_) {
       return const _IosNativeRegistrationState();
+    }
+  }
+
+  Future<AuthorizationStatus?> _resolveAuthorizationStatus({
+    required bool requestPermissionIfNeeded,
+  }) async {
+    try {
+      await _messaging.setAutoInitEnabled(true);
+      var settings = await _messaging.getNotificationSettings();
+      var authorizationStatus = settings.authorizationStatus;
+      final shouldPrompt =
+          requestPermissionIfNeeded &&
+          !_permissionPromptAttempted &&
+          authorizationStatus == AuthorizationStatus.notDetermined;
+      if (shouldPrompt) {
+        _permissionPromptAttempted = true;
+        settings = await _messaging.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+          provisional: Platform.isIOS,
+        );
+        authorizationStatus = settings.authorizationStatus;
+      }
+      return authorizationStatus;
+    } catch (_) {
+      return null;
     }
   }
 

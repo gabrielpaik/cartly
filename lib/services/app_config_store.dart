@@ -23,6 +23,13 @@ class AppConfigStore {
   final ValueNotifier<Map<String, dynamic>> explore = ValueNotifier(const {});
   final ValueNotifier<Map<String, dynamic>> runtime = ValueNotifier(const {});
 
+  Future<void>? _activeRefresh;
+  String? _brandingSignature;
+  String? _adSlotsSignature;
+  String? _copySignature;
+  String? _exploreSignature;
+  String? _runtimeSignature;
+
   String get _baseUrl {
     const appConfigEnv = String.fromEnvironment(
       'CARTLY_APP_CONFIG_BASE_URL',
@@ -145,6 +152,24 @@ class AppConfigStore {
   }
 
   Future<void> refresh() async {
+    final activeRefresh = _activeRefresh;
+    if (activeRefresh != null) {
+      await activeRefresh;
+      return;
+    }
+
+    final task = _performRefresh();
+    _activeRefresh = task;
+    try {
+      await task;
+    } finally {
+      if (identical(_activeRefresh, task)) {
+        _activeRefresh = null;
+      }
+    }
+  }
+
+  Future<void> _performRefresh() async {
     try {
       final client = HttpClient()
         ..connectionTimeout = const Duration(seconds: 4);
@@ -197,22 +222,97 @@ class AppConfigStore {
       final exploreJson = data?['explore'] as Map<String, dynamic>?;
       final runtimeJson = data?['runtime'] as Map<String, dynamic>?;
 
-      branding.value = AppBranding.fromJson(brandingJson);
-      adSlots.value = slotList
-          .whereType<Map>()
-          .map((item) => AppAdSlot.fromJson(Map<String, dynamic>.from(item)))
-          .toList();
-      copy.value = copyJson == null
-          ? const {}
-          : Map<String, dynamic>.from(copyJson);
-      explore.value = exploreJson == null
-          ? const {}
-          : Map<String, dynamic>.from(exploreJson);
-      runtime.value = runtimeJson == null
-          ? const {}
-          : Map<String, dynamic>.from(runtimeJson);
+      _setBrandingIfChanged(brandingJson);
+      _setAdSlotsIfChanged(slotList);
+      _setJsonMapIfChanged(
+        nextValue: copyJson == null ? const {} : Map<String, dynamic>.from(copyJson),
+        currentSignature: _copySignature,
+        onChanged: (signature, value) {
+          _copySignature = signature;
+          copy.value = value;
+        },
+      );
+      _setJsonMapIfChanged(
+        nextValue: exploreJson == null
+            ? const {}
+            : Map<String, dynamic>.from(exploreJson),
+        currentSignature: _exploreSignature,
+        onChanged: (signature, value) {
+          _exploreSignature = signature;
+          explore.value = value;
+        },
+      );
+      _setJsonMapIfChanged(
+        nextValue: runtimeJson == null
+            ? const {}
+            : Map<String, dynamic>.from(runtimeJson),
+        currentSignature: _runtimeSignature,
+        onChanged: (signature, value) {
+          _runtimeSignature = signature;
+          runtime.value = value;
+        },
+      );
     } catch (_) {
       // keep fallback; no throw on runtime config fetch failure
     }
+  }
+
+  void _setBrandingIfChanged(Map<String, dynamic>? nextValue) {
+    final normalized = nextValue == null
+        ? const <String, dynamic>{}
+        : Map<String, dynamic>.from(nextValue);
+    final nextSignature = _stableJsonEncode(normalized);
+    if (_brandingSignature == nextSignature) {
+      return;
+    }
+    _brandingSignature = nextSignature;
+    branding.value = AppBranding.fromJson(normalized);
+  }
+
+  void _setAdSlotsIfChanged(List nextValue) {
+    final normalized = nextValue
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+    final nextSignature = _stableJsonEncode(normalized);
+    if (_adSlotsSignature == nextSignature) {
+      return;
+    }
+    _adSlotsSignature = nextSignature;
+    adSlots.value = normalized
+        .map((item) => AppAdSlot.fromJson(item))
+        .toList(growable: false);
+  }
+
+  void _setJsonMapIfChanged({
+    required Map<String, dynamic> nextValue,
+    required String? currentSignature,
+    required void Function(String signature, Map<String, dynamic> value)
+    onChanged,
+  }) {
+    final nextSignature = _stableJsonEncode(nextValue);
+    if (currentSignature == nextSignature) {
+      return;
+    }
+    onChanged(nextSignature, nextValue);
+  }
+
+  String _stableJsonEncode(Object? value) {
+    final normalized = _normalizeJsonValue(value);
+    return jsonEncode(normalized);
+  }
+
+  Object? _normalizeJsonValue(Object? value) {
+    if (value is Map) {
+      final sortedKeys = value.keys.map((key) => key.toString()).toList()..sort();
+      return <String, Object?>{
+        for (final key in sortedKeys)
+          key: _normalizeJsonValue(value[key]),
+      };
+    }
+    if (value is List) {
+      return value.map(_normalizeJsonValue).toList(growable: false);
+    }
+    return value;
   }
 }

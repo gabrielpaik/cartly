@@ -143,12 +143,6 @@ class ShoppingNudgeService {
     if (_permissionsRequested) return;
     _permissionsRequested = true;
 
-    final android = _notifications
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    await android?.requestNotificationsPermission();
-
     final ios = _notifications
         .resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin

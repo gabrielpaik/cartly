@@ -132,6 +132,7 @@ Current progress snapshot (2026-05-21):
   - `docs/02_product/direct-banner-examples/my-perks-member-benefit.svg`
 - current recommendation is to use the shipped inline promo shell as the visual ceiling: soft warm surface, light border, compact visual tile, short helper copy, small pill CTA
 - operator/runtime policy is now stricter: all current direct-banner slots are treated as `full_banner`, legacy campaign data was backfilled accordingly, and the Flutter-side rendering alignment is now bundled into the submitted `1.0.7 (13)` iOS review build plus Android `1.0.7 (44)` tester tracks
+- the immediate Explore follow-up wave has now also been built and uploaded as iOS `1.0.7 (14)` plus Android `1.0.7 (45)`, and the iOS App Store version `1.0.7` has already been reattached/resubmitted on build `14`; this wave carries the app-side admin-truth restoration for section/order behavior, `activeShopping` recommendation exposure, and the cleaned customer-facing `대안상품 보기` detail output
 
 Immediate next action for this workstream:
 - surface the slot-aware size / safe-area guidance inside admin upload UX so operator uploads can be reviewed against the same house style before publish

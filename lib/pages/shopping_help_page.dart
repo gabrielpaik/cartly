@@ -979,8 +979,13 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                             padding: const EdgeInsets.only(bottom: 12),
                             child: _DecisionInboxCard(
                               entry: entry,
-                              onTap: () =>
-                                  _showIntentDetailSheet(context, entry.detail),
+                              onTap: () {
+                                if (entry.opensCurrentCart) {
+                                  widget.onGoHome();
+                                  return;
+                                }
+                                _showIntentDetailSheet(context, entry.detail);
+                              },
                             ),
                           ),
                         ),
@@ -1010,10 +1015,16 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                               padding: const EdgeInsets.only(bottom: 12),
                               child: _DecisionItemCard(
                                 item: item,
-                                onTap: () => _showIntentDetailSheet(
-                                  context,
-                                  _IntentDetail.fromRevisitItem(item),
-                                ),
+                                onTap: () {
+                                  if (item.badge == '현재 카트') {
+                                    widget.onGoHome();
+                                    return;
+                                  }
+                                  _showIntentDetailSheet(
+                                    context,
+                                    _IntentDetail.fromRevisitItem(item),
+                                  );
+                                },
                               ),
                             ),
                           ),
@@ -2144,9 +2155,9 @@ class _DecisionItemCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                '비교 준비 보기',
-                style: TextStyle(
+              Text(
+                item.badge == '현재 카트' ? '현재 카트 보기' : '추천 대안 보기',
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: CartlyColors.subBrand,
@@ -2737,6 +2748,7 @@ class _DecisionInboxEntry {
   final String badge;
   final String reason;
   final String ctaLabel;
+  final bool opensCurrentCart;
   final _IntentDetail detail;
 
   const _DecisionInboxEntry({
@@ -2746,17 +2758,20 @@ class _DecisionInboxEntry {
     required this.badge,
     required this.reason,
     required this.ctaLabel,
+    required this.opensCurrentCart,
     required this.detail,
   });
 
   factory _DecisionInboxEntry.fromRevisitItem(_RevisitItem item) {
+    final opensCurrentCart = item.badge == '현재 카트';
     return _DecisionInboxEntry(
       priorityKey: item.decisionKey,
       name: item.name,
       price: item.price,
       badge: item.badge,
       reason: item.reason,
-      ctaLabel: '비교 준비 보기',
+      ctaLabel: opensCurrentCart ? '현재 카트 보기' : '추천 대안 보기',
+      opensCurrentCart: opensCurrentCart,
       detail: _IntentDetail.fromRevisitItem(item),
     );
   }
@@ -2778,6 +2793,7 @@ class _DecisionInboxEntry {
       badge: slot.sourceLabel,
       reason: reason,
       ctaLabel: ctaLabel,
+      opensCurrentCart: false,
       detail: _IntentDetail.fromOfferSlot(slot),
     );
   }

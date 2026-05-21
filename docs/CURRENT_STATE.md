@@ -18,11 +18,11 @@ It is a personal decision-support tool for real grocery planning and review.
 
 ### Customer app
 - iOS public release is now live on the App Store as `카트리`: `https://apps.apple.com/kr/app/카트리/id6763728346`
-- Latest shipped iOS public release line is `1.0.5 (10)`.
-- Latest uploaded iOS App Store review candidate is now `1.0.6 (10)`.
-- Latest iOS delivery UUID is `aa51303b-a5bc-4410-a5c0-e3e88eeda483`.
-- Latest uploaded Android internal-testing build: `1.0.6 (43)`.
-- Latest locally verified Android release artifact is `1.0.6 (43)`.
+- Latest shipped iOS public release line is still `1.0.5 (10)`.
+- Latest submitted iOS App Store review candidate is now `1.0.7 (13)`.
+- Latest iOS delivery UUID is `afcab324-a22a-48d9-8d80-e34b66056e52`.
+- Latest uploaded Android internal-testing build: `1.0.7 (44)`.
+- Latest locally verified Android release artifact is `1.0.7 (44)`.
 - Shared household current-cart collaboration v2 is implemented and shipped in build 25.
 - Guest mode exists.
 - Fresh-install guest bootstrap is now hardened: if the app has no persisted session, it auto-creates a guest session and emits an authenticated `app_open` event so first visits surface in both the customer DB and activity metrics.
@@ -34,6 +34,7 @@ It is a personal decision-support tool for real grocery planning and review.
 - iOS AdMob app approval mail has arrived, `app-ads.txt` is publicly served, and real-device ad display was verified on iPhone across the currently exposed paths, so Cartly is now past configuration-only status and into real monetization observation.
 - Explore alternative-search behavior is now intentionally in a utility-first state: filtered Naver Shopping results are shown directly in-app while LinkPrice deeplink monetization is still unresolved.
 - The latest Explore cleanup pass also removed the redundant `decisionInbox` layer and separated visible `비교 후보` from non-duplicative `다시 볼 상품` / `반복 구매` lists.
+- The next submitted mobile release wave now bundles the ranked single-pool recommendation surface, admin-curated plus search alternative blending, and the Flutter-side full-banner rendering alignment for current direct-banner slots.
 
 ### Admin / operator surfaces
 The admin relayout is no longer a proposal-only state.
@@ -77,7 +78,7 @@ To harden this, source now includes:
 - bundled local SVG fallback in `lib/widgets/brand_mark.dart`
 - increased header title height in `lib/pages/home_tab_view.dart`
 
-This fix path is now on the current review build line through `1.0.5 (10)`.
+This fix path is now carried forward through the current submitted review build `1.0.7 (13)`.
 
 ## Store/release status
 
@@ -85,22 +86,22 @@ This fix path is now on the current review build line through `1.0.5 (10)`.
 - Current shipped public iOS app: `카트리`
 - Public App Store URL: `https://apps.apple.com/kr/app/카트리/id6763728346`
 - Latest shipped public iOS build line: `1.0.5 (10)`
-- Latest submitted App Store review build is `1.0.6 (10)` with delivery UUID `aa51303b-a5bc-4410-a5c0-e3e88eeda483`
-- App Store version `1.0.6` is now attached to build `10` and is in `WAITING_FOR_REVIEW` state.
-- This submitted build includes the guest-bootstrap + first-visit telemetry fix, the latest family-share late polish, the logout/current-cart default correction, the iOS location-permission review-warning mitigation, the first live Explore/Naver result display pass, the scan-state/explore-detail/store-promo bug-fix bundle, the Explore duplicate-structure cleanup, and the follow-up hide-empty/fake Explore surface cleanup.
-- Metadata, screenshots, privacy URL, support URL, review contact, and App Review notes were all copied forward successfully and were sufficient for submission.
+- Latest submitted App Store review build is `1.0.7 (13)` with delivery UUID `afcab324-a22a-48d9-8d80-e34b66056e52`
+- App Store version `1.0.7` is now attached to build `13` and is in `WAITING_FOR_REVIEW` state.
+- This submitted build carries forward the current guest/bootstrap and cart-default fixes, the iOS location-permission mitigation, the utility-first Explore cleanup, and additionally ships the ranked single-pool recommendation flow, admin-curated plus search alternative blending, and the Flutter-side full-banner promo rendering updates.
+- Metadata, screenshots, privacy URL, support URL, review contact, and App Review notes were updated successfully and were sufficient for submission.
 - Immediate post-release nuance: direct App Store URL is live, but search/discovery indexing can lag for a while after release, so early promotion should prefer the direct link.
 - Remaining caution: if the admin splash changes again later, the iPhone native first screen still requires a fresh bundled-asset rebuild and new upload.
 
 ### Android / Google Play
 - Signed release AAB builds locally.
 - Repo-side Play internal upload automation now exists at `scripts/upload-android-play-internal.rb`.
-- Latest uploaded Android internal-testing build is `1.0.6 (43)`.
-- Latest locally verified Android release AAB is `1.0.6`, versionCode `43`, at `build/app/outputs/bundle/release/app-release.aab`.
+- Latest uploaded Android internal-testing build is `1.0.7 (44)`.
+- Latest locally verified Android release AAB is `1.0.7`, versionCode `44`, at `build/app/outputs/bundle/release/app-release.aab`.
 - The dedicated Play-linked service-account JSON is now restored at `~/Library/Application Support/Cartly/play/cartly-play-api.json`, copied from the NAS-mounted file `/Volumes/downloads/cartly-e36ee-dcb07ec17251.json`.
 - Re-test on 2026-05-19 confirmed the available Firebase Admin SDK JSON (`firebase-adminsdk-fbsvc@cartly-e36ee.iam.gserviceaccount.com`) still fails Android Publisher at edit creation with `403 PERMISSION_DENIED`, so it cannot substitute for the dedicated Play-linked service-account key.
 - Store listing/app-content setup was pushed much farther on 2026-05-19 night, but final production launch is still blocked by Google Play's personal-account closed-testing gate: before production access, Cartly must run a closed test with at least 12 opted-in testers for 14 days.
-- The Android test tracks are now aligned to `1.0.6 (43)` on both internal and alpha, and this tester build includes the Android startup regression pass for duplicate notification prompts and startup render churn. Immediate Android release work remains tester recruitment, active closed-test operation, and waiting out the Play-required test window.
+- The Android test tracks are now aligned to `1.0.7 (44)` on both internal and alpha, and this tester build now also includes the ranked Explore recommendation release wave plus the Flutter-side full-banner/direct-banner rendering changes. Immediate Android release work remains tester recruitment, active closed-test operation, and waiting out the Play-required test window.
 
 ## Public URLs
 - App/public root: `https://scan-api.seoa-nas.com/`
@@ -116,9 +117,9 @@ This fix path is now on the current review build line through `1.0.5 (10)`.
 - Use this document as the primary current-state entry point instead of chaining multiple handoff/checkpoint notes.
 
 ## Open next actions
-1. Monitor App Review for the submitted iOS build `1.0.6 (10)` and be ready to answer any reviewer follow-up quickly.
-2. Validate that fresh installs on `1.0.6 (10)` now create guest users immediately and produce authenticated `app_open` activity.
-3. Continue from the now-uploaded Android internal + alpha build `1.0.6 (43)` toward the Play closed-test requirement, including 12 opted-in testers and the 14-day gate.
+1. Monitor App Review for the submitted iOS build `1.0.7 (13)` and be ready to answer any reviewer follow-up quickly.
+2. Validate that fresh installs on `1.0.7 (13)` now create guest users immediately and produce authenticated `app_open` activity.
+3. Continue from the now-uploaded Android internal + alpha build `1.0.7 (44)` toward the Play closed-test requirement, including 12 opted-in testers and the 14-day gate.
 4. If Google Play install/listing surfaces still look generic during the closed-test period, keep cleaning up the Play listing high-res icon and store metadata separately from the binary.
 5. Keep the admin customer table clean during early rollout; as of 2026-05-20 morning, old test accounts were cleaned out and only `백승대` and `이지민` remained as active pre-launch accounts.
 6. Post-launch operator focus has now shifted to the operations/growth workstream captured in `docs/operations-growth-workstream-2026-05.md`: recurring Friday push scheduling, Coupang partner-product automation, AdMob verification, and direct-banner design guidance.

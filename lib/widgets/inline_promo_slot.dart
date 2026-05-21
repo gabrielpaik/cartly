@@ -129,10 +129,12 @@ class _InlinePromoSlotState extends State<InlinePromoSlot> {
   Future<void> _handleTap(AppAdSlot slot, AppAdCreative creative) async {
     if (!creative.hasAction) return;
 
-    await AdTrackingService.instance.recordClick(
-      slot: slot,
-      creative: creative,
-      screenName: slot.config.screen ?? widget.slotKey,
+    unawaited(
+      AdTrackingService.instance.recordClick(
+        slot: slot,
+        creative: creative,
+        screenName: slot.config.screen ?? widget.slotKey,
+      ),
     );
 
     final landing = _resolveLanding(creative);
@@ -486,8 +488,8 @@ class _InlinePromoSlotState extends State<InlinePromoSlot> {
 
         final tappableSlot = liveSlot;
         final tappableCreative = activeCreative;
-        return InkWell(
-          borderRadius: BorderRadius.circular(16),
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTap: () => _handleTap(tappableSlot, tappableCreative),
           child: card,
         );

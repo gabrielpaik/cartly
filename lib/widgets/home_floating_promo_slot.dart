@@ -142,13 +142,256 @@ class _HomeFloatingPromoSlotState extends State<HomeFloatingPromoSlot> {
     }.contains(key.trim());
   }
 
+  bool _usesFullBanner(AppAdSlot slot, AppAdCreative creative) {
+    final creativeStyle = (creative.landing?.params['renderStyle'] as String?)
+        ?.trim();
+    final slotStyle = (slot.config.landing?.params['renderStyle'] as String?)
+        ?.trim();
+    final style = creativeStyle?.isNotEmpty == true ? creativeStyle : slotStyle;
+    return style == 'full_banner';
+  }
+
+  Widget _buildActionButtons({
+    required String ctaLabel,
+    required VoidCallback onHideForToday,
+    required VoidCallback onTap,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: onHideForToday,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: const Text('오늘 하루 보지 않기'),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: FilledButton(
+            onPressed: onTap,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(44),
+              backgroundColor: CartlyColors.brand,
+              foregroundColor: CartlyColors.onBrandPrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: Text(ctaLabel),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegacyPromoContent({
+    required String title,
+    required String message,
+    required String? imageUrl,
+    required String ctaLabel,
+    required bool hasTapAction,
+    required VoidCallback onHideForToday,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: CartlyColors.brand.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const Text(
+              'PROMO',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                color: CartlyColors.brand,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (imageUrl != null && imageUrl.isNotEmpty) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: Image.network(
+                    imageUrl,
+                    width: 72,
+                    height: 72,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return _FloatingPromoIcon(hasTapAction: hasTapAction);
+                    },
+                  ),
+                ),
+              ] else ...[
+                _FloatingPromoIcon(hasTapAction: hasTapAction),
+              ],
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: CartlyColors.textPrimary,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      message,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: CartlyColors.textSecondary,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _buildActionButtons(
+            ctaLabel: ctaLabel,
+            onHideForToday: onHideForToday,
+            onTap: onTap,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFullBannerContent({
+    required double bannerHeight,
+    required String title,
+    required String message,
+    required String imageUrl,
+    required String ctaLabel,
+    required bool hasTapAction,
+    required VoidCallback onHideForToday,
+    required VoidCallback onTap,
+  }) {
+    final hasText = title.trim().isNotEmpty || message.trim().isNotEmpty;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: SizedBox(
+            height: bannerHeight,
+            child: Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        CartlyColors.softWarmSurface,
+                        CartlyColors.surface1,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  child: Row(
+                    children: [
+                      _FloatingPromoIcon(hasTapAction: hasTapAction),
+                      if (hasText) ...[
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (title.trim().isNotEmpty)
+                                Text(
+                                  title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    color: CartlyColors.textPrimary,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              if (title.trim().isNotEmpty &&
+                                  message.trim().isNotEmpty)
+                                const SizedBox(height: 6),
+                              if (message.trim().isNotEmpty)
+                                Text(
+                                  message,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: CartlyColors.textSecondary,
+                                    height: 1.45,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: _buildActionButtons(
+            ctaLabel: ctaLabel,
+            onHideForToday: onHideForToday,
+            onTap: onTap,
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _handleTap(AppAdSlot slot, AppAdCreative creative) async {
     if (!creative.hasAction) return;
 
-    await AdTrackingService.instance.recordClick(
-      slot: slot,
-      creative: creative,
-      screenName: slot.config.screen ?? widget.slotKey,
+    unawaited(
+      AdTrackingService.instance.recordClick(
+        slot: slot,
+        creative: creative,
+        screenName: slot.config.screen ?? widget.slotKey,
+      ),
     );
 
     final landing = _resolveLanding(creative);
@@ -235,6 +478,10 @@ class _HomeFloatingPromoSlotState extends State<HomeFloatingPromoSlot> {
             ? creative.imageUrl!.trim()
             : slot.config.imageUrl?.trim();
         final hasTapAction = creative.hasAction;
+        final useFullBanner =
+            imageUrl != null &&
+            imageUrl.isNotEmpty &&
+            _usesFullBanner(slot, creative);
         final hasRenderableContent =
             title.trim().isNotEmpty ||
             message.trim().isNotEmpty ||
@@ -296,146 +543,28 @@ class _HomeFloatingPromoSlotState extends State<HomeFloatingPromoSlot> {
                               ],
                               border: Border.all(color: CartlyColors.line),
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                16,
-                                14,
-                                16,
-                                14,
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: CartlyColors.brand.withValues(
-                                        alpha: 0.1,
-                                      ),
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                    child: const Text(
-                                      'PROMO',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w900,
-                                        color: CartlyColors.brand,
-                                        letterSpacing: 0.3,
-                                      ),
-                                    ),
+                            child: useFullBanner
+                                ? _buildFullBannerContent(
+                                    bannerHeight: slot.config.maxHeight,
+                                    title: title,
+                                    message: message,
+                                    imageUrl: imageUrl,
+                                    ctaLabel: ctaLabel,
+                                    hasTapAction: hasTapAction,
+                                    onHideForToday: () =>
+                                        _close(hideForToday: true),
+                                    onTap: () => _handleTap(slot, creative),
+                                  )
+                                : _buildLegacyPromoContent(
+                                    title: title,
+                                    message: message,
+                                    imageUrl: imageUrl,
+                                    ctaLabel: ctaLabel,
+                                    hasTapAction: hasTapAction,
+                                    onHideForToday: () =>
+                                        _close(hideForToday: true),
+                                    onTap: () => _handleTap(slot, creative),
                                   ),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      if (imageUrl != null &&
-                                          imageUrl.isNotEmpty) ...[
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            18,
-                                          ),
-                                          child: Image.network(
-                                            imageUrl,
-                                            width: 72,
-                                            height: 72,
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                                  return _FloatingPromoIcon(
-                                                    hasTapAction: hasTapAction,
-                                                  );
-                                                },
-                                          ),
-                                        ),
-                                      ] else ...[
-                                        _FloatingPromoIcon(
-                                          hasTapAction: hasTapAction,
-                                        ),
-                                      ],
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              title,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w900,
-                                                color: CartlyColors.textPrimary,
-                                                height: 1.3,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              message,
-                                              maxLines: 3,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600,
-                                                color:
-                                                    CartlyColors.textSecondary,
-                                                height: 1.45,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 14),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          onPressed: () =>
-                                              _close(hideForToday: true),
-                                          style: OutlinedButton.styleFrom(
-                                            minimumSize: const Size.fromHeight(
-                                              44,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(14),
-                                            ),
-                                          ),
-                                          child: const Text('오늘 하루 보지 않기'),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: FilledButton(
-                                          onPressed: () =>
-                                              _handleTap(slot, creative),
-                                          style: FilledButton.styleFrom(
-                                            minimumSize: const Size.fromHeight(
-                                              44,
-                                            ),
-                                            backgroundColor: CartlyColors.brand,
-                                            foregroundColor:
-                                                CartlyColors.onBrandPrimary,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(14),
-                                            ),
-                                          ),
-                                          child: Text(ctaLabel),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
                           ),
                         ),
                       ),

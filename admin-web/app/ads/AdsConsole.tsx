@@ -333,6 +333,19 @@ function landingPayloadFromCode(code: string) {
   }
 }
 
+function forceFullBannerLandingPayload(
+  _slotKey: string,
+  landing: ReturnType<typeof landingPayloadFromCode>,
+) {
+  return {
+    ...landing,
+    landingParams: {
+      ...(landing.landingParams ?? {}),
+      renderStyle: 'full_banner',
+    },
+  }
+}
+
 function landingLabelFromCode(code: string) {
   const trimmed = code.trim()
   if (!trimmed) return '-'
@@ -903,7 +916,10 @@ export default function AdsConsole({ view }: { view: AdsView }) {
     try {
       for (const row of newRows) {
         const draft = row.draft
-        const landing = landingPayloadFromCode(draft.landingCode)
+        const landing = forceFullBannerLandingPayload(
+          draft.slotKey,
+          landingPayloadFromCode(draft.landingCode),
+        )
         await postJson<{ ok: boolean; data: CampaignRow }>('/admin/ads/campaigns', {
           slotKey: draft.slotKey,
           sortOrder: Number.parseInt(draft.sortOrder || '1', 10) || 1,
@@ -928,7 +944,10 @@ export default function AdsConsole({ view }: { view: AdsView }) {
       for (const campaignId of dirtyExistingIds) {
         const draft = campaignDrafts[campaignId]
         if (!draft) continue
-        const landing = landingPayloadFromCode(draft.landingCode)
+        const landing = forceFullBannerLandingPayload(
+          draft.slotKey,
+          landingPayloadFromCode(draft.landingCode),
+        )
         await putJson<{ ok: boolean; data: CampaignRow }>(`/admin/ads/campaigns/${campaignId}`, {
           slotKey: draft.slotKey,
           sortOrder: Number.parseInt(draft.sortOrder || '1', 10) || 1,

@@ -83,8 +83,8 @@ DEFAULT_AD_SLOTS: List[Dict[str, Any]] = [
         'status': 'inactive',
         'config': {
             'slotLabel': 'Home Floating 1',
-            'slotDescription': '홈 화면 하단에 떠오르는 dismissible 프로모션 슬롯',
-            'placementNote': '홈 화면 하단 고정 영역 위 · 약 156px',
+            'slotDescription': '홈 화면 하단에 떠오르는 dismissible 풀배너 프로모션 슬롯',
+            'placementNote': '홈 화면 하단 고정 영역 위 · 328x156 프레임',
             'maxHeight': 156,
             'screen': 'home',
             'position': 'above_bottom_bar',

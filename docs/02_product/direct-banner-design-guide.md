@@ -1,9 +1,9 @@
 # Cartly Direct Banner Design Guide
 
-Last updated: 2026-05-20
-Status: first practical draft
+Last updated: 2026-05-21
+Status: practical operator guide
 Purpose: define direct-banner creative rules that stay compatible with Cartly's calm grocery-decision UI
-Use this doc when: creating operator-upload banner images, reviewing sponsor creatives, or later adding slot-aware upload guidance in admin
+Use this doc when: creating operator-upload banner images, reviewing sponsor creatives, or registering full-banner assets in admin
 
 ## 1. Design intent
 A Cartly direct banner is not a loud ad block.
@@ -21,13 +21,17 @@ This guide follows `docs/02_product/app-design.md` and must not break these exis
 - practical, not cute
 
 ## 2. Core banner grammar
-Each banner should use the same visual structure as the shipped inline promo slot shell.
+All current Cartly operator banners are **full-banner assets**.
+
+There is no separate square-thumbnail registration flow in the current admin/runtime path.
+If a banner is registered, it should be designed as a complete wide artwork for that slot's exact frame.
 
 ### Required layout
-- left: compact visual tile or product photo
-- center: short title + short support message
-- right: small pill CTA
-- outer shell: soft warm card with light border
+- full-width canvas matched to the slot ratio
+- short headline block, usually left aligned
+- one compact support line at most
+- one clear focal object, product packshot, or utility illustration, usually weighted to the right
+- CTA can be baked into the artwork, but it must stay visually compact
 
 ### Required emotional tone
 - helpful
@@ -42,25 +46,55 @@ Each banner should use the same visual structure as the shipped inline promo slo
 - generic commerce-feed energy
 - casino / lucky-draw / confetti styling
 
-## 3. Slot inventory and artboard baselines
-These artboard sizes are design baselines for operator creative review. Runtime can scale, but uploaded images should be composed with these proportions in mind.
+## 3. Slot inventory and exact banner frame
+For current Cartly direct banners, admin save/runtime now treats every banner slot as `full_banner`, and the app draws the uploaded image to the full rounded slot area with `BoxFit.cover`.
 
-| Slot key | Surface | Runtime max height | Recommended artboard | Notes |
-| --- | --- | ---: | --- | --- |
-| `save_complete_sheet_1` | save complete bottom sheet | 88px | `360x88` | tightest slot, strongest need for brevity |
-| `saved_inline_1` | saved list after first card | 104px | `360x104` | best slot for a main sponsor / helpful cross-sell |
-| `saved_inline_2` | saved list after third card | 104px | `360x104` | secondary assist slot, lighter message |
-| `my_perks_inline_1` | My page below account card | 96px | `360x96` | should feel like a member benefit hint, not a sales push |
+That means the **registered banner image itself should match the slot frame ratio directly**.
+Do not design to an inner viewport. Do not add fake compensation padding for runtime.
+
+### 3.1 Exact sizes to design against
+
+| Slot key | Surface | Exact slot frame at 1x | Exact upload canvas at 3x | Ratio | Notes |
+| --- | --- | --- | --- | --- | --- |
+| `save_complete_sheet_1` | save complete bottom sheet | `360x88` | `1080x264` | `45:11` | tightest slot, keep copy extremely short |
+| `saved_inline_1` | saved list after first card | `360x104` | `1080x312` | `45:13` | main saved-list banner slot |
+| `saved_inline_2` | saved list after third card | `360x104` | `1080x312` | `45:13` | secondary saved-list banner slot |
+| `my_perks_inline_1` | My page below account card | `360x96` | `1080x288` | `15:4` | account/member utility tone only |
+| `home_floating_1` | home floating sheet hero area | `328x156` | `984x468` | `82:39` | top banner area inside the floating promo sheet |
+
+### 3.2 What to upload in admin
+Because every current banner slot uses `full_banner`, operator guidance should be:
+- create the asset at the **exact 3x upload canvas** above
+- export as PNG
+- do not add fake outer border, fake rounded shell, or fake runtime padding
+- do not design to a different nearby ratio and expect runtime to rescue it
+- if the uploaded image ratio is even slightly off, `BoxFit.cover` will crop it
+
+### 3.3 Fast rule
+- `saved_inline_1` / `saved_inline_2` → upload `1080x312`
+- `my_perks_inline_1` → upload `1080x288`
+- `save_complete_sheet_1` → upload `1080x264`
+- `home_floating_1` → upload `984x468`
+
+If someone wants 1x working artboards for Figma first, use:
+- `360x104`
+- `360x96`
+- `360x88`
+- `328x156`
 
 ## 4. Safe area rules
 ### Outer shell
-- corner radius should visually match app cards: `16px`
-- keep a light border around the whole shell
-- do not rely on edge-to-edge artwork
+- runtime already provides the rounded shell and border treatment
+- do not bake a fake outer border, fake rounded shell, or drop shadow into the uploaded artwork
+- for `full_banner`, the uploaded image is the whole banner artwork and is cropped directly into the rounded slot frame
 
 ### Inner padding
-- baseline inner padding: `14px`
-- left visual block: `52x52`
+- there is no separate square-thumbnail/native-card artwork mode to design for
+- for `full_banner`, add safe area inside the uploaded artwork itself
+- recommended internal safe area inside uploaded full-banner asset:
+  - left/right: `20px @1x` (`60px @3x`)
+  - top/bottom: `10px @1x` (`30px @3x`)
+- if text/logo/CTA touches the edge, it will feel cropped even when technically visible
 - visual-to-text gap: `12px`
 - text-to-CTA gap: `10px`
 
@@ -135,10 +169,11 @@ Use Cartly's existing app colors.
 - hard-to-read text baked into the image
 
 ### Image treatment
-- keep image inside a rounded square tile
-- `52x52` visual block should remain legible at a glance
+- compose the whole uploaded asset to the exact slot ratio for that slot
 - one hero object is better than many small objects
 - product on warm neutral or soft tinted background is preferred
+- the main visual should still read clearly on a phone without relying on a square-thumbnail crop
+- do not bake ultra-thin text or detail that only works at desktop zoom
 
 ## 8. Copy rules
 ### Title formula
@@ -202,6 +237,15 @@ A sponsor creative should be rejected if:
 - it turns Saved or My into a shopping-feed vibe
 
 ## 10. Slot-specific guidance
+
+### Operator approval checklist for `full_banner`
+Approve only if all are true:
+- aspect ratio matches the slot's exact upload canvas
+- text is still readable on a phone without zooming
+- no critical copy/logo is pushed into the outer safe area
+- no fake outer border or fake rounded shell is baked into the image
+- CTA, if baked into the artwork, is visually centered and not hugging the bottom edge
+- the banner still looks intentional when shown inside Cartly's warm shell
 ### `save_complete_sheet_1`
 Use when:
 - cart was just saved
@@ -246,14 +290,32 @@ Best tone:
 - member benefit surface
 - no aggressive selling
 
+### `home_floating_1`
+Use when:
+- the strongest home-surface campaign needs extra attention
+- the message benefits from a larger hero visual and explicit action buttons
+
+Best tone:
+- one clear promise
+- visually bold, but still calm enough to sit above the cart bar without feeling spammy
+
+Do:
+- keep headline shorter than inline slots
+- design the artwork so the important subject survives center-crop on wider phones
+- assume the action buttons live below the banner image, not inside a square-thumbnail card
+
+Don't:
+- overload the art with small copy blocks
+- depend on tiny edge details or dense disclaimer text
+
 ## 11. First recommended visual direction
-Start with **soft neutral shell + compact product tile + small category badge + filled red CTA** as the default house style.
+Start with **solid full-color background + left-aligned short copy + right-side hero object + compact CTA** as the default house style.
 
 This is the safest first direction because:
+- it fits the real full-banner-only runtime path
 - it is more commercial than the plain reference shell without becoming noisy
-- it still matches the shipped inline promo component structure
 - it will not break the app's calm visual rhythm
-- it scales across Saved / My / save-complete surfaces
+- it scales across Saved / My / save-complete / home floating surfaces
 - it leaves room for stronger sponsor identity later without starting loud
 
 ## 12. Example mockups created in this pass

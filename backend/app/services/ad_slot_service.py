@@ -457,13 +457,31 @@ def _serialize_campaign_landing(campaign: Optional[AdCampaign]) -> Optional[Dict
         return None
     landing_type = str(campaign.landing_type or '').strip()
     landing_key = str(campaign.landing_key or '').strip()
-    if not landing_type or not landing_key:
+    landing_params = _deserialize_landing_params(campaign.landing_params_json)
+    if not landing_type and not landing_key and not landing_params:
         return None
     return {
-        'type': landing_type,
-        'key': landing_key,
-        'params': _deserialize_landing_params(campaign.landing_params_json),
+        'type': landing_type or None,
+        'key': landing_key or None,
+        'params': landing_params,
     }
+
+
+def _should_force_full_banner(slot_row: AdSlot) -> bool:
+    return str(slot_row.placement_type or '').strip() in {
+        'inline',
+        'bottom_sheet',
+        'floating_overlay',
+    }
+
+
+def _enforce_full_banner_payload(slot_row: AdSlot, payload: Dict[str, Any]) -> Dict[str, Any]:
+    if not _should_force_full_banner(slot_row):
+        return payload
+    landing_params = dict(payload.get('landingParams') or {})
+    landing_params['renderStyle'] = 'full_banner'
+    payload['landingParams'] = _clean_landing_params(landing_params)
+    return payload
 
 
 def _campaign_window_key(campaign: AdCampaign) -> tuple:
@@ -740,7 +758,7 @@ def _campaign_identity_signature(payload: Dict[str, Any]) -> tuple:
 
 
 def _validate_campaign_payload(db: OrmSession, slot_row: AdSlot, payload: Dict[str, Any], *, exclude_campaign_id: Optional[str] = None) -> Dict[str, Any]:
-    normalized = _normalize_campaign_payload(payload)
+    normalized = _enforce_full_banner_payload(slot_row, _normalize_campaign_payload(payload))
     if not normalized.get('slotKey'):
         raise ValueError('slotKey is required')
     if not normalized.get('startAt') or not normalized.get('endAt'):

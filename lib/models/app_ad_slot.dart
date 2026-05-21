@@ -25,7 +25,7 @@ class AppAdLanding {
     final params = rawParams is Map
         ? Map<String, dynamic>.from(rawParams)
         : const <String, dynamic>{};
-    if (type.isEmpty || key.isEmpty) {
+    if (type.isEmpty && key.isEmpty && params.isEmpty) {
       return null;
     }
     return AppAdLanding(type: type, key: key, params: params);

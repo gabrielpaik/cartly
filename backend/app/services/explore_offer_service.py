@@ -24,6 +24,7 @@ _NAVER_SHOPPING_API_URL = 'https://openapi.naver.com/v1/search/shop.json'
 _HTML_TAG_RE = re.compile(r'<[^>]+>')
 _PACK_COUNT_RE = re.compile(r'(\d+)\s*(개|입|팩|pack|봉|병|캔|세트)')
 _MULTIPACK_X_RE = re.compile(r'(?:x|×)\s*(\d+)')
+_SIZE_OR_COUNT_TOKEN_RE = re.compile(r'^\d+(?:\.\d+)?(?:ml|l|g|kg|개|입|팩|봉|병|캔|매|세트)?$')
 _QUERY_TITLE_NEGATIVE_RULES: list[tuple[str, set[str]]] = [
     ('우유', {'분유', '탈지분유', '전지분유', '두유', '연유', '요거트', '요구르트'}),
     ('생수', {'탄산수', '두유', '주스'}),
@@ -328,6 +329,15 @@ def _is_strong_same_product_candidate(
     return False
 
 
+def _is_size_or_count_token(token: str) -> bool:
+    return bool(_SIZE_OR_COUNT_TOKEN_RE.match((token or '').strip().lower()))
+
+
+def _meaningful_query_tokens(query_tokens: list[str]) -> list[str]:
+    meaningful = [token for token in query_tokens if token and not _is_size_or_count_token(token)]
+    return meaningful or [token for token in query_tokens if token]
+
+
 def _match_query_token_count(*, query_tokens: list[str], title_text: str) -> int:
     title_tokens = set(normalize_explore_intent(title_text).intent_tokens)
     return sum(1 for token in query_tokens if token and token in title_tokens)
@@ -369,6 +379,7 @@ def _is_candidate_editorial_item_acceptable(
     reference_price: Optional[int],
     candidate_price: Optional[int],
 ) -> bool:
+    _ = reference_price, candidate_price
     if not title_text.strip():
         return False
 
@@ -379,32 +390,16 @@ def _is_candidate_editorial_item_acceptable(
     if any(hint in title_lower for hint in _GENERIC_BLOCKED_TITLE_HINTS):
         return False
 
-    query_pack_count = _extract_pack_count(query_text)
-    title_pack_count = _extract_pack_count(title_text)
-    allow_multipack = bool(query_pack_count and query_pack_count > 1)
-
-    if not allow_multipack and title_pack_count is not None and title_pack_count > 2:
-        return False
-
-    if _is_price_outlier(reference_price, candidate_price, allow_multipack=allow_multipack):
-        return False
-
+    meaningful_tokens = _meaningful_query_tokens(query_tokens)
     matched_token_count = _match_query_token_count(
-        query_tokens=query_tokens,
+        query_tokens=meaningful_tokens,
         title_text=title_text,
     )
-    if query_tokens and matched_token_count == 0:
-        return False
-
-    if _is_strong_same_product_candidate(
-        query_text=query_text,
-        query_tokens=query_tokens,
-        title_text=title_text,
-    ):
+    if meaningful_tokens and matched_token_count > 0:
         return True
 
-    required_matches = min(2, len([token for token in query_tokens if token]))
-    return matched_token_count >= max(required_matches, 1)
+    normalized_query = (query_text or '').strip().lower()
+    return bool(normalized_query and normalized_query in title_lower)
 
 
 def _score_editorial_item(
@@ -416,31 +411,25 @@ def _score_editorial_item(
     candidate_price: Optional[int],
     display_slot: Optional[int],
 ) -> int:
-    score = 1000
+    score = 0
     matched_token_count = _match_query_token_count(
-        query_tokens=query_tokens,
+        query_tokens=_meaningful_query_tokens(query_tokens),
         title_text=title_text,
     )
-    score += min(matched_token_count * 24, 144)
+    score += min(matched_token_count * 40, 240)
 
     if _is_strong_same_product_candidate(
         query_text=query_text,
         query_tokens=query_tokens,
         title_text=title_text,
     ):
-        score += 260
+        score += 220
 
     if _is_cheaper_than_reference(reference_price, candidate_price):
-        score += 140
-    elif reference_price is not None and candidate_price is not None and reference_price > 0:
-        ratio = candidate_price / reference_price
-        if 0.7 <= ratio <= 1.35:
-            score += 36
-        elif 0.5 <= ratio <= 1.7:
-            score += 18
+        score += 40
 
     if display_slot is not None and display_slot > 0:
-        score += max(0, 40 - min(display_slot, 40))
+        score += max(0, 20 - min(display_slot, 20))
 
     return score
 
@@ -527,7 +516,7 @@ def _load_editorial_candidate_offers(
                     item,
                     reference_price=reference_price,
                 ),
-                '_sourcePriority': 0,
+                '_sourceType': 'admin_curated',
                 '_isAdminCurated': True,
             }
         )
@@ -652,7 +641,7 @@ def search_naver_shopping_offers(
                                 item,
                                 reference_price=reference_price,
                             ),
-                            '_sourcePriority': 1,
+                            '_sourceType': 'search',
                         }
                     )
         except HTTPError as exc:
@@ -662,18 +651,37 @@ def search_naver_shopping_offers(
     else:
         error_code = 'naver_not_configured'
 
-    deduped_offers: list[dict[str, Any]] = []
-    seen_urls: set[str] = set()
-    admin_curated_candidate_found = False
-    for offer in sorted(
-        offers,
+    editorial_offers = [
+        offer for offer in offers if str(offer.get('_sourceType') or '') == 'admin_curated'
+    ]
+    search_offers = [
+        offer for offer in offers if str(offer.get('_sourceType') or '') == 'search'
+    ]
+
+    editorial_offers.sort(
         key=lambda offer: (
-            -int(offer.get('_sourcePriority') or 0),
+            -int(offer.get('_score') or 0),
+            int(offer.get('price') or 10**12),
+            str(offer.get('title') or ''),
+        )
+    )
+    search_offers.sort(
+        key=lambda offer: (
             int(offer.get('_score') or 0),
             -int(offer.get('price') or 0) if offer.get('price') else 0,
         ),
         reverse=True,
-    ):
+    )
+
+    combined_candidates = [
+        *editorial_offers[:3],
+        *search_offers[:3],
+    ]
+
+    deduped_offers: list[dict[str, Any]] = []
+    seen_urls: set[str] = set()
+    admin_curated_candidate_found = False
+    for offer in combined_candidates:
         deeplink = str(offer.get('deeplinkUrl') or '').strip()
         if not deeplink or deeplink in seen_urls:
             continue
@@ -682,10 +690,8 @@ def search_naver_shopping_offers(
             admin_curated_candidate_found or bool(offer.pop('_isAdminCurated', False))
         )
         offer.pop('_score', None)
-        offer.pop('_sourcePriority', None)
+        offer.pop('_sourceType', None)
         deduped_offers.append(offer)
-        if len(deduped_offers) >= 5:
-            break
 
     exact_cheaper_offers = [
         offer

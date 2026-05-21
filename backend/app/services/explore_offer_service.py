@@ -11,7 +11,10 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from sqlalchemy.orm import Session as OrmSession
+
 from ..core.settings import settings
+from .explore_admin_service import get_explore_settings
 from .explore_intent_normalizer import normalize_explore_intent
 
 _COUPANG_API_DOMAIN = 'https://api-gateway.coupang.com'
@@ -325,6 +328,215 @@ def _is_strong_same_product_candidate(
     return False
 
 
+def _match_query_token_count(*, query_tokens: list[str], title_text: str) -> int:
+    title_tokens = set(normalize_explore_intent(title_text).intent_tokens)
+    return sum(1 for token in query_tokens if token and token in title_tokens)
+
+
+def _parse_admin_datetime(value: Any) -> Optional[datetime]:
+    text = str(value or '').strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    if parsed.tzinfo is not None:
+        return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed
+
+
+def _is_editorial_item_active(item: dict[str, Any], *, now: Optional[datetime] = None) -> bool:
+    deleted_at = _parse_admin_datetime(item.get('deletedAt'))
+    if deleted_at is not None:
+        return False
+
+    current = now or datetime.utcnow()
+    starts_at = _parse_admin_datetime(item.get('startsAt'))
+    ends_at = _parse_admin_datetime(item.get('endsAt'))
+    if starts_at is not None and starts_at > current:
+        return False
+    if ends_at is not None and ends_at < current:
+        return False
+    return True
+
+
+def _is_candidate_editorial_item_acceptable(
+    *,
+    query_text: str,
+    query_tokens: list[str],
+    title_text: str,
+    reference_price: Optional[int],
+    candidate_price: Optional[int],
+) -> bool:
+    if not title_text.strip():
+        return False
+
+    if _matches_negative_family_rule(query_text, title_text):
+        return False
+
+    title_lower = title_text.lower()
+    if any(hint in title_lower for hint in _GENERIC_BLOCKED_TITLE_HINTS):
+        return False
+
+    query_pack_count = _extract_pack_count(query_text)
+    title_pack_count = _extract_pack_count(title_text)
+    allow_multipack = bool(query_pack_count and query_pack_count > 1)
+
+    if not allow_multipack and title_pack_count is not None and title_pack_count > 2:
+        return False
+
+    if _is_price_outlier(reference_price, candidate_price, allow_multipack=allow_multipack):
+        return False
+
+    matched_token_count = _match_query_token_count(
+        query_tokens=query_tokens,
+        title_text=title_text,
+    )
+    if query_tokens and matched_token_count == 0:
+        return False
+
+    if _is_strong_same_product_candidate(
+        query_text=query_text,
+        query_tokens=query_tokens,
+        title_text=title_text,
+    ):
+        return True
+
+    required_matches = min(2, len([token for token in query_tokens if token]))
+    return matched_token_count >= max(required_matches, 1)
+
+
+def _score_editorial_item(
+    *,
+    query_text: str,
+    query_tokens: list[str],
+    title_text: str,
+    reference_price: Optional[int],
+    candidate_price: Optional[int],
+    display_slot: Optional[int],
+) -> int:
+    score = 1000
+    matched_token_count = _match_query_token_count(
+        query_tokens=query_tokens,
+        title_text=title_text,
+    )
+    score += min(matched_token_count * 24, 144)
+
+    if _is_strong_same_product_candidate(
+        query_text=query_text,
+        query_tokens=query_tokens,
+        title_text=title_text,
+    ):
+        score += 260
+
+    if _is_cheaper_than_reference(reference_price, candidate_price):
+        score += 140
+    elif reference_price is not None and candidate_price is not None and reference_price > 0:
+        ratio = candidate_price / reference_price
+        if 0.7 <= ratio <= 1.35:
+            score += 36
+        elif 0.5 <= ratio <= 1.7:
+            score += 18
+
+    if display_slot is not None and display_slot > 0:
+        score += max(0, 40 - min(display_slot, 40))
+
+    return score
+
+
+def _build_editorial_highlights(
+    item: dict[str, Any],
+    *,
+    reference_price: Optional[int],
+) -> list[str]:
+    highlights: list[str] = ['운영자 추천 상품']
+
+    provider = str(item.get('provider') or '').strip()
+    if provider:
+        highlights.append(f'제공처: {provider}')
+
+    candidate_price = _parse_int(item.get('price'))
+    if reference_price is not None and candidate_price is not None:
+        highlights.append(_format_price_delta(reference_price, candidate_price))
+
+    return highlights[:4]
+
+
+def _load_editorial_candidate_offers(
+    *,
+    db: Optional[OrmSession],
+    query_text: str,
+    query_tokens: list[str],
+    reference_price: Optional[int],
+) -> list[dict[str, Any]]:
+    if db is None:
+        return []
+
+    try:
+        explore_settings = get_explore_settings(db)
+    except Exception:
+        return []
+
+    if not bool(explore_settings.get('editorialRecommendationsEnabled', True)):
+        return []
+
+    raw_items = explore_settings.get('editorialRecommendationsItems')
+    if not isinstance(raw_items, list):
+        return []
+
+    offers: list[dict[str, Any]] = []
+    current = datetime.utcnow()
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        if not _is_editorial_item_active(item, now=current):
+            continue
+
+        title = _clean_html_text(item.get('title'))
+        deeplink = str(item.get('deeplinkUrl') or item.get('url') or '').strip()
+        if not title or not deeplink:
+            continue
+
+        candidate_price = _parse_int(item.get('price'))
+        if not _is_candidate_editorial_item_acceptable(
+            query_text=query_text,
+            query_tokens=query_tokens,
+            title_text=title,
+            reference_price=reference_price,
+            candidate_price=candidate_price,
+        ):
+            continue
+
+        raw_display_slot = item.get('displaySlot')
+        display_slot = raw_display_slot if isinstance(raw_display_slot, int) else _parse_int(raw_display_slot)
+        offers.append(
+            {
+                'provider': str(item.get('provider') or '').strip() or '추천',
+                'title': title,
+                'subtitle': '운영자 추천',
+                'price': candidate_price,
+                'thumbnailUrl': str(item.get('thumbnailUrl') or '').strip() or None,
+                'deeplinkUrl': deeplink,
+                '_score': _score_editorial_item(
+                    query_text=query_text,
+                    query_tokens=query_tokens,
+                    title_text=title,
+                    reference_price=reference_price,
+                    candidate_price=candidate_price,
+                    display_slot=display_slot,
+                ),
+                'highlights': _build_editorial_highlights(
+                    item,
+                    reference_price=reference_price,
+                ),
+                '_sourcePriority': 0,
+            }
+        )
+
+    return offers
+
+
 def _build_naver_highlights(item: dict[str, Any], *, reference_price: Optional[int]) -> list[str]:
     highlights: list[str] = []
 
@@ -361,6 +573,7 @@ def search_naver_shopping_offers(
     query_text: str,
     source_type: str,
     reference_price: Optional[int],
+    db: Optional[OrmSession] = None,
     enabled: Optional[bool] = None,
     client_id: Optional[str] = None,
     client_secret: Optional[str] = None,
@@ -377,7 +590,12 @@ def search_naver_shopping_offers(
         client_secret=effective_client_secret,
     )
 
-    offers: list[dict[str, Any]] = []
+    offers: list[dict[str, Any]] = _load_editorial_candidate_offers(
+        db=db,
+        query_text=normalized.normalized_query_text,
+        query_tokens=normalized.intent_tokens,
+        reference_price=reference_price,
+    )
     error_code: Optional[str] = None
 
     if search_ready:
@@ -416,11 +634,12 @@ def search_naver_shopping_offers(
                         reference_price=reference_price,
                     ):
                         continue
+                    mall_name = _clean_html_text(item.get('mallName')) or '네이버쇼핑'
                     offers.append(
                         {
-                            'provider': 'naver-shopping',
+                            'provider': mall_name,
                             'title': title,
-                            'subtitle': _clean_html_text(item.get('mallName')) or '네이버쇼핑',
+                            'subtitle': mall_name,
                             'price': _parse_int(item.get('lprice')),
                             'thumbnailUrl': str(item.get('image') or '').strip() or None,
                             'deeplinkUrl': link,
@@ -435,6 +654,7 @@ def search_naver_shopping_offers(
                                 item,
                                 reference_price=reference_price,
                             ),
+                            '_sourcePriority': 1,
                         }
                     )
         except HTTPError as exc:
@@ -449,6 +669,7 @@ def search_naver_shopping_offers(
     for offer in sorted(
         offers,
         key=lambda offer: (
+            -int(offer.get('_sourcePriority') or 0),
             int(offer.get('_score') or 0),
             -int(offer.get('price') or 0) if offer.get('price') else 0,
         ),
@@ -459,6 +680,7 @@ def search_naver_shopping_offers(
             continue
         seen_urls.add(deeplink)
         offer.pop('_score', None)
+        offer.pop('_sourcePriority', None)
         deduped_offers.append(offer)
         if len(deduped_offers) >= 5:
             break
@@ -501,6 +723,10 @@ def search_naver_shopping_offers(
             'genericMessage': generic_message,
             'linkWrappingReady': False,
             'exactCheaperCandidateFound': bool(exact_cheaper_offers),
+            'adminCuratedCandidateFound': any(
+                str(offer.get('subtitle') or '').strip() == '운영자 추천'
+                for offer in deduped_offers
+            ),
         },
         'offers': visible_offers,
     }

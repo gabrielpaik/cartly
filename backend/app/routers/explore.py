@@ -21,6 +21,7 @@ def naver_shopping_offer_preview(
     q: str = Query(min_length=1),
     source_type: str = Query(default='pendingReview', alias='sourceType'),
     reference_price: Optional[int] = Query(default=None, alias='referencePrice', ge=0),
+    db: OrmSession = Depends(db_dep),
 ):
     return {
         'ok': True,
@@ -29,6 +30,7 @@ def naver_shopping_offer_preview(
             query_text=q,
             source_type=source_type,
             reference_price=reference_price,
+            db=db,
         ),
     }
 

@@ -1585,7 +1585,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            '네이버쇼핑 결과',
+                            '추천 대안',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,

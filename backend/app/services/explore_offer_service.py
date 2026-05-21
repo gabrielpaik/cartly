@@ -450,11 +450,7 @@ def _build_editorial_highlights(
     *,
     reference_price: Optional[int],
 ) -> list[str]:
-    highlights: list[str] = ['운영자 추천 상품']
-
-    provider = str(item.get('provider') or '').strip()
-    if provider:
-        highlights.append(f'제공처: {provider}')
+    highlights: list[str] = []
 
     candidate_price = _parse_int(item.get('price'))
     if reference_price is not None and candidate_price is not None:
@@ -510,11 +506,12 @@ def _load_editorial_candidate_offers(
 
         raw_display_slot = item.get('displaySlot')
         display_slot = raw_display_slot if isinstance(raw_display_slot, int) else _parse_int(raw_display_slot)
+        provider = str(item.get('provider') or '').strip() or '추천'
         offers.append(
             {
-                'provider': str(item.get('provider') or '').strip() or '추천',
+                'provider': provider,
                 'title': title,
-                'subtitle': '운영자 추천',
+                'subtitle': provider,
                 'price': candidate_price,
                 'thumbnailUrl': str(item.get('thumbnailUrl') or '').strip() or None,
                 'deeplinkUrl': deeplink,
@@ -531,6 +528,7 @@ def _load_editorial_candidate_offers(
                     reference_price=reference_price,
                 ),
                 '_sourcePriority': 0,
+                '_isAdminCurated': True,
             }
         )
 
@@ -666,6 +664,7 @@ def search_naver_shopping_offers(
 
     deduped_offers: list[dict[str, Any]] = []
     seen_urls: set[str] = set()
+    admin_curated_candidate_found = False
     for offer in sorted(
         offers,
         key=lambda offer: (
@@ -679,6 +678,9 @@ def search_naver_shopping_offers(
         if not deeplink or deeplink in seen_urls:
             continue
         seen_urls.add(deeplink)
+        admin_curated_candidate_found = (
+            admin_curated_candidate_found or bool(offer.pop('_isAdminCurated', False))
+        )
         offer.pop('_score', None)
         offer.pop('_sourcePriority', None)
         deduped_offers.append(offer)
@@ -723,10 +725,7 @@ def search_naver_shopping_offers(
             'genericMessage': generic_message,
             'linkWrappingReady': False,
             'exactCheaperCandidateFound': bool(exact_cheaper_offers),
-            'adminCuratedCandidateFound': any(
-                str(offer.get('subtitle') or '').strip() == '운영자 추천'
-                for offer in deduped_offers
-            ),
+            'adminCuratedCandidateFound': admin_curated_candidate_found,
         },
         'offers': visible_offers,
     }

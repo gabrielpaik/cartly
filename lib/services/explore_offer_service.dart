@@ -16,9 +16,6 @@ ExploreAlternativeOffer _mergeQueryMetaIntoOffer(
   ExploreAlternativeOffer offer,
   Map<String, dynamic>? queryMeta,
 ) {
-  final normalizedQueryText =
-      (queryMeta?['normalizedQueryText'] as String?)?.trim();
-  final sourceType = (queryMeta?['sourceType'] as String?)?.trim();
   final referencePriceRaw = queryMeta?['referencePrice'];
   final referencePrice = referencePriceRaw is int
       ? referencePriceRaw
@@ -26,20 +23,18 @@ ExploreAlternativeOffer _mergeQueryMetaIntoOffer(
       ? referencePriceRaw.toInt()
       : int.tryParse('$referencePriceRaw');
 
-  final highlights = <String>[
-    ...offer.highlights,
-    if (sourceType != null && sourceType.isNotEmpty) '소스: $sourceType',
-    if (normalizedQueryText != null &&
-        normalizedQueryText.isNotEmpty &&
-        !offer.highlights.any((item) => item.contains(normalizedQueryText)))
-      '정규화 쿼리: $normalizedQueryText',
-    if (referencePrice != null && offer.price != null)
-      _referencePriceHighlight(referencePrice, offer.price!),
-  ];
+  final highlights = <String>[...offer.highlights];
+  if (referencePrice != null && offer.price != null) {
+    final priceHighlight = _referencePriceHighlight(
+      referencePrice,
+      offer.price!,
+    );
+    if (!highlights.contains(priceHighlight)) {
+      highlights.add(priceHighlight);
+    }
+  }
 
-  return offer.copyWith(
-    highlights: highlights.toSet().toList(growable: false),
-  );
+  return offer.copyWith(highlights: highlights.toSet().toList(growable: false));
 }
 
 String _referencePriceHighlight(int referencePrice, int offerPrice) {
@@ -63,28 +58,27 @@ ExploreOfferPresentationMode _presentationModeFromValue(String? rawValue) {
 class ExploreApiUrlBuilder {
   final ExplorePartnerConfig config;
 
-  const ExploreApiUrlBuilder({
-    this.config = ExplorePartnerConfig.current,
-  });
+  const ExploreApiUrlBuilder({this.config = ExplorePartnerConfig.current});
 
-  String get _baseUrl => config.normalizedBridgeBaseUrl ?? getCartlyApiBaseUrl();
+  String get _baseUrl =>
+      config.normalizedBridgeBaseUrl ?? getCartlyApiBaseUrl();
 
   Uri buildNaverShoppingUri(ExploreOfferQuery query) {
-    return Uri.parse('$_baseUrl/v1/explore/offers/naver-shopping').replace(
-      queryParameters: query.toQueryParameters(),
-    );
+    return Uri.parse(
+      '$_baseUrl/v1/explore/offers/naver-shopping',
+    ).replace(queryParameters: query.toQueryParameters());
   }
 
   Uri buildCoupangPreviewUri(ExploreOfferQuery query) {
-    return Uri.parse('$_baseUrl/v1/explore/offers/coupang-partners').replace(
-      queryParameters: query.toQueryParameters(),
-    );
+    return Uri.parse(
+      '$_baseUrl/v1/explore/offers/coupang-partners',
+    ).replace(queryParameters: query.toQueryParameters());
   }
 
   Uri buildCoupangBridgeUri(ExploreOfferQuery query) {
-    return Uri.parse('$_baseUrl/v1/explore/offers/coupang-partners/deeplink').replace(
-      queryParameters: query.toQueryParameters(),
-    );
+    return Uri.parse(
+      '$_baseUrl/v1/explore/offers/coupang-partners/deeplink',
+    ).replace(queryParameters: query.toQueryParameters());
   }
 
   String resolveUrl(String rawUrl) {
@@ -170,12 +164,12 @@ Future<ExploreOfferResult> _fetchRemoteOffers(
     final offers = offersJson
         .whereType<Map>()
         .map(
-          (item) => ExploreAlternativeOffer.fromJson(
-            Map<String, dynamic>.from(item),
-          ),
+          (item) =>
+              ExploreAlternativeOffer.fromJson(Map<String, dynamic>.from(item)),
         )
         .map(
-          (offer) => offer.deeplinkUrl == null || offer.deeplinkUrl!.trim().isEmpty
+          (offer) =>
+              offer.deeplinkUrl == null || offer.deeplinkUrl!.trim().isEmpty
               ? offer
               : offer.copyWith(
                   deeplinkUrl: urlBuilder.resolveUrl(offer.deeplinkUrl!),
@@ -191,7 +185,9 @@ Future<ExploreOfferResult> _fetchRemoteOffers(
 
     return ExploreOfferResult(
       mode: mode,
-      offers: mode == ExploreOfferPresentationMode.showOffers ? offers : const [],
+      offers: mode == ExploreOfferPresentationMode.showOffers
+          ? offers
+          : const [],
       genericMessage: genericMessage,
     );
   } catch (_) {
@@ -204,9 +200,7 @@ Future<ExploreOfferResult> _fetchRemoteOffers(
 class ExploreOfferSlotFactory {
   const ExploreOfferSlotFactory._();
 
-  static List<ExploreOfferSlot> build(
-    Iterable<ExploreOfferSignal> signals,
-  ) {
+  static List<ExploreOfferSlot> build(Iterable<ExploreOfferSignal> signals) {
     final deduped = <String>{};
     final slots = <ExploreOfferSlot>[];
 
@@ -224,9 +218,9 @@ class ExploreOfferSlotFactory {
           comparePoints: List.unmodifiable(signal.comparePoints),
           query: ExploreOfferQuery(
             intentKey: signal.intentKey,
-            queryText: ExploreIntentNormalizer
-                .normalize(signal.anchorName)
-                .normalizedQueryText,
+            queryText: ExploreIntentNormalizer.normalize(
+              signal.anchorName,
+            ).normalizedQueryText,
             sourceType: signal.sourceType,
             referencePrice: signal.anchorPrice,
           ),

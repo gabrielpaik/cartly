@@ -145,10 +145,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
 
   String _pageSubtitle(AppLocationSnapshot? locationSnapshot) {
     if (!_showShoppingMode) {
-      return AppRuntimeCopy.text(
-        ['help', 'subtitle'],
-        '다음 장보기에 도움을 드려요',
-      );
+      return AppRuntimeCopy.text(['help', 'subtitle'], '다음 장보기에 도움을 드려요');
     }
 
     final shoppingContextLabel = _shoppingContextLabel(locationSnapshot);
@@ -205,11 +202,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
             borderRadius: BorderRadius.circular(10),
           ),
         ),
-        icon: CartlySymbolIcon.sf(
-          iconName,
-          size: 18,
-          color: foregroundColor,
-        ),
+        icon: CartlySymbolIcon.sf(iconName, size: 18, color: foregroundColor),
       ),
     );
   }
@@ -338,6 +331,50 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     return fallback;
   }
 
+  int _stateDecisionPriority(
+    Map<String, dynamic> config,
+    String state,
+    String key,
+    int fallback,
+  ) {
+    final priorities = config['stateDecisionPriorities'];
+    if (priorities is Map) {
+      final rawStatePriorities = priorities[state];
+      if (rawStatePriorities is Map) {
+        final value = rawStatePriorities[key];
+        if (value is int) return value;
+        if (value is num) return value.toInt();
+        final parsed = int.tryParse('$value');
+        if (parsed != null) {
+          return parsed;
+        }
+      }
+    }
+    return fallback;
+  }
+
+  int _stateDecisionMaxCount(
+    Map<String, dynamic> config,
+    String state,
+    String key,
+    int fallback,
+  ) {
+    final counts = config['stateDecisionMaxCounts'];
+    if (counts is Map) {
+      final rawStateCounts = counts[state];
+      if (rawStateCounts is Map) {
+        final value = rawStateCounts[key];
+        if (value is int) return value;
+        if (value is num) return value.toInt();
+        final parsed = int.tryParse('$value');
+        if (parsed != null) {
+          return parsed;
+        }
+      }
+    }
+    return fallback;
+  }
+
   List<ExploreStorePromo> _applyPromoPolicy(
     List<ExploreStorePromo> promos,
     Map<String, dynamic> config,
@@ -420,6 +457,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     if (parts.isEmpty) {
       return const {
         'heroSummary',
+        'decisionInbox',
         'revisitItems',
         'repeatCandidates',
         'editorialPicks',
@@ -493,6 +531,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
   List<String> _dynamicSectionOrder(
     Map<String, dynamic> config, {
     required bool hasOfferSlots,
+    required bool hasDecisionInbox,
     required bool hasEditorialPicks,
     required bool hasStoreContextPromos,
     required String state,
@@ -501,16 +540,17 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     final fallback = switch (state) {
       _exploreStatePostSave => const [
         'savedContext',
-        'offerSlots',
+        'decisionInbox',
         'repeatCandidates',
         'editorialPicks',
+        'offerSlots',
       ],
       _exploreStateStoreContext => const [
         'storeContextPromo',
-        'offerSlots',
         'savedContext',
         'editorialPicks',
         'repeatCandidates',
+        'offerSlots',
       ],
       _exploreStateIdlePlanning => const [
         'savedContext',
@@ -518,7 +558,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
         'editorialPicks',
         'offerSlots',
       ],
-      _ => const ['heroSummary', 'offerSlots', 'revisitItems'],
+      _ => const ['offerSlots', 'heroSummary', 'decisionInbox', 'revisitItems'],
     };
 
     final configured = (config[_stateOrderKey(state)] as String? ?? '')
@@ -533,7 +573,7 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
       if (!enabled.contains(sectionId) || ordered.contains(sectionId)) {
         return;
       }
-      if (sectionId == 'decisionInbox') {
+      if (sectionId == 'decisionInbox' && !hasDecisionInbox) {
         return;
       }
       if (sectionId == 'offerSlots' && !hasOfferSlots) {
@@ -596,10 +636,11 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     final rawItems = (rankedItems != null && rankedItems.isNotEmpty)
         ? rankedItems
         : (config['editorialRecommendationsItems'] as List?)
-            ?.whereType<Map>()
-            .toList(growable: false);
+              ?.whereType<Map>()
+              .toList(growable: false);
 
-    final itemPool = rawItems?.map((item) {
+    final itemPool = rawItems
+        ?.map((item) {
           final data = Map<String, dynamic>.from(item);
           final url =
               (data['deeplinkUrl'] as String?)?.trim() ??
@@ -758,9 +799,6 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     required String state,
     required List<ExploreAlternativeOffer> pool,
   }) {
-    if (state == _exploreStateActiveShopping) {
-      return const [];
-    }
     if (!_configBool(config, 'editorialRecommendationsEnabled', true)) {
       return const [];
     }
@@ -787,11 +825,26 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
 
     final candidateWindow = max(visibleCount, visibleCount * 3);
     final shortlist = rankedPool.take(candidateWindow).toList(growable: false);
-    final shuffled = _editorialRefreshSeed == null
-        ? shortlist
-        : ([...shortlist]..shuffle(Random(_editorialRefreshSeed!)));
-    final remainder = rankedPool.skip(shortlist.length);
-    final candidatePool = [...shuffled, ...remainder];
+    final remainder = rankedPool.skip(shortlist.length).toList(growable: false);
+    final candidatePool = switch (_editorialRefreshSeed) {
+      null => rankedPool,
+      final seed => () {
+        final random = Random(seed);
+        final rankedShuffle = [...shortlist]..shuffle(random);
+        final explorationShuffle = [...remainder]..shuffle(random);
+        final explorationCount = min(
+          explorationShuffle.length,
+          max(1, visibleCount ~/ 3),
+        );
+        final rankedTakeCount = max(0, visibleCount - explorationCount);
+        return <ExploreAlternativeOffer>[
+          ...rankedShuffle.take(rankedTakeCount),
+          ...explorationShuffle.take(explorationCount),
+          ...rankedShuffle.skip(rankedTakeCount),
+          ...explorationShuffle.skip(explorationCount),
+        ];
+      }(),
+    };
     final arranged = List<ExploreAlternativeOffer?>.filled(visibleCount, null);
 
     for (final entry in fixedBySlot.entries) {
@@ -855,10 +908,12 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
             return FutureBuilder<List<ExploreOfferSlot>>(
               future: _loadVisibleOfferSlots(baseOfferSlots),
               builder: (context, offerSnapshot) {
-                final availableOfferSlots = offerSnapshot.data ?? const <ExploreOfferSlot>[];
+                final availableOfferSlots =
+                    offerSnapshot.data ?? const <ExploreOfferSlot>[];
                 final offerSlots = availableOfferSlots
                     .where(
-                      (slot) => !_dismissedOfferIntentKeys.contains(slot.intentKey),
+                      (slot) =>
+                          !_dismissedOfferIntentKeys.contains(slot.intentKey),
                     )
                     .toList(growable: false);
                 final hiddenOfferCount =
@@ -868,7 +923,9 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                     .toSet();
                 final visibleRevisitItems = revisitItems
                     .where(
-                      (item) => !visibleOfferIntentKeys.contains(_normalize(item.name)),
+                      (item) => !visibleOfferIntentKeys.contains(
+                        _normalize(item.name),
+                      ),
                     )
                     .toList(growable: false);
                 final visibleRepeatCandidates = repeatCandidates
@@ -878,9 +935,16 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                       ),
                     )
                     .toList(growable: false);
+                final decisionInboxEntries = _buildDecisionInboxEntries(
+                  exploreConfig,
+                  state: currentState,
+                  offerSlots: offerSlots,
+                  revisitItems: revisitItems,
+                );
                 final orderedSections = _dynamicSectionOrder(
                   exploreConfig,
                   hasOfferSlots: offerSlots.isNotEmpty || hiddenOfferCount > 0,
+                  hasDecisionInbox: decisionInboxEntries.isNotEmpty,
                   hasEditorialPicks: editorialOffers.isNotEmpty,
                   hasStoreContextPromos: storeContextPromos.isNotEmpty,
                   state: currentState,
@@ -889,301 +953,325 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
 
                 for (final sectionId in orderedSections) {
                   switch (sectionId) {
-                case 'heroSummary':
-                  sectionWidgets.add(
-                    _ExploreHeroCard(
-                      itemCount: _totalCount,
-                      totalPrice: _totalPrice,
-                      recentScanCount: widget.recentScans.length,
-                      compareCandidateCount: offerSlots.length,
-                      onGoHome: widget.onGoHome,
-                    ),
-                  );
-                  sectionWidgets.add(const SizedBox(height: 20));
-                  break;
-                case 'revisitItems':
-                  sectionWidgets.add(
-                    SectionHeader(
-                      title: '다시 볼 상품',
-                      subtitle: '비교 후보로 올리지 않은 최근 스캔과 현재 카트만 골라 보여드려요',
-                    ),
-                  );
-                  sectionWidgets.add(const SizedBox(height: 10));
-                  if (visibleRevisitItems.isEmpty) {
-                    sectionWidgets.add(
-                      const _EmptyInfoCard(
-                        title: '다시 볼 상품이 아직 없어요',
-                        body: '지금 다시 볼 상품은 비교 후보에 먼저 반영됐거나, 아직 후보가 충분하지 않아요.',
-                      ),
-                    );
-                  } else {
-                    sectionWidgets.addAll(
-                      visibleRevisitItems.map(
-                        (item) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _DecisionItemCard(
-                            item: item,
-                            onTap: () => _showIntentDetailSheet(
-                              context,
-                              _IntentDetail.fromRevisitItem(item),
+                    case 'heroSummary':
+                      sectionWidgets.add(
+                        _ExploreHeroCard(
+                          itemCount: _totalCount,
+                          totalPrice: _totalPrice,
+                          recentScanCount: widget.recentScans.length,
+                          compareCandidateCount: offerSlots.length,
+                          onGoHome: widget.onGoHome,
+                        ),
+                      );
+                      sectionWidgets.add(const SizedBox(height: 20));
+                      break;
+                    case 'decisionInbox':
+                      sectionWidgets.add(
+                        const SectionHeader(
+                          title: '결정 인박스',
+                          subtitle: '지금 먼저 다시 볼 후보만 모아드려요',
+                        ),
+                      );
+                      sectionWidgets.add(const SizedBox(height: 10));
+                      sectionWidgets.addAll(
+                        decisionInboxEntries.map(
+                          (entry) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _DecisionInboxCard(
+                              entry: entry,
+                              onTap: () =>
+                                  _showIntentDetailSheet(context, entry.detail),
                             ),
                           ),
                         ),
-                      ),
-                    );
-                  }
-                  sectionWidgets.add(const SizedBox(height: 8));
-                  break;
-                case 'repeatCandidates':
-                  sectionWidgets.add(
-                    SectionHeader(
-                      title: '반복 구매',
-                      subtitle: '비교 후보로 아직 올리지 않은 반복 구매 상품만 따로 보여드려요',
-                    ),
-                  );
-                  sectionWidgets.add(const SizedBox(height: 10));
-                  if (visibleRepeatCandidates.isEmpty) {
-                    sectionWidgets.add(
-                      const _EmptyInfoCard(
-                        title: '아직 반복 패턴이 부족해요',
-                        body: '반복 구매 후보는 이미 비교 후보에 반영됐거나, 아직 반복 패턴이 더 필요해요.',
-                      ),
-                    );
-                  } else {
-                    sectionWidgets.addAll(
-                      visibleRepeatCandidates.map(
-                        (candidate) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _RepeatCandidateCard(
-                            candidate: candidate,
-                            onTap: () => _showIntentDetailSheet(
-                              context,
-                              _IntentDetail.fromRepeatCandidate(candidate),
-                            ),
-                          ),
+                      );
+                      sectionWidgets.add(const SizedBox(height: 8));
+                      break;
+                    case 'revisitItems':
+                      sectionWidgets.add(
+                        SectionHeader(
+                          title: '다시 볼 상품',
+                          subtitle: '비교 후보로 올리지 않은 최근 스캔과 현재 카트만 골라 보여드려요',
                         ),
-                      ),
-                    );
-                  }
-                  sectionWidgets.add(const SizedBox(height: 20));
-                  break;
-                case 'editorialPicks':
-                  sectionWidgets.add(
-                    SectionHeader(
-                      title: _configText(
-                        exploreConfig,
-                        'editorialRecommendationsTitle',
-                        '추천 제품',
-                      ),
-                      subtitle: _configText(
-                        exploreConfig,
-                        'editorialRecommendationsSubtitle',
-                        '지금 카트에 많이 담는 TOP5',
-                      ),
-                    ),
-                  );
-                  sectionWidgets.add(const SizedBox(height: 10));
-                  if (editorialPool.length > editorialOffers.length) {
-                    sectionWidgets.add(
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
-                          style:
-                              CartlyButtonStyles.quiet(
-                                foregroundColor: const Color(0xFF6B2B35),
-                              ).copyWith(
-                                padding: const WidgetStatePropertyAll(
-                                  EdgeInsets.symmetric(
-                                    horizontal: 0,
-                                    vertical: 0,
-                                  ),
-                                ),
-                                textStyle: const WidgetStatePropertyAll(
-                                  TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                      );
+                      sectionWidgets.add(const SizedBox(height: 10));
+                      if (visibleRevisitItems.isEmpty) {
+                        sectionWidgets.add(
+                          const _EmptyInfoCard(
+                            title: '다시 볼 상품이 아직 없어요',
+                            body:
+                                '지금 다시 볼 상품은 비교 후보에 먼저 반영됐거나, 아직 후보가 충분하지 않아요.',
+                          ),
+                        );
+                      } else {
+                        sectionWidgets.addAll(
+                          visibleRevisitItems.map(
+                            (item) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _DecisionItemCard(
+                                item: item,
+                                onTap: () => _showIntentDetailSheet(
+                                  context,
+                                  _IntentDetail.fromRevisitItem(item),
                                 ),
                               ),
-                          onPressed: () {
-                            setState(() {
-                              _editorialRefreshSeed =
-                                  DateTime.now().microsecondsSinceEpoch;
-                            });
-                          },
-                          icon: const CartlySymbolIcon.sf(
-                            'arrow.clockwise',
-                            size: 18,
+                            ),
                           ),
-                          label: const Text('다른 추천 보기'),
+                        );
+                      }
+                      sectionWidgets.add(const SizedBox(height: 8));
+                      break;
+                    case 'repeatCandidates':
+                      sectionWidgets.add(
+                        SectionHeader(
+                          title: '반복 구매',
+                          subtitle: '비교 후보로 아직 올리지 않은 반복 구매 상품만 따로 보여드려요',
                         ),
-                      ),
-                    );
-                    sectionWidgets.add(const SizedBox(height: 6));
-                  }
-                  sectionWidgets.addAll(
-                    editorialOffers.asMap().entries.map(
-                      (entry) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _AlternativeOfferPreviewCard(
-                          offer: entry.value,
-                          onTap: (offer) => _trackEditorialClick(
-                            offer,
-                            eventName: 'explore_editorial_pick_click',
-                            placement: 'editorial_recommendations',
+                      );
+                      sectionWidgets.add(const SizedBox(height: 10));
+                      if (visibleRepeatCandidates.isEmpty) {
+                        sectionWidgets.add(
+                          const _EmptyInfoCard(
+                            title: '아직 반복 패턴이 부족해요',
+                            body:
+                                '반복 구매 후보는 이미 비교 후보에 반영됐거나, 아직 반복 패턴이 더 필요해요.',
                           ),
-                        ),
-                      ),
-                    ),
-                  );
-                  final disclaimer =
-                      (exploreConfig['editorialRecommendationsDisclaimer']
-                              as String?)
-                          ?.trim() ??
-                      '';
-                  if (disclaimer.isNotEmpty) {
-                    sectionWidgets.add(
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4, bottom: 8),
-                        child: Text(
-                          disclaimer,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: CartlyColors.textSecondary,
-                            height: 1.45,
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-                  sectionWidgets.add(const SizedBox(height: 20));
-                  break;
-                case 'offerSlots':
-                  sectionWidgets.add(
-                    const SectionHeader(
-                      title: '비교 후보',
-                      subtitle: '비슷한 대안을 함께 확인해보세요',
-                    ),
-                  );
-                  sectionWidgets.add(const SizedBox(height: 10));
-                  if (hiddenOfferCount > 0) {
-                    sectionWidgets.add(
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
-                          style:
-                              CartlyButtonStyles.quiet(
-                                foregroundColor: const Color(0xFF6B2B35),
-                              ).copyWith(
-                                padding: const WidgetStatePropertyAll(
-                                  EdgeInsets.symmetric(
-                                    horizontal: 0,
-                                    vertical: 0,
-                                  ),
-                                ),
-                                textStyle: const WidgetStatePropertyAll(
-                                  TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                        );
+                      } else {
+                        sectionWidgets.addAll(
+                          visibleRepeatCandidates.map(
+                            (candidate) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _RepeatCandidateCard(
+                                candidate: candidate,
+                                onTap: () => _showIntentDetailSheet(
+                                  context,
+                                  _IntentDetail.fromRepeatCandidate(candidate),
                                 ),
                               ),
-                          onPressed: () {
-                            setState(() {
-                              _dismissedOfferIntentKeys.clear();
-                            });
-                          },
-                          icon: const CartlySymbolIcon.sf(
-                            'eyeglasses',
-                            size: 18,
-                          ),
-                          label: const Text('가린 대안 다시 보기'),
-                        ),
-                      ),
-                    );
-                    sectionWidgets.add(const SizedBox(height: 6));
-                  }
-                  sectionWidgets.addAll(
-                    offerSlots.map(
-                      (slot) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _OfferSlotCard(
-                          slot: slot,
-                          onTap: () => _showIntentDetailSheet(
-                            context,
-                            _IntentDetail.fromOfferSlot(slot),
-                          ),
-                          onDismiss: () {
-                            setState(() {
-                              _dismissedOfferIntentKeys.add(slot.intentKey);
-                            });
-                          },
-                        ),
-                      ),
-                    ),
-                  );
-                  sectionWidgets.add(const SizedBox(height: 20));
-                  break;
-                case 'storeContextPromo':
-                  sectionWidgets.add(
-                    SectionHeader(
-                      title: '지금 이 마트 세일',
-                      subtitle: '매장 정보가 있으면 지금 볼 만한 할인과 대안을 먼저 보여드려요',
-                    ),
-                  );
-                  sectionWidgets.add(const SizedBox(height: 10));
-                  sectionWidgets.add(
-                    _StoreContextPromoCard(
-                      title: _configText(
-                        exploreConfig,
-                        'storeContextPromoTitle',
-                        '지금 이 마트 세일',
-                      ),
-                      body: _configText(
-                        exploreConfig,
-                        'storeContextPromoBody',
-                        '자주 사는 상품군과 겹치는 할인 행사부터 먼저 보여줘요.',
-                      ),
-                      enabled: _configBool(
-                        exploreConfig,
-                        'storeContextEnabled',
-                        false,
-                      ),
-                      promos: storeContextPromos,
-                    ),
-                  );
-                  sectionWidgets.add(const SizedBox(height: 20));
-                  break;
-                case 'savedContext':
-                  final openLatestCart = latest == null
-                      ? widget.onGoHome
-                      : () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => CartDetailPage(cart: latest),
                             ),
-                          );
-                        };
-                  sectionWidgets.add(
-                    SectionHeader(
-                      title: '지난 장보기 맥락',
-                      subtitle: '최근 저장한 카트를 바로 열거나 전체 기록을 이어서 보실 수 있어요',
-                    ),
-                  );
-                  sectionWidgets.add(const SizedBox(height: 10));
-                  sectionWidgets.add(
-                    _SavedContextHeroCard(
-                      cart: latest,
-                      onOpenLatest: openLatestCart,
-                      onOpenAll: widget.onGoSaved,
-                      onStartShopping: widget.onGoHome,
-                    ),
-                  );
-                  sectionWidgets.add(const SizedBox(height: 20));
-                  break;
-              }
-            }
+                          ),
+                        );
+                      }
+                      sectionWidgets.add(const SizedBox(height: 20));
+                      break;
+                    case 'editorialPicks':
+                      sectionWidgets.add(
+                        SectionHeader(
+                          title: _configText(
+                            exploreConfig,
+                            'editorialRecommendationsTitle',
+                            '추천 제품',
+                          ),
+                          subtitle: _configText(
+                            exploreConfig,
+                            'editorialRecommendationsSubtitle',
+                            '지금 카트에 많이 담는 TOP5',
+                          ),
+                        ),
+                      );
+                      sectionWidgets.add(const SizedBox(height: 10));
+                      if (editorialPool.length > editorialOffers.length) {
+                        sectionWidgets.add(
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              style:
+                                  CartlyButtonStyles.quiet(
+                                    foregroundColor: const Color(0xFF6B2B35),
+                                  ).copyWith(
+                                    padding: const WidgetStatePropertyAll(
+                                      EdgeInsets.symmetric(
+                                        horizontal: 0,
+                                        vertical: 0,
+                                      ),
+                                    ),
+                                    textStyle: const WidgetStatePropertyAll(
+                                      TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                              onPressed: () {
+                                setState(() {
+                                  _editorialRefreshSeed =
+                                      DateTime.now().microsecondsSinceEpoch;
+                                });
+                              },
+                              icon: const CartlySymbolIcon.sf(
+                                'arrow.clockwise',
+                                size: 18,
+                              ),
+                              label: const Text('다른 추천 보기'),
+                            ),
+                          ),
+                        );
+                        sectionWidgets.add(const SizedBox(height: 6));
+                      }
+                      sectionWidgets.addAll(
+                        editorialOffers.asMap().entries.map(
+                          (entry) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _AlternativeOfferPreviewCard(
+                              offer: entry.value,
+                              onTap: (offer) => _trackEditorialClick(
+                                offer,
+                                eventName: 'explore_editorial_pick_click',
+                                placement: 'editorial_recommendations',
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                      final disclaimer =
+                          (exploreConfig['editorialRecommendationsDisclaimer']
+                                  as String?)
+                              ?.trim() ??
+                          '';
+                      if (disclaimer.isNotEmpty) {
+                        sectionWidgets.add(
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4, bottom: 8),
+                            child: Text(
+                              disclaimer,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: CartlyColors.textSecondary,
+                                height: 1.45,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      sectionWidgets.add(const SizedBox(height: 20));
+                      break;
+                    case 'offerSlots':
+                      sectionWidgets.add(
+                        const SectionHeader(
+                          title: '비교 후보',
+                          subtitle: '비슷한 대안을 함께 확인해보세요',
+                        ),
+                      );
+                      sectionWidgets.add(const SizedBox(height: 10));
+                      if (hiddenOfferCount > 0) {
+                        sectionWidgets.add(
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              style:
+                                  CartlyButtonStyles.quiet(
+                                    foregroundColor: const Color(0xFF6B2B35),
+                                  ).copyWith(
+                                    padding: const WidgetStatePropertyAll(
+                                      EdgeInsets.symmetric(
+                                        horizontal: 0,
+                                        vertical: 0,
+                                      ),
+                                    ),
+                                    textStyle: const WidgetStatePropertyAll(
+                                      TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                              onPressed: () {
+                                setState(() {
+                                  _dismissedOfferIntentKeys.clear();
+                                });
+                              },
+                              icon: const CartlySymbolIcon.sf(
+                                'eyeglasses',
+                                size: 18,
+                              ),
+                              label: const Text('가린 대안 다시 보기'),
+                            ),
+                          ),
+                        );
+                        sectionWidgets.add(const SizedBox(height: 6));
+                      }
+                      sectionWidgets.addAll(
+                        offerSlots.map(
+                          (slot) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _OfferSlotCard(
+                              slot: slot,
+                              onTap: () => _showIntentDetailSheet(
+                                context,
+                                _IntentDetail.fromOfferSlot(slot),
+                              ),
+                              onDismiss: () {
+                                setState(() {
+                                  _dismissedOfferIntentKeys.add(slot.intentKey);
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      );
+                      sectionWidgets.add(const SizedBox(height: 20));
+                      break;
+                    case 'storeContextPromo':
+                      sectionWidgets.add(
+                        SectionHeader(
+                          title: '지금 이 마트 세일',
+                          subtitle: '매장 정보가 있으면 지금 볼 만한 할인과 대안을 먼저 보여드려요',
+                        ),
+                      );
+                      sectionWidgets.add(const SizedBox(height: 10));
+                      sectionWidgets.add(
+                        _StoreContextPromoCard(
+                          title: _configText(
+                            exploreConfig,
+                            'storeContextPromoTitle',
+                            '지금 이 마트 세일',
+                          ),
+                          body: _configText(
+                            exploreConfig,
+                            'storeContextPromoBody',
+                            '자주 사는 상품군과 겹치는 할인 행사부터 먼저 보여줘요.',
+                          ),
+                          enabled: _configBool(
+                            exploreConfig,
+                            'storeContextEnabled',
+                            false,
+                          ),
+                          promos: storeContextPromos,
+                        ),
+                      );
+                      sectionWidgets.add(const SizedBox(height: 20));
+                      break;
+                    case 'savedContext':
+                      final openLatestCart = latest == null
+                          ? widget.onGoHome
+                          : () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => CartDetailPage(cart: latest),
+                                ),
+                              );
+                            };
+                      sectionWidgets.add(
+                        SectionHeader(
+                          title: '지난 장보기 맥락',
+                          subtitle: '최근 저장한 카트를 바로 열거나 전체 기록을 이어서 보실 수 있어요',
+                        ),
+                      );
+                      sectionWidgets.add(const SizedBox(height: 10));
+                      sectionWidgets.add(
+                        _SavedContextHeroCard(
+                          cart: latest,
+                          onOpenLatest: openLatestCart,
+                          onOpenAll: widget.onGoSaved,
+                          onStartShopping: widget.onGoHome,
+                        ),
+                      );
+                      sectionWidgets.add(const SizedBox(height: 20));
+                      break;
+                  }
+                }
 
                 return ListView(
                   padding: EdgeInsets.zero,
@@ -1228,11 +1316,14 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: shoppingMode
-                                                ? CartlyText.pageHeroCompact.copyWith(
-                                                    color: CartlyColors.onBrandPrimary,
-                                                  )
+                                                ? CartlyText.pageHeroCompact
+                                                      .copyWith(
+                                                        color: CartlyColors
+                                                            .onBrandPrimary,
+                                                      )
                                                 : CartlyText.pageHero.copyWith(
-                                                    color: CartlyColors.subBrand,
+                                                    color:
+                                                        CartlyColors.subBrand,
                                                   ),
                                           ),
                                         ),
@@ -1259,7 +1350,9 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                                       overflow: TextOverflow.ellipsis,
                                       style: CartlyText.pageSubtitle.copyWith(
                                         color: shoppingMode
-                                            ? Colors.white.withValues(alpha: 0.92)
+                                            ? Colors.white.withValues(
+                                                alpha: 0.92,
+                                              )
                                             : CartlyColors.textSecondary,
                                       ),
                                     ),
@@ -1569,6 +1662,108 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
     return ExploreOfferSlotFactory.build(signals).take(offerMaxSlots).toList();
   }
 
+  List<_DecisionInboxEntry> _buildDecisionInboxEntries(
+    Map<String, dynamic> exploreConfig, {
+    required String state,
+    required List<ExploreOfferSlot> offerSlots,
+    required List<_RevisitItem> revisitItems,
+  }) {
+    final offerReason = _decisionCopyText(
+      exploreConfig,
+      'offerBody',
+      '같은 용도의 다른 선택지를 바로 비교하실 수 있어요.',
+    );
+    final offerCtaLabel = switch (state) {
+      _exploreStatePostSave => _decisionCopyText(
+        exploreConfig,
+        'offerReasonLabelPostSave',
+        '저장한 뒤 다시 보기',
+      ),
+      _exploreStateIdlePlanning => _decisionCopyText(
+        exploreConfig,
+        'offerReasonLabelIdlePlanning',
+        '다음 장보기 준비',
+      ),
+      _exploreStateStoreContext => _decisionCopyText(
+        exploreConfig,
+        'offerReasonLabelStoreContext',
+        '지금 매장 할인 보기',
+      ),
+      _ => _decisionCopyText(
+        exploreConfig,
+        'offerReasonLabelActiveShopping',
+        '지금 비교해보세요',
+      ),
+    };
+
+    final candidates = <_DecisionInboxEntry>[
+      ...offerSlots.map(
+        (slot) => _DecisionInboxEntry.fromOfferSlot(
+          slot,
+          reason: offerReason,
+          ctaLabel: offerCtaLabel,
+        ),
+      ),
+      ...revisitItems.map(_DecisionInboxEntry.fromRevisitItem),
+    ];
+
+    final ranked = candidates.asMap().entries.toList(growable: false)
+      ..sort((a, b) {
+        final aPriority = _stateDecisionPriority(
+          exploreConfig,
+          state,
+          a.value.priorityKey,
+          0,
+        );
+        final bPriority = _stateDecisionPriority(
+          exploreConfig,
+          state,
+          b.value.priorityKey,
+          0,
+        );
+        final priorityCompare = bPriority.compareTo(aPriority);
+        if (priorityCompare != 0) {
+          return priorityCompare;
+        }
+        return a.key.compareTo(b.key);
+      });
+
+    final selected = <_DecisionInboxEntry>[];
+    final usedNames = <String>{};
+    final counts = <String, int>{};
+    const maxEntries = 4;
+
+    for (final rankedEntry in ranked) {
+      final entry = rankedEntry.value;
+      final nameKey = _normalize(entry.name);
+      if (nameKey.isEmpty || !usedNames.add(nameKey)) {
+        continue;
+      }
+      final maxCount = _stateDecisionMaxCount(
+        exploreConfig,
+        state,
+        entry.priorityKey,
+        1,
+      );
+      if (maxCount <= 0) {
+        usedNames.remove(nameKey);
+        continue;
+      }
+      final currentCount = counts[entry.priorityKey] ?? 0;
+      if (currentCount >= maxCount) {
+        usedNames.remove(nameKey);
+        continue;
+      }
+      counts[entry.priorityKey] = currentCount + 1;
+      selected.add(entry);
+      if (selected.length >= maxEntries) {
+        break;
+      }
+    }
+
+    return selected;
+  }
+
   Future<void> _showIntentDetailSheet(
     BuildContext context,
     _IntentDetail detail,
@@ -1643,7 +1838,8 @@ class _ShoppingHelpPageState extends State<ShoppingHelpPage> {
                         );
                       }
 
-                      final result = snapshot.data ?? const ExploreOfferResult.none();
+                      final result =
+                          snapshot.data ?? const ExploreOfferResult.none();
                       if (result.shouldShowGenericHint) {
                         return Padding(
                           padding: const EdgeInsets.only(top: 2),
@@ -1822,6 +2018,74 @@ class _HeroStat extends StatelessWidget {
           color: CartlyColors.onBrandPrimary,
           fontSize: 12,
           fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _DecisionInboxCard extends StatelessWidget {
+  final _DecisionInboxEntry entry;
+  final VoidCallback onTap;
+
+  const _DecisionInboxCard({required this.entry, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: CartlyColors.surface1,
+      borderRadius: BorderRadius.circular(CartlyRadii.card),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(CartlyRadii.card),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      entry.name,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  CartlyBadge(label: entry.badge),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '₩${formatPrice(entry.price)}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                entry.reason,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: CartlyColors.textSecondary,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                entry.ctaLabel,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: CartlyColors.subBrand,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2069,10 +2333,7 @@ class _StoreContextPromoCard extends StatelessWidget {
     return CartlySurfaceCard(
       radius: CartlyRadii.hero,
       gradient: const LinearGradient(
-        colors: [
-          CartlyColors.softWarmSurface,
-          CartlyColors.surface1,
-        ],
+        colors: [CartlyColors.softWarmSurface, CartlyColors.surface1],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
@@ -2469,6 +2730,59 @@ class _RepeatCandidate {
   });
 }
 
+class _DecisionInboxEntry {
+  final String priorityKey;
+  final String name;
+  final int price;
+  final String badge;
+  final String reason;
+  final String ctaLabel;
+  final _IntentDetail detail;
+
+  const _DecisionInboxEntry({
+    required this.priorityKey,
+    required this.name,
+    required this.price,
+    required this.badge,
+    required this.reason,
+    required this.ctaLabel,
+    required this.detail,
+  });
+
+  factory _DecisionInboxEntry.fromRevisitItem(_RevisitItem item) {
+    return _DecisionInboxEntry(
+      priorityKey: item.decisionKey,
+      name: item.name,
+      price: item.price,
+      badge: item.badge,
+      reason: item.reason,
+      ctaLabel: '비교 준비 보기',
+      detail: _IntentDetail.fromRevisitItem(item),
+    );
+  }
+
+  factory _DecisionInboxEntry.fromOfferSlot(
+    ExploreOfferSlot slot, {
+    required String reason,
+    required String ctaLabel,
+  }) {
+    final priorityKey = switch (slot.sourceType) {
+      ExploreOfferSourceType.currentCart => 'offerCurrentCart',
+      ExploreOfferSourceType.repeatPurchase => 'offerRepeatPurchase',
+      ExploreOfferSourceType.pendingReview => 'offerPendingReview',
+    };
+    return _DecisionInboxEntry(
+      priorityKey: priorityKey,
+      name: slot.anchorName,
+      price: slot.anchorPrice,
+      badge: slot.sourceLabel,
+      reason: reason,
+      ctaLabel: ctaLabel,
+      detail: _IntentDetail.fromOfferSlot(slot),
+    );
+  }
+}
+
 class _IntentDetail {
   final String name;
   final int price;
@@ -2489,7 +2803,7 @@ class _IntentDetail {
       name: item.name,
       price: item.price,
       badge: item.badge,
-      futureNote: '여기서 필터된 네이버쇼핑 결과를 바로 비교해볼 수 있어요.',
+      futureNote: '여기서 추천 대안을 바로 비교해볼 수 있어요.',
       offerQuery: ExploreOfferQuery(
         intentKey: ExploreIntentNormalizer.normalize(item.name).intentKey,
         queryText: ExploreIntentNormalizer.normalize(
@@ -2508,7 +2822,7 @@ class _IntentDetail {
       name: candidate.name,
       price: candidate.price,
       badge: '반복 구매',
-      futureNote: '자주 사는 상품도 필터된 네이버쇼핑 결과로 먼저 비교해볼 수 있어요.',
+      futureNote: '자주 사는 상품도 추천 대안을 바로 비교해볼 수 있어요.',
       offerQuery: ExploreOfferQuery(
         intentKey: ExploreIntentNormalizer.normalize(candidate.name).intentKey,
         queryText: ExploreIntentNormalizer.normalize(
@@ -2525,7 +2839,7 @@ class _IntentDetail {
       name: slot.anchorName,
       price: slot.anchorPrice,
       badge: slot.sourceLabel,
-      futureNote: '이 자리에서 필터된 네이버쇼핑 결과를 먼저 비교해볼 수 있어요.',
+      futureNote: '이 자리에서 추천 대안을 바로 비교해볼 수 있어요.',
       offerQuery: slot.query,
     );
   }

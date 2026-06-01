@@ -3,8 +3,8 @@ import re
 import subprocess
 from pathlib import Path
 
-ROOT = Path('/Users/sdpaik/dev/cartly')
-MD_PATH = Path('/Volumes/downloads/MATERIAL_ICONS_TODO_v2.md')
+ROOT = Path(__file__).resolve().parent.parent
+MD_PATH = ROOT / 'docs' / 'MATERIAL_ICONS_TODO_v2.md'
 OUT_DIR = ROOT / 'assets' / 'icons' / 'sf'
 SFSYM = Path.home() / '.local' / 'bin' / 'sfsym'
 

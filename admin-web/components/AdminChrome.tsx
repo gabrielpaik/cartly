@@ -6,22 +6,23 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import AdminCopyProvider, { useAdminCopy } from './AdminCopyProvider'
+import AdminBrandMark from './AdminBrandMark'
 import LogoutButton from './LogoutButton'
 import NavLink from './NavLink'
 
 const contentSectionNavItems = [
-  { href: '/content?section=brand', label: 'Brand' },
-  { href: '/content?section=app', label: 'App Copy' },
-  { href: '/content?section=account', label: 'Account' },
-  { href: '/content?section=public', label: 'Public Site' },
+  { href: '/content?section=brand', label: '브랜드' },
+  { href: '/content?section=app', label: '앱 문구' },
+  { href: '/content?section=account', label: '계정 문구' },
+  { href: '/content?section=public', label: '웹 문구' },
 ] as const
 
 const exploreWorkspaceNavItems = [
-  { href: '/explore?ws=layout', label: 'Layout' },
-  { href: '/explore?ws=recommendations', label: 'Recommendation Pool' },
-  { href: '/explore?ws=rules', label: 'Decision Rules' },
-  { href: '/explore?ws=copy', label: 'Decision Copy' },
-  { href: '/explore?ws=store', label: 'Store Context' },
+  { href: '/explore?ws=layout', label: '노출구성' },
+  { href: '/explore?ws=recommendations', label: '추천상품' },
+  { href: '/explore?ws=rules', label: '노출기준' },
+  { href: '/explore?ws=copy', label: '문구' },
+  { href: '/explore?ws=store', label: '매장혜택' },
 ] as const
 
 const configPaneNavItems = [
@@ -34,13 +35,13 @@ const configPaneNavItems = [
 
 const adsSectionNavItems = [
   { href: '/ads/status', label: '현황' },
-  { href: '/ads/setup', label: '세팅' },
-  { href: '/ads/efficiency', label: '효율' },
+  { href: '/ads/setup', label: '설정' },
+  { href: '/ads/efficiency', label: '성과' },
 ] as const
 
 const usersNavItems = [
-  { href: '/users', label: 'Accounts' },
-  { href: '/users/legacy-cleanup', label: 'Legacy Cleanup' },
+  { href: '/users', label: '고객' },
+  { href: '/users/legacy-cleanup', label: '정리' },
 ] as const
 
 type NavItem = {
@@ -59,46 +60,46 @@ type NavGroup = {
 const navGroups: NavGroup[] = [
   {
     id: 'dashboard',
-    label: 'Dashboard',
-    description: '상태판과 운영 현황',
+    label: '대시보드',
+    description: '운영 현황',
     items: [
-      { href: '/overview', label: 'Overview', description: '전체 상태, alert, quick action' },
+      { href: '/overview', label: '운영현황', description: '현황과 빠른 실행' },
     ],
   },
   {
     id: 'experience',
-    label: 'App Experience',
-    description: '앱 화면과 사용자 경험 운영',
+    label: '앱 운영',
+    description: '브랜드와 탐색',
     items: [
-      { href: '/content', label: 'Content Surfaces', description: 'Home, My, Login, Receipt 카피와 화면 문구' },
-      { href: '/explore', label: 'Explore Journeys', description: '추천 제품, 상태별 구성, 탐색 흐름' },
+      { href: '/content', label: '브랜드·문구', description: '앱 문구와 화면' },
+      { href: '/explore', label: '탐색 운영', description: '추천상품과 노출' },
     ],
   },
   {
     id: 'growth',
-    label: 'Growth',
-    description: '리텐션과 수익화 운영',
+    label: '성장 운영',
+    description: '알림과 광고',
     items: [
-      { href: '/push', label: 'Push', description: '푸시 메시지, 딥링크, 발송 흐름' },
-      { href: '/ads', label: 'Ads', description: '광고 슬롯, 크리에이티브, 배치 미리보기' },
+      { href: '/push', label: '알림 운영', description: '발송과 대상' },
+      { href: '/ads', label: '광고 운영', description: '광고 위치와 소재' },
     ],
   },
   {
     id: 'operations',
-    label: 'Operations',
-    description: '실사용 데이터와 장애 대응',
+    label: '고객 운영',
+    description: '고객과 기록',
     items: [
-      { href: '/users', label: 'Users', description: '가입 상태와 사용자 세션 확인' },
-      { href: '/carts', label: 'Carts', description: '저장 카트와 영수증 흐름 추적' },
-      { href: '/scan-ops', label: 'Scan Ops', description: '스캔 큐, worker, 실패 이슈 확인' },
+      { href: '/users', label: '고객', description: '회원과 상태' },
+      { href: '/carts', label: '카트', description: '카트와 영수증' },
+      { href: '/scan-ops', label: '스캔 운영', description: '스캔 상태' },
     ],
   },
   {
     id: 'system',
-    label: 'System',
-    description: 'runtime, 설정, 안전장치',
+    label: '기본 설정',
+    description: '연동과 점검',
     items: [
-      { href: '/config', label: 'Runtime Config', description: '런타임 설정, feature flag, 파트너 제어' },
+      { href: '/config', label: '기본 설정', description: '실노출과 연동' },
     ],
   },
 ]
@@ -142,10 +143,10 @@ function AdminChromeInner({ children }: { children: ReactNode }) {
   return (
     <div className="shell shellConsole">
       <header className="adminGlobalTopbar">
-        <div className="adminGlobalBrand">
-          <div className="brand">{t('admin.nav.brand', 'Cartly Admin')}</div>
-          <div className="brandMeta">operator console</div>
-        </div>
+        <Link href="/overview" className="adminGlobalBrand" aria-label="운영센터">
+          <AdminBrandMark variant="header" />
+          <div className="brandMeta">운영센터</div>
+        </Link>
         <nav className="adminPrimaryNav" aria-label="Primary admin navigation">
           {navGroups.map((group) => {
             const active = group.id === currentGroup.id
@@ -163,7 +164,7 @@ function AdminChromeInner({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="adminGlobalActions">
-          <span className="consoleMetaPill">Operator-first IA</span>
+          <span className="consoleMetaPill">운영 중심</span>
           <LogoutButton compact />
         </div>
       </header>
@@ -214,7 +215,6 @@ function AdminChromeInner({ children }: { children: ReactNode }) {
                 <div className="consoleEyebrow">{currentGroup.label}</div>
                 <div className="consoleHeadingRow">
                   <h1 className="consoleTitle">{currentItem.label}</h1>
-                  <span className="consoleRoutePill">{currentItem.href}</span>
                 </div>
               </div>
               <div className="consoleMetaPills">

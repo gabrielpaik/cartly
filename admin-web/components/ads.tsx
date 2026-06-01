@@ -310,13 +310,13 @@ function formatScheduleLabel(value?: string | null) {
 function campaignStatusLabel(status: string) {
   switch (status) {
     case "live":
-      return "지난 라이브";
+      return "운영";
     case "ended":
-      return "종료됨";
+      return "종료";
     case "scheduled":
-      return "예약됨";
+      return "예약";
     case "cancelled":
-      return "취소됨";
+      return "취소";
     default:
       return status || "-";
   }
@@ -411,8 +411,8 @@ export function SlotEditorPanel({
               disabled={readOnly}
               onChange={(e) => onSlotChange({ status: e.target.value })}
             >
-              <option value="active">active</option>
-              <option value="inactive">inactive</option>
+              <option value="active">운영</option>
+              <option value="inactive">중지</option>
             </select>
           </label>
         ) : null}
@@ -719,7 +719,7 @@ export function SlotPreview({ slot }: { slot: SlotRow }) {
                 <div className="slotPreviewBlock tall" />
                 <div className="slotPreviewBlock medium" />
                 <div className="slotPreviewHighlight sheet">
-                  {t("admin.ads.preview.adSlot", "AD SLOT")}
+                  {t("admin.ads.preview.adSlot", "광고 위치")}
                 </div>
                 <div className="slotPreviewActions">
                   <div className="slotPreviewActionBtn" />
@@ -730,7 +730,7 @@ export function SlotPreview({ slot }: { slot: SlotRow }) {
             {preview.mode === "saved-inline-first" ? (
               <>
                 <div className="slotPreviewBlock medium" />
-                <div className="slotPreviewHighlight inline">AD SLOT</div>
+                <div className="slotPreviewHighlight inline">광고 위치</div>
                 <div className="slotPreviewBlock medium" />
                 <div className="slotPreviewBlock medium" />
                 <div className="slotPreviewBlock medium" />
@@ -741,14 +741,14 @@ export function SlotPreview({ slot }: { slot: SlotRow }) {
                 <div className="slotPreviewBlock medium" />
                 <div className="slotPreviewBlock medium" />
                 <div className="slotPreviewBlock medium" />
-                <div className="slotPreviewHighlight inline">AD SLOT</div>
+                <div className="slotPreviewHighlight inline">광고 위치</div>
                 <div className="slotPreviewBlock medium" />
               </>
             ) : null}
             {preview.mode === "my-inline" ? (
               <>
                 <div className="slotPreviewBlock tall" />
-                <div className="slotPreviewHighlight inline soft">AD SLOT</div>
+                <div className="slotPreviewHighlight inline soft">광고 위치</div>
                 <div className="slotPreviewBlock medium" />
                 <div className="slotPreviewBlock medium" />
               </>
@@ -823,8 +823,8 @@ export function SlotHistory({
             <th>{t("admin.ads.history.table.variant", "유형")}</th>
             <th>{t("admin.ads.history.table.status", "상태")}</th>
             <th>{t("admin.ads.history.table.period", "기간")}</th>
-            <th>{t("admin.ads.history.table.impressions", "Impressions")}</th>
-            <th>{t("admin.ads.history.table.clicks", "Clicks")}</th>
+            <th>{t("admin.ads.history.table.impressions", "노출")}</th>
+            <th>{t("admin.ads.history.table.clicks", "클릭")}</th>
             <th>{t("admin.ads.history.table.ctr", "CTR")}</th>
             <th>{t("admin.ads.history.table.image", "이미지")}</th>
             <th>{t("admin.ads.history.table.download", "다운로드")}</th>
@@ -844,8 +844,8 @@ export function SlotHistory({
               </td>
               <td data-label={t("admin.ads.history.table.variant", "유형")}>
                 {campaign.variant === "live"
-                  ? t("admin.ads.history.variant.live", "현재 광고 이력")
-                  : t("admin.ads.history.variant.reserved", "예약 광고 이력")}
+                  ? t("admin.ads.history.variant.live", "현재")
+                  : t("admin.ads.history.variant.reserved", "예약")}
               </td>
               <td data-label={t("admin.ads.history.table.status", "상태")}>
                 {campaignStatusLabel(campaign.status)}
@@ -856,12 +856,12 @@ export function SlotHistory({
               <td
                 data-label={t(
                   "admin.ads.history.table.impressions",
-                  "Impressions",
+                  "노출",
                 )}
               >
                 {formatNumber(campaign.impressions)}
               </td>
-              <td data-label={t("admin.ads.history.table.clicks", "Clicks")}>
+              <td data-label={t("admin.ads.history.table.clicks", "클릭")}>
                 {formatNumber(campaign.clicks)}
               </td>
               <td data-label={t("admin.ads.history.table.ctr", "CTR")}>
@@ -883,7 +883,7 @@ export function SlotHistory({
                   className="ghostBtn pageActionBtn"
                   href={`/api/cartly-admin/admin/ads/campaigns/${campaign.id}/export.xlsx`}
                 >
-                  {t("admin.ads.history.downloadSingle", "Excel 다운로드")}
+                  {t("admin.ads.history.downloadSingle", "엑셀 다운로드")}
                 </a>
               </td>
             </tr>

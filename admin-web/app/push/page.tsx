@@ -214,7 +214,9 @@ function scheduleLabel(schedule: Pick<PushScheduleDto, 'weekday' | 'time' | 'tim
 
 function targetLabel(campaign: Pick<PushCampaignDto, 'targetTab' | 'targetUrl'>) {
   if (campaign.targetUrl) return campaign.targetUrl
-  if (campaign.targetTab) return `tab:${campaign.targetTab}`
+  if (campaign.targetTab === 'home') return '홈'
+  if (campaign.targetTab === 'explore') return '탐색'
+  if (campaign.targetTab === 'my') return '마이'
   return '-'
 }
 
@@ -239,32 +241,105 @@ function deviceIssue(device: PushDeviceDto): DeviceIssue {
 function deviceIssueLabel(issue: DeviceIssue) {
   switch (issue) {
     case 'invalid':
-      return 'invalid'
+      return '기기 오류'
     case 'token_missing':
-      return 'token missing'
+      return '토큰 없음'
     case 'notifications_off':
-      return 'notifications off'
+      return '알림 꺼짐'
     case 'inactive':
-      return 'inactive'
+      return '비활성'
     default:
-      return 'ready'
+      return '준비'
   }
 }
 
 function uploadIssueLabel(issue: AudiencePreviewRow['issue']) {
   switch (issue) {
     case 'not_found':
-      return 'not found'
+      return '대상 없음'
     case 'token_missing':
-      return 'token missing'
+      return '토큰 없음'
     case 'notifications_off':
-      return 'notifications off'
+      return '알림 꺼짐'
     case 'invalid':
-      return 'invalid'
+      return '기기 오류'
     case 'inactive':
-      return 'inactive'
+      return '비활성'
     default:
-      return 'ready'
+      return '준비'
+  }
+}
+
+function campaignAudienceLabel(value: string) {
+  switch (value) {
+    case 'members':
+      return '회원'
+    case 'guests':
+      return '게스트'
+    case 'upload':
+      return '직접 업로드'
+    default:
+      return '전체'
+  }
+}
+
+function campaignKindLabel(value: string) {
+  switch (value) {
+    case 'promotion':
+      return '혜택'
+    case 'notice':
+      return '공지'
+    default:
+      return value || '-'
+  }
+}
+
+function campaignStatusLabel(value: string) {
+  switch (value) {
+    case 'sent':
+      return '발송 완료'
+    case 'failed':
+      return '실패'
+    case 'partial_failure':
+      return '부분 실패'
+    case 'blocked':
+      return '차단'
+    case 'no_targets':
+      return '대상 없음'
+    case 'draft':
+      return '임시저장'
+    default:
+      return value || '-'
+  }
+}
+
+function deviceStatusLabel(value: string) {
+  switch (value) {
+    case 'active':
+      return '활성'
+    case 'inactive':
+      return '비활성'
+    case 'invalid':
+      return '오류'
+    default:
+      return value || '-'
+  }
+}
+
+function blockerLabel(value: string) {
+  switch (value) {
+    case 'push_not_ready':
+      return '푸시 준비 필요'
+    case 'token_missing':
+      return '토큰 없음'
+    case 'notifications_off':
+      return '알림 꺼짐'
+    case 'invalid_device':
+      return '기기 오류'
+    case 'no_active_devices':
+      return '활성 기기 없음'
+    default:
+      return value || '-'
   }
 }
 
@@ -360,7 +435,6 @@ export default function PushPage() {
   const tokenReadyCount = status.devices.tokenReady
   const pushReady = status.ready && tokenReadyCount > 0
   const selectedPreset = selectedPresetIndex != null ? PRESETS[selectedPresetIndex] ?? null : null
-  const composerTarget = targetUrl.trim() || (targetTab ? `tab:${targetTab}` : '-')
   const districtOptions = useMemo(() => (regionPickerCity ? regionOptionsForLevel('district', regionPickerCity) as KoreaRegionOption[] : []), [regionPickerCity])
   const neighborhoodOptions = useMemo(() => (regionPickerCity ? regionOptionsForLevel('neighborhood', regionPickerCity, regionPickerDistrict) as KoreaRegionOption[] : []), [regionPickerCity, regionPickerDistrict])
   const pickerOptions = useMemo(() => {
@@ -480,7 +554,7 @@ export default function PushPage() {
     setSelectedRegionKeys(segment?.regionKeys ?? [])
     setRegionRecentWithinDays(String(segment?.recentWithinDays ?? 30))
     setRegionVisitCountMin(String(segment?.minVisits ?? 3))
-    setSendMessage(`최근 캠페인 "${campaign.title}" 내용을 composer로 가져왔어`)
+    setSendMessage(`최근 발송 "${campaign.title}" 불러오기 완료`)
   }
 
   async function downloadAudienceTemplate() {
@@ -493,15 +567,15 @@ export default function PushPage() {
         { userId: '', installId: 'cartly-install-abc', name: '', memo: '설치 기준 타겟' },
       ], { header: ['userId', 'installId', 'name', 'memo'] })
       template['!cols'] = [{ wch: 38 }, { wch: 28 }, { wch: 18 }, { wch: 28 }]
-      XLSX.utils.book_append_sheet(workbook, template, 'Audience')
+      XLSX.utils.book_append_sheet(workbook, template, '발송대상')
       const guide = XLSX.utils.aoa_to_sheet([
         ['기준'],
-        ['필수 컬럼', 'userId 또는 installId 중 하나는 꼭 채워야 해'],
-        ['선택 컬럼', 'name, memo'],
-        ['주의', 'push token을 넣지 말고 사용자/설치 식별자만 넣어'],
+        ['필수 항목', 'userId 또는 installId 중 하나 입력'],
+        ['선택 항목', 'name, memo'],
+        ['주의', 'push token 제외, 사용자 또는 설치 식별자만 입력'],
       ])
       guide['!cols'] = [{ wch: 18 }, { wch: 68 }]
-      XLSX.utils.book_append_sheet(workbook, guide, 'Guide')
+      XLSX.utils.book_append_sheet(workbook, guide, '입력안내')
       XLSX.writeFile(workbook, 'cartly-push-audience-template.xlsx')
       setSendMessage('직접 업로드 템플릿 다운로드 완료')
     } catch (error) {
@@ -518,20 +592,20 @@ export default function PushPage() {
       const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' })
       const firstSheetName = workbook.SheetNames[0]
       if (!firstSheetName) {
-        throw new Error('첫 번째 시트를 찾지 못했어')
+        throw new Error('첫 번째 시트 없음')
       }
       const worksheet = workbook.Sheets[firstSheetName]
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' })
       const entries = buildUploadedAudienceEntries(rows)
       if (entries.length === 0) {
-        throw new Error('업로드할 userId/installId 행이 없어')
+        throw new Error('업로드 대상 행 없음')
       }
       const response = await postJson<{ ok: boolean; data: AudiencePreviewResponse }>('/admin/push/audience-preview', { entries })
       setAudienceMode('upload')
       setSelectedPresetIndex(null)
       setUploadedAudienceEntries(entries)
       setAudiencePreview(response.data)
-      setSendMessage(`직접 업로드 ${entries.length}행 분석 완료, ready ${response.data.summary.readyDevices}기기`)
+      setSendMessage(`직접 업로드 ${entries.length}행 분석 완료, 준비 기기 ${response.data.summary.readyDevices}`)
     } catch (error) {
       setUploadedAudienceEntries([])
       setAudiencePreview(null)
@@ -550,10 +624,10 @@ export default function PushPage() {
         segment: currentRegionSegmentPayload(),
       })
       setSegmentPreview(response.data)
-      setSendMessage(`세그먼트 preview 완료, users ${response.data.summary.readyUserCount}, devices ${response.data.summary.readyDeviceCount}`)
+      setSendMessage(`세그먼트 미리보기 완료, 이용자 ${response.data.summary.readyUserCount}, 기기 ${response.data.summary.readyDeviceCount}`)
     } catch (error) {
       setSegmentPreview(null)
-      setSendMessage(error instanceof Error ? error.message : '세그먼트 preview 실패')
+      setSendMessage(error instanceof Error ? error.message : '세그먼트 미리보기 실패')
     } finally {
       setSegmentPreviewLoading(false)
     }
@@ -561,11 +635,11 @@ export default function PushPage() {
 
   async function sendPush() {
     if (!title.trim() || !message.trim()) {
-      setSendMessage('제목과 본문을 먼저 넣어줘')
+      setSendMessage('제목과 본문 입력 필요')
       return
     }
     if (audienceMode === 'upload' && uploadedAudienceEntries.length === 0) {
-      setSendMessage('직접 업로드 파일을 먼저 넣어줘')
+      setSendMessage('직접 업로드 파일 선택 필요')
       return
     }
 
@@ -584,14 +658,14 @@ export default function PushPage() {
       })
       const delivery = response.data.delivery
       if (delivery) {
-        const invalidated = delivery.invalidatedCount ? `, stale 정리 ${delivery.invalidatedCount}` : ''
-        setSendMessage(`보냈어. success ${delivery.sentCount}, fail ${delivery.failureCount}, status ${delivery.status}${invalidated}`)
+        const invalidated = delivery.invalidatedCount ? `, 만료 정리 ${delivery.invalidatedCount}` : ''
+        setSendMessage(`발송 완료. 성공 ${delivery.sentCount}, 실패 ${delivery.failureCount}, 상태 ${campaignStatusLabel(delivery.status)}${invalidated}`)
       } else {
-        setSendMessage(`저장했어. status ${response.data.campaign.status}`)
+        setSendMessage(`저장 완료. 상태 ${campaignStatusLabel(response.data.campaign.status)}`)
       }
       await Promise.allSettled([statusRes.reload(), devicesRes.reload(), campaignsRes.reload(), scheduleRes.reload()])
     } catch (error) {
-      setSendMessage(error instanceof Error ? error.message : '푸시 발송에 실패했어')
+      setSendMessage(error instanceof Error ? error.message : '푸시 발송 실패')
     } finally {
       setSending(false)
     }
@@ -604,7 +678,7 @@ export default function PushPage() {
     setScheduleKind(kind)
     setScheduleTargetTab(targetTab || '')
     setScheduleTargetUrl(targetUrl.trim())
-    setScheduleMessage('지금 composer 내용을 예약 푸시에 복사했어')
+    setScheduleMessage('즉시 발송 내용을 예약 발송에 복사 완료')
   }
 
   async function saveSchedule() {
@@ -639,9 +713,9 @@ export default function PushPage() {
   return (
     <div className="exploreCompactPage">
       <PageHeader
-        badge={usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : loading ? t('admin.common.badge.loading', 'Loading...') : t('admin.common.badge.live', 'Live data')}
-        title={t('admin.push.title', 'Push')}
-        description={t('admin.push.desc', '운영 공지와 혜택 알림을 다루는 Growth operator surface')}
+        badge={usingFallback ? '대체 데이터' : loading ? '불러오는 중' : '실데이터'}
+        title={'알림 운영'}
+        description={'푸시 발송'}
         onRefresh={() => {
           void Promise.allSettled([statusRes.reload(), devicesRes.reload(), campaignsRes.reload(), scheduleRes.reload()])
         }}
@@ -650,44 +724,44 @@ export default function PushPage() {
 
       {usingFallback ? (
         <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
-          live push 상태를 못 읽으면 fallback으로 보여줘. 실제 발송 전에는 live badge인지 한 번 확인하는 게 안전해.
+          푸시 상태를 실데이터로 못 읽었어. 발송 전에는 실데이터 여부를 먼저 확인해.
         </div>
       ) : null}
 
       <div className="exploreSummaryGrid section" style={{ marginTop: 12 }}>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Push runtime</div>
-          <div className="exploreSummaryValue">{status.ready ? 'READY' : 'CHECK'}</div>
-          <div className="exploreSummaryNote">{status.provider} · project {status.firebaseProjectId ?? '-'}</div>
+          <div className="exploreSummaryLabel">푸시 상태</div>
+          <div className="exploreSummaryValue">{status.ready ? '준비' : '확인'}</div>
+          <div className="exploreSummaryNote">{status.provider} · 프로젝트 {status.firebaseProjectId ?? '-'}</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Devices</div>
+          <div className="exploreSummaryLabel">기기</div>
           <div className="exploreSummaryValue">{activeDeviceCount}</div>
-          <div className="exploreSummaryNote">전체 {status.devices.total} · invalid {status.devices.invalid ?? 0}</div>
+          <div className="exploreSummaryNote">전체 {status.devices.total} · 오류 {status.devices.invalid ?? 0}</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Token ready</div>
+          <div className="exploreSummaryLabel">발송 가능</div>
           <div className="exploreSummaryValue">{tokenReadyCount}</div>
-          <div className="exploreSummaryNote">{pushReady ? 'send ready' : 'needs app opt-in'}</div>
+          <div className="exploreSummaryNote">{pushReady ? '발송 준비' : '앱 수신 허용 필요'}</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Campaigns</div>
+          <div className="exploreSummaryLabel">캠페인</div>
           <div className="exploreSummaryValue">{campaigns.length}</div>
-          <div className="exploreSummaryNote">latest {campaigns[0]?.status ?? '-'}</div>
+          <div className="exploreSummaryNote">최근 상태 {campaignStatusLabel(campaigns[0]?.status ?? '-')}</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Blockers</div>
+          <div className="exploreSummaryLabel">차단 요인</div>
           <div className="exploreSummaryValue">{status.blockers.length}</div>
-          <div className="exploreSummaryNote">{status.blockers[0] ?? 'clear'}</div>
+          <div className="exploreSummaryNote">{status.blockers[0] ? blockerLabel(status.blockers[0]) : '없음'}</div>
         </div>
       </div>
 
       <div className="metaRow section" style={{ marginTop: 8 }}>
-        <span className="metaPill">provider {status.provider}</span>
-        <span className="metaPill">firebase {status.firebaseProjectId ?? '-'}</span>
-        <span className="metaPill">ready {status.ready ? 'yes' : 'no'}</span>
-        <span className="metaPill">token ready {tokenReadyCount}</span>
-        <span className="metaPill">invalid {status.devices.invalid ?? 0}</span>
+        <span className="metaPill">제공 {status.provider}</span>
+        <span className="metaPill">프로젝트 {status.firebaseProjectId ?? '-'}</span>
+        <span className="metaPill">준비 {status.ready ? '완료' : '확인'}</span>
+        <span className="metaPill">발송 가능 {tokenReadyCount}</span>
+        <span className="metaPill">오류 {status.devices.invalid ?? 0}</span>
         {platformSummary.map(([platform, count]) => (
           <span key={platform} className="metaPill">{platform} {count}</span>
         ))}
@@ -696,11 +770,11 @@ export default function PushPage() {
       <div className="exploreActionBar exploreActionBarSingle section" style={{ marginTop: 8 }}>
         <div className="exploreActionPanel exploreActionPanelTight">
           <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 0 }}>
-            <h2 className="panelTitle" style={{ marginBottom: 0 }}>Recurring Friday push</h2>
+            <h2 className="panelTitle" style={{ marginBottom: 0 }}>정기 발송</h2>
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <span className="metaPill">{scheduleEnabled ? 'enabled' : 'paused'}</span>
+              <span className="metaPill">{scheduleEnabled ? '사용' : '중지'}</span>
               <span className="metaPill">{scheduleLabel({ weekday: scheduleWeekday, time: scheduleTime || '18:30', timezone: 'Asia/Seoul' })}</span>
-              <span className="metaPill">next {fmt(schedule.nextDispatchAt)}</span>
+              <span className="metaPill">다음 {fmt(schedule.nextDispatchAt)}</span>
             </div>
           </div>
 
@@ -708,8 +782,8 @@ export default function PushPage() {
             <label className="field" style={{ margin: 0 }}>
               <div className="exploreSheetFieldLabel">상태</div>
               <select className="textInput exploreSheetInput" value={scheduleEnabled ? 'enabled' : 'paused'} onChange={(event) => setScheduleEnabled(event.target.value === 'enabled')}>
-                <option value="enabled">enabled</option>
-                <option value="paused">paused</option>
+                <option value="enabled">사용</option>
+                <option value="paused">중지</option>
               </select>
             </label>
             <label className="field" style={{ margin: 0 }}>
@@ -725,18 +799,18 @@ export default function PushPage() {
               <input className="textInput exploreSheetInput" type="time" value={scheduleTime} onChange={(event) => setScheduleTime(event.target.value)} />
             </label>
             <label className="field" style={{ margin: 0 }}>
-              <div className="exploreSheetFieldLabel">kind</div>
+              <div className="exploreSheetFieldLabel">유형</div>
               <select className="textInput exploreSheetInput" value={scheduleKind} onChange={(event) => setScheduleKind(event.target.value as 'notice' | 'promotion')}>
-                <option value="promotion">promotion</option>
-                <option value="notice">notice</option>
+                <option value="promotion">혜택</option>
+                <option value="notice">공지</option>
               </select>
             </label>
             <label className="field" style={{ margin: 0 }}>
-              <div className="exploreSheetFieldLabel">audience</div>
+              <div className="exploreSheetFieldLabel">대상</div>
               <select className="textInput exploreSheetInput" value={scheduleAudience} onChange={(event) => setScheduleAudience(event.target.value as 'all' | 'members' | 'guests')}>
-                <option value="all">all</option>
-                <option value="members">members</option>
-                <option value="guests">guests</option>
+                <option value="all">전체</option>
+                <option value="members">회원</option>
+                <option value="guests">게스트</option>
               </select>
             </label>
           </div>
@@ -752,39 +826,39 @@ export default function PushPage() {
             </label>
             <div style={{ display: 'grid', gap: 8 }}>
               <button className="primaryBtn pageActionBtn" type="button" onClick={() => void saveSchedule()} disabled={scheduleSaving}>
-                {scheduleSaving ? '저장중...' : '예약 저장'}
+                {scheduleSaving ? '저장중' : '예약 저장'}
               </button>
               <button className="ghostBtn ghostBtnSmall" type="button" onClick={copyComposerToSchedule}>
-                composer 내용 복사
+                작성 내용 복사
               </button>
             </div>
           </div>
 
           <div className="exploreSheetFilterGrid compactFilterGrid" style={{ gridTemplateColumns: 'repeat(2, minmax(180px, 1fr))', marginTop: 8 }}>
             <label className="field" style={{ margin: 0 }}>
-              <div className="exploreSheetFieldLabel">target tab</div>
+              <div className="exploreSheetFieldLabel">이동 탭</div>
               <select className="textInput exploreSheetInput" value={scheduleTargetTab} onChange={(event) => setScheduleTargetTab(event.target.value as 'home' | 'explore' | 'my' | '')}>
                 <option value="">없음</option>
-                <option value="home">home</option>
-                <option value="explore">explore</option>
-                <option value="my">my</option>
+                <option value="home">홈</option>
+                <option value="explore">탐색</option>
+                <option value="my">마이</option>
               </select>
             </label>
             <label className="field" style={{ margin: 0 }}>
-              <div className="exploreSheetFieldLabel">target url</div>
-              <input className="textInput exploreSheetInput" value={scheduleTargetUrl} onChange={(event) => setScheduleTargetUrl(event.target.value)} placeholder="선택, target tab보다 우선" />
+              <div className="exploreSheetFieldLabel">이동 주소</div>
+              <input className="textInput exploreSheetInput" value={scheduleTargetUrl} onChange={(event) => setScheduleTargetUrl(event.target.value)} placeholder="선택 입력, 이동 탭보다 우선" />
             </label>
           </div>
 
           <div className="metaRow" style={{ marginTop: 8 }}>
-            <span className="metaPill">last {fmt(schedule.lastDispatchedAt)}</span>
-            <span className="metaPill">last status {schedule.lastDispatchStatus ?? '-'}</span>
-            <span className="metaPill">campaign {schedule.lastDispatchCampaignId ?? '-'}</span>
-            <span className="metaPill">updated {fmt(schedule.updatedAt)}</span>
+            <span className="metaPill">최근 발송 {fmt(schedule.lastDispatchedAt)}</span>
+            <span className="metaPill">최근 상태 {schedule.lastDispatchStatus ? campaignStatusLabel(schedule.lastDispatchStatus) : '-'}</span>
+            <span className="metaPill">캠페인 {schedule.lastDispatchCampaignId ?? '-'}</span>
+            <span className="metaPill">수정 시각 {fmt(schedule.updatedAt)}</span>
           </div>
           {schedule.lastDispatchError ? (
             <div className="loginError" style={{ marginTop: 8, marginBottom: 0 }}>
-              last dispatch error: {schedule.lastDispatchError}
+              최근 발송 오류: {schedule.lastDispatchError}
             </div>
           ) : null}
           {scheduleMessage ? (
@@ -797,19 +871,19 @@ export default function PushPage() {
 
       {!pushReady ? (
         <div className="loginError" style={{ marginTop: 8, marginBottom: 0 }}>
-          지금은 실제로 받을 수 있는 토큰이 부족해. 먼저 최신 앱에서 알림 허용까지 끝나야 send가 살아나.
-          {status.blockers.length > 0 ? ` (${status.blockers.join(', ')})` : ''}
+          지금은 실제 수신 기기가 부족해. 최신 앱에서 알림 허용까지 확인이 필요해.
+          {status.blockers.length > 0 ? ` (${status.blockers.map(blockerLabel).join(', ')})` : ''}
         </div>
       ) : null}
 
       <div className="exploreActionBar exploreActionBarSingle section" style={{ marginTop: 8 }}>
         <div className="exploreActionPanel exploreActionPanelTight">
           <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 0 }}>
-            <h2 className="panelTitle" style={{ marginBottom: 0 }}>Composer</h2>
+            <h2 className="panelTitle" style={{ marginBottom: 0 }}>즉시 발송</h2>
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <div className="metaPill">audience {audienceMode}</div>
-              <div className="metaPill">target {composerTarget}</div>
-              <div className="metaPill">presets {PRESETS.length}</div>
+              <div className="metaPill">대상 {campaignAudienceLabel(audienceMode)}</div>
+              <div className="metaPill">이동 {targetUrl.trim() || (targetTab ? targetLabel({ targetTab, targetUrl: null }) : '-')}</div>
+              <div className="metaPill">서식 {PRESETS.length}</div>
             </div>
           </div>
 
@@ -840,15 +914,15 @@ export default function PushPage() {
 
           <div style={{ display: 'grid', gap: 8, padding: '10px 12px', border: `1px solid ${selectedPreset ? '#f3c7cf' : '#e6ebf1'}`, borderRadius: 10, background: selectedPreset ? '#fff5f7' : '#f8fafc' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-              <strong style={{ fontSize: 12, color: '#111827' }}>선택 결과</strong>
+              <strong style={{ fontSize: 12, color: '#111827' }}>선택 내용</strong>
               <span className="metaPill">{selectedPreset?.label ?? '직접 작성'}</span>
             </div>
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <span className="metaPill">kind {kind}</span>
-              <span className="metaPill">audience {audienceMode}</span>
-              <span className="metaPill">target {composerTarget}</span>
-              {audienceMode === 'upload' && audiencePreview ? <span className="metaPill">upload ready {audiencePreview.summary.readyDevices}</span> : null}
-              {audienceMode !== 'upload' && regionSegmentMode !== 'none' ? <span className="metaPill">segment {regionSummaryFromKeys(selectedRegionKeys)}</span> : null}
+              <span className="metaPill">유형 {campaignKindLabel(kind)}</span>
+              <span className="metaPill">대상 {campaignAudienceLabel(audienceMode)}</span>
+              <span className="metaPill">이동 {targetUrl.trim() || (targetTab ? targetLabel({ targetTab, targetUrl: null }) : '-')}</span>
+              {audienceMode === 'upload' && audiencePreview ? <span className="metaPill">업로드 준비 {audiencePreview.summary.readyDevices}</span> : null}
+              {audienceMode !== 'upload' && regionSegmentMode !== 'none' ? <span className="metaPill">지역 {regionSummaryFromKeys(selectedRegionKeys)}</span> : null}
             </div>
             <div style={{ display: 'grid', gap: 4 }}>
               <strong style={{ fontSize: 13, color: '#111827' }}>{title.trim() || '제목 없음'}</strong>
@@ -859,7 +933,7 @@ export default function PushPage() {
           <div style={{ display: 'grid', gap: 8 }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
               <strong style={{ fontSize: 12, color: '#111827' }}>발송 대상</strong>
-              {audienceMode === 'upload' && audiencePreview ? <span className="metaPill">rows {audiencePreview.summary.uploadedRows} · ready devices {audiencePreview.summary.readyDevices}</span> : null}
+              {audienceMode === 'upload' && audiencePreview ? <span className="metaPill">행 {audiencePreview.summary.uploadedRows} · 준비 기기 {audiencePreview.summary.readyDevices}</span> : null}
             </div>
             <div className="editorSubtabRow" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
               {([
@@ -888,7 +962,7 @@ export default function PushPage() {
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button type="button" className="ghostBtn ghostBtnSmall" onClick={openRegionPicker}>지역선택</button>
                   <button type="button" className="ghostBtn ghostBtnSmall" onClick={() => void previewRegionSegment()} disabled={segmentPreviewLoading || regionSegmentMode === 'none' || selectedRegionKeys.length === 0}>
-                    {segmentPreviewLoading ? 'preview...' : 'preview'}
+                    {segmentPreviewLoading ? '불러오는 중' : '미리보기'}
                   </button>
                 </div>
               </div>
@@ -931,10 +1005,10 @@ export default function PushPage() {
                 </label>
               </div>
               <div className="metaRow" style={{ marginTop: 0 }}>
-                <span className="metaPill">recent = 최근 기간 내 방문</span>
-                <span className="metaPill">frequent = 누적 방문수 기준</span>
-                <span className="metaPill">primary = 대표 활동지역 기준</span>
-                {segmentPreview ? <span className="metaPill">preview users {segmentPreview.summary.readyUserCount} · devices {segmentPreview.summary.readyDeviceCount}</span> : null}
+                <span className="metaPill">최근 방문</span>
+                <span className="metaPill">누적 방문</span>
+                <span className="metaPill">대표 지역</span>
+                {segmentPreview ? <span className="metaPill">미리보기 이용자 {segmentPreview.summary.readyUserCount} · 기기 {segmentPreview.summary.readyDeviceCount}</span> : null}
               </div>
             </div>
           ) : null}
@@ -942,13 +1016,13 @@ export default function PushPage() {
           {audienceMode === 'upload' ? (
             <div style={{ display: 'grid', gap: 10, padding: '10px 12px', border: '1px solid #e6ebf1', borderRadius: 10, background: '#fff' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                <strong style={{ fontSize: 12, color: '#111827' }}>직접 업로드 audience</strong>
+                <strong style={{ fontSize: 12, color: '#111827' }}>직접 업로드 대상</strong>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button type="button" className="ghostBtn ghostBtnSmall" onClick={() => void downloadAudienceTemplate()}>
-                    template
+                    양식
                   </button>
                   <label className="ghostBtn ghostBtnSmall" style={{ width: 'auto', cursor: 'pointer' }}>
-                    {uploadingAudience ? '분석중...' : 'xlsx / csv 업로드'}
+                    {uploadingAudience ? '분석 중...' : '엑셀 / CSV 업로드'}
                     <input
                       type="file"
                       accept=".xlsx,.xls,.csv"
@@ -962,35 +1036,35 @@ export default function PushPage() {
               <div className="metaRow" style={{ marginTop: 0 }}>
                 <span className="metaPill">userId 또는 installId 필수</span>
                 <span className="metaPill">push token 업로드 금지</span>
-                <span className="metaPill">서버가 live device 상태로 재검증</span>
+                <span className="metaPill">서버 실기기 상태 재확인</span>
               </div>
               {audiencePreview ? (
                 <>
                   <div className="exploreSummaryGrid" style={{ marginTop: 0 }}>
                     <div className="exploreSummaryCell">
-                      <div className="exploreSummaryLabel">Rows</div>
+                      <div className="exploreSummaryLabel">업로드 행</div>
                       <div className="exploreSummaryValue">{audiencePreview.summary.uploadedRows}</div>
-                      <div className="exploreSummaryNote">matched {audiencePreview.summary.matchedRows}</div>
+                      <div className="exploreSummaryNote">일치 {audiencePreview.summary.matchedRows}</div>
                     </div>
                     <div className="exploreSummaryCell">
-                      <div className="exploreSummaryLabel">Ready devices</div>
+                      <div className="exploreSummaryLabel">준비 기기</div>
                       <div className="exploreSummaryValue">{audiencePreview.summary.readyDevices}</div>
-                      <div className="exploreSummaryNote">matched {audiencePreview.summary.matchedDevices}</div>
+                      <div className="exploreSummaryNote">일치 {audiencePreview.summary.matchedDevices}</div>
                     </div>
                     <div className="exploreSummaryCell">
-                      <div className="exploreSummaryLabel">Not found</div>
+                      <div className="exploreSummaryLabel">대상 없음</div>
                       <div className="exploreSummaryValue">{audiencePreview.summary.notFoundRows}</div>
-                      <div className="exploreSummaryNote">user/install 미매칭</div>
+                      <div className="exploreSummaryNote">사용자·설치 미일치</div>
                     </div>
                     <div className="exploreSummaryCell">
-                      <div className="exploreSummaryLabel">Token missing</div>
+                      <div className="exploreSummaryLabel">토큰 없음</div>
                       <div className="exploreSummaryValue">{audiencePreview.summary.tokenMissingRows}</div>
-                      <div className="exploreSummaryNote">ready 대상 제외</div>
+                      <div className="exploreSummaryNote">발송 가능 대상 제외</div>
                     </div>
                     <div className="exploreSummaryCell">
-                      <div className="exploreSummaryLabel">Blocked</div>
+                      <div className="exploreSummaryLabel">차단</div>
                       <div className="exploreSummaryValue">{audiencePreview.summary.notificationsOffRows + audiencePreview.summary.invalidRows + audiencePreview.summary.inactiveRows}</div>
-                      <div className="exploreSummaryNote">notif off / invalid / inactive</div>
+                      <div className="exploreSummaryNote">알림 꺼짐 / 오류 / 비활성</div>
                     </div>
                   </div>
 
@@ -998,11 +1072,11 @@ export default function PushPage() {
                     <table className="dataTable">
                       <thead>
                         <tr>
-                          <th>Uploaded target</th>
-                          <th>Issue</th>
-                          <th>Matched</th>
-                          <th>Platform</th>
-                          <th>Last seen</th>
+                          <th>업로드 대상</th>
+                          <th>상태</th>
+                          <th>일치</th>
+                          <th>기기</th>
+                          <th>최근 접속</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1026,7 +1100,7 @@ export default function PushPage() {
                   </div>
                 </>
               ) : (
-                <div className="emptyState" style={{ margin: 0 }}>xlsx / csv를 올리면 실제 발송 가능 모수를 먼저 보여줄게.</div>
+                <div className="emptyState" style={{ margin: 0 }}>엑셀 / CSV 업로드 후 발송 가능 모수 확인</div>
               )}
             </div>
           ) : null}
@@ -1042,9 +1116,9 @@ export default function PushPage() {
             </label>
             <div style={{ display: 'grid', gap: 8 }}>
               <button className="primaryBtn pageActionBtn" type="button" onClick={() => void sendPush()} disabled={sending}>
-                {sending ? '보내는 중...' : '지금 보내기'}
+                {sending ? '발송중' : '지금 발송'}
               </button>
-              <span className="metaPill">token ready only</span>
+              <span className="metaPill">발송 가능 기기만 포함</span>
             </div>
           </div>
 
@@ -1052,7 +1126,7 @@ export default function PushPage() {
             <button type="button" className="ghostBtn ghostBtnSmall" onClick={() => setShowAdvanced((prev) => !prev)}>
               {showAdvanced ? '고급 편집 닫기' : '고급 편집'}
             </button>
-            <span className="metaPill">preset 후에는 제목/본문만 바로 수정, 세부 옵션은 필요할 때만</span>
+            <span className="metaPill">기본 문구 우선, 세부 옵션 선택</span>
           </div>
 
           {showAdvanced ? (
@@ -1068,9 +1142,9 @@ export default function PushPage() {
                 <div className="exploreSheetFieldLabel">열릴 탭</div>
                 <select className="textInput exploreSheetInput" value={targetTab} onChange={(event) => setTargetTab(event.target.value as 'home' | 'explore' | 'my' | '')}>
                   <option value="">없음</option>
-                  <option value="home">home</option>
-                  <option value="explore">explore</option>
-                  <option value="my">my</option>
+                  <option value="home">홈</option>
+                  <option value="explore">탐색</option>
+                  <option value="my">마이</option>
                 </select>
               </label>
               <label className="field" style={{ margin: 0 }}>
@@ -1087,21 +1161,21 @@ export default function PushPage() {
       <div className="section sectionGrid twoCol">
         <div className="card exploreDenseCard exploreSheetCard" style={{ gridColumn: '1 / -1' }}>
           <div className="sectionHeader exploreSheetHeader">
-            <h2 className="panelTitle" style={{ marginBottom: 0 }}>Campaign queue</h2>
+            <h2 className="panelTitle" style={{ marginBottom: 0 }}>발송 기록</h2>
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <div className="metaPill">filtered {filteredCampaigns.length}</div>
-              <div className="metaPill">all {campaigns.length}</div>
-              <div className="metaPill">reuse to composer</div>
+              <div className="metaPill">검색 결과 {filteredCampaigns.length}</div>
+              <div className="metaPill">전체 {campaigns.length}</div>
+              <div className="metaPill">다시 불러오기</div>
             </div>
           </div>
 
           <div style={{ display: 'grid', gap: 8 }}>
             <div className="editorSubtabRow">
               {([
-                ['all', `All (${campaigns.length})`],
-                ['sent', `Sent (${campaigns.filter((item) => item.status === 'sent').length})`],
-                ['failed', `Failed (${campaigns.filter((item) => ['failed', 'partial_failure', 'blocked', 'no_targets'].includes(item.status)).length})`],
-                ['draft', `Draft (${campaigns.filter((item) => item.status === 'draft').length})`],
+                ['all', `전체 (${campaigns.length})`],
+                ['sent', `발송 완료 (${campaigns.filter((item) => item.status === 'sent').length})`],
+                ['failed', `실패 (${campaigns.filter((item) => ['failed', 'partial_failure', 'blocked', 'no_targets'].includes(item.status)).length})`],
+                ['draft', `임시저장 (${campaigns.filter((item) => item.status === 'draft').length})`],
               ] as const).map(([value, label]) => (
                 <button key={value} type="button" className={`editorSubtab ${campaignStatusFilter === value ? 'active' : ''}`} onClick={() => setCampaignStatusFilter(value)}>
                   {label}
@@ -1111,23 +1185,23 @@ export default function PushPage() {
             <div className="exploreSheetFilterGrid" style={{ gridTemplateColumns: 'minmax(260px, 480px)' }}>
               <label className="field" style={{ margin: 0 }}>
                 <div className="exploreSheetFieldLabel">검색</div>
-                <input className="textInput exploreSheetInput" value={campaignQuery} onChange={(event) => setCampaignQuery(event.target.value)} placeholder="title / message / target" />
+                <input className="textInput exploreSheetInput" value={campaignQuery} onChange={(event) => setCampaignQuery(event.target.value)} placeholder="제목 / 본문 / 이동" />
               </label>
             </div>
           </div>
 
           {filteredCampaigns.length === 0 ? (
-            <div className="emptyState" style={{ marginTop: 12 }}>조건에 맞는 push campaign이 없어.</div>
+            <div className="emptyState" style={{ marginTop: 12 }}>조건에 맞는 발송 기록이 없어.</div>
           ) : (
             <div className="tableWrap" style={{ marginTop: 12 }}>
               <table className="dataTable">
                 <thead>
                   <tr>
-                    <th>Campaign</th>
-                    <th>Audience</th>
-                    <th>Delivery</th>
-                    <th>Last sent</th>
-                    <th>Action</th>
+                    <th>발송</th>
+                    <th>대상</th>
+                    <th>상태</th>
+                    <th>최근 발송</th>
+                    <th>불러오기</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1137,25 +1211,25 @@ export default function PushPage() {
                         <div style={{ display: 'grid', gap: 4, minWidth: 260 }}>
                           <strong>{campaign.title}</strong>
                           <span style={{ color: '#475569', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{previewText(campaign.message, 96)}</span>
-                          <span style={{ color: '#64748b', fontSize: 12 }}>target {targetLabel(campaign)}</span>
+                          <span style={{ color: '#64748b', fontSize: 12 }}>이동 {targetLabel(campaign)}</span>
                         </div>
                       </td>
                       <td>
                         <div style={{ display: 'grid', gap: 4 }}>
-                          <span className="metaPill">{campaign.audience}</span>
-                          <span className="metaPill">{campaign.kind}</span>
+                          <span className="metaPill">{campaignAudienceLabel(campaign.audience)}</span>
+                          <span className="metaPill">{campaignKindLabel(campaign.kind)}</span>
                         </div>
                       </td>
                       <td>
                         <div style={{ display: 'grid', gap: 4 }}>
-                          <span className="metaPill">{campaign.status}</span>
+                          <span className="metaPill">{campaignStatusLabel(campaign.status)}</span>
                           <span style={{ color: campaign.errorMessage ? '#9f1239' : '#64748b', fontSize: 12 }}>{campaign.errorMessage ?? campaign.deliveryProvider ?? '-'}</span>
                         </div>
                       </td>
                       <td>{fmt(campaign.sentAt ?? campaign.createdAt)}</td>
                       <td>
                         <button type="button" className="ghostBtn ghostBtnSmall" onClick={() => reuseCampaign(campaign)}>
-                          reuse
+                          불러오기
                         </button>
                       </td>
                     </tr>
@@ -1170,20 +1244,20 @@ export default function PushPage() {
       <div className="section sectionGrid twoCol">
         <div className="card exploreDenseCard exploreSheetCard" style={{ gridColumn: '1 / -1' }}>
           <div className="sectionHeader exploreSheetHeader">
-            <h2 className="panelTitle" style={{ marginBottom: 0 }}>Delivery blockers</h2>
+            <h2 className="panelTitle" style={{ marginBottom: 0 }}>발송 차단</h2>
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <div className="metaPill">filtered {filteredDevices.length}</div>
-              <div className="metaPill">ready {deviceIssueSummary.ready}</div>
-              <div className="metaPill">blockers {deviceIssueSummary.invalid + deviceIssueSummary.token_missing + deviceIssueSummary.notifications_off + deviceIssueSummary.inactive}</div>
+              <div className="metaPill">검색 결과 {filteredDevices.length}</div>
+              <div className="metaPill">준비 {deviceIssueSummary.ready}</div>
+              <div className="metaPill">차단 {deviceIssueSummary.invalid + deviceIssueSummary.token_missing + deviceIssueSummary.notifications_off + deviceIssueSummary.inactive}</div>
             </div>
           </div>
 
           <div style={{ display: 'grid', gap: 8 }}>
             <div className="editorSubtabRow">
               {([
-                ['blockers', `Blockers (${deviceIssueSummary.invalid + deviceIssueSummary.token_missing + deviceIssueSummary.notifications_off + deviceIssueSummary.inactive})`],
-                ['ready', `Ready (${deviceIssueSummary.ready})`],
-                ['all', `All (${devices.length})`],
+                ['blockers', `차단 (${deviceIssueSummary.invalid + deviceIssueSummary.token_missing + deviceIssueSummary.notifications_off + deviceIssueSummary.inactive})`],
+                ['ready', `준비 (${deviceIssueSummary.ready})`],
+                ['all', `전체 (${devices.length})`],
               ] as const).map(([value, label]) => (
                 <button key={value} type="button" className={`editorSubtab ${deviceFilter === value ? 'active' : ''}`} onClick={() => setDeviceFilter(value)}>
                   {label}
@@ -1193,7 +1267,7 @@ export default function PushPage() {
             <div className="exploreSheetFilterGrid" style={{ gridTemplateColumns: 'minmax(240px, 420px)' }}>
               <label className="field" style={{ margin: 0 }}>
                 <div className="exploreSheetFieldLabel">기기 검색</div>
-                <input className="textInput exploreSheetInput" value={deviceQuery} onChange={(event) => setDeviceQuery(event.target.value)} placeholder="platform / user / install / version" />
+                <input className="textInput exploreSheetInput" value={deviceQuery} onChange={(event) => setDeviceQuery(event.target.value)} placeholder="기기 / 사용자 / 설치 / 버전" />
               </label>
             </div>
           </div>
@@ -1205,11 +1279,11 @@ export default function PushPage() {
               <table className="dataTable">
                 <thead>
                   <tr>
-                    <th>Device</th>
-                    <th>Issue</th>
-                    <th>State</th>
-                    <th>Version</th>
-                    <th>Last seen</th>
+                    <th>기기</th>
+                    <th>상태</th>
+                    <th>연결</th>
+                    <th>버전</th>
+                    <th>최근 접속</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1227,7 +1301,7 @@ export default function PushPage() {
                         <td><span className="metaPill">{deviceIssueLabel(issue)}</span></td>
                         <td>
                           <div style={{ display: 'grid', gap: 4 }}>
-                            <span className="metaPill">{device.status}</span>
+                            <span className="metaPill">{deviceStatusLabel(device.status)}</span>
                             <span style={{ color: '#64748b', fontSize: 12 }}>{device.pushProvider ?? '-'}</span>
                           </div>
                         </td>
@@ -1278,8 +1352,8 @@ export default function PushPage() {
                 <thead>
                   <tr>
                     <th style={{ width: 64 }}>선택</th>
-                    <th>Label</th>
-                    <th>Full</th>
+                    <th>이름</th>
+                    <th>전체 경로</th>
                   </tr>
                 </thead>
                 <tbody>

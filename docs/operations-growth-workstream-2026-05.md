@@ -1,6 +1,6 @@
 # Cartly Operations / Growth Workstream (2026-05)
 
-Last updated: 2026-05-22
+Last updated: 2026-05-29
 Status: active next workstream
 Purpose: capture the post-launch operator improvements that now matter more than release packaging
 
@@ -137,9 +137,9 @@ Current progress snapshot (2026-05-21):
   - `docs/02_product/direct-banner-examples/saved-inline-contextual-grocery.svg`
   - `docs/02_product/direct-banner-examples/my-perks-member-benefit.svg`
 - current recommendation is to use the shipped inline promo shell as the visual ceiling: soft warm surface, light border, compact visual tile, short helper copy, small pill CTA
-- operator/runtime policy is now stricter: all current direct-banner slots are treated as `full_banner`, legacy campaign data was backfilled accordingly, and the Flutter-side rendering alignment is now bundled into the submitted `1.0.7 (13)` iOS review build plus Android `1.0.7 (44)` tester tracks
-- the immediate Explore follow-up wave has now also been built and uploaded as iOS `1.0.7 (14)` plus Android `1.0.7 (45)`, and the iOS App Store version `1.0.7` has already been reattached/resubmitted on build `14`; this wave carries the app-side admin-truth restoration for section/order behavior, `activeShopping` recommendation exposure, and the cleaned customer-facing `대안상품 보기` detail output
-- 2026-05-22 follow-up 기준 customer-update/review wave는 iOS `1.0.7 (17)` 재제출 + Android `1.0.7 (46)` internal/alpha 정렬까지 진행되었고, Explore utility bridge는 admin-controlled Naver toggle default-on 상태로 운영할 수 있게 되었다
+- operator/runtime policy is now stricter: all current direct-banner slots are treated as `full_banner`, legacy campaign data was backfilled accordingly, and the Flutter-side rendering alignment is now carried through the current `1.0.8 (18)` iOS review build plus Android `1.0.8 (47)` tester tracks
+- the immediate Explore follow-up wave and later customer-update wave have now settled into the current `1.0.8` line, which also carries the app-side admin-truth restoration for section/order behavior, `activeShopping` recommendation exposure, cleaned customer-facing `대안상품 보기` detail output, and the pending-scan persistence / duplicate-suppression reliability fix
+- 2026-05-29 기준 release packaging work is effectively done for this wave: iOS `1.0.8 (18)` is in `WAITING_FOR_REVIEW`, Android `1.0.8 (47)` is aligned on internal/alpha, and operator focus can now move back to ongoing operations/growth work
 
 Immediate next action for this workstream:
 - surface the slot-aware size / safe-area guidance inside admin upload UX so operator uploads can be reviewed against the same house style before publish

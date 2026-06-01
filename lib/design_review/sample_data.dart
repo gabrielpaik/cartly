@@ -35,6 +35,7 @@ final reviewAdSlots = <AppAdSlot>[
       landing: null,
       creatives: [],
       rotationMode: 'single',
+      showDelayMs: 1400,
     ),
   ),
   const AppAdSlot(
@@ -55,6 +56,7 @@ final reviewAdSlots = <AppAdSlot>[
       landing: null,
       creatives: [],
       rotationMode: 'single',
+      showDelayMs: 1400,
     ),
   ),
   const AppAdSlot(
@@ -75,6 +77,7 @@ final reviewAdSlots = <AppAdSlot>[
       landing: null,
       creatives: [],
       rotationMode: 'single',
+      showDelayMs: 1400,
     ),
   ),
   const AppAdSlot(
@@ -95,6 +98,7 @@ final reviewAdSlots = <AppAdSlot>[
       landing: null,
       creatives: [],
       rotationMode: 'single',
+      showDelayMs: 1400,
     ),
   ),
 ];

@@ -242,8 +242,8 @@ function ConfigPageInner() {
     <div className="exploreCompactPage">
       <PageHeader
         badge={res.usingFallback ? t('admin.common.badge.fallback', '대체 데이터') : res.loading ? t('admin.common.badge.loading', '불러오는 중') : t('admin.common.badge.live', '실시간')}
-        title={t('admin.config.title', 'System')}
-        description={t('admin.config.desc', '운영 상태와 앱 동작 기준')}
+        title={t('admin.config.title', '기본 설정')}
+        description={t('admin.config.desc', '운영 기준과 실노출 상태')}
         onRefresh={() => {
           void Promise.allSettled([res.reload(), loadSmoke()])
         }}
@@ -253,8 +253,8 @@ function ConfigPageInner() {
       {res.error ? <div className="loginError" style={{ marginBottom: 16 }}>{res.error}</div> : null}
       {res.usingFallback ? (
         <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
-          <strong>{t('admin.config.warning.fallbackTitle', '실시간 System 상태를 불러오지 못했어.')}</strong>{' '}
-          {t('admin.config.warning.fallbackBody', '지금 보이는 값은 대체 데이터일 수 있어서 실제 운영 상태와 다를 수 있어요.')}
+          <strong>{t('admin.config.warning.fallbackTitle', '실데이터 상태 불러오기 실패')}</strong>{' '}
+          {t('admin.config.warning.fallbackBody', '지금 값은 대체 데이터일 수 있어 실제 운영 상태와 다를 수 있어요.')}
           {res.fallbackMessage ? ` (${res.fallbackMessage})` : ''}
         </div>
       ) : null}
@@ -276,13 +276,13 @@ function ConfigPageInner() {
       <div className="exploreSummaryGrid section" style={{ marginTop: 12 }}>
         <div className="exploreSummaryCell">
           <div className="exploreSummaryLabel">원격 스캔</div>
-          <div className="exploreSummaryValue">{cfg.remoteScan ? 'ON' : 'OFF'}</div>
-          <div className="exploreSummaryNote">기기 대신 서버 쪽 판독 경로 사용</div>
+          <div className="exploreSummaryValue">{cfg.remoteScan ? '사용' : '중지'}</div>
+          <div className="exploreSummaryNote">서버 판독 경로</div>
         </div>
         <div className="exploreSummaryCell">
           <div className="exploreSummaryLabel">광고 노출</div>
-          <div className="exploreSummaryValue">{cfg.adsEnabled ? 'ON' : 'OFF'}</div>
-          <div className="exploreSummaryNote">앱 광고 slot 운영 여부</div>
+          <div className="exploreSummaryValue">{cfg.adsEnabled ? '사용' : '중지'}</div>
+          <div className="exploreSummaryNote">앱 광고 위치 운영</div>
         </div>
         <div className="exploreSummaryCell">
           <div className="exploreSummaryLabel">저장 공간</div>
@@ -297,7 +297,7 @@ function ConfigPageInner() {
         <div className="exploreSummaryCell">
           <div className="exploreSummaryLabel">이전 경로 호환</div>
           <div className="exploreSummaryValue">{cfg.legacyPathCompatibilityActive ? '유지 중' : '정리됨'}</div>
-          <div className="exploreSummaryNote">{cfg.legacyPathCompatibilityActive ? storageRootActual : t('admin.config.compat.noteClean', '이전 이름 의존 없이 정리된 상태')}</div>
+          <div className="exploreSummaryNote">{cfg.legacyPathCompatibilityActive ? storageRootActual : t('admin.config.compat.noteClean', '이전 이름 정리 완료')}</div>
         </div>
       </div>
 
@@ -342,7 +342,7 @@ function ConfigPageInner() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <span className="metaPill">점검 시각 {smoke.checkedAt}</span>
               <button className="ghostBtn ghostBtnSmall" onClick={() => void loadSmoke()} disabled={smokeLoading}>
-                {smokeLoading ? '점검중...' : '점검 다시 실행'}
+                {smokeLoading ? '점검 중...' : '점검 다시 실행'}
               </button>
             </div>
           </div>
@@ -370,7 +370,7 @@ function ConfigPageInner() {
             <div className="metaRow" style={{ marginTop: 0 }}>
               <span className="metaPill">기록 {smoke.history?.length ?? 0}개</span>            </div>
             {(smoke.history?.length ?? 0) === 0 ? (
-              <div className="metaPill">아직 저장된 smoke 기록이 없어</div>
+              <div className="metaPill">저장된 점검 기록 없음</div>
             ) : (
               smoke.history?.map((entry, index) => {
                 const failed = entry.results.filter((result) => !result.ok)
@@ -389,7 +389,7 @@ function ConfigPageInner() {
                       <span className="metaPill">실패 {entry.failureCount}</span>                    </div>
                     <div style={{ color: '#334155', fontSize: 13, fontWeight: 600 }}>
                       {failed.length === 0
-                        ? '모든 점검 대상이 정상 응답했어'
+                        ? '전체 정상 응답'
                         : failed.map((result) => `${result.label} (${result.status ?? 'ERR'}${result.error ? `, ${result.error}` : ''})`).join(' · ')}
                     </div>
                   </div>
@@ -565,7 +565,7 @@ function ConfigPageInner() {
           </div>
           <div className="metaRow" style={{ marginTop: 0, marginBottom: 10 }}>
             <span className="metaPill">상태 {cfg.coupangPartners.enabled ? '켜짐' : '꺼짐'}</span>
-            <span className="metaPill">메모 {savingCoupang ? '저장중' : noteDirty ? '미저장' : '저장됨'}</span>
+            <span className="metaPill">메모 {savingCoupang ? '저장 중...' : noteDirty ? '미저장' : '저장됨'}</span>
             <span className="metaPill">제휴 준비 {cfg.coupangPartners.affiliateReady ? '완료' : '미완료'}</span>
           </div>
           <div className="configEditorGrid">

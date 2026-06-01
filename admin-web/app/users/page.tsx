@@ -110,18 +110,18 @@ const legacyGuestsFallback = {
 }
 
 function displayUserName(user: UserRow) {
-  if (user.isGuest && user.guestCode) return `Guest#${user.guestCode}`
+  if (user.isGuest && user.guestCode) return `비회원#${user.guestCode}`
   if (user.displayName?.trim()) return user.displayName
   if (user.email?.trim()) return user.email
   return user.id ?? '-'
 }
 
 function userTypeLabel(user: UserRow, t: (key: string, fallback?: string) => string) {
-  return user.isGuest ? t('admin.users.type.guest', 'guest') : t('admin.users.type.member', 'member')
+  return user.isGuest ? t('admin.users.type.guest', '비회원') : t('admin.users.type.member', '회원')
 }
 
 function providerLabel(user: UserRow) {
-  if (user.isGuest) return 'guest'
+  if (user.isGuest) return '비회원'
   return user.provider?.trim() || '-'
 }
 
@@ -134,9 +134,9 @@ function savedCartCount(user: UserRow) {
 }
 
 function cleanupLabel(user: UserRow) {
-  if (!user.isGuest) return 'member'
-  if (user.guestKey?.trim()) return 'normal guest'
-  return savedCartCount(user) > 0 ? 'merge review' : 'archive candidate'
+  if (!user.isGuest) return '회원'
+  if (user.guestKey?.trim()) return '일반 비회원'
+  return savedCartCount(user) > 0 ? '통합 검토' : '정리 후보'
 }
 
 function parseOptionalNumber(value: string) {
@@ -144,6 +144,13 @@ function parseOptionalNumber(value: string) {
   if (!trimmed) return undefined
   const parsed = Number(trimmed)
   return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : undefined
+}
+
+function regionSegmentModeLabel(mode: RegionSegmentMode) {
+  if (mode === 'recent') return '최근 방문'
+  if (mode === 'frequent') return '자주 방문'
+  if (mode === 'primary') return '대표 활동지역'
+  return '전체'
 }
 
 function regionFilterSummary(mode: RegionSegmentMode, keys: string[]) {
@@ -281,26 +288,27 @@ export default function UsersPage() {
   const legacyWithCarts = legacySummary?.withCarts ?? 0
 
   const accountFilterButtons: Array<[AccountFilter, string]> = [
-    ['all', `All (${formatNumber(summary?.filteredUsers ?? users.length)})`],
-    ['member', `Members (${formatNumber(summary?.members ?? memberUsers.length)})`],
-    ['guest', `Guests (${formatNumber(summary?.guests ?? guestUsers.length)})`],
+    ['all', `전체 (${formatNumber(summary?.filteredUsers ?? users.length)})`],
+    ['member', `회원 (${formatNumber(summary?.members ?? memberUsers.length)})`],
+    ['guest', `비회원 (${formatNumber(summary?.guests ?? guestUsers.length)})`],
   ]
 
   const activeFilterPills = useMemo(() => {
+    const accountLabel = accountFilter === 'all' ? '전체' : accountFilter === 'member' ? '회원' : '비회원'
     const pills = [
-      `account ${accountFilter}`,
-      `query ${query.trim() || '-'}`,
+      `계정 ${accountLabel}`,
+      `검색 ${query.trim() || '-'}`,
     ]
-    if (lastSeenWithinDays.trim()) pills.push(`seen ${lastSeenWithinDays.trim()}d`)
-    if (sessionCountMin.trim()) pills.push(`visits >= ${sessionCountMin.trim()}`)
-    if (scanFilterValue.trim()) pills.push(`scans ${scanFilterOperator === 'gte' ? '>=' : '<'} ${scanFilterValue.trim()}`)
-    if (savedCartCountMin.trim()) pills.push(`saved carts >= ${savedCartCountMin.trim()}`)
-    if (readyPushOnly) pills.push('push ready only')
+    if (lastSeenWithinDays.trim()) pills.push(`최근 방문 ${lastSeenWithinDays.trim()}일`)
+    if (sessionCountMin.trim()) pills.push(`방문 ${sessionCountMin.trim()}회 이상`)
+    if (scanFilterValue.trim()) pills.push(`스캔 ${scanFilterOperator === 'gte' ? '이상' : '미만'} ${scanFilterValue.trim()}`)
+    if (savedCartCountMin.trim()) pills.push(`저장 카트 ${savedCartCountMin.trim()}개 이상`)
+    if (readyPushOnly) pills.push('푸시 가능만')
     if (regionSegmentMode !== 'none') {
-      pills.push(`activity ${regionSegmentMode}`)
-      pills.push(`region ${regionFilterSummary(regionSegmentMode, selectedRegionKeys)}`)
-      if (regionSegmentMode === 'recent') pills.push(`recent ${regionRecentWithinDays.trim() || '30'}d`)
-      if (regionSegmentMode === 'frequent') pills.push(`visits >= ${regionVisitCountMin.trim() || '3'}`)
+      pills.push(`지역 기준 ${regionSegmentModeLabel(regionSegmentMode)}`)
+      pills.push(`지역 ${regionFilterSummary(regionSegmentMode, selectedRegionKeys)}`)
+      if (regionSegmentMode === 'recent') pills.push(`최근 ${regionRecentWithinDays.trim() || '30'}일`)
+      if (regionSegmentMode === 'frequent') pills.push(`방문 ${regionVisitCountMin.trim() || '3'}회 이상`)
     }
     return pills
   }, [accountFilter, lastSeenWithinDays, query, readyPushOnly, regionRecentWithinDays, regionSegmentMode, regionVisitCountMin, savedCartCountMin, scanFilterOperator, scanFilterValue, selectedRegionKeys, sessionCountMin])
@@ -352,23 +360,23 @@ export default function UsersPage() {
     const workbook = XLSX.utils.book_new()
     const exportedAt = new Date().toISOString()
     const summarySheet = XLSX.utils.aoa_to_sheet([
-      ['Cartly Users segment export'],
-      ['exportedAt', exportedAt],
-      ['filteredUsers', summary?.filteredUsers ?? users.length],
-      ['readyPushUsers', readyPushUsers],
-      ['filters', activeFilterPills.join(' | ')],
+      ['고객 세그먼트 내보내기'],
+      ['내보낸 시각', exportedAt],
+      ['조회 고객', summary?.filteredUsers ?? users.length],
+      ['푸시 가능 고객', readyPushUsers],
+      ['조건', activeFilterPills.join(' | ')],
       [],
-      ['guide'],
-      ['upload this file in Push > 직접 업로드'],
-      ['userId is the primary key, installId stays blank by default'],
-      ['backend re-resolves ready devices from live state during preview/send'],
+      ['안내'],
+      ['이 파일은 알림 운영 > 직접 업로드에서 사용'],
+      ['userId를 기준으로 쓰고 installId는 기본값으로 비워둠'],
+      ['미리보기/발송 시 실기기 상태를 다시 확인함'],
     ])
     const audienceSheet = XLSX.utils.json_to_sheet(
       users.map((user) => ({
         userId: user.id ?? '',
         installId: '',
         name: displayUserName(user),
-        memo: `users segment | ${user.lifecycleLabel ?? '-'} | region ${user.topRegionSummary ?? user.primaryRegionLabel ?? '-'} | visits ${user.sessionCount ?? 0} | scans ${user.scanCount ?? 0} | carts ${savedCartCount(user)}`,
+        memo: `고객 세그먼트 | ${user.lifecycleLabel ?? '-'} | 지역 ${user.topRegionSummary ?? user.primaryRegionLabel ?? '-'} | 방문 ${user.sessionCount ?? 0} | 스캔 ${user.scanCount ?? 0} | 저장 카트 ${savedCartCount(user)}`,
         accountType: user.isGuest ? 'guest' : 'member',
         lifecycleStage: user.lifecycleStage ?? '',
         reachabilityState: user.reachabilityState ?? '',
@@ -393,8 +401,8 @@ export default function UsersPage() {
         lastAppVersion: user.lastAppVersion ?? '',
       }))
     )
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'summary')
-    XLSX.utils.book_append_sheet(workbook, audienceSheet, 'audience')
+    XLSX.utils.book_append_sheet(workbook, summarySheet, '요약')
+    XLSX.utils.book_append_sheet(workbook, audienceSheet, '대상목록')
     XLSX.writeFile(workbook, `cartly-users-segment-${exportedAt.slice(0, 10)}.xlsx`)
   }
 
@@ -405,18 +413,18 @@ export default function UsersPage() {
   return (
     <div className="exploreCompactPage">
       <PageHeader
-        badge={usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : loading ? t('admin.common.badge.loading', 'Loading...') : t('admin.common.badge.live', 'Live data')}
-        title={t('admin.users.title', 'Users')}
-        description={t('admin.users.desc', 'customer DB, segmentation, push audience export, guest cleanup routing')}
+        badge={usingFallback ? t('admin.common.badge.fallback', '대체 데이터') : loading ? t('admin.common.badge.loading', '불러오는 중') : t('admin.common.badge.live', '실데이터')}
+        title={t('admin.users.title', '고객')}
+        description={t('admin.users.desc', '고객 현황, 세그먼트, 푸시 대상 내보내기, 비회원 정리')}
         onRefresh={() => void reloadAll()}
         refreshing={loading}
         inlineRefresh
         actions={(
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button type="button" className="pageActionBtn" onClick={downloadPushAudienceSheet} disabled={users.length === 0}>
-              Export for Push
+              푸시 대상 내보내기
             </button>
-            <Link className="ghostBtn pageActionBtn" href="/users/legacy-cleanup">Legacy cleanup</Link>
+            <Link className="ghostBtn pageActionBtn" href="/users/legacy-cleanup">레거시 정리</Link>
           </div>
         )}
       />
@@ -424,54 +432,54 @@ export default function UsersPage() {
       {error ? <div className="loginError" style={{ marginBottom: 16 }}>{error}</div> : null}
       {usingFallback ? (
         <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
-          <strong>{t('admin.users.warning.fallbackTitle', 'Live user data unavailable.')}</strong>{' '}
-          {t('admin.users.warning.fallbackBody', '지금 목록은 fallback/mock data일 수 있어서 live runtime 확인 전에는 운영 판단을 보수적으로 하는 편이 안전해.')}
+          <strong>{t('admin.users.warning.fallbackTitle', '실데이터 고객 목록 불러오기 실패')}</strong>{' '}
+          {t('admin.users.warning.fallbackBody', '지금 목록은 대체 데이터일 수 있어 실운영 판단은 보수적으로 확인하는 편이 안전해.')}
           {usersRes.fallbackMessage ? ` (${usersRes.fallbackMessage})` : legacyGuestsRes.fallbackMessage ? ` (${legacyGuestsRes.fallbackMessage})` : ''}
         </div>
       ) : null}
 
       <div className="exploreSummaryGrid section" style={{ marginTop: 12 }}>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Filtered</div>
+          <div className="exploreSummaryLabel">조회 고객</div>
           <div className="exploreSummaryValue">{formatNumber(summary?.filteredUsers ?? users.length)}</div>
-          <div className="exploreSummaryNote">current segment rows</div>
+          <div className="exploreSummaryNote">현재 세그먼트 기준</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Ready push</div>
+          <div className="exploreSummaryLabel">푸시 가능</div>
           <div className="exploreSummaryValue">{formatNumber(readyPushUsers)}</div>
-          <div className="exploreSummaryNote">live device ready</div>
+          <div className="exploreSummaryNote">푸시 가능 기기</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Push blocked</div>
+          <div className="exploreSummaryLabel">푸시 차단</div>
           <div className="exploreSummaryValue">{formatNumber(pushBlockedUsers)}</div>
-          <div className="exploreSummaryNote">device exists, reachability blocked</div>
+          <div className="exploreSummaryNote">기기 존재, 수신 차단</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Dormant</div>
+          <div className="exploreSummaryLabel">휴면 후보</div>
           <div className="exploreSummaryValue">{formatNumber(dormantUsers)}</div>
-          <div className="exploreSummaryNote">customer reactivation candidates</div>
+          <div className="exploreSummaryNote">재활성화 후보</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Merge review</div>
+          <div className="exploreSummaryLabel">통합 검토</div>
           <div className="exploreSummaryValue">{formatNumber(mergeReviewUsers)}</div>
-          <div className="exploreSummaryNote">legacy guests with carts</div>
+          <div className="exploreSummaryNote">카트 보유 비회원</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Legacy queue</div>
+          <div className="exploreSummaryLabel">레거시 정리</div>
           <div className="exploreSummaryValue">{formatNumber(totalLegacy)}</div>
-          <div className="exploreSummaryNote">with carts {formatNumber(legacyWithCarts)}</div>
+          <div className="exploreSummaryNote">카트 보유 {formatNumber(legacyWithCarts)}</div>
         </div>
       </div>
 
       <div className="exploreActionBar exploreActionBarSingle section" style={{ marginTop: 8 }}>
         <div className="exploreActionPanel exploreActionPanelTight">
           <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 0 }}>
-            <h2 className="panelTitle" style={{ marginBottom: 0 }}>Segment filters</h2>
+            <h2 className="panelTitle" style={{ marginBottom: 0 }}>세그먼트 조건</h2>
             <div className="metaRow" style={{ marginTop: 0 }}>
               {activeFilterPills.map((pill) => (
                 <div key={pill} className="metaPill">{pill}</div>
               ))}
-              <Link className="metaPill" href="/users/legacy-cleanup">legacy queue {formatNumber(totalLegacy)}</Link>
+              <Link className="metaPill" href="/users/legacy-cleanup">레거시 정리 {formatNumber(totalLegacy)}</Link>
             </div>
           </div>
 
@@ -489,14 +497,14 @@ export default function UsersPage() {
             <button type="button" className="editorSubtab" onClick={() => applyPreset('visit5')}>방문 5회+</button>
             <button type="button" className="editorSubtab" onClick={() => applyPreset('scan10')}>스캔 10개+</button>
             <button type="button" className="editorSubtab" onClick={() => applyPreset('scanLow')}>스캔 3개 미만</button>
-            <button type="button" className="editorSubtab" onClick={() => applyPreset('pushReady')}>push ready</button>
-            <button type="button" className="ghostBtn ghostBtnSmall" onClick={resetFilters}>Reset</button>
+            <button type="button" className="editorSubtab" onClick={() => applyPreset('pushReady')}>푸시 가능</button>
+            <button type="button" className="ghostBtn ghostBtnSmall" onClick={resetFilters}>초기화</button>
           </div>
 
           <div className="exploreSheetFilterGrid compactFilterGrid" style={{ gridTemplateColumns: 'minmax(240px, 1.5fr) repeat(5, minmax(130px, 0.8fr)) minmax(200px, 1.2fr) minmax(200px, 1.1fr)' }}>
             <label className="field" style={{ margin: 0 }}>
               <div className="exploreSheetFieldLabel">검색</div>
-              <input className="textInput exploreSheetInput" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.users.list.searchPlaceholder', 'name / email / id / device')} />
+              <input className="textInput exploreSheetInput" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.users.list.searchPlaceholder', '이름 / 이메일 / ID / 기기')} />
             </label>
             <label className="field" style={{ margin: 0 }}>
               <div className="exploreSheetFieldLabel">최근 방문</div>
@@ -530,7 +538,7 @@ export default function UsersPage() {
               <div className="exploreSheetFieldLabel">푸시 가능</div>
               <div className="compactToggleCard">
                 <input type="checkbox" checked={readyPushOnly} onChange={(event) => setReadyPushOnly(event.target.checked)} />
-                <span>ready device만</span>
+                <span>푸시 가능 기기만</span>
               </div>
             </label>
             <label className="field" style={{ margin: 0 }}>
@@ -583,39 +591,39 @@ export default function UsersPage() {
           ) : null}
 
           <div className="metaRow" style={{ marginTop: 10, alignItems: 'center' }}>
-            <div className="metaPill">export uses userId, installId blank</div>
-            <div className="metaPill">Push upload re-resolves live device state</div>
-            <div className="metaPill">customer state is derived from live metrics</div>
+            <div className="metaPill">내보내기 기준: userId, installId 비움</div>
+            <div className="metaPill">푸시 업로드 시 실기기 상태 재확인</div>
+            <div className="metaPill">고객 상태는 실데이터 기준</div>
           </div>
         </div>
       </div>
 
       <div className="card exploreDenseCard exploreSheetCard section">
         <div className="sectionHeader exploreSheetHeader">
-          <h2 className="panelTitle" style={{ marginBottom: 0 }}>Segment result</h2>
+          <h2 className="panelTitle" style={{ marginBottom: 0 }}>세그먼트 결과</h2>
           <div className="metaRow" style={{ marginTop: 0 }}>
-            <span className="metaPill">rows {formatNumber(summary?.filteredUsers ?? users.length)}</span>
-            <span className="metaPill">members {formatNumber(summary?.members ?? memberUsers.length)}</span>
-            <span className="metaPill">guests {formatNumber(summary?.guests ?? guestUsers.length)}</span>
-            <span className="metaPill">members with email {formatNumber(membersWithEmail)}</span>
-            <span className="metaPill">guest carts {formatNumber(guestUsersWithCarts)}</span>
+            <span className="metaPill">행 {formatNumber(summary?.filteredUsers ?? users.length)}</span>
+            <span className="metaPill">회원 {formatNumber(summary?.members ?? memberUsers.length)}</span>
+            <span className="metaPill">비회원 {formatNumber(summary?.guests ?? guestUsers.length)}</span>
+            <span className="metaPill">이메일 보유 회원 {formatNumber(membersWithEmail)}</span>
+            <span className="metaPill">비회원 카트 {formatNumber(guestUsersWithCarts)}</span>
           </div>
         </div>
         {users.length === 0 ? (
-          <div className="emptyState">조건에 맞는 user가 없어</div>
+          <div className="emptyState">조건에 맞는 고객이 없어</div>
         ) : (
           <div className="tableWrap">
             <table className="dataTable exploreDenseTable">
               <thead>
                 <tr>
-                  <th>User</th>
-                  <th>Lifecycle</th>
-                  <th>Visits / Scans</th>
-                  <th>Reachability</th>
-                  <th>Region activity</th>
-                  <th>Device / Identity</th>
-                  <th>Last active</th>
-                  <th>Action</th>
+                  <th>고객</th>
+                  <th>이용 상태</th>
+                  <th>방문 / 스캔</th>
+                  <th>도달 상태</th>
+                  <th>지역 활동</th>
+                  <th>기기 / 계정</th>
+                  <th>최근 활동</th>
+                  <th>작업</th>
                 </tr>
               </thead>
               <tbody>
@@ -629,9 +637,9 @@ export default function UsersPage() {
                           <span className="metaPill">{userTypeLabel(user, t)}</span>
                           <span className="metaPill">{providerLabel(user)}</span>
                           {user.hasHousehold ? (
-                            <span className="metaPill">share {user.householdRole ?? 'member'} · {formatNumber(user.householdMemberCount ?? 0)}</span>
+                            <span className="metaPill">공유 {user.householdRole ?? '회원'} · {formatNumber(user.householdMemberCount ?? 0)}</span>
                           ) : (
-                            <span className="metaPill">solo</span>
+                            <span className="metaPill">개인</span>
                           )}
                         </div>
                       </div>
@@ -639,53 +647,53 @@ export default function UsersPage() {
                     <td>
                       <div style={{ display: 'grid', gap: 4, minWidth: 180 }}>
                         <strong style={{ color: lifecycleTone(user.lifecycleStage) }}>{user.lifecycleLabel ?? cleanupLabel(user)}</strong>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>{user.operatorActionLabel ?? 'monitor'}</span>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>joined {formatDate(user.createdAt)}</span>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>{user.operatorActionLabel ?? '관찰'}</span>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>가입 {formatDate(user.createdAt)}</span>
                       </div>
                     </td>
                     <td>
                       <div style={{ display: 'grid', gap: 4, minWidth: 160 }}>
-                        <strong>visits {formatNumber(user.sessionCount ?? 0)}</strong>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>scans {formatNumber(user.scanCount ?? 0)}</span>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>saved carts {formatNumber(savedCartCount(user))}</span>
+                        <strong>방문 {formatNumber(user.sessionCount ?? 0)}</strong>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>스캔 {formatNumber(user.scanCount ?? 0)}</span>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>저장 카트 {formatNumber(savedCartCount(user))}</span>
                       </div>
                     </td>
                     <td>
                       <div style={{ display: 'grid', gap: 4, minWidth: 170 }}>
-                        <strong style={{ color: reachabilityTone(user.reachabilityState) }}>{user.reachabilityLabel ?? 'reachability -'}</strong>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>{formatNumber(user.readyPushDeviceCount ?? 0)} ready / {formatNumber(user.pushDeviceCount ?? 0)} devices</span>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>action {user.operatorAction ?? '-'}</span>
+                        <strong style={{ color: reachabilityTone(user.reachabilityState) }}>{user.reachabilityLabel ?? '도달 상태 -'}</strong>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>{formatNumber(user.readyPushDeviceCount ?? 0)} 가능 / {formatNumber(user.pushDeviceCount ?? 0)} 기기</span>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>권장 작업 {user.operatorAction ?? '-'}</span>
                       </div>
                     </td>
                     <td>
                       <div style={{ display: 'grid', gap: 4, minWidth: 190 }}>
                         <strong>{user.primaryRegionLabel ?? user.topRegionSummary ?? '-'}</strong>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>{user.topRegionSummary ?? '활동지역 없음'}</span>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>regions {formatNumber(user.regionActivityCount ?? 0)} · recent30 {formatNumber(user.recentRegionCount30d ?? 0)}</span>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>{user.topRegionSummary ?? '활동 지역 없음'}</span>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>지역 {formatNumber(user.regionActivityCount ?? 0)} · 최근 30일 {formatNumber(user.recentRegionCount30d ?? 0)}</span>
                       </div>
                     </td>
                     <td>
                       <div style={{ display: 'grid', gap: 4, minWidth: 170 }}>
                         <strong>{platformLabel(user.lastDevicePlatform)}</strong>
                         <span style={{ color: '#64748b', fontSize: 12 }}>{user.lastAppVersion ?? '-'}</span>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>{user.email ?? user.guestKey ?? 'no account detail'}</span>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>{user.email ?? user.guestKey ?? '계정 정보 없음'}</span>
                       </div>
                     </td>
                     <td>
                       <div style={{ display: 'grid', gap: 4, minWidth: 160 }}>
                         <strong>{formatDate(user.lastActivityAt ?? user.lastSeenAt ?? user.lastActiveAt)}</strong>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>type {user.lastActivityType ?? 'seen'}</span>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>last scan {formatDate(user.lastScanAt)}</span>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>활동 유형 {user.lastActivityType ?? '확인'}</span>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>최근 스캔 {formatDate(user.lastScanAt)}</span>
                       </div>
                     </td>
                     <td>
                       <div style={{ display: 'grid', gap: 8, minWidth: 240 }}>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}`}>Profile</Link>
-                          <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}/history`}>History</Link>
-                          <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}/cleanup`}>Cleanup</Link>
+                          <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}`}>프로필</Link>
+                          <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}/history`}>이력</Link>
+                          <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}/cleanup`}>정리</Link>
                         </div>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>{user.operatorActionLabel ?? 'monitor'}</span>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>{user.operatorActionLabel ?? '관찰'}</span>
                       </div>
                     </td>
                   </tr>
@@ -731,13 +739,13 @@ export default function UsersPage() {
                 <thead>
                   <tr>
                     <th style={{ width: 64 }}>선택</th>
-                    <th>Label</th>
-                    <th>Full</th>
+                    <th>이름</th>
+                    <th>전체 경로</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pickerOptions.length === 0 ? (
-                    <tr><td colSpan={3}>먼저 상위 지역을 선택해줘</td></tr>
+                    <tr><td colSpan={3}>먼저 상위 지역 선택</td></tr>
                   ) : pickerOptions.map((option) => (
                     <tr key={option.key}>
                       <td><input type="checkbox" checked={regionPickerDraftKeys.includes(option.key)} onChange={() => toggleRegionDraftKey(option.key)} /></td>

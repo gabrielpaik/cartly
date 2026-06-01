@@ -5,8 +5,8 @@ import './globals.css'
 import AdminChrome from '../components/AdminChrome'
 
 export const metadata: Metadata = {
-  title: 'Cartly Admin',
-  description: 'Cartly backoffice dashboard',
+  title: '카트리 운영센터',
+  description: '카트리 운영센터',
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {

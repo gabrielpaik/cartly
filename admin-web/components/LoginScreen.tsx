@@ -5,6 +5,7 @@ import { useState } from 'react'
 
 import { isUnauthorizedError, loginAdmin } from '../lib/api'
 import { useAdminCopy } from './AdminCopyProvider'
+import AdminBrandMark from './AdminBrandMark'
 
 export default function LoginScreen({ nextPath, reason }: { nextPath?: string; reason?: string }) {
   const { t } = useAdminCopy()
@@ -35,11 +36,12 @@ export default function LoginScreen({ nextPath, reason }: { nextPath?: string; r
   return (
     <div className="loginShell">
       <div className="loginCard">
-        <div className="eyebrow">{t('admin.login.eyebrow', 'Protected admin')}</div>
-        <h1 className="pageTitle" style={{ marginBottom: 10 }}>{t('admin.login.title', 'Cartly Admin 로그인')}</h1>
-        <p className="pageDesc" style={{ marginBottom: 20 }}>
-          {t('admin.login.desc', '외부 접속용 운영 보드야. 관리자 비밀번호로만 들어오게 막아뒀어.')}
-        </p>
+        <div className="loginBrandWrap">
+          <AdminBrandMark variant="login" live={false} />
+        </div>
+        <div className="eyebrow">운영센터</div>
+        <h1 className="pageTitle" style={{ marginBottom: 10 }}>비밀번호 확인</h1>
+        <p className="pageDesc" style={{ marginBottom: 20 }}>관리자 비밀번호 입력</p>
 
         <form className="sectionGrid" onSubmit={onSubmit}>
           <label className="field">

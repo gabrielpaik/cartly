@@ -270,32 +270,69 @@ function formatPeriod(period: SlotPeriod | null | undefined) {
 function reviewFlagLabel(flag: ReviewFlag) {
   switch (flag) {
     case 'low_ctr':
-      return 'low CTR'
+      return '저효율'
     case 'no_data':
-      return 'no data'
+      return '데이터 없음'
     case 'inactive_gap':
-      return 'inactive gap'
+      return '비활성 공백'
     case 'reserved_mismatch':
-      return 'reserved mismatch'
+      return '예약 불일치'
     default:
-      return 'ok'
+      return '정상'
   }
 }
 
 function runtimeStateLabel(value: string) {
   switch (value) {
     case 'live_now':
-      return 'live now'
+      return '현재 노출'
     case 'reserved_pending':
-      return 'reserved pending'
+      return '예약 대기'
     case 'inactive_gap':
-      return 'inactive gap'
+      return '비활성 공백'
     case 'reserved_mismatch':
-      return 'reserved mismatch'
+      return '예약 불일치'
     case 'inactive':
-      return 'inactive'
+      return '비활성'
     case 'expired':
-      return 'expired'
+      return '종료'
+    default:
+      return value || '-'
+  }
+}
+
+function slotStatusLabel(value: string) {
+  switch (value) {
+    case 'active':
+      return '운영'
+    case 'inactive':
+      return '중지'
+    default:
+      return value || '-'
+  }
+}
+
+function historyVariantLabel(value: string) {
+  switch (value) {
+    case 'live':
+      return '현재'
+    case 'reserved':
+      return '예약'
+    default:
+      return value || '-'
+  }
+}
+
+function historyStatusLabel(value: string) {
+  switch (value) {
+    case 'ended':
+      return '종료'
+    case 'cancelled':
+      return '취소'
+    case 'scheduled':
+      return '예약'
+    case 'live':
+      return '운영'
     default:
       return value || '-'
   }
@@ -1096,9 +1133,9 @@ export default function AdsConsole({ view }: { view: AdsView }) {
   return (
     <div className="exploreCompactPage">
       <PageHeader
-        badge={usingFallback ? 'Fallback data' : loading ? 'Loading...' : 'Live data'}
-        title={t('admin.ads.title', 'Ads')}
-        description={t('admin.ads.desc', '무엇이 어디에 live인지, 어떻게 반응하는지, 무엇을 stop/keep할지 바로 판단하는 광고 운영 콘솔')}
+        badge={usingFallback ? '대체 데이터' : loading ? '불러오는중' : '실데이터'}
+        title={'광고 운영'}
+        description={'광고 현황과 세팅'}
         onRefresh={() => void refreshAll()}
         refreshing={loading || workspaceLoading}
       />
@@ -1107,7 +1144,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
       {message ? <div className="saveMessage" style={{ marginBottom: 16 }}>{message}</div> : null}
       {usingFallback ? (
         <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
-          <strong>Live ads data unavailable.</strong> 지금 화면은 fallback/mock data일 수 있어서 저장과 배너 업로드는 잠깐 막아둘게.
+          <strong>실데이터 불러오기 실패.</strong> 지금 화면은 대체 데이터일 수 있어. 저장과 배너 업로드는 막아둬.
         </div>
       ) : null}
 
@@ -1115,38 +1152,38 @@ export default function AdsConsole({ view }: { view: AdsView }) {
       <>
       <div className="exploreSummaryGrid section" style={{ marginTop: 12 }}>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Live slots</div>
+          <div className="exploreSummaryLabel">운영 슬롯</div>
           <div className="exploreSummaryValue">{performance.summary.liveSlots}</div>
-          <div className="exploreSummaryNote">runtime state = live_now</div>
+          <div className="exploreSummaryNote">현재 노출</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Reserved pending</div>
+          <div className="exploreSummaryLabel">예약 대기</div>
           <div className="exploreSummaryValue">{performance.summary.reservedPending}</div>
-          <div className="exploreSummaryNote">next queued creatives</div>
+          <div className="exploreSummaryNote">다음 노출</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Active creatives</div>
+          <div className="exploreSummaryLabel">노출 소재</div>
           <div className="exploreSummaryValue">{performance.summary.activeCreatives}</div>
-          <div className="exploreSummaryNote">live creative attached</div>
+          <div className="exploreSummaryNote">현재 연결</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Low CTR</div>
+          <div className="exploreSummaryLabel">저효율</div>
           <div className="exploreSummaryValue">{performance.summary.lowCtrSlots}</div>
-          <div className="exploreSummaryNote">review queue</div>
+          <div className="exploreSummaryNote">검토 필요</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">No data</div>
+          <div className="exploreSummaryLabel">데이터 없음</div>
           <div className="exploreSummaryValue">{performance.summary.noDataSlots}</div>
-          <div className="exploreSummaryNote">period signal empty</div>
+          <div className="exploreSummaryNote">지표 없음</div>
         </div>
       </div>
 
       <div className="metaRow section" style={{ marginTop: 8 }}>
-        <div className="metaPill">surface {slotQuery.trim() || '-'}</div>
-        <div className="metaPill">slot status {slotStatusFilter}</div>
-        <div className="metaPill">variant {historyVariantFilter}</div>
-        <div className="metaPill">period {historyPeriodFrom || '-'} → {historyPeriodTo || '-'}</div>
-        <div className="metaPill">campaign status {historyStatusFilter}</div>
+        <div className="metaPill">검색 {slotQuery.trim() || '-'}</div>
+        <div className="metaPill">슬롯 상태 {slotStatusFilter}</div>
+        <div className="metaPill">구분 {historyVariantFilter}</div>
+        <div className="metaPill">기간 {historyPeriodFrom || '-'} → {historyPeriodTo || '-'}</div>
+        <div className="metaPill">캠페인 상태 {historyStatusFilter}</div>
       </div>
       </>
       ) : null}
@@ -1156,38 +1193,38 @@ export default function AdsConsole({ view }: { view: AdsView }) {
         <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
           <div>
             <h2 className="panelTitle" style={{ marginBottom: 6 }}>공통 필터</h2>
-            <p className="pageDesc" style={{ margin: 0 }}>현황, 세팅, 효율을 같은 조건으로 바로 넘겨보는 압축 필터야.</p>
+            <p className="pageDesc" style={{ margin: 0 }}>공통 조건</p>
           </div>
         </div>
         <div className="exploreSheetFilterGrid compactFilterGrid adsCompactFilterGrid adsCompactFilterGridInline">
           <label className="field compactInlineField" style={{ margin: 0 }}>
             <div className="exploreSheetFieldLabel">검색</div>
-            <input className="textInput exploreSheetInput compactInlineInput" value={slotQuery} onChange={(e) => setSlotQuery(e.target.value)} placeholder="slot / screen / position / placement" />
+            <input className="textInput exploreSheetInput compactInlineInput" value={slotQuery} onChange={(e) => setSlotQuery(e.target.value)} placeholder="광고 위치 / 화면 / 노출면" />
           </label>
           <label className="field compactInlineField" style={{ margin: 0 }}>
             <div className="exploreSheetFieldLabel">슬롯</div>
             <select className="textInput exploreSheetInput compactInlineSelect" value={slotStatusFilter} onChange={(e) => setSlotStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}>
               <option value="all">전체</option>
-              <option value="active">active</option>
-              <option value="inactive">inactive</option>
+              <option value="active">운영</option>
+              <option value="inactive">중지</option>
             </select>
           </label>
           <label className="field compactInlineField" style={{ margin: 0 }}>
             <div className="exploreSheetFieldLabel">구분</div>
             <select className="textInput exploreSheetInput compactInlineSelect" value={historyVariantFilter} onChange={(e) => setHistoryVariantFilter(e.target.value as 'all' | 'live' | 'reserved')}>
               <option value="all">전체</option>
-              <option value="live">live</option>
-              <option value="reserved">reserved</option>
+              <option value="live">현재</option>
+              <option value="reserved">예약</option>
             </select>
           </label>
           <label className="field compactInlineField" style={{ margin: 0 }}>
             <div className="exploreSheetFieldLabel">상태</div>
             <select className="textInput exploreSheetInput compactInlineSelect" value={historyStatusFilter} onChange={(e) => setHistoryStatusFilter(e.target.value as 'all' | 'ended' | 'cancelled' | 'scheduled' | 'live')}>
               <option value="all">전체</option>
-              <option value="ended">ended</option>
-              <option value="cancelled">cancelled</option>
-              <option value="scheduled">scheduled</option>
-              <option value="live">live</option>
+              <option value="ended">종료</option>
+              <option value="cancelled">취소</option>
+              <option value="scheduled">예약</option>
+              <option value="live">운영</option>
             </select>
           </label>
           <label className="field compactInlineField adsCompactDateField" style={{ margin: 0 }}>
@@ -1203,7 +1240,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
             <input className="textInput exploreSheetInput compactInlineInput" value={historyQuery} onChange={(e) => setHistoryQuery(e.target.value)} placeholder="광고 제목, 문구, CTA" />
           </label>
           <div className="compactFilterActionCell">
-            <a className="ghostBtn ghostBtnSmall" href={bulkExportHref}>Excel</a>
+            <a className="ghostBtn ghostBtnSmall" href={bulkExportHref}>엑셀</a>
           </div>
         </div>
       </form>
@@ -1214,30 +1251,30 @@ export default function AdsConsole({ view }: { view: AdsView }) {
         <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 12 }}>
           <div>
             <h2 className="panelTitle" style={{ marginBottom: 6 }}>현황</h2>
-            <p className="pageDesc" style={{ margin: 0 }}>지금 무엇이 어느 surface에 live인지, review가 필요한 slot이 무엇인지 먼저 보는 truth table이야.</p>
+            <p className="pageDesc" style={{ margin: 0 }}>현재 노출과 검토 대상</p>
           </div>
           <div className="metaRow" style={{ marginTop: 0 }}>
-            <div className="metaPill">rows {performance.slotRows.length}</div>
-            <div className="metaPill">low ctr {performance.reviewQueues.lowCtr.length}</div>
-            <div className="metaPill">no data {performance.reviewQueues.noData.length}</div>
+            <div className="metaPill">행 {performance.slotRows.length}</div>
+            <div className="metaPill">저효율 {performance.reviewQueues.lowCtr.length}</div>
+            <div className="metaPill">데이터 없음 {performance.reviewQueues.noData.length}</div>
           </div>
         </div>
         {performance.slotRows.length === 0 ? (
-          <div className="emptyState">조건에 맞는 slot이 없어.</div>
+          <div className="emptyState">조건에 맞는 광고 위치가 없어.</div>
         ) : (
           <div className="tableWrap">
             <table className="dataTable">
               <thead>
                 <tr>
-                  <th>Slot</th>
-                  <th>Surface / Placement</th>
-                  <th>Runtime</th>
-                  <th>Live creative</th>
-                  <th>Reserved creative</th>
-                  <th>Metrics</th>
-                  <th>Review</th>
-                  <th>Updated</th>
-                  <th>Action</th>
+                  <th>광고 위치</th>
+                  <th>노출면 / 위치</th>
+                  <th>상태</th>
+                  <th>현재 소재</th>
+                  <th>예약 소재</th>
+                  <th>지표</th>
+                  <th>검토</th>
+                  <th>수정 시각</th>
+                  <th>열기</th>
                 </tr>
               </thead>
               <tbody>
@@ -1260,7 +1297,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
                       </td>
                       <td>
                         <div style={{ display: 'grid', gap: 4 }}>
-                          <span className="metaPill">{row.slotStatus}</span>
+                          <span className="metaPill">{slotStatusLabel(row.slotStatus)}</span>
                           <span style={{ color: '#64748b', fontSize: 12 }}>{runtimeStateLabel(row.effectiveRuntimeState)}</span>
                         </div>
                       </td>
@@ -1278,8 +1315,8 @@ export default function AdsConsole({ view }: { view: AdsView }) {
                       </td>
                       <td>
                         <div style={{ display: 'grid', gap: 4 }}>
-                          <span>{formatNumber(row.impressions)} imp</span>
-                          <span>{formatNumber(row.clicks)} click · {formatPercent(row.ctr)}</span>
+                          <span>{formatNumber(row.impressions)} 노출</span>
+                          <span>{formatNumber(row.clicks)} 클릭 · {formatPercent(row.ctr)}</span>
                         </div>
                       </td>
                       <td>
@@ -1288,7 +1325,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
                       <td>{formatDate(row.updatedAt)}</td>
                       <td>
                         <button className="ghostBtn ghostBtnSmall" type="button" onClick={(event) => { event.stopPropagation(); setSelectedSlotKey(row.slotKey) }}>
-                          {isSelected ? 'selected' : 'open'}
+                          {isSelected ? '선택됨' : '열기'}
                         </button>
                       </td>
                     </tr>
@@ -1302,35 +1339,35 @@ export default function AdsConsole({ view }: { view: AdsView }) {
           <h3 className="panelTitle" style={{ marginBottom: 10 }}>주의 필요</h3>
           <div className="exploreSummaryGrid" style={{ marginTop: 0 }}>
             <div className="exploreSummaryCell">
-              <div className="exploreSummaryLabel">No data</div>
+              <div className="exploreSummaryLabel">데이터 없음</div>
               <div className="exploreSummaryValue">{performance.reviewQueues.noData.length}</div>
-              <div className="exploreSummaryNote">live but signal empty</div>
+              <div className="exploreSummaryNote">노출 중, 지표 없음</div>
             </div>
             <div className="exploreSummaryCell">
-              <div className="exploreSummaryLabel">Low CTR</div>
+              <div className="exploreSummaryLabel">저효율</div>
               <div className="exploreSummaryValue">{performance.reviewQueues.lowCtr.length}</div>
-              <div className="exploreSummaryNote">below threshold</div>
+              <div className="exploreSummaryNote">기준 이하</div>
             </div>
             <div className="exploreSummaryCell">
-              <div className="exploreSummaryLabel">Inactive gap</div>
+              <div className="exploreSummaryLabel">비활성 공백</div>
               <div className="exploreSummaryValue">{performance.reviewQueues.inactiveGap.length}</div>
-              <div className="exploreSummaryNote">active slot without live creative</div>
+              <div className="exploreSummaryNote">운영 슬롯, 현재 소재 없음</div>
             </div>
             <div className="exploreSummaryCell">
-              <div className="exploreSummaryLabel">Reserved mismatch</div>
+              <div className="exploreSummaryLabel">예약 불일치</div>
               <div className="exploreSummaryValue">{performance.reviewQueues.reservedMismatch.length}</div>
-              <div className="exploreSummaryNote">reserved creative without valid schedule</div>
+              <div className="exploreSummaryNote">예약 일정 확인 필요</div>
             </div>
           </div>
           <div className="tableWrap" style={{ marginTop: 12 }}>
             <table className="dataTable">
               <thead>
                 <tr>
-                  <th>Slot</th>
-                  <th>Surface</th>
-                  <th>Issue</th>
-                  <th>Live</th>
-                  <th>Reserved</th>
+                  <th>광고 위치</th>
+                  <th>노출면</th>
+                  <th>이슈</th>
+                  <th>현재</th>
+                  <th>예약</th>
                 </tr>
               </thead>
               <tbody>
@@ -1350,7 +1387,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
                 ))}
                 {performance.reviewQueues.noData.length + performance.reviewQueues.lowCtr.length + performance.reviewQueues.inactiveGap.length + performance.reviewQueues.reservedMismatch.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', color: '#64748b' }}>review queue 비어 있음</td>
+                    <td colSpan={5} style={{ textAlign: 'center', color: '#64748b' }}>검토 대상 없음</td>
                   </tr>
                 ) : null}
               </tbody>
@@ -1365,12 +1402,12 @@ export default function AdsConsole({ view }: { view: AdsView }) {
           <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
             <div>
               <h2 className="panelTitle" style={{ marginBottom: 6 }}>세팅 시트</h2>
-              <p className="pageDesc" style={{ marginBottom: 6 }}>진열기간 조회, 조건검색, 일괄 추가/삭제/저장으로 바로 운영하는 타이트한 광고 시트야.</p>
+              <p className="pageDesc" style={{ marginBottom: 6 }}>진열 기간 조회와 일괄 편집</p>
             </div>
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <div className="metaPill">visible rows {visibleSetupRows.length}</div>
-              <div className="metaPill">selected {selectedRowIds.length}</div>
-              <div className="metaPill">dirty {newRows.length + dirtyExistingIds.length + dirtySlotKeys.length}</div>
+              <div className="metaPill">표시 행 {visibleSetupRows.length}</div>
+              <div className="metaPill">선택 {selectedRowIds.length}</div>
+              <div className="metaPill">변경 {newRows.length + dirtyExistingIds.length + dirtySlotKeys.length}</div>
             </div>
           </div>
 
@@ -1594,7 +1631,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
             <div className="adsModalBody">
               <div className="adsModalInfoCard">
                 <strong>권장 순서</strong>
-                <span>1) 양식 받기 → 2) Excel/CSV 작성 → 3) 여기서 파일 선택 → 4) 시트 넣기</span>
+                <span>1) 양식 받기 → 2) 엑셀/CSV 작성 → 3) 파일 선택 → 4) 시트 반영</span>
               </div>
               <div className="adsModalActionRow">
                 <button className="ghostBtn ghostBtnSmall" type="button" onClick={() => void downloadSetupTemplate()}>양식 받기</button>
@@ -1764,7 +1801,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
         <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 12 }}>
           <div>
             <h2 className="panelTitle" style={{ marginBottom: 6 }}>효율</h2>
-            <p className="pageDesc" style={{ margin: 0 }}>기간 기준 성과와 creative 비교를 한 번에 보는 구간이야.</p>
+            <p className="pageDesc" style={{ margin: 0 }}>기간 성과와 소재 비교</p>
           </div>
         </div>
 
@@ -1774,14 +1811,14 @@ export default function AdsConsole({ view }: { view: AdsView }) {
             <table className="dataTable">
               <thead>
                 <tr>
-                  <th>Slot</th>
-                  <th>Surface</th>
-                  <th>Live creative</th>
-                  <th>Impressions</th>
-                  <th>Clicks</th>
+                  <th>광고 위치</th>
+                  <th>노출면</th>
+                  <th>현재 소재</th>
+                  <th>노출</th>
+                  <th>클릭</th>
                   <th>CTR</th>
-                  <th>Review</th>
-                  <th>Last impression</th>
+                  <th>검토</th>
+                  <th>최근 노출</th>
                 </tr>
               </thead>
               <tbody>
@@ -1805,20 +1842,20 @@ export default function AdsConsole({ view }: { view: AdsView }) {
         <div className="section" style={{ marginTop: 16 }}>
           <h3 className="panelTitle" style={{ marginBottom: 10 }}>소재별 성과</h3>
           {performance.creativeRows.length === 0 ? (
-            <div className="emptyState">현재 조건에서는 creative-level row가 없어.</div>
+            <div className="emptyState">현재 조건의 소재 데이터가 없어.</div>
           ) : (
             <div className="tableWrap">
               <table className="dataTable">
                 <thead>
                   <tr>
-                    <th>Creative</th>
-                    <th>Slot</th>
-                    <th>Variant</th>
-                    <th>Status</th>
-                    <th>Impressions</th>
-                    <th>Clicks</th>
+                    <th>소재</th>
+                    <th>광고 위치</th>
+                    <th>구분</th>
+                    <th>상태</th>
+                    <th>노출</th>
+                    <th>클릭</th>
                     <th>CTR</th>
-                    <th>Seen</th>
+                    <th>노출 기간</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1826,8 +1863,8 @@ export default function AdsConsole({ view }: { view: AdsView }) {
                     <tr key={row.creativeKey}>
                       <td>{row.title}</td>
                       <td>{row.slotKey || '-'}</td>
-                      <td>{row.variant}</td>
-                      <td>{row.status}</td>
+                      <td>{historyVariantLabel(row.variant)}</td>
+                      <td>{historyStatusLabel(row.status)}</td>
                       <td>{formatNumber(row.impressions)}</td>
                       <td>{formatNumber(row.clicks)}</td>
                       <td>{formatPercent(row.ctr)}</td>
@@ -1844,7 +1881,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
           <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
             <div>
               <h3 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.ads.history.title', '지난 광고 데이터')}</h3>
-              <p className="pageDesc">현재 history table의 imp/click/ctr는 campaign lifetime 기준이야. 기간 기준 판단은 위 표와 creative 비교를 같이 보면 돼.</p>
+              <p className="pageDesc">지난 광고 누적 성과</p>
             </div>
           </div>
           <SlotHistory

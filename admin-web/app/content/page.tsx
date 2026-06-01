@@ -38,11 +38,20 @@ type FieldConfig = {
   kind?: 'text' | 'textarea' | 'number'
 }
 
+type SheetRow = FieldConfig & {
+  groupKey: string
+  groupLabel: string
+}
+
 const LOGO_TYPE_OPTIONS = [
   { value: 'text', label: '텍스트' },
   { value: 'image', label: '이미지' },
   { value: 'text_image', label: '텍스트 + 이미지' },
 ] as const
+
+function buildSheetRows(groupKey: string, groupLabel: string, fields: FieldConfig[]): SheetRow[] {
+  return fields.map((field) => ({ ...field, groupKey, groupLabel }))
+}
 
 function buildGroups(t: (key: string, fallback?: string) => string): Array<{ title: string; description: string; fields: FieldConfig[] }> {
   return [
@@ -362,9 +371,8 @@ export default function ContentPage() {
   const [publishAtDraft, setPublishAtDraft] = useState('')
   const [scheduleMeta, setScheduleMeta] = useState<ContentSchedule>({ pending: false, publishAt: null, updatedAt: null, payload: null })
   const [activeSection, setActiveSection] = useState<'brand' | 'app' | 'account' | 'public'>('brand')
-  const [appCopyTab, setAppCopyTab] = useState<'home' | 'help' | 'saved' | 'scan' | 'detail' | 'saveComplete'>('home')
-  const [accountTab, setAccountTab] = useState<'my' | 'login' | 'guest'>('my')
-  const [publicTab, setPublicTab] = useState<'landing' | 'privacy'>('landing')
+  const [sheetQuery, setSheetQuery] = useState('')
+  const [sheetGroupFilter, setSheetGroupFilter] = useState('all')
   const [previewSurface, setPreviewSurface] = useState<'app' | 'site'>('app')
   const previewPopupRef = useRef<Window | null>(null)
   const groups = buildGroups(t)
@@ -379,13 +387,8 @@ export default function ContentPage() {
     scan: groups[7],
     saveComplete: groups[8],
   }), [groups])
-  const totalFields = groups.reduce((sum, group) => sum + group.fields.length, 0)
   const formSnapshot = useMemo(() => JSON.stringify(form), [form])
   const isDirty = formSnapshot !== savedSnapshot
-  const contentActionState = usingFallback ? 'fallback blocked' : saving ? 'saving' : isDirty ? 'unsaved changes' : 'saved'
-  const contentActionStateLabel = usingFallback ? 'fallback' : saving ? '저장중' : isDirty ? '수정됨' : '저장됨'
-  const lastSavedLabel = useMemo(() => (lastSavedAt ? new Date(lastSavedAt).toLocaleString('ko-KR') : null), [lastSavedAt])
-  const scheduleLabel = scheduleMeta.publishAt ?? null
   const accountFieldGroups = useMemo(() => ({
     my: groupMap.myLogin.fields.filter((field) => String(field.key).startsWith('my')),
     login: groupMap.myLogin.fields.filter((field) => String(field.key).startsWith('login')),
@@ -395,6 +398,46 @@ export default function ContentPage() {
     landing: groupMap.publicSite.fields.filter((field) => !String(field.key).startsWith('publicSitePrivacy')),
     privacy: groupMap.publicSite.fields.filter((field) => String(field.key).startsWith('publicSitePrivacy')),
   }), [groupMap])
+  const sectionRows = useMemo<Record<'brand' | 'app' | 'account' | 'public', SheetRow[]>>(() => ({
+    brand: buildSheetRows('branding', '기본 브랜드', groupMap.branding.fields),
+    app: [
+      ...buildSheetRows('home', '홈', groupMap.home.fields),
+      ...buildSheetRows('help', '탐색', groupMap.help.fields),
+      ...buildSheetRows('saved', '지난 카트', groupMap.saved.fields),
+      ...buildSheetRows('scan', '스캔', groupMap.scan.fields),
+      ...buildSheetRows('detail', '상세·비교', groupMap.detail.fields),
+      ...buildSheetRows('saveComplete', '저장 완료', groupMap.saveComplete.fields),
+    ],
+    account: [
+      ...buildSheetRows('my', '마이페이지', accountFieldGroups.my),
+      ...buildSheetRows('login', '로그인', accountFieldGroups.login),
+      ...buildSheetRows('guest', '게스트 안내', accountFieldGroups.guest),
+    ],
+    public: [
+      ...buildSheetRows('landing', '랜딩', publicSiteFieldGroups.landing),
+      ...buildSheetRows('privacy', '개인정보', publicSiteFieldGroups.privacy),
+    ],
+  }), [accountFieldGroups, groupMap, publicSiteFieldGroups])
+  const sectionGroupOptions = useMemo<Record<'brand' | 'app' | 'account' | 'public', Array<{ key: string; label: string }>>>(() => ({
+    brand: [{ key: 'branding', label: '기본 브랜드' }],
+    app: [
+      { key: 'home', label: '홈' },
+      { key: 'help', label: '탐색' },
+      { key: 'saved', label: '지난 카트' },
+      { key: 'scan', label: '스캔' },
+      { key: 'detail', label: '상세·비교' },
+      { key: 'saveComplete', label: '저장 완료' },
+    ],
+    account: [
+      { key: 'my', label: '마이페이지' },
+      { key: 'login', label: '로그인' },
+      { key: 'guest', label: '게스트 안내' },
+    ],
+    public: [
+      { key: 'landing', label: '랜딩' },
+      { key: 'privacy', label: '개인정보' },
+    ],
+  }), [])
 
   function buildAppPreviewSrc() {
     return `/app-preview/index.html?v=${Date.now()}`
@@ -557,30 +600,34 @@ export default function ContentPage() {
     )
   }
 
-  function renderFieldSheet(fields: FieldConfig[]) {
+  function renderFieldSheet(rows: SheetRow[], options?: { showGroup?: boolean }) {
+    const showGroup = options?.showGroup ?? false
     return (
       <div className="tableWrap contentSheetWrap">
         <table className="dataTable contentSheetTable">
           <colgroup>
-            <col style={{ width: '32%' }} />
-            <col style={{ width: '68%' }} />
+            {showGroup ? <col style={{ width: '18%' }} /> : null}
+            <col style={{ width: showGroup ? '30%' : '32%' }} />
+            <col style={{ width: showGroup ? '52%' : '68%' }} />
           </colgroup>
           <thead>
             <tr>
+              {showGroup ? <th>묶음</th> : null}
               <th>항목</th>
               <th>값</th>
             </tr>
           </thead>
           <tbody>
-            {fields.map((field) => (
-              <tr key={String(field.key)}>
+            {rows.map((row) => (
+              <tr key={`${row.groupKey}:${String(row.key)}`}>
+                {showGroup ? <td data-label="묶음"><div className="contentSheetGroupCell">{row.groupLabel}</div></td> : null}
                 <td data-label="항목">
                   <div className="contentSheetItemCell">
-                    <div className="contentSheetItemLabel">{field.label}</div>
-                    <div className="contentSheetItemKey">{String(field.key)}</div>
+                    <div className="contentSheetItemLabel">{row.label}</div>
+                    <div className="contentSheetItemKey">{String(row.key)}</div>
                   </div>
                 </td>
-                <td data-label="값">{renderFieldControl(field, 'sheet')}</td>
+                <td data-label="값">{renderFieldControl(row, 'sheet')}</td>
               </tr>
             ))}
           </tbody>
@@ -649,12 +696,12 @@ export default function ContentPage() {
 
   async function onSave() {
     if (usingFallback) {
-      setMessage(t('admin.content.fallbackActionBlocked', 'fallback/mock 데이터를 보고 있는 동안에는 저장을 막아둘게'))
+      setMessage(t('admin.content.fallbackActionBlocked', '대체 데이터 상태에서는 저장을 막아둘게'))
       return
     }
 
     if (!parsePublishAt(publishAtDraft)) {
-      setMessage('저장 시각은 YYYY-MM-DD HH:MM:SS 형식으로 넣어줘')
+      setMessage('저장 시각 형식 확인, YYYY-MM-DD HH:MM:SS')
       return
     }
 
@@ -680,7 +727,7 @@ export default function ContentPage() {
 
   async function onAssetUpload(kind: 'logo' | 'splash' | 'loginHero', file: File) {
     if (usingFallback) {
-      setMessage(t('admin.content.fallbackUploadBlocked', 'fallback/mock 데이터를 보고 있는 동안에는 자산 업로드도 막아둘게'))
+      setMessage(t('admin.content.fallbackUploadBlocked', '대체 데이터 상태에서는 자산 업로드를 막아둘게'))
       return
     }
 
@@ -722,15 +769,6 @@ export default function ContentPage() {
     }
   }
 
-  const activeAppGroup = {
-    home: groupMap.home,
-    help: groupMap.help,
-    saved: groupMap.saved,
-    scan: groupMap.scan,
-    detail: groupMap.detail,
-    saveComplete: groupMap.saveComplete,
-  }[appCopyTab]
-
   const requestedSection = (() => {
     const value = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('section')
@@ -744,12 +782,37 @@ export default function ContentPage() {
     }
   }, [activeSection, requestedSection])
 
+  useEffect(() => {
+    setSheetQuery('')
+    setSheetGroupFilter('all')
+  }, [activeSection])
+
   const currentSectionTitle = {
-    brand: groupMap.branding.title,
-    app: 'App copy',
-    account: 'Account & login',
-    public: 'Public site',
+    brand: '브랜드',
+    app: '앱 문구',
+    account: '계정 문구',
+    public: '웹 문구',
   }[activeSection]
+  const currentSectionRows = sectionRows[activeSection]
+  const currentSectionGroups = sectionGroupOptions[activeSection]
+  const visibleSectionRows = useMemo(() => {
+    const query = sheetQuery.trim().toLowerCase()
+    return currentSectionRows.filter((row) => {
+      if (sheetGroupFilter !== 'all' && row.groupKey !== sheetGroupFilter) {
+        return false
+      }
+      if (!query) {
+        return true
+      }
+      const value = String(form[row.key] ?? '').toLowerCase()
+      return (
+        row.groupLabel.toLowerCase().includes(query) ||
+        row.label.toLowerCase().includes(query) ||
+        String(row.key).toLowerCase().includes(query) ||
+        value.includes(query)
+      )
+    })
+  }, [currentSectionRows, form, sheetGroupFilter, sheetQuery])
   const previewTargetValue = previewSurface === 'app'
     ? `app:${previewScreen}:${previewMemberMode ? 'member' : 'guest'}`
     : publicPreviewPath === '/privacy'
@@ -759,14 +822,14 @@ export default function ContentPage() {
   return (
     <div className="contentCompactPage">
       <PageHeader
-        badge={usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : t('admin.common.badge.live', 'Live data')}
-        title={t('admin.content.title', 'Content')}
-        description={t('admin.content.desc', '앱 문구와 로고 관리')}
+        badge={usingFallback ? '대체 데이터' : '실데이터'}
+        title={'브랜드·문구'}
+        description={'앱 문구와 브랜드 운영'}
         actions={(
           <div className="contentHeaderActionStrip">
             <div className="contentHeaderActionGroup contentHeaderActionGroupPreview">
               <div className="contentHeaderActionRow">
-                <button type="button" className="primaryBtn pageActionBtn pageActionBtnPrimary exploreHeaderActionBtn" onClick={openPreviewPopup}>Preview</button>
+                <button type="button" className="primaryBtn pageActionBtn pageActionBtnPrimary exploreHeaderActionBtn" onClick={openPreviewPopup}>미리보기</button>
                 <button
                   type="button"
                   className="ghostBtn pageActionBtn exploreHeaderIconBtn"
@@ -777,8 +840,8 @@ export default function ContentPage() {
                     }
                     refreshPublicPreview(publicPreviewPath)
                   }}
-                  aria-label="Preview 다시 보내기"
-                  title="Preview 다시 보내기"
+                  aria-label="미리보기 새로고침"
+                  title="미리보기 새로고침"
                 >
                   ↻
                 </button>
@@ -842,16 +905,16 @@ export default function ContentPage() {
                     refreshPublicPreview(value === 'site:privacy' ? '/privacy' : '/')
                   }}
                 >
-                  <option value="app:home:guest">Home · Guest</option>
-                  <option value="app:home:member">Home · Member</option>
-                  <option value="app:help:guest">도움 · Guest</option>
-                  <option value="app:help:member">도움 · Member</option>
-                  <option value="app:my:guest">My · Guest</option>
-                  <option value="app:my:member">My · Member</option>
-                  <option value="app:login:guest">Login · Guest</option>
-                  <option value="app:login:member">Login · Member</option>
-                  <option value="site:landing">Site · Landing</option>
-                  <option value="site:privacy">Site · Privacy</option>
+                  <option value="app:home:guest">홈 · 비회원</option>
+                  <option value="app:home:member">홈 · 회원</option>
+                  <option value="app:help:guest">탐색 · 비회원</option>
+                  <option value="app:help:member">탐색 · 회원</option>
+                  <option value="app:my:guest">마이페이지 · 비회원</option>
+                  <option value="app:my:member">마이페이지 · 회원</option>
+                  <option value="app:login:guest">로그인 · 비회원</option>
+                  <option value="app:login:member">로그인 · 회원</option>
+                  <option value="site:landing">웹 · 랜딩</option>
+                  <option value="site:privacy">웹 · 개인정보</option>
                 </select>
               </label>
             </div>
@@ -861,7 +924,7 @@ export default function ContentPage() {
                 <button className="primaryBtn pageActionBtn pageActionBtnPrimary exploreHeaderActionBtn contentHeaderSaveBtn" disabled={saving || usingFallback || !isDirty} onClick={() => void onSave()}>
                   {saving ? '저장중' : t('admin.content.save', '저장')}
                 </button>
-                <button type="button" className="ghostBtn pageActionBtn exploreCompactGhostBtn" onClick={() => setPublishAtDraft(formatPublishNow())}>Today</button>
+                <button type="button" className="ghostBtn pageActionBtn exploreCompactGhostBtn" onClick={() => setPublishAtDraft(formatPublishNow())}>지금</button>
               </div>
               <label className="contentHeaderMiniField">
                 <span>적용 시각</span>
@@ -876,7 +939,7 @@ export default function ContentPage() {
                 onClick={() => void reloadContentData()}
                 disabled={saving}
               >
-                {saving ? 'DATA...' : 'DATA'}
+                {saving ? '불러오는 중' : '다시불러오기'}
               </button>
             </div>
           </div>
@@ -885,8 +948,8 @@ export default function ContentPage() {
 
       {usingFallback ? (
         <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
-          <strong>{t('admin.content.warning.fallbackTitle', 'Live content config unavailable.')}</strong>{' '}
-          {t('admin.content.warning.fallbackBody', '지금 form 값은 fallback/mock data일 수 있어서 저장 액션을 잠깐 막아두고 있어요.')}
+          <strong>{t('admin.content.warning.fallbackTitle', '실데이터 문구 설정 불러오기 실패')}</strong>{' '}
+          {t('admin.content.warning.fallbackBody', '현재 값은 대체 데이터일 수 있어 저장을 막아둘게.')}
           {fallbackMessage ? ` (${fallbackMessage})` : ''}
         </div>
       ) : null}
@@ -896,145 +959,105 @@ export default function ContentPage() {
         <div className="card exploreDenseCard exploreSheetCard contentSheetWorkspaceCard">
           <div className="sectionHeader contentSheetHeader" style={{ marginBottom: 10 }}>
             <h2 className="panelTitle" style={{ marginBottom: 0 }}>{currentSectionTitle}</h2>
-            <span className="metaPill">fields {totalFields}</span>
+            <span className="metaPill">전체 {currentSectionRows.length}</span>
+          </div>
+          <div className="compactMetaRow" style={{ marginBottom: 8 }}>
+            <span className="metaPill">상태 {usingFallback ? '대체 데이터' : saving ? '저장중' : isDirty ? '수정됨' : '저장됨'}</span>
+            {lastSavedAt ? <span className="metaPill">최근 저장 {new Date(lastSavedAt).toLocaleString('ko-KR')}</span> : null}
+            {scheduleMeta.publishAt ? <span className="metaPill">적용 예정 {scheduleMeta.publishAt}</span> : null}
           </div>
 
-          {activeSection === 'brand' ? (
-            <div className="sectionGrid contentSheetStack">
-              <div className="contentSheetSectionTitleRow">
-                <strong>기본 브랜딩</strong>
-              </div>
-              {renderFieldSheet(groupMap.branding.fields)}
-
-              <div className="contentSheetSectionTitleRow">
-                <strong>브랜드 자산</strong>
-              </div>
-              <div className="contentAssetGrid">
-                <label className="field contentAssetMiniField">
-                  <div className="fieldLabel">{t('admin.content.fields.logoType', '로고 타입')}</div>
-                  <select className="textInput contentSheetInput" value={form.logoType} onChange={(e) => update('logoType', e.target.value as ContentSettings['logoType'])}>
-                    {LOGO_TYPE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="field contentAssetMiniField">
-                  <div className="fieldLabel">{t('admin.content.fields.logoUpload', '로고 업로드')}</div>
-                  <label className="uploadBox contentAssetUploadBox">
-                    <input type="file" accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml" className="hiddenInput" onChange={(e) => { const file = e.target.files?.[0]; if (file) void onAssetUpload('logo', file) }} />
-                    <div className="uploadTitle">{t('admin.content.fields.logoUploadSelect', '로고 파일 선택')}</div>
-                    <div className="uploadDesc">{uploading === 'logo' ? t('admin.content.uploading', '업로드 중...') : t('admin.content.fields.logoUploadDesc', '직접 업로드해서 바로 연결')}</div>
-                  </label>
-                  {form.logoImageUrl ? <div className="saveMessage">{t('admin.content.fields.connected', '연결됨:')} {form.logoImageUrl}</div> : null}
-                </label>
-
-                <label className="field contentAssetMiniField">
-                  <div className="fieldLabel">{t('admin.content.fields.splashUpload', '스플래시 이미지 업로드')}</div>
-                  <label className="uploadBox contentAssetUploadBox">
-                    <input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" className="hiddenInput" onChange={(e) => { const file = e.target.files?.[0]; if (file) void onAssetUpload('splash', file) }} />
-                    <div className="uploadTitle">{t('admin.content.fields.splashUploadSelect', '스플래시 파일 선택')}</div>
-                    <div className="uploadDesc">{uploading === 'splash' ? t('admin.content.uploading', '업로드 중...') : t('admin.content.fields.splashUploadDesc', '앱 시작 화면용 이미지 등록')}</div>
-                  </label>
-                  {form.splashImageUrl ? <div className="saveMessage">{t('admin.content.fields.connected', '연결됨:')} {form.splashImageUrl}</div> : null}
-                </label>
-
-                <label className="field contentAssetMiniField">
-                  <div className="fieldLabel">{t('admin.content.fields.loginHeroUpload', '로그인 이미지 업로드')}</div>
-                  <label className="uploadBox contentAssetUploadBox">
-                    <input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" className="hiddenInput" onChange={(e) => { const file = e.target.files?.[0]; if (file) void onAssetUpload('loginHero', file) }} />
-                    <div className="uploadTitle">{t('admin.content.fields.loginHeroUploadSelect', '로그인 이미지 파일 선택')}</div>
-                    <div className="uploadDesc">{uploading === 'loginHero' ? t('admin.content.uploading', '업로드 중...') : t('admin.content.fields.loginHeroUploadDesc', '로그인 화면 상단 이미지 등록')}</div>
-                  </label>
-                  {form.loginHeroImageUrl ? <div className="saveMessage">{t('admin.content.fields.connected', '연결됨:')} {form.loginHeroImageUrl}</div> : null}
-                </label>
+          <div className="sectionGrid contentSheetStack">
+            <div className="contentSheetSectionTitleRow">
+              <strong>{currentSectionTitle}</strong>
+              <div className="compactMetaRow">
+                <span className="metaPill">전체 {currentSectionRows.length}</span>
+                <span className="metaPill">현재 {visibleSectionRows.length}</span>
               </div>
             </div>
-          ) : null}
 
-          {activeSection === 'app' ? (
-            <div className="sectionGrid contentSheetStack">
-              <div className="editorSubtabRow contentSheetSubtabs">
-                {([
-                  ['home', groupMap.home.title],
-                  ['help', 'Explore / Help'],
-                  ['saved', groupMap.saved.title],
-                  ['scan', groupMap.scan.title],
-                  ['detail', groupMap.detail.title],
-                  ['saveComplete', groupMap.saveComplete.title],
-                ] as const).map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`editorSubtab ${appCopyTab === key ? 'active' : ''}`}
-                    onClick={() => setAppCopyTab(key)}
-                  >
-                    {label}
-                  </button>
-                ))}
+            <div className="contentSheetToolbar">
+              <label className="contentSheetToolbarField">
+                <span>묶음</span>
+                <select className="textInput contentSheetInput" value={sheetGroupFilter} onChange={(e) => setSheetGroupFilter(e.target.value)}>
+                  <option value="all">전체</option>
+                  {currentSectionGroups.map((group) => (
+                    <option key={group.key} value={group.key}>{group.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="contentSheetToolbarField contentSheetToolbarFieldSearch">
+                <span>찾기</span>
+                <input
+                  className="textInput contentSheetInput"
+                  value={sheetQuery}
+                  onChange={(e) => setSheetQuery(e.target.value)}
+                  placeholder="항목명, 키, 값"
+                />
+              </label>
+            </div>
+
+            {activeSection === 'app' ? (
+              <div className="compactMetaRow">
+                <span className="metaPill">탐색 기본 문구 포함</span>
+                <span className="metaPill">결정 문구는 탐색 운영</span>
               </div>
-              <div className="contentSheetSectionTitleRow">
-                <strong>{activeAppGroup.title}</strong>
-                <div className="compactMetaRow">
-                  {appCopyTab === 'help' ? <span className="metaPill">Explore base copy</span> : null}
-                  {appCopyTab === 'help' ? <span className="metaPill">Decision Copy는 Explore</span> : null}
-                  <span className="metaPill">fields {activeAppGroup.fields.length}</span>
+            ) : null}
+
+            {visibleSectionRows.length > 0 ? (
+              renderFieldSheet(visibleSectionRows, { showGroup: activeSection !== 'brand' })
+            ) : (
+              <div className="emptyState" style={{ margin: 0 }}>조건에 맞는 항목이 없어요.</div>
+            )}
+
+            {activeSection === 'brand' ? (
+              <>
+                <div className="contentSheetSectionTitleRow">
+                  <strong>브랜드 자산</strong>
                 </div>
-              </div>
-              {renderFieldSheet(activeAppGroup.fields)}
-            </div>
-          ) : null}
+                <div className="contentAssetGrid">
+                  <label className="field contentAssetMiniField">
+                    <div className="fieldLabel">{t('admin.content.fields.logoType', '로고 타입')}</div>
+                    <select className="textInput contentSheetInput" value={form.logoType} onChange={(e) => update('logoType', e.target.value as ContentSettings['logoType'])}>
+                      {LOGO_TYPE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
 
-          {activeSection === 'account' ? (
-            <div className="sectionGrid contentSheetStack">
-              <div className="editorSubtabRow contentSheetSubtabs">
-                {([
-                  ['my', 'My'],
-                  ['login', 'Login'],
-                  ['guest', 'Guest drawer'],
-                ] as const).map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`editorSubtab ${accountTab === key ? 'active' : ''}`}
-                    onClick={() => setAccountTab(key)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div className="contentSheetSectionTitleRow">
-                <strong>{accountTab === 'my' ? 'My copy' : accountTab === 'login' ? 'Login copy' : 'Guest drawer copy'}</strong>
-                <span className="metaPill">fields {accountFieldGroups[accountTab].length}</span>
-              </div>
-              {renderFieldSheet(accountFieldGroups[accountTab])}
-            </div>
-          ) : null}
+                  <label className="field contentAssetMiniField">
+                    <div className="fieldLabel">{t('admin.content.fields.logoUpload', '로고 업로드')}</div>
+                    <label className="uploadBox contentAssetUploadBox">
+                      <input type="file" accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml" className="hiddenInput" onChange={(e) => { const file = e.target.files?.[0]; if (file) void onAssetUpload('logo', file) }} />
+                      <div className="uploadTitle">{t('admin.content.fields.logoUploadSelect', '로고 파일 선택')}</div>
+                      <div className="uploadDesc">{uploading === 'logo' ? t('admin.content.uploading', '업로드 중...') : t('admin.content.fields.logoUploadDesc', '직접 업로드해서 바로 연결')}</div>
+                    </label>
+                    {form.logoImageUrl ? <div className="saveMessage">{t('admin.content.fields.connected', '연결됨:')} {form.logoImageUrl}</div> : null}
+                  </label>
 
-          {activeSection === 'public' ? (
-            <div className="sectionGrid contentSheetStack">
-              <div className="editorSubtabRow contentSheetSubtabs">
-                {([
-                  ['landing', 'Landing'],
-                  ['privacy', 'Privacy'],
-                ] as const).map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`editorSubtab ${publicTab === key ? 'active' : ''}`}
-                    onClick={() => setPublicTab(key)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div className="contentSheetSectionTitleRow">
-                <strong>{publicTab === 'landing' ? 'Landing copy' : 'Privacy copy'}</strong>
-                <span className="metaPill">fields {publicSiteFieldGroups[publicTab].length}</span>
-              </div>
-              {renderFieldSheet(publicSiteFieldGroups[publicTab])}
-            </div>
-          ) : null}
+                  <label className="field contentAssetMiniField">
+                    <div className="fieldLabel">{t('admin.content.fields.splashUpload', '스플래시 이미지 업로드')}</div>
+                    <label className="uploadBox contentAssetUploadBox">
+                      <input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" className="hiddenInput" onChange={(e) => { const file = e.target.files?.[0]; if (file) void onAssetUpload('splash', file) }} />
+                      <div className="uploadTitle">{t('admin.content.fields.splashUploadSelect', '스플래시 파일 선택')}</div>
+                      <div className="uploadDesc">{uploading === 'splash' ? t('admin.content.uploading', '업로드 중...') : t('admin.content.fields.splashUploadDesc', '앱 시작 화면용 이미지 등록')}</div>
+                    </label>
+                    {form.splashImageUrl ? <div className="saveMessage">{t('admin.content.fields.connected', '연결됨:')} {form.splashImageUrl}</div> : null}
+                  </label>
+
+                  <label className="field contentAssetMiniField">
+                    <div className="fieldLabel">{t('admin.content.fields.loginHeroUpload', '로그인 이미지 업로드')}</div>
+                    <label className="uploadBox contentAssetUploadBox">
+                      <input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" className="hiddenInput" onChange={(e) => { const file = e.target.files?.[0]; if (file) void onAssetUpload('loginHero', file) }} />
+                      <div className="uploadTitle">{t('admin.content.fields.loginHeroUploadSelect', '로그인 이미지 파일 선택')}</div>
+                      <div className="uploadDesc">{uploading === 'loginHero' ? t('admin.content.uploading', '업로드 중...') : t('admin.content.fields.loginHeroUploadDesc', '로그인 화면 상단 이미지 등록')}</div>
+                    </label>
+                    {form.loginHeroImageUrl ? <div className="saveMessage">{t('admin.content.fields.connected', '연결됨:')} {form.loginHeroImageUrl}</div> : null}
+                  </label>
+                </div>
+              </>
+            ) : null}
+          </div>
         </div>
 
       </div>

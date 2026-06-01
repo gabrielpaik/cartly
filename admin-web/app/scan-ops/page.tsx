@@ -142,7 +142,16 @@ function formatJson(value: unknown) {
 
 function feedbackLabel(feedback?: JobFeedbackSummary | null) {
   if (!feedback) return '-'
-  return feedback.accepted ? 'accepted' : 'corrected'
+  return feedback.accepted ? '수락' : '수정'
+}
+
+function jobStatusLabel(status?: string | null) {
+  if (status === 'failed') return '실패'
+  if (status === 'done') return '완료'
+  if (status === 'quarantined') return '격리'
+  if (status === 'processing') return '처리중'
+  if (status === 'queued') return '대기'
+  return status ?? '-'
 }
 
 function categoryLabel(categoryMeta?: JobCategoryMeta | null) {
@@ -224,17 +233,17 @@ export default function ScanOpsPage() {
 
   async function retryJob(jobId: string) {
     if (res.usingFallback) {
-      setActionMessage(t('admin.scanops.action.fallbackBlocked', 'fallback/mock 상태에서는 retry 액션을 막아둘게'))
+      setActionMessage(t('admin.scanops.action.fallbackBlocked', '대체 데이터 상태에서는 재실행 작업을 막아둘게'))
       return
     }
     setRetryingJobId(jobId)
     setActionMessage(null)
     try {
       await postJson<JobActionResponse>(`/admin/scan-jobs/${jobId}/retry`)
-      setActionMessage(t('admin.scanops.action.retryDone', 'job이 다시 queue로 들어갔어'))
+      setActionMessage(t('admin.scanops.action.retryDone', '작업을 다시 대기열로 보냈어'))
       await res.reload()
     } catch (error) {
-      setActionMessage(error instanceof Error ? error.message : t('admin.scanops.action.retryFailed', 'job retry 실패'))
+      setActionMessage(error instanceof Error ? error.message : t('admin.scanops.action.retryFailed', '재실행 실패'))
     } finally {
       setRetryingJobId(null)
     }
@@ -242,18 +251,18 @@ export default function ScanOpsPage() {
 
   async function quarantineJob(jobId: string) {
     if (res.usingFallback) {
-      setActionMessage(t('admin.scanops.action.fallbackBlocked', 'fallback/mock 상태에서는 quarantine 액션을 막아둘게'))
+      setActionMessage(t('admin.scanops.action.fallbackBlocked', '대체 데이터 상태에서는 격리 작업을 막아둘게'))
       return
     }
     setQuarantiningJobId(jobId)
     setActionMessage(null)
     try {
       await postJson<JobActionResponse>(`/admin/scan-jobs/${jobId}/quarantine`)
-      setActionMessage(t('admin.scanops.action.quarantineDone', 'job을 quarantine으로 이동했어'))
+      setActionMessage(t('admin.scanops.action.quarantineDone', '작업을 격리로 이동했어'))
       if (selectedJobId === jobId) setSelectedJobId(null)
       await res.reload()
     } catch (error) {
-      setActionMessage(error instanceof Error ? error.message : t('admin.scanops.action.quarantineFailed', 'job quarantine 실패'))
+      setActionMessage(error instanceof Error ? error.message : t('admin.scanops.action.quarantineFailed', '격리 이동 실패'))
     } finally {
       setQuarantiningJobId(null)
     }
@@ -275,11 +284,11 @@ export default function ScanOpsPage() {
 
   async function saveJobCategories(jobIds: string[], categoryDraft: string) {
     if (res.usingFallback) {
-      setActionMessage('fallback/mock 상태에서는 카테고리 수정이 안 돼')
+      setActionMessage('대체 데이터 상태에서는 카테고리 수정이 안 돼')
       return
     }
     if (!jobIds.length) {
-      setActionMessage('먼저 수정할 scan job을 선택해줘')
+      setActionMessage('먼저 수정할 작업을 선택해줘')
       return
     }
     if (!categoryDraft) {
@@ -295,25 +304,25 @@ export default function ScanOpsPage() {
         category: nextCategory,
       })
       if (!result.ok) {
-        throw new Error(result.error?.message || 'scan job 카테고리 저장 실패')
+        throw new Error(result.error?.message || '작업 카테고리 저장 실패')
       }
-      setActionMessage(nextCategory ? `${jobIds.length}건 scan 카테고리를 ${nextCategory}로 바꿨어` : `${jobIds.length}건 scan 카테고리를 자동 추론으로 되돌렸어`)
+      setActionMessage(nextCategory ? `${jobIds.length}건 카테고리를 ${nextCategory}로 바꿨어` : `${jobIds.length}건 카테고리를 자동 추론으로 되돌렸어`)
       setSelectedJobIds([])
       setBulkCategory('')
       setRowCategoryDrafts({})
       await res.reload()
     } catch (error) {
-      setActionMessage(error instanceof Error ? error.message : 'scan job 카테고리 저장 실패')
+      setActionMessage(error instanceof Error ? error.message : '작업 카테고리 저장 실패')
     } finally {
       setSavingCategories(false)
     }
   }
 
   const filterButtons: Array<[JobFilterKey, string]> = [
-    ['all', `${t('admin.scanops.filter.all', 'All')} (${jobs.length})`],
-    ['failed', `${t('admin.scanops.filter.failed', 'Failed')} (${summary.failedJobs ?? 0})`],
-    ['quarantined', `${t('admin.scanops.filter.quarantined', 'Quarantined')} (${summary.quarantinedJobs ?? 0})`],
-    ['done', `${t('admin.scanops.filter.done', 'Done')} (${summary.doneJobs ?? 0})`],
+    ['all', `${t('admin.scanops.filter.all', '전체')} (${jobs.length})`],
+    ['failed', `${t('admin.scanops.filter.failed', '실패')} (${summary.failedJobs ?? 0})`],
+    ['quarantined', `${t('admin.scanops.filter.quarantined', '격리')} (${summary.quarantinedJobs ?? 0})`],
+    ['done', `${t('admin.scanops.filter.done', '완료')} (${summary.doneJobs ?? 0})`],
   ]
 
   async function downloadWorkbook() {
@@ -332,7 +341,7 @@ export default function ScanOpsPage() {
           failedJobs: summary.failedJobs ?? 0,
           quarantinedJobs: summary.quarantinedJobs ?? 0,
           oldestQueuedAt: fmt(summary.oldestQueuedAt),
-          workerRunning: summary.workerRunning ? 'RUNNING' : 'STOPPED',
+          workerRunning: summary.workerRunning ? '동작' : '중지',
           feedbackTotal: summary.feedbackTotal ?? 0,
           feedbackAccepted: summary.feedbackAccepted ?? 0,
           feedbackCorrected: summary.feedbackCorrected ?? 0,
@@ -347,7 +356,7 @@ export default function ScanOpsPage() {
           status: row.status ?? '-',
           userId: row.userId ?? '-',
           device: deviceLabel(row.deviceMeta),
-          imageAvailable: row.imageAvailable ? 'Y' : 'N',
+          imageAvailable: row.imageAvailable ? '있음' : '없음',
           imagePathLabel: row.imagePathLabel ?? '-',
           createdAt: fmt(row.createdAt),
           updatedAt: fmt(row.updatedAt),
@@ -375,15 +384,15 @@ export default function ScanOpsPage() {
         }
       })
 
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), 'Summary')
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(insights.topProducts ?? []), 'Top Products')
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(insights.topCategories ?? []), 'Top Categories')
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(insights.hourlyActivity ?? []), 'Hourly')
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(insights.weekdayActivity ?? []), 'Weekday')
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(insights.dailyActivity ?? []), 'Daily')
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(jobRows), 'Jobs')
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), '요약')
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(insights.topProducts ?? []), '상위 상품')
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(insights.topCategories ?? []), '상위 카테고리')
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(insights.hourlyActivity ?? []), '시간대')
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(insights.weekdayActivity ?? []), '요일')
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(insights.dailyActivity ?? []), '일자')
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(jobRows), '작업 목록')
       XLSX.writeFile(workbook, 'cartly-scan-ops.xlsx')
-      setActionMessage('scan ops 데이터를 엑셀로 내려받았어')
+      setActionMessage('스캔 운영 데이터를 엑셀로 내려받았어')
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : '엑셀 다운로드 실패')
     } finally {
@@ -394,15 +403,15 @@ export default function ScanOpsPage() {
   return (
     <div className="exploreCompactPage">
       <PageHeader
-        badge={res.usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : res.loading ? t('admin.common.badge.loading', 'Loading...') : t('admin.common.badge.live', 'Live data')}
-        title={t('admin.scanops.title', 'Scan Ops')}
-        description={t('admin.scanops.desc', 'queue, failure, feedback')}
+        badge={res.usingFallback ? t('admin.common.badge.fallback', '대체 데이터') : res.loading ? t('admin.common.badge.loading', '불러오는 중') : t('admin.common.badge.live', '실데이터')}
+        title={t('admin.scanops.title', '스캔 운영')}
+        description={t('admin.scanops.desc', '대기열, 실패, 피드백')}
         onRefresh={() => void res.reload()}
         refreshing={res.loading}
         inlineRefresh
         actions={(
           <button className="ghostBtn pageActionBtn" type="button" onClick={() => void downloadWorkbook()} disabled={downloadingWorkbook}>
-            {downloadingWorkbook ? '엑셀 준비중...' : 'Excel'}
+            {downloadingWorkbook ? '엑셀 준비중...' : '엑셀'}
           </button>
         )}
       />
@@ -411,51 +420,51 @@ export default function ScanOpsPage() {
       {actionMessage ? <div className="saveMessage" style={{ marginBottom: 16 }}>{actionMessage}</div> : null}
       {res.usingFallback ? (
         <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
-          <strong>{t('admin.scanops.warning.fallbackTitle', 'Live scan ops unavailable.')}</strong>{' '}
-          {t('admin.scanops.warning.fallbackBody', '지금 화면은 fallback/mock data일 수 있어서 retry, quarantine 같은 운영 액션은 잠깐 막아둘게.')}
+          <strong>{t('admin.scanops.warning.fallbackTitle', '실데이터 스캔 운영 불러오기 실패')}</strong>{' '}
+          {t('admin.scanops.warning.fallbackBody', '지금 화면은 대체 데이터일 수 있어 재실행, 격리 같은 운영 작업은 잠시 막아둘게.')}
         </div>
       ) : null}
 
       <div className="exploreSummaryGrid section" style={{ marginTop: 12 }}>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Jobs</div>
+          <div className="exploreSummaryLabel">스캔 건수</div>
           <div className="exploreSummaryValue">{summary.jobsTotal ?? 0}</div>
-          <div className="exploreSummaryNote">queued {summary.queuedJobs ?? 0} · processing {summary.processingJobs ?? 0}</div>
+          <div className="exploreSummaryNote">대기 {summary.queuedJobs ?? 0} · 처리중 {summary.processingJobs ?? 0}</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Done / Failed</div>
+          <div className="exploreSummaryLabel">완료 / 실패</div>
           <div className="exploreSummaryValue">{summary.doneJobs ?? 0} / {summary.failedJobs ?? 0}</div>
-          <div className="exploreSummaryNote">{summary.oldestQueuedAt ? `oldest ${fmt(summary.oldestQueuedAt)}` : 'queue clear'}</div>
+          <div className="exploreSummaryNote">{summary.oldestQueuedAt ? `최장 대기 ${fmt(summary.oldestQueuedAt)}` : '대기 없음'}</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Worker</div>
-          <div className="exploreSummaryValue">{summary.workerRunning ? 'RUNNING' : 'STOPPED'}</div>
-          <div className="exploreSummaryNote">login-session daemon</div>
+          <div className="exploreSummaryLabel">작업기</div>
+          <div className="exploreSummaryValue">{summary.workerRunning ? '가동' : '중지'}</div>
+          <div className="exploreSummaryNote">로그인 세션 연동</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Feedback</div>
+          <div className="exploreSummaryLabel">피드백</div>
           <div className="exploreSummaryValue">{summary.feedbackTotal ?? 0}</div>
-          <div className="exploreSummaryNote">accepted {summary.feedbackAccepted ?? 0} · corrected {summary.feedbackCorrected ?? 0}</div>
+          <div className="exploreSummaryNote">수락 {summary.feedbackAccepted ?? 0} · 수정 {summary.feedbackCorrected ?? 0}</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Failures</div>
+          <div className="exploreSummaryLabel">실패</div>
           <div className="exploreSummaryValue">{summary.failureLogs ?? 0}</div>
-          <div className="exploreSummaryNote">quarantine {summary.quarantinedJobs ?? 0}</div>
+          <div className="exploreSummaryNote">격리 {summary.quarantinedJobs ?? 0}</div>
         </div>
       </div>
 
       <div className="section sectionGrid twoCol">
         <div className="card exploreDenseCard exploreSheetCard" style={{ gridColumn: '1 / -1' }}>
           <div className="sectionHeader exploreSheetHeader">
-            <h2 className="panelTitle" style={{ marginBottom: 0 }}>Insights</h2>
+            <h2 className="panelTitle" style={{ marginBottom: 0 }}>요약</h2>
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <div className="metaPill">sample {insights.sampleSize ?? jobs.length}</div>
+              <div className="metaPill">표본 {insights.sampleSize ?? jobs.length}</div>
               <div className="metaPill">GPS 없음</div>
             </div>
           </div>
           <div className="scanInsightsGrid">
             <section className="scanInsightsPane">
-              <div className="scanInsightsPaneTitle">Top products</div>
+              <div className="scanInsightsPaneTitle">상위 상품</div>
               <div className="scanInsightsList">
                 {(insights.topProducts ?? []).slice(0, 8).map((row) => (
                   <div className="scanInsightsRow scanInsightsRowProducts" key={`product-${row.label}`}>
@@ -469,7 +478,7 @@ export default function ScanOpsPage() {
               </div>
             </section>
             <section className="scanInsightsPane">
-              <div className="scanInsightsPaneTitle">Top 대카테고리</div>
+              <div className="scanInsightsPaneTitle">상위 대카테고리</div>
               <div className="scanInsightsList">
                 {(insights.topCategories ?? []).slice(0, 8).map((row) => (
                   <div className="scanInsightsRow" key={`category-${row.label}`}>
@@ -514,11 +523,11 @@ export default function ScanOpsPage() {
       <div className="exploreActionBar exploreActionBarSingle section" style={{ marginTop: 8 }}>
         <div className="exploreActionPanel exploreActionPanelTight">
           <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 0 }}>
-            <h2 className="panelTitle" style={{ marginBottom: 0 }}>Queue</h2>
+            <h2 className="panelTitle" style={{ marginBottom: 0 }}>대기열</h2>
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <div className="metaPill">{t('admin.scanops.meta.filter', 'filter')} {filter}</div>
-              <div className="metaPill">feedback {summary.feedbackAccepted ?? 0} / {summary.feedbackCorrected ?? 0}</div>
-              <div className="metaPill">dblclick or detail</div>
+              <div className="metaPill">{t('admin.scanops.meta.filter', '필터')} {filter}</div>
+              <div className="metaPill">피드백 {summary.feedbackAccepted ?? 0} / {summary.feedbackCorrected ?? 0}</div>
+              <div className="metaPill">더블탭 또는 상세</div>
             </div>
           </div>
           <div className="editorSubtabRow scanOpsFilterTabs">
@@ -531,7 +540,7 @@ export default function ScanOpsPage() {
           <div className="exploreSheetFilterGrid">
             <label className="field" style={{ margin: 0 }}>
               <div className="exploreSheetFieldLabel">검색</div>
-              <input className="textInput exploreSheetInput" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.scanops.filters.searchPlaceholder', 'job / user / result / message')} />
+              <input className="textInput exploreSheetInput" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.scanops.filters.searchPlaceholder', '작업 / 고객 / 결과 / 메시지')} />
             </label>
           </div>
           <div style={{ display: 'grid', gap: 8, marginTop: 10, gridTemplateColumns: 'auto auto minmax(180px, 240px) auto', alignItems: 'end' }}>
@@ -548,7 +557,7 @@ export default function ScanOpsPage() {
               </select>
             </label>
             <button type="button" className="ghostBtn pageActionBtn" onClick={() => void saveJobCategories(selectedJobIds, bulkCategory)} disabled={!selectedJobIds.length || !bulkCategory || savingCategories}>
-              {savingCategories ? '저장중...' : `선택 ${selectedJobIds.length}건 적용`}
+              {savingCategories ? '저장 중...' : `선택 ${selectedJobIds.length}건 적용`}
             </button>
           </div>
         </div>
@@ -557,15 +566,15 @@ export default function ScanOpsPage() {
       <div className="section sectionGrid twoCol">
         <div className="card exploreDenseCard exploreSheetCard" style={{ gridColumn: '1 / -1' }}>
           <div className="sectionHeader exploreSheetHeader">
-            <h2 className="panelTitle" style={{ marginBottom: 0 }}>{t('admin.scanops.jobs.title', 'Jobs')}</h2>
+            <h2 className="panelTitle" style={{ marginBottom: 0 }}>{t('admin.scanops.jobs.title', '스캔 목록')}</h2>
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <div className="metaPill">{t('admin.scanops.jobs.filtered', 'filtered')} {filteredJobs.length}</div>
-              <div className="metaPill">selected {selectedJobIds.length}</div>
-              <div className="metaPill">{t('admin.scanops.jobs.failed', 'failed')} {summary.failedJobs ?? 0}</div>
+              <div className="metaPill">{t('admin.scanops.jobs.filtered', '조회')} {filteredJobs.length}</div>
+              <div className="metaPill">선택 {selectedJobIds.length}</div>
+              <div className="metaPill">{t('admin.scanops.jobs.failed', '실패')} {summary.failedJobs ?? 0}</div>
             </div>
           </div>
           {filteredJobs.length === 0 ? (
-            <div className="emptyState">{t('admin.scanops.jobs.emptyFiltered', '조건에 맞는 scan job이 없어')}</div>
+            <div className="emptyState">{t('admin.scanops.jobs.emptyFiltered', '조건에 맞는 작업이 없어')}</div>
           ) : (
             <div className="tableWrap">
               <table className="dataTable">
@@ -573,14 +582,14 @@ export default function ScanOpsPage() {
                   <tr>
                     <th style={{ width: 44 }}>선택</th>
                     <th>사진</th>
-                    <th>{t('admin.scanops.jobs.table.status', 'Status')}</th>
-                    <th>{t('admin.scanops.jobs.table.job', 'Job')}</th>
+                    <th>{t('admin.scanops.jobs.table.status', '상태')}</th>
+                    <th>{t('admin.scanops.jobs.table.job', '작업')}</th>
                     <th>결과값</th>
                     <th>카테고리 수정</th>
                     <th>고객 메시지</th>
                     <th>운영 로그</th>
-                    <th>{t('admin.scanops.jobs.table.created', 'Created')}</th>
-                    <th>{t('admin.scanops.jobs.table.action', 'Action')}</th>
+                    <th>{t('admin.scanops.jobs.table.created', '생성 시각')}</th>
+                    <th>{t('admin.scanops.jobs.table.action', '작업')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -593,7 +602,7 @@ export default function ScanOpsPage() {
                       onDoubleClick={() => openJobDetail(row.id)}
                       onKeyDown={(event) => onJobRowKeyDown(event, row.id)}
                       tabIndex={0}
-                      aria-label={`${row.id} detail 열기`}
+                      aria-label={`${row.id} 상세 열기`}
                       style={{ cursor: 'pointer', background: selectedJob?.id === row.id ? 'rgba(102, 126, 234, 0.08)' : undefined }}
                     >
                       <td>
@@ -612,7 +621,7 @@ export default function ScanOpsPage() {
                       </td>
                       <td>
                         <div style={{ display: 'grid', gap: 4 }}>
-                          <strong>{row.status ?? '-'}</strong>
+                          <strong>{jobStatusLabel(row.status)}</strong>
                           {row.latestFeedback ? <span className="metaPill">{feedbackLabel(row.latestFeedback)}</span> : null}
                         </div>
                       </td>
@@ -628,9 +637,9 @@ export default function ScanOpsPage() {
                           <div style={{ display: 'grid', gap: 4, minWidth: 220 }}>
                             <strong>{primaryResult.name ?? '-'}</strong>
                             <span style={{ color: '#0f172a', fontSize: 12 }}>{fmtPrice(primaryResult.price)}</span>
-                            <span style={{ color: '#64748b', fontSize: 12 }}>{typeof primaryResult.confidence === 'number' ? `confidence ${primaryResult.confidence.toFixed(2)}` : primaryResult.source ?? '-'}</span>
+                            <span style={{ color: '#64748b', fontSize: 12 }}>{typeof primaryResult.confidence === 'number' ? `신뢰도 ${primaryResult.confidence.toFixed(2)}` : primaryResult.source ?? '-'}</span>
                             <span className="metaPill">대카테고리 {categoryLabel(row.categoryMeta)}</span>
-                            {row.reviewedResult ? <span className="metaPill">customer reviewed</span> : null}
+                            {row.reviewedResult ? <span className="metaPill">고객 검수</span> : null}
                           </div>
                         ) : (
                           <span style={{ color: '#94a3b8' }}>-</span>
@@ -679,15 +688,15 @@ export default function ScanOpsPage() {
                       <td>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                           <button className="ghostBtn ghostBtnSmall" type="button" onClick={(event) => { event.stopPropagation(); openJobDetail(row.id) }}>
-                            detail
+                            상세
                           </button>
                           {row.status === 'failed' ? (
                             <>
                               <button className="ghostBtn ghostBtnSmall" type="button" disabled={retryingJobId === row.id || res.usingFallback} onClick={(event) => { event.stopPropagation(); void retryJob(row.id) }}>
-                                {retryingJobId === row.id ? t('admin.scanops.action.retrying', 'retrying...') : t('admin.scanops.action.retry', 'retry')}
+                                {retryingJobId === row.id ? t('admin.scanops.action.retrying', '재실행 중...') : t('admin.scanops.action.retry', '재실행')}
                               </button>
                               <button className="ghostBtn ghostBtnSmall" type="button" disabled={quarantiningJobId === row.id || res.usingFallback} onClick={(event) => { event.stopPropagation(); void quarantineJob(row.id) }}>
-                                {quarantiningJobId === row.id ? t('admin.scanops.action.moving', 'moving...') : t('admin.scanops.action.quarantine', 'quarantine')}
+                                {quarantiningJobId === row.id ? t('admin.scanops.action.moving', '이동 중...') : t('admin.scanops.action.quarantine', '격리')}
                               </button>
                             </>
                           ) : null}
@@ -707,12 +716,12 @@ export default function ScanOpsPage() {
           <div className="confirmDialog" style={{ width: 'min(1040px, 100%)' }} onClick={(event) => event.stopPropagation()}>
             <div className="sectionHeader" style={{ marginBottom: 0 }}>
               <div>
-                <div className="confirmTitle">{t('admin.scanops.jobs.detailTitle', 'Job detail')}</div>
+                <div className="confirmTitle">{t('admin.scanops.jobs.detailTitle', '작업 상세')}</div>
               </div>
               <div className="metaRow" style={{ marginTop: 0 }}>
-                <span className="metaPill">{selectedJob.status ?? '-'}</span>
-                <span className="metaPill">failures {selectedFailureHistory.length}</span>
-                <span className="metaPill">feedback {selectedFeedbackHistory.length}</span>
+                <span className="metaPill">{jobStatusLabel(selectedJob.status)}</span>
+                <span className="metaPill">실패 이력 {selectedFailureHistory.length}</span>
+                <span className="metaPill">피드백 {selectedFeedbackHistory.length}</span>
                 <button type="button" className="ghostBtn ghostBtnSmall" onClick={() => setSelectedJobId(null)}>닫기</button>
               </div>
             </div>
@@ -731,17 +740,17 @@ export default function ScanOpsPage() {
                 <div className="tableWrap">
                   <table className="dataTable exploreDenseTable">
                     <tbody>
-                      <tr><td>{t('admin.scanops.jobs.detail.jobId', 'Job ID')}</td><td>{selectedJob.id}</td></tr>
-                      <tr><td>{t('admin.scanops.jobs.detail.status', 'Status')}</td><td>{selectedJob.status ?? '-'}</td></tr>
-                      <tr><td>{t('admin.scanops.jobs.detail.user', 'User')}</td><td>{selectedJob.userId ?? '-'}</td></tr>
+                      <tr><td>{t('admin.scanops.jobs.detail.jobId', '작업 ID')}</td><td>{selectedJob.id}</td></tr>
+                      <tr><td>{t('admin.scanops.jobs.detail.status', '상태')}</td><td>{jobStatusLabel(selectedJob.status)}</td></tr>
+                      <tr><td>{t('admin.scanops.jobs.detail.user', '고객')}</td><td>{selectedJob.userId ?? '-'}</td></tr>
                       <tr><td>촬영 기기</td><td>{deviceLabel(selectedJob.deviceMeta)}</td></tr>
-                      <tr><td>{t('admin.scanops.jobs.detail.created', 'Created')}</td><td>{fmt(selectedJob.createdAt)}</td></tr>
-                      <tr><td>{t('admin.scanops.jobs.detail.updated', 'Updated')}</td><td>{fmt(selectedJob.updatedAt)}</td></tr>
-                      <tr><td>Started</td><td>{fmt(selectedJob.startedAt)}</td></tr>
-                      <tr><td>Finished</td><td>{fmt(selectedJob.finishedAt)}</td></tr>
+                      <tr><td>{t('admin.scanops.jobs.detail.created', '생성 시각')}</td><td>{fmt(selectedJob.createdAt)}</td></tr>
+                      <tr><td>{t('admin.scanops.jobs.detail.updated', '수정 시각')}</td><td>{fmt(selectedJob.updatedAt)}</td></tr>
+                      <tr><td>시작 시각</td><td>{fmt(selectedJob.startedAt)}</td></tr>
+                      <tr><td>완료 시각</td><td>{fmt(selectedJob.finishedAt)}</td></tr>
                       <tr><td>고객 메시지</td><td style={{ whiteSpace: 'pre-wrap' }}>{selectedJob.customerMessage ?? '-'}</td></tr>
-                      <tr><td>{t('admin.scanops.jobs.detail.errorCode', 'Error code')}</td><td>{selectedJob.errorCode ?? selectedJob.latestFailure?.errorCode ?? '-'}</td></tr>
-                      <tr><td>{t('admin.scanops.jobs.detail.errorMessage', 'Error message')}</td><td style={{ whiteSpace: 'pre-wrap' }}>{selectedJob.errorMessage ?? selectedJob.latestFailure?.errorMessage ?? '-'}</td></tr>
+                      <tr><td>{t('admin.scanops.jobs.detail.errorCode', '오류 코드')}</td><td>{selectedJob.errorCode ?? selectedJob.latestFailure?.errorCode ?? '-'}</td></tr>
+                      <tr><td>{t('admin.scanops.jobs.detail.errorMessage', '오류 내용')}</td><td style={{ whiteSpace: 'pre-wrap' }}>{selectedJob.errorMessage ?? selectedJob.latestFailure?.errorMessage ?? '-'}</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -752,10 +761,10 @@ export default function ScanOpsPage() {
                   <div className="sectionHeader exploreSheetHeader">
                     <h2 className="panelTitle" style={{ marginBottom: 0 }}>고객 기준 결과</h2>
                     <div className="metaRow" style={{ marginTop: 0 }}>
-                      {typeof selectedPrimaryResult.confidence === 'number' ? <span className="metaPill">confidence {selectedPrimaryResult.confidence.toFixed(2)}</span> : null}
-                      {selectedJob.reviewedResult ? <span className="metaPill">reviewed</span> : <span className="metaPill">raw</span>}
-                      <span className="metaPill">category {selectedJob.categoryMeta?.naverLargeCategory ?? '-'}</span>
-                      <span className="metaPill">source {selectedJob.categoryMeta?.categorySource ?? '-'}</span>
+                      {typeof selectedPrimaryResult.confidence === 'number' ? <span className="metaPill">신뢰도 {selectedPrimaryResult.confidence.toFixed(2)}</span> : null}
+                      {selectedJob.reviewedResult ? <span className="metaPill">검수 결과</span> : <span className="metaPill">원본 결과</span>}
+                      <span className="metaPill">분류 {selectedJob.categoryMeta?.naverLargeCategory ?? '-'}</span>
+                      <span className="metaPill">기준 {selectedJob.categoryMeta?.categorySource ?? '-'}</span>
                     </div>
                   </div>
                   <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(220px, 280px) minmax(0, 1fr)', alignItems: 'end', marginBottom: 10 }}>
@@ -770,15 +779,15 @@ export default function ScanOpsPage() {
                     </label>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       <button className="ghostBtn ghostBtnSmall" type="button" onClick={() => void saveJobCategories([selectedJob.id], selectedCategoryDraft)} disabled={savingCategories}>
-                        {savingCategories ? '저장중...' : '카테고리 적용'}
+                        {savingCategories ? '저장 중...' : '카테고리 적용'}
                       </button>
                       {selectedJob.status === 'failed' ? (
                         <>
                           <button className="ghostBtn ghostBtnSmall" type="button" disabled={retryingJobId === selectedJob.id || res.usingFallback} onClick={() => void retryJob(selectedJob.id)}>
-                            {retryingJobId === selectedJob.id ? t('admin.scanops.action.retrying', 'retrying...') : t('admin.scanops.action.retry', 'retry')}
+                            {retryingJobId === selectedJob.id ? t('admin.scanops.action.retrying', '재실행 중...') : t('admin.scanops.action.retry', '재실행')}
                           </button>
                           <button className="ghostBtn ghostBtnSmall" type="button" disabled={quarantiningJobId === selectedJob.id || res.usingFallback} onClick={async () => { await quarantineJob(selectedJob.id) }}>
-                            {quarantiningJobId === selectedJob.id ? t('admin.scanops.action.moving', 'moving...') : t('admin.scanops.action.quarantine', 'quarantine')}
+                            {quarantiningJobId === selectedJob.id ? t('admin.scanops.action.moving', '이동 중...') : t('admin.scanops.action.quarantine', '격리')}
                           </button>
                         </>
                       ) : null}
@@ -790,23 +799,23 @@ export default function ScanOpsPage() {
                         <tr><td>상품명</td><td>{selectedPrimaryResult.name ?? '-'}</td></tr>
                         <tr><td>가격</td><td>{fmtPrice(selectedPrimaryResult.price)}</td></tr>
                         <tr><td>SKU</td><td>{selectedPrimaryResult.sku ?? '-'}</td></tr>
-                        <tr><td>Source</td><td>{selectedPrimaryResult.source ?? '-'}</td></tr>
+                        <tr><td>판독 경로</td><td>{selectedPrimaryResult.source ?? '-'}</td></tr>
                         <tr><td>대카테고리</td><td>{selectedJob.categoryMeta?.naverLargeCategory ?? '-'}</td></tr>
                         <tr><td>카테고리 경로</td><td style={{ whiteSpace: 'pre-wrap' }}>{selectedJob.categoryMeta?.naverCategoryPath ?? '-'}</td></tr>
-                        <tr><td>카테고리 source</td><td>{selectedJob.categoryMeta?.categorySource ?? '-'}</td></tr>
+                        <tr><td>분류 기준</td><td>{selectedJob.categoryMeta?.categorySource ?? '-'}</td></tr>
                         <tr><td>원문</td><td style={{ whiteSpace: 'pre-wrap' }}>{selectedPrimaryResult.rawText ?? '-'}</td></tr>
                       </tbody>
                     </table>
                   </div>
                   {selectedJob.result && selectedJob.reviewedResult ? (
                     <details style={{ marginTop: 10 }}>
-                      <summary style={{ cursor: 'pointer', fontWeight: 700 }}>original raw result</summary>
+                      <summary style={{ cursor: 'pointer', fontWeight: 700 }}>원본 결과</summary>
                       <pre style={{ marginTop: 8, padding: 12, background: '#f8fafc', borderRadius: 10, overflowX: 'auto', fontSize: 12, lineHeight: 1.45 }}>{formatJson(selectedJob.result)}</pre>
                     </details>
                   ) : null}
                   {selectedJob.resultPayload ? (
                     <details style={{ marginTop: 10 }}>
-                      <summary style={{ cursor: 'pointer', fontWeight: 700 }}>raw result payload</summary>
+                      <summary style={{ cursor: 'pointer', fontWeight: 700 }}>원본 응답</summary>
                       <pre style={{ marginTop: 8, padding: 12, background: '#f8fafc', borderRadius: 10, overflowX: 'auto', fontSize: 12, lineHeight: 1.45 }}>{formatJson(selectedJob.resultPayload)}</pre>
                     </details>
                   ) : null}
@@ -823,10 +832,10 @@ export default function ScanOpsPage() {
                     <table className="dataTable">
                       <thead>
                         <tr>
-                          <th>Time</th>
-                          <th>Stage</th>
-                          <th>Code</th>
-                          <th>Message</th>
+                          <th>시각</th>
+                          <th>단계</th>
+                          <th>코드</th>
+                          <th>내용</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -843,7 +852,7 @@ export default function ScanOpsPage() {
                   </div>
                   {selectedJob.latestFailure?.details ? (
                     <details style={{ marginTop: 10 }}>
-                      <summary style={{ cursor: 'pointer', fontWeight: 700 }}>latest failure details</summary>
+                      <summary style={{ cursor: 'pointer', fontWeight: 700 }}>최근 실패 상세</summary>
                       <pre style={{ marginTop: 8, padding: 12, background: '#f8fafc', borderRadius: 10, overflowX: 'auto', fontSize: 12, lineHeight: 1.45 }}>{formatJson(selectedJob.latestFailure.details)}</pre>
                     </details>
                   ) : null}
@@ -860,10 +869,10 @@ export default function ScanOpsPage() {
                     <table className="dataTable">
                       <thead>
                         <tr>
-                          <th>Time</th>
+                          <th>시각</th>
                           <th>상태</th>
-                          <th>Original</th>
-                          <th>Corrected</th>
+                          <th>원본</th>
+                          <th>수정</th>
                         </tr>
                       </thead>
                       <tbody>

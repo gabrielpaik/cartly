@@ -87,9 +87,9 @@ export default function LegacyCleanupPage() {
   }, [legacyFilter, legacyGuests, query])
 
   const legacyFilterButtons: Array<[LegacyFilter, string]> = [
-    ['all', `All (${formatNumber(totalLegacy)})`],
-    ['with-carts', `With carts (${formatNumber(legacyWithCarts)})`],
-    ['without-carts', `Without carts (${formatNumber(legacyWithoutCarts)})`],
+    ['all', `전체 (${formatNumber(totalLegacy)})`],
+    ['with-carts', `카트 있음 (${formatNumber(legacyWithCarts)})`],
+    ['without-carts', `카트 없음 (${formatNumber(legacyWithoutCarts)})`],
   ]
 
   async function archiveLegacyGuest(id: string) {
@@ -98,7 +98,7 @@ export default function LegacyCleanupPage() {
     try {
       await postJson(`/admin/users/${id}/archive-legacy`)
       await legacyGuestsRes.reload()
-      setActionMessage(`${id} archived`)
+      setActionMessage(`${id} 보관 완료`)
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : t('admin.users.legacy.archiveFailed', 'archive failed'))
     } finally {
@@ -109,14 +109,14 @@ export default function LegacyCleanupPage() {
   return (
     <div className="exploreCompactPage">
       <PageHeader
-        badge={legacyGuestsRes.usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : legacyGuestsRes.loading ? t('admin.common.badge.loading', 'Loading...') : t('admin.common.badge.live', 'Live data')}
-        title="Legacy guest cleanup"
-        description="Users 본면과 분리된 cleanup queue"
+        badge={legacyGuestsRes.usingFallback ? t('admin.common.badge.fallback', '대체 데이터') : legacyGuestsRes.loading ? t('admin.common.badge.loading', '불러오는 중...') : t('admin.common.badge.live', '실데이터')}
+        title="레거시 비회원 정리"
+        description="고객 화면과 분리된 정리 대기열"
         onRefresh={() => void legacyGuestsRes.reload()}
         refreshing={legacyGuestsRes.loading}
         inlineRefresh
         actions={(
-          <Link className="ghostBtn pageActionBtn" href="/users">Users</Link>
+          <Link className="ghostBtn pageActionBtn" href="/users">고객</Link>
         )}
       />
 
@@ -125,39 +125,39 @@ export default function LegacyCleanupPage() {
 
       <div className="exploreSummaryGrid section" style={{ marginTop: 12 }}>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Queue</div>
+          <div className="exploreSummaryLabel">대기열</div>
           <div className="exploreSummaryValue">{formatNumber(totalLegacy)}</div>
-          <div className="exploreSummaryNote">legacy guests</div>
+          <div className="exploreSummaryNote">레거시 비회원</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">With carts</div>
+          <div className="exploreSummaryLabel">카트 있음</div>
           <div className="exploreSummaryValue">{formatNumber(legacyWithCarts)}</div>
-          <div className="exploreSummaryNote">merge review first</div>
+          <div className="exploreSummaryNote">통합 검토 우선</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Without carts</div>
+          <div className="exploreSummaryLabel">카트 없음</div>
           <div className="exploreSummaryValue">{formatNumber(legacyWithoutCarts)}</div>
-          <div className="exploreSummaryNote">archive candidate</div>
+          <div className="exploreSummaryNote">보관 후보</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Filtered</div>
+          <div className="exploreSummaryLabel">조회</div>
           <div className="exploreSummaryValue">{formatNumber(filteredLegacyGuests.length)}</div>
-          <div className="exploreSummaryNote">current queue view</div>
+          <div className="exploreSummaryNote">현재 대기열 기준</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Search</div>
+          <div className="exploreSummaryLabel">검색</div>
           <div className="exploreSummaryValue">{query.trim() || '-'}</div>
-          <div className="exploreSummaryNote">query</div>
+          <div className="exploreSummaryNote">검색어</div>
         </div>
       </div>
 
       <div className="exploreActionBar exploreActionBarSingle section" style={{ marginTop: 8 }}>
         <div className="exploreActionPanel exploreActionPanelTight">
           <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 0 }}>
-            <h2 className="panelTitle" style={{ marginBottom: 0 }}>Filter</h2>
+            <h2 className="panelTitle" style={{ marginBottom: 0 }}>조회 조건</h2>
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <div className="metaPill">queue {legacyFilter}</div>
-              <div className="metaPill">query {query.trim() || '-'}</div>
+              <div className="metaPill">대기열 {legacyFilter}</div>
+              <div className="metaPill">검색 {query.trim() || '-'}</div>
             </div>
           </div>
           <div className="editorSubtabRow">
@@ -170,7 +170,7 @@ export default function LegacyCleanupPage() {
           <div className="exploreSheetFilterGrid" style={{ gridTemplateColumns: 'minmax(220px, 1fr)' }}>
             <label className="field" style={{ margin: 0 }}>
               <div className="exploreSheetFieldLabel">검색</div>
-              <input className="textInput exploreSheetInput" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="guest code / id / device" />
+              <input className="textInput exploreSheetInput" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="비회원 코드 / ID / 기기" />
             </label>
           </div>
         </div>
@@ -178,25 +178,25 @@ export default function LegacyCleanupPage() {
 
       <div className="card exploreDenseCard exploreSheetCard section">
         <div className="sectionHeader exploreSheetHeader">
-          <h2 className="panelTitle" style={{ marginBottom: 0 }}>Legacy queue</h2>
+          <h2 className="panelTitle" style={{ marginBottom: 0 }}>정리 대기열</h2>
           <div className="metaRow" style={{ marginTop: 0 }}>
-            <span className="metaPill">filtered {formatNumber(filteredLegacyGuests.length)}</span>
-            <span className="metaPill">with carts {formatNumber(legacyWithCarts)}</span>
-            <span className="metaPill">without carts {formatNumber(legacyWithoutCarts)}</span>
+            <span className="metaPill">조회 {formatNumber(filteredLegacyGuests.length)}</span>
+            <span className="metaPill">카트 있음 {formatNumber(legacyWithCarts)}</span>
+            <span className="metaPill">카트 없음 {formatNumber(legacyWithoutCarts)}</span>
           </div>
         </div>
         {filteredLegacyGuests.length === 0 ? (
-          <div className="emptyState">정리할 legacy guest가 없어</div>
+          <div className="emptyState">정리 대상 비회원 없음</div>
         ) : (
           <div className="tableWrap">
             <table className="dataTable exploreDenseTable">
               <thead>
                 <tr>
-                  <th>Guest</th>
-                  <th>Saved carts</th>
-                  <th>Sessions</th>
-                  <th>Last active</th>
-                  <th>Action</th>
+                  <th>비회원</th>
+                  <th>저장 카트</th>
+                  <th>방문</th>
+                  <th>최근 방문</th>
+                  <th>동작</th>
                 </tr>
               </thead>
               <tbody>
@@ -212,13 +212,13 @@ export default function LegacyCleanupPage() {
                     <td>
                       <div style={{ display: 'grid', gap: 4 }}>
                         <strong>{formatNumber(savedCartCount(user))}</strong>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>{savedCartCount(user) > 0 ? 'merge review needed' : 'archive candidate'}</span>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>{savedCartCount(user) > 0 ? '통합 검토 필요' : '보관 후보'}</span>
                       </div>
                     </td>
                     <td>
                       <div style={{ display: 'grid', gap: 4 }}>
                         <strong>{formatNumber(user.sessionCount ?? 0)}</strong>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>sessions</span>
+                        <span style={{ color: '#64748b', fontSize: 12 }}>방문 수</span>
                       </div>
                     </td>
                     <td>
@@ -229,10 +229,10 @@ export default function LegacyCleanupPage() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minWidth: 236 }}>
-                        <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}/cleanup`}>Cleanup</Link>
-                        <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}/history`}>History</Link>
+                        <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}/cleanup`}>정리</Link>
+                        <Link className="ghostBtn ghostBtnSmall" href={`/users/${user.id}/history`}>이력</Link>
                         <button className="ghostBtn ghostBtnSmall" disabled={legacyGuestsRes.usingFallback || busyLegacyId === user.id || savedCartCount(user) > 0} onClick={() => void archiveLegacyGuest(String(user.id))}>
-                          {busyLegacyId === user.id ? '처리 중...' : 'Archive'}
+                          {busyLegacyId === user.id ? '처리 중...' : '보관'}
                         </button>
                       </div>
                     </td>

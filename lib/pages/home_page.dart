@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../app_support.dart';
 import '../models/app_ad_slot.dart';
+import '../models/pending_scan_entry.dart';
 import '../models/recognized_item.dart';
 import '../config/cartly_runtime_config.dart';
 import '../pages/home_page_cart_controller.dart';
@@ -45,6 +46,8 @@ class _HomePageState extends State<HomePage> {
   final List<CartItem> items = [];
   final List<RecentScanEntry> recentScans = [];
   final List<ConsideredProductEntry> consideredItems = [];
+  final Set<String> _queuedRecentScanIds = <String>{};
+  bool _hasPendingScanQueue = false;
   int _tabIndex = 0;
   bool _savingCurrentCart = false;
   bool _showHomeDot = false;
@@ -79,9 +82,25 @@ class _HomePageState extends State<HomePage> {
 
   int get totalPrice => items.fold(0, (sum, item) => sum + item.totalPrice);
   bool get _hasActiveShoppingContext =>
-      items.isNotEmpty || recentScans.isNotEmpty;
+      items.isNotEmpty || recentScans.isNotEmpty || _hasPendingScanQueue;
   bool get _showExploreShoppingMode =>
       _exploreShoppingModeOverride ?? _hasActiveShoppingContext;
+
+  List<RecentScanEntry> get _visibleRecentScans {
+    if (_queuedRecentScanIds.isEmpty) {
+      return recentScans;
+    }
+    return recentScans.where((entry) {
+      final scanJobId = entry.item.scanJobId?.trim();
+      if (_queuedRecentScanIds.contains(entry.id)) {
+        return false;
+      }
+      if (scanJobId != null && scanJobId.isNotEmpty) {
+        return !_queuedRecentScanIds.contains(scanJobId);
+      }
+      return true;
+    }).toList(growable: false);
+  }
 
   String _exploreTabLabel(String fallback) {
     return _showExploreShoppingMode ? '지금 장보는중!' : fallback;
@@ -189,6 +208,8 @@ class _HomePageState extends State<HomePage> {
       consideredItems
         ..clear()
         ..addAll(snapshot.consideredItems);
+      _queuedRecentScanIds.clear();
+      _hasPendingScanQueue = false;
       _loadedCurrentCartScopeKey = _currentCartScopeKey;
       _sharedCurrentCartEnabled = sharedEnabled;
       _hasHouseholdLink = hasHouseholdLink;
@@ -499,6 +520,43 @@ class _HomePageState extends State<HomePage> {
     _refreshShoppingNudge();
   }
 
+  void _handlePendingScanQueueStateChanged(
+    List<PendingScanEntry> entries,
+    String? activeEntryId,
+  ) {
+    final nextQueuedIds = <String>{};
+    var hasPendingQueue = false;
+
+    for (final entry in entries) {
+      if (entry.status != PendingScanStatus.added) {
+        hasPendingQueue = true;
+      }
+      final scanJobId = (entry.item?.scanJobId ?? entry.scanJobId)?.trim();
+      if (scanJobId == null || scanJobId.isEmpty) {
+        continue;
+      }
+      if (entry.status == PendingScanStatus.added) {
+        continue;
+      }
+      nextQueuedIds.add(scanJobId);
+    }
+
+    final sameIds =
+        _queuedRecentScanIds.length == nextQueuedIds.length &&
+        _queuedRecentScanIds.containsAll(nextQueuedIds);
+    if (sameIds && _hasPendingScanQueue == hasPendingQueue) {
+      return;
+    }
+
+    setState(() {
+      _queuedRecentScanIds
+        ..clear()
+        ..addAll(nextQueuedIds);
+      _hasPendingScanQueue = hasPendingQueue;
+    });
+    _refreshShoppingNudge();
+  }
+
   void _handleRemoveCartItem(CartItem item) {
     _cartController.removeCartItem(item);
     unawaited(_syncSharedItemDelete(item));
@@ -647,6 +705,8 @@ class _HomePageState extends State<HomePage> {
         consideredItems
           ..clear()
           ..addAll(personalSnapshot.consideredItems);
+        _queuedRecentScanIds.clear();
+        _hasPendingScanQueue = false;
       });
       _restartSharedCurrentCartPolling();
       _refreshShoppingNudge();
@@ -927,10 +987,11 @@ class _HomePageState extends State<HomePage> {
           cameras: widget.cameras,
           scanRepository: _scanRepository,
           items: items,
-          recentScans: recentScans,
+          recentScans: _visibleRecentScans,
           onRecognized: _handleRecognized,
           onAdd: _addRecognizedItemWithChoice,
           onDismissRecognized: _handleDismissRecognized,
+          onQueueStateChanged: _handlePendingScanQueueStateChanged,
           onAddRecentScan: (entry) => _addRecognizedItemWithChoice(
             entry.item,
             recentScanEntryId: entry.id,
@@ -939,6 +1000,8 @@ class _HomePageState extends State<HomePage> {
           onRemove: _handleRemoveCartItem,
           onChangeCurrentCartItem: _handleChangeCartItem,
           onGoExplore: () => _selectTab(1),
+          itemAddSectionStateKey:
+              _loadedCurrentCartScopeKey ?? _currentCartScopeKey,
           isSharedCurrentCartMode: _sharedCurrentCartEnabled,
           onPersonalCurrentCartTap: () =>
               _handleCurrentCartModeTap(CurrentCartMode.personal),
@@ -947,7 +1010,7 @@ class _HomePageState extends State<HomePage> {
         ),
         ShoppingHelpPage(
           items: items,
-          recentScans: recentScans,
+          recentScans: _visibleRecentScans,
           consideredItems: consideredItems,
           shoppingModeOverride: _exploreShoppingModeOverride,
           onUseDefaultExploreMode: _hasActiveShoppingContext

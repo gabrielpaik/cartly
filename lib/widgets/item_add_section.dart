@@ -3,10 +3,12 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import '../models/pending_scan_entry.dart';
 import '../models/recognized_item.dart';
 import '../models/recognized_item_candidate.dart';
 import '../models/scan_job.dart';
 import '../services/app_location_service.dart';
+import '../services/current_cart_store.dart';
 import '../services/remote_scan_repository.dart';
 import '../services/scan_repository.dart';
 import 'cartly_symbol_icon.dart';
@@ -55,6 +57,8 @@ class ItemAddSection extends StatefulWidget {
   final Future<bool> Function(RecognizedItem item) onAdd;
   final void Function(RecognizedItem item)? onRecognized;
   final void Function(RecognizedItem item)? onDismissRecognized;
+  final void Function(List<PendingScanEntry> entries, String? activeEntryId)?
+  onQueueStateChanged;
   final VoidCallback? onAddedFeedback;
   final String addButtonText;
 
@@ -65,6 +69,7 @@ class ItemAddSection extends StatefulWidget {
     required this.onAdd,
     this.onRecognized,
     this.onDismissRecognized,
+    this.onQueueStateChanged,
     this.onAddedFeedback,
     this.addButtonText = '카트에 담기',
   });
@@ -85,42 +90,42 @@ class _ItemAddSectionState extends State<ItemAddSection> {
   String? _pendingJobId;
   String? _capturedPath; // legacy capture path, kept for cleanup only
   final List<String> _queuedImagePaths = [];
-  final List<_ScanQueueEntry> _scanInbox = [];
+  final List<PendingScanEntry> _scanInbox = [];
   int _scanSequence = 0;
   String? _activeQueueEntryId;
 
   bool get showResultCard => recognized != null;
 
-  bool _isActiveReviewEntry(_ScanQueueEntry entry) {
+  bool _isActiveReviewEntry(PendingScanEntry entry) {
     return entry.id == _activeQueueEntryId &&
         recognized != null &&
         !manualEntryOpen;
   }
 
-  List<_ScanQueueEntry> get _visibleScanInboxEntries => _scanInbox
+  List<PendingScanEntry> get _visibleScanInboxEntries => _scanInbox
       .where((entry) => !_isActiveReviewEntry(entry))
       .toList(growable: false);
 
-  List<_ScanQueueEntry> get _captureWaitingEntries => _visibleScanInboxEntries
-      .where((entry) => entry.status == _ScanQueueStatus.captured)
+  List<PendingScanEntry> get _captureWaitingEntries => _visibleScanInboxEntries
+      .where((entry) => entry.status == PendingScanStatus.captured)
       .toList(growable: false);
 
-  List<_ScanQueueEntry> get _processingEntries => _visibleScanInboxEntries
-      .where((entry) => entry.status != _ScanQueueStatus.captured)
+  List<PendingScanEntry> get _processingEntries => _visibleScanInboxEntries
+      .where((entry) => entry.status != PendingScanStatus.captured)
       .toList(growable: false);
 
   int get _readyCount => _scanInbox
       .where(
         (entry) =>
-            entry.status == _ScanQueueStatus.ready &&
+            entry.status == PendingScanStatus.ready &&
             !_isActiveReviewEntry(entry),
       )
       .length;
   int get _failedCount => _scanInbox
-      .where((entry) => entry.status == _ScanQueueStatus.failed)
+      .where((entry) => entry.status == PendingScanStatus.failed)
       .length;
   int get _completedCount => _scanInbox
-      .where((entry) => entry.status == _ScanQueueStatus.added)
+      .where((entry) => entry.status == PendingScanStatus.added)
       .length;
 
   String? get _queueStatusMessage {
@@ -149,6 +154,147 @@ class _ItemAddSectionState extends State<ItemAddSection> {
     if (_failedCount > 0) parts.add('실패 $_failedCount건');
     if (_completedCount > 0) parts.add('담기 완료 $_completedCount건');
     return parts.isEmpty ? '분석/검토 중인 항목이 없어요' : parts.join(' · ');
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_restorePersistedQueue());
+  }
+
+  void _emitQueueStateChanged() {
+    final snapshot = List<PendingScanEntry>.unmodifiable(
+      _scanInbox.map((entry) => entry.copyWith()),
+    );
+    widget.onQueueStateChanged?.call(snapshot, _activeQueueEntryId);
+    unawaited(
+      CurrentCartStore.instance.savePendingScans(
+        pendingScans: snapshot,
+        activePendingScanId: _activeQueueEntryId,
+      ),
+    );
+  }
+
+  int _nextRestoredScanSequence(List<PendingScanEntry> entries) {
+    var next = 0;
+    final matcher = RegExp(r'^scan-(\d+)$');
+    for (final entry in entries) {
+      final match = matcher.firstMatch(entry.id);
+      final value = int.tryParse(match?.group(1) ?? '');
+      if (value != null && value >= next) {
+        next = value + 1;
+      }
+    }
+    return next;
+  }
+
+  Future<void> _restorePersistedQueue() async {
+    final snapshot = await CurrentCartStore.instance.loadPendingScans();
+    if (!mounted) return;
+
+    final restoredEntries = <PendingScanEntry>[];
+    for (final entry in snapshot.entries) {
+      final imagePath = entry.imagePath?.trim();
+      final hasImagePath = imagePath != null && imagePath.isNotEmpty;
+      final hasJobId = (entry.scanJobId?.trim().isNotEmpty ?? false);
+      if ((entry.status == PendingScanStatus.captured ||
+              entry.status == PendingScanStatus.uploading ||
+              entry.status == PendingScanStatus.processing) &&
+          !hasImagePath &&
+          !hasJobId) {
+        continue;
+      }
+      if (hasImagePath && !File(imagePath).existsSync() && !hasJobId) {
+        continue;
+      }
+      if ((entry.status == PendingScanStatus.uploading ||
+              entry.status == PendingScanStatus.processing) &&
+          !hasJobId) {
+        restoredEntries.add(
+          entry.copyWith(status: PendingScanStatus.captured),
+        );
+        continue;
+      }
+      restoredEntries.add(entry);
+    }
+
+    setState(() {
+      _scanInbox
+        ..clear()
+        ..addAll(restoredEntries);
+      _queuedImagePaths
+        ..clear()
+        ..addAll(
+          restoredEntries
+              .where(
+                (entry) =>
+                    entry.status == PendingScanStatus.captured &&
+                    (entry.imagePath?.trim().isNotEmpty ?? false),
+              )
+              .map((entry) => entry.imagePath!)
+              .toList(growable: false),
+        );
+      _scanSequence = _nextRestoredScanSequence(restoredEntries);
+      _statusMessage = null;
+      isOcrRunning = false;
+      _pendingJobId = null;
+      _capturedPath = null;
+      manualEntryOpen = false;
+      recognized = null;
+      _originalCandidate = null;
+      _recognizedJobId = null;
+      _activeQueueEntryId = null;
+      final activeEntryId = snapshot.activeEntryId;
+      if (activeEntryId != null) {
+        for (final entry in restoredEntries) {
+          if (entry.id == activeEntryId &&
+              entry.status == PendingScanStatus.ready &&
+              entry.item != null) {
+            _activateReadyEntry(entry);
+            break;
+          }
+        }
+      }
+    });
+    _emitQueueStateChanged();
+    _resumeRestoredQueueWork();
+  }
+
+  void _resumeRestoredQueueWork() {
+    if (!mounted) return;
+
+    for (final entry in _scanInbox) {
+      final jobId = entry.scanJobId?.trim();
+      if ((entry.status == PendingScanStatus.uploading ||
+              entry.status == PendingScanStatus.processing) &&
+          jobId != null &&
+          jobId.isNotEmpty) {
+        setState(() {
+          isOcrRunning = true;
+          _pendingJobId = jobId;
+          _recognizedJobId = jobId;
+        });
+        _emitQueueStateChanged();
+        unawaited(
+          _pollForSubmittedJob(
+            ScanJob(
+              jobId: jobId,
+              status: ScanJobStatus.processing,
+              imagePath: entry.imagePath ?? '',
+              createdAt: entry.createdAt,
+              errorMessage: entry.errorMessage,
+            ),
+            entry.imagePath ?? '',
+          ),
+        );
+        return;
+      }
+    }
+
+    _startNextQueuedScan();
+    if (recognized == null && !manualEntryOpen) {
+      _promoteNextReadyItem();
+    }
   }
 
   void _openScanner() {
@@ -229,6 +375,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
       manualEntryOpen = false;
       _activeQueueEntryId = null;
     });
+    _emitQueueStateChanged();
     _promoteNextReadyItem();
   }
 
@@ -244,7 +391,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
       setState(() {
         _updateQueueEntry(
           activeQueueEntryId,
-          status: _ScanQueueStatus.added,
+          status: PendingScanStatus.added,
           item: item,
           errorMessage: null,
         );
@@ -271,20 +418,21 @@ class _ItemAddSectionState extends State<ItemAddSection> {
       _queuedImagePaths.add(imagePath);
       _statusMessage = null;
       _scanInbox.add(
-        _ScanQueueEntry(
+        PendingScanEntry(
           id: _nextQueueEntryId(),
           imagePath: imagePath,
-          status: _ScanQueueStatus.captured,
+          status: PendingScanStatus.captured,
           createdAt: DateTime.now(),
         ),
       );
     });
+    _emitQueueStateChanged();
     _startNextQueuedScan();
   }
 
   String _nextQueueEntryId() => 'scan-${_scanSequence++}';
 
-  _ScanQueueEntry? _findQueueEntryByImagePath(String imagePath) {
+  PendingScanEntry? _findQueueEntryByImagePath(String imagePath) {
     for (final entry in _scanInbox) {
       if (entry.imagePath == imagePath) return entry;
     }
@@ -293,10 +441,11 @@ class _ItemAddSectionState extends State<ItemAddSection> {
 
   void _updateQueueEntry(
     String id, {
-    _ScanQueueStatus? status,
+    PendingScanStatus? status,
     RecognizedItem? item,
     RecognizedItemCandidate? candidate,
     String? errorMessage,
+    String? scanJobId,
   }) {
     final index = _scanInbox.indexWhere((entry) => entry.id == id);
     if (index == -1) return;
@@ -306,13 +455,14 @@ class _ItemAddSectionState extends State<ItemAddSection> {
       item: item,
       candidate: candidate,
       errorMessage: errorMessage,
-      completedAt: status == _ScanQueueStatus.added
+      scanJobId: scanJobId,
+      completedAt: status == PendingScanStatus.added
           ? DateTime.now()
           : current.completedAt,
     );
   }
 
-  void _activateReadyEntry(_ScanQueueEntry entry) {
+  void _activateReadyEntry(PendingScanEntry entry) {
     if (entry.item == null) return;
     recognized = entry.item;
     _originalCandidate = entry.candidate;
@@ -324,21 +474,26 @@ class _ItemAddSectionState extends State<ItemAddSection> {
   void _promoteNextReadyItem() {
     if (!mounted || manualEntryOpen || recognized != null) return;
     for (final entry in _scanInbox) {
-      if (entry.status == _ScanQueueStatus.ready && entry.item != null) {
+      if (entry.status == PendingScanStatus.ready && entry.item != null) {
         setState(() {
           _activateReadyEntry(entry);
         });
+        _emitQueueStateChanged();
         widget.onDismissRecognized?.call(entry.item!);
         return;
       }
     }
   }
 
-  void _removeQueueEntry(_ScanQueueEntry entry) {
+  void _removeQueueEntry(PendingScanEntry entry) {
     final wasActive = entry.id == _activeQueueEntryId;
     final recognizedItem = entry.item;
     setState(() {
       _scanInbox.removeWhere((candidate) => candidate.id == entry.id);
+      final imagePath = entry.imagePath;
+      if (imagePath != null) {
+        _queuedImagePaths.removeWhere((candidate) => candidate == imagePath);
+      }
       if (wasActive) {
         recognized = null;
         _originalCandidate = null;
@@ -346,6 +501,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
         _activeQueueEntryId = null;
       }
     });
+    _emitQueueStateChanged();
     if (recognizedItem != null) {
       widget.onDismissRecognized?.call(recognizedItem);
     }
@@ -359,8 +515,13 @@ class _ItemAddSectionState extends State<ItemAddSection> {
 
       if (queueEntryId != null) {
         setState(() {
-          _updateQueueEntry(queueEntryId, status: _ScanQueueStatus.processing);
+          _updateQueueEntry(
+            queueEntryId,
+            status: PendingScanStatus.processing,
+            scanJobId: submitted.jobId,
+          );
         });
+        _emitQueueStateChanged();
       }
 
       for (var i = 0; i < 60; i++) {
@@ -391,11 +552,13 @@ class _ItemAddSectionState extends State<ItemAddSection> {
               if (queueEntryId != null) {
                 _updateQueueEntry(
                   queueEntryId,
-                  status: _ScanQueueStatus.failed,
+                  status: PendingScanStatus.failed,
                   errorMessage: message,
+                  scanJobId: submitted.jobId,
                 );
               }
             });
+            _emitQueueStateChanged();
             _startNextQueuedScan();
             return;
           }
@@ -411,10 +574,11 @@ class _ItemAddSectionState extends State<ItemAddSection> {
             if (queueEntryId != null) {
               _updateQueueEntry(
                 queueEntryId,
-                status: _ScanQueueStatus.ready,
+                status: PendingScanStatus.ready,
                 item: recognizedItem,
                 candidate: result,
                 errorMessage: null,
+                scanJobId: result.scanJobId ?? submitted.jobId,
               );
               if (recognized == null && !manualEntryOpen) {
                 final entry = _findQueueEntryByImagePath(imagePath);
@@ -431,6 +595,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
               promotedToActive = true;
             }
           });
+          _emitQueueStateChanged();
           if (!promotedToActive) {
             widget.onRecognized?.call(recognizedItem);
           }
@@ -452,11 +617,13 @@ class _ItemAddSectionState extends State<ItemAddSection> {
             if (queueEntryId != null) {
               _updateQueueEntry(
                 queueEntryId,
-                status: _ScanQueueStatus.failed,
+                status: PendingScanStatus.failed,
                 errorMessage: message,
+                scanJobId: submitted.jobId,
               );
             }
           });
+          _emitQueueStateChanged();
           _startNextQueuedScan();
           return;
         }
@@ -473,11 +640,13 @@ class _ItemAddSectionState extends State<ItemAddSection> {
         if (queueEntryId != null) {
           _updateQueueEntry(
             queueEntryId,
-            status: _ScanQueueStatus.failed,
+            status: PendingScanStatus.failed,
             errorMessage: message,
+            scanJobId: submitted.jobId,
           );
         }
       });
+      _emitQueueStateChanged();
       _startNextQueuedScan();
     } on ScanRepositoryException catch (error) {
       if (!mounted || _pendingJobId != submitted.jobId) return;
@@ -490,11 +659,13 @@ class _ItemAddSectionState extends State<ItemAddSection> {
         if (queueEntryId != null) {
           _updateQueueEntry(
             queueEntryId,
-            status: _ScanQueueStatus.failed,
+            status: PendingScanStatus.failed,
             errorMessage: _userFacingScanErrorMessage(error.message),
+            scanJobId: submitted.jobId,
           );
         }
       });
+      _emitQueueStateChanged();
       _startNextQueuedScan();
     } catch (_) {
       if (!mounted || _pendingJobId != submitted.jobId) return;
@@ -508,11 +679,13 @@ class _ItemAddSectionState extends State<ItemAddSection> {
         if (queueEntryId != null) {
           _updateQueueEntry(
             queueEntryId,
-            status: _ScanQueueStatus.failed,
+            status: PendingScanStatus.failed,
             errorMessage: message,
+            scanJobId: submitted.jobId,
           );
         }
       });
+      _emitQueueStateChanged();
       _startNextQueuedScan();
     }
   }
@@ -535,9 +708,14 @@ class _ItemAddSectionState extends State<ItemAddSection> {
         _statusMessage = null;
         final queueEntry = _findQueueEntryByImagePath(imagePath);
         if (queueEntry != null) {
-          _updateQueueEntry(queueEntry.id, status: _ScanQueueStatus.uploading);
+          _updateQueueEntry(
+            queueEntry.id,
+            status: PendingScanStatus.uploading,
+            scanJobId: submitted.jobId,
+          );
         }
       });
+      _emitQueueStateChanged();
 
       unawaited(_pollForSubmittedJob(submitted, imagePath));
     } on ScanRepositoryException catch (error) {
@@ -551,7 +729,16 @@ class _ItemAddSectionState extends State<ItemAddSection> {
         _pendingJobId = null;
         _capturedPath = null;
         _statusMessage = null;
+        final queueEntry = _findQueueEntryByImagePath(imagePath);
+        if (queueEntry != null) {
+          _updateQueueEntry(
+            queueEntry.id,
+            status: PendingScanStatus.failed,
+            errorMessage: _userFacingScanErrorMessage(error.message),
+          );
+        }
       });
+      _emitQueueStateChanged();
       _startNextQueuedScan();
     } catch (_) {
       if (!mounted) return;
@@ -566,7 +753,16 @@ class _ItemAddSectionState extends State<ItemAddSection> {
         _pendingJobId = null;
         _capturedPath = null;
         _statusMessage = null;
+        final queueEntry = _findQueueEntryByImagePath(imagePath);
+        if (queueEntry != null) {
+          _updateQueueEntry(
+            queueEntry.id,
+            status: PendingScanStatus.failed,
+            errorMessage: _scanText('processingError', '분석 처리 중 오류가 났어요'),
+          );
+        }
       });
+      _emitQueueStateChanged();
       _startNextQueuedScan();
     }
   }
@@ -692,13 +888,14 @@ class _ItemAddSectionState extends State<ItemAddSection> {
             entries: _processingEntries,
             activeEntryId: _activeQueueEntryId,
             onActivate: (entry) {
-              if (entry.status != _ScanQueueStatus.ready ||
+              if (entry.status != PendingScanStatus.ready ||
                   entry.item == null) {
                 return;
               }
               setState(() {
                 _activateReadyEntry(entry);
               });
+              _emitQueueStateChanged();
             },
             onDismiss: _removeQueueEntry,
           ),
@@ -717,6 +914,7 @@ class _ItemAddSectionState extends State<ItemAddSection> {
                   _updateQueueEntry(_activeQueueEntryId!, item: u);
                 }
               });
+              _emitQueueStateChanged();
               widget.onRecognized?.call(u);
             },
             onAdd: _addToParent,
@@ -775,59 +973,13 @@ class _ItemAddSectionState extends State<ItemAddSection> {
   }
 }
 
-enum _ScanQueueStatus { captured, uploading, processing, ready, failed, added }
-
-class _ScanQueueEntry {
-  final String id;
-  final String? imagePath;
-  final _ScanQueueStatus status;
-  final DateTime createdAt;
-  final DateTime? completedAt;
-  final RecognizedItem? item;
-  final RecognizedItemCandidate? candidate;
-  final String? errorMessage;
-
-  const _ScanQueueEntry({
-    required this.id,
-    required this.status,
-    required this.createdAt,
-    this.imagePath,
-    this.completedAt,
-    this.item,
-    this.candidate,
-    this.errorMessage,
-  });
-
-  _ScanQueueEntry copyWith({
-    String? id,
-    String? imagePath,
-    _ScanQueueStatus? status,
-    DateTime? createdAt,
-    DateTime? completedAt,
-    RecognizedItem? item,
-    RecognizedItemCandidate? candidate,
-    String? errorMessage,
-  }) {
-    return _ScanQueueEntry(
-      id: id ?? this.id,
-      imagePath: imagePath ?? this.imagePath,
-      status: status ?? this.status,
-      createdAt: createdAt ?? this.createdAt,
-      completedAt: completedAt ?? this.completedAt,
-      item: item ?? this.item,
-      candidate: candidate ?? this.candidate,
-      errorMessage: errorMessage ?? this.errorMessage,
-    );
-  }
-}
-
 class _ScanInboxCard extends StatelessWidget {
   final String title;
   final String summaryText;
-  final List<_ScanQueueEntry> entries;
+  final List<PendingScanEntry> entries;
   final String? activeEntryId;
-  final ValueChanged<_ScanQueueEntry> onActivate;
-  final ValueChanged<_ScanQueueEntry> onDismiss;
+  final ValueChanged<PendingScanEntry> onActivate;
+  final ValueChanged<PendingScanEntry> onDismiss;
 
   const _ScanInboxCard({
     required this.title,
@@ -871,7 +1023,7 @@ class _ScanInboxCard extends StatelessWidget {
               child: _ScanInboxRow(
                 entry: entry,
                 isActive: isActive,
-                onTap: entry.status == _ScanQueueStatus.ready
+                onTap: entry.status == PendingScanStatus.ready
                     ? () => onActivate(entry)
                     : null,
                 onDismiss: () => onDismiss(entry),
@@ -885,7 +1037,7 @@ class _ScanInboxCard extends StatelessWidget {
 }
 
 class _ScanInboxRow extends StatelessWidget {
-  final _ScanQueueEntry entry;
+  final PendingScanEntry entry;
   final bool isActive;
   final VoidCallback? onTap;
   final VoidCallback onDismiss;
@@ -900,54 +1052,54 @@ class _ScanInboxRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = switch (entry.status) {
-      _ScanQueueStatus.failed => (
+      PendingScanStatus.failed => (
         bg: const Color(0xFFFFF1F1),
         fg: const Color(0xFFB42318),
         label: '실패',
       ),
-      _ScanQueueStatus.added => (
+      PendingScanStatus.added => (
         bg: const Color(0xFFEAF7EE),
         fg: const Color(0xFF2E7D32),
         label: '담기 완료',
       ),
-      _ScanQueueStatus.ready => (
+      PendingScanStatus.ready => (
         bg: const Color(0xFFFFF4E5),
         fg: const Color(0xFFB26A00),
         label: isActive ? '검토 중' : '검토 대기',
       ),
-      _ScanQueueStatus.processing => (
+      PendingScanStatus.processing => (
         bg: const Color(0xFFF3F4F6),
         fg: Colors.black87,
         label: '분석 중',
       ),
-      _ScanQueueStatus.uploading => (
+      PendingScanStatus.uploading => (
         bg: const Color(0xFFF3F4F6),
         fg: Colors.black87,
         label: '업로드 중',
       ),
-      _ScanQueueStatus.captured => (
+      PendingScanStatus.captured => (
         bg: const Color(0xFFEEF2FF),
         fg: const Color(0xFF344054),
         label: '촬영 완료',
       ),
     };
     final title = switch (entry.status) {
-      _ScanQueueStatus.failed => _scanFailureTitle(),
+      PendingScanStatus.failed => _scanFailureTitle(),
       _ =>
         entry.item?.name ??
             entry.errorMessage ??
             _scanText('queueUntitled', '새 가격표'),
     };
     final subtitle = switch (entry.status) {
-      _ScanQueueStatus.failed => _userFacingScanErrorMessage(
+      PendingScanStatus.failed => _userFacingScanErrorMessage(
         entry.errorMessage,
       ),
-      _ScanQueueStatus.added => '카트에 담았어요',
-      _ScanQueueStatus.ready =>
+      PendingScanStatus.added => '카트에 담았어요',
+      PendingScanStatus.ready =>
         entry.item == null ? '결과를 확인해 주세요' : '₩${_fmt(entry.item!.price)}',
-      _ScanQueueStatus.processing => '결과를 읽는 중',
-      _ScanQueueStatus.uploading => '이미지를 올리는 중',
-      _ScanQueueStatus.captured => '아직 분석 전, 순서대로 처리될 예정',
+      PendingScanStatus.processing => '결과를 읽는 중',
+      PendingScanStatus.uploading => '이미지를 올리는 중',
+      PendingScanStatus.captured => '아직 분석 전, 순서대로 처리될 예정',
     };
 
     return Material(
@@ -1004,7 +1156,7 @@ class _ScanInboxRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              if (entry.status == _ScanQueueStatus.ready && !isActive)
+              if (entry.status == PendingScanStatus.ready && !isActive)
                 const CartlySymbolIcon.sf(
                   'chevron.right',
                   color: Colors.black38,

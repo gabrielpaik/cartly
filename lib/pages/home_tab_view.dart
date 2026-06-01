@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../app/cartly_ui.dart';
 import '../app_support.dart';
+import '../models/pending_scan_entry.dart';
 import '../models/recognized_item.dart';
 import '../services/app_runtime_copy.dart';
 import '../services/scan_repository.dart';
@@ -25,11 +26,14 @@ class HomeTabView extends StatelessWidget {
   final void Function(RecognizedItem item) onRecognized;
   final Future<bool> Function(RecognizedItem item) onAdd;
   final void Function(RecognizedItem item) onDismissRecognized;
+  final void Function(List<PendingScanEntry> entries, String? activeEntryId)
+  onQueueStateChanged;
   final Future<bool> Function(RecentScanEntry entry) onAddRecentScan;
   final void Function(RecentScanEntry entry) onDismissRecentScan;
   final void Function(CartItem item) onRemove;
   final void Function(CartItem item) onChangeCurrentCartItem;
   final VoidCallback onGoExplore;
+  final String itemAddSectionStateKey;
   final bool isSharedCurrentCartMode;
   final VoidCallback onPersonalCurrentCartTap;
   final VoidCallback onSharedCurrentCartTap;
@@ -43,11 +47,13 @@ class HomeTabView extends StatelessWidget {
     required this.onRecognized,
     required this.onAdd,
     required this.onDismissRecognized,
+    required this.onQueueStateChanged,
     required this.onAddRecentScan,
     required this.onDismissRecentScan,
     required this.onRemove,
     required this.onChangeCurrentCartItem,
     required this.onGoExplore,
+    required this.itemAddSectionStateKey,
     required this.isSharedCurrentCartMode,
     required this.onPersonalCurrentCartTap,
     required this.onSharedCurrentCartTap,
@@ -98,10 +104,11 @@ class HomeTabView extends StatelessWidget {
               ),
               const SizedBox(height: CartlySpacing.md),
               ItemAddSection(
-                key: const ValueKey('home-item-add-section'),
+                key: ValueKey('home-item-add-section-$itemAddSectionStateKey'),
                 cameras: cameras,
                 scanRepository: scanRepository,
                 onRecognized: onRecognized,
+                onQueueStateChanged: onQueueStateChanged,
                 onDismissRecognized: onDismissRecognized,
                 onAdd: (item) async {
                   final added = await onAdd(item);

@@ -179,6 +179,7 @@ class _CartlyPreviewAppState extends State<CartlyPreviewApp> {
             onRecognized: (_) {},
             onAdd: (_) async => true,
             onDismissRecognized: (_) {},
+            onQueueStateChanged: (_, _) {},
             onAddRecentScan: (_) async => true,
             onDismissRecentScan: (_) {},
             onRemove: (_) {},
@@ -188,6 +189,10 @@ class _CartlyPreviewAppState extends State<CartlyPreviewApp> {
                 _previewScreen = 'help';
               });
             },
+            itemAddSectionStateKey: 'preview',
+            isSharedCurrentCartMode: false,
+            onPersonalCurrentCartTap: () {},
+            onSharedCurrentCartTap: () {},
           ),
           bottomNavigationBar: TotalBar(
             totalPrice: _previewCartItems.fold(

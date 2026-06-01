@@ -206,7 +206,7 @@ const DEFAULT_EDITORIAL_VISIBLE_COUNT = 5
 const RECOMMENDATION_SEARCH_OPTIONS = [
   { id: 'registeredAt', label: '등록일', placeholder: 'YYYY-MM-DD' },
   { id: 'title', label: '상품명', placeholder: '상품명 검색' },
-  { id: 'provider', label: 'Provider', placeholder: 'Provider 검색' },
+  { id: 'provider', label: '판매처', placeholder: '판매처 검색' },
 ] as const
 const RECOMMENDATION_SHEET_COLUMNS: Array<keyof RecommendationSheetRecord> = [
   '노출 순번',
@@ -287,33 +287,33 @@ const EXPLORE_SECTION_OPTIONS: ExploreSectionOption[] = [
 const EXPLORE_WORKSPACE_OPTIONS: ExploreWorkspaceOption[] = [
   {
     id: 'layout',
-    label: 'Layout',
+    label: '섹션 배치',
     description: '상태별 섹션 노출과 순서를 다듬는 작업 레일',
-    statLabel: 'sections',
+    statLabel: '섹션',
   },
   {
     id: 'recommendations',
-    label: 'Recommendation Pool',
+    label: '추천 풀',
     description: '운영자 추천 제품 풀과 HTML/URL 입력 결과를 관리',
-    statLabel: 'pool',
+    statLabel: '추천',
   },
   {
     id: 'rules',
-    label: 'Decision Rules',
+    label: '노출 규칙',
     description: '상태별 limit, ranking, count cap을 조정',
-    statLabel: 'rules',
+    statLabel: '규칙',
   },
   {
     id: 'copy',
-    label: 'Decision Copy',
+    label: '문구',
     description: '결정 인박스 라벨과 설명 문구를 관리',
-    statLabel: 'copy',
+    statLabel: '문구',
   },
   {
     id: 'store',
-    label: 'Store Context',
+    label: '마트 문맥',
     description: '오프라인 매장 문맥과 행사/프로모션 골격',
-    statLabel: 'store',
+    statLabel: '행사',
   },
 ]
 
@@ -1330,7 +1330,7 @@ export default function ExploreAdminPage() {
         { wch: 36 },
         { wch: 14 },
       ]
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Recommendations')
+      XLSX.utils.book_append_sheet(workbook, worksheet, '추천상품')
       const guide = XLSX.utils.aoa_to_sheet([
         ['기준'],
         ['필수 컬럼', '노출 순번', 'URL', '등록일시', '종료일시'],
@@ -1338,14 +1338,14 @@ export default function ExploreAdminPage() {
         ['종료일시', '빈칸 허용'],
         [],
         ['선택 컬럼'],
-        ['상품명', '가격', '썸네일 URL', 'Provider'],
+        ['상품명', '가격', '썸네일 URL', '판매처(Provider)'],
         [],
         ['동작'],
-        ['상품명/가격/썸네일 URL을 비우면 URL 기준 resolve 결과를 사용함'],
-        ['노출 시작일시는 등록일시를 기준으로 자동 생성됨'],
+        ['상품명, 가격, 썸네일 URL을 비우면 URL 기준 결과를 사용함'],
+        ['노출 시작 시각은 등록일시를 기준으로 자동 생성됨'],
       ])
       guide['!cols'] = [{ wch: 22 }, { wch: 42 }, { wch: 22 }, { wch: 22 }]
-      XLSX.utils.book_append_sheet(workbook, guide, 'Guide')
+      XLSX.utils.book_append_sheet(workbook, guide, '입력안내')
       XLSX.writeFile(workbook, 'cartly-recommendations.xlsx')
       setMessage('추천 상품 엑셀 다운로드 완료')
     } catch (error) {
@@ -1808,7 +1808,7 @@ export default function ExploreAdminPage() {
   return (
     <div className="exploreCompactPage">
       <PageHeader
-        badge={res.usingFallback ? 'Fallback data' : res.loading ? 'Loading...' : 'Live data'}
+        badge={res.usingFallback ? '대체 데이터' : res.loading ? '불러오는 중' : '실데이터'}
         title={t('admin.explore.title', 'Explore')}
         description={`${activeStateOption.label} · ${activeWorkspaceOption.description}`}
         actions={(
@@ -1816,14 +1816,14 @@ export default function ExploreAdminPage() {
             <div className="exploreHeaderActionGroup exploreHeaderActionGroupPreview">
               <div className="exploreHeaderActionRow">
                 <button className="primaryBtn pageActionBtn pageActionBtnPrimary exploreHeaderActionBtn" type="button" onClick={openPreviewPopup}>
-                  Preview
+                  미리보기
                 </button>
                 <button
                   className="ghostBtn pageActionBtn exploreHeaderIconBtn"
                   type="button"
                   onClick={() => setPreviewNonce((value) => value + 1)}
-                  aria-label="Preview 다시 보내기"
-                  title="Preview 다시 보내기"
+                  aria-label="미리보기 다시 보내기"
+                  title="미리보기 다시 보내기"
                 >
                   ↻
                 </button>
@@ -1836,7 +1836,7 @@ export default function ExploreAdminPage() {
             <span className="exploreHeaderActionDivider" aria-hidden="true" />
             <div className="exploreHeaderActionGroup">
               <button className="primaryBtn pageActionBtn pageActionBtnPrimary exploreHeaderActionBtn" type="button" onClick={() => void onSave()} disabled={saving}>
-                {saving ? '저장중' : '저장'}
+                {saving ? '저장 중...' : '저장'}
               </button>
               <button
                 className="ghostBtn pageActionBtn exploreHeaderIconBtn"
@@ -1857,7 +1857,7 @@ export default function ExploreAdminPage() {
                 onClick={() => void Promise.allSettled([res.reload(), appConfigRes.reload()])}
                 disabled={res.loading || appConfigRes.loading || saving}
               >
-                {res.loading || appConfigRes.loading || saving ? 'DATA...' : 'DATA'}
+                {res.loading || appConfigRes.loading || saving ? '불러오는 중...' : '다시 불러오기'}
               </button>
             </div>
           </div>
@@ -1868,55 +1868,55 @@ export default function ExploreAdminPage() {
       {message ? <div className="saveMessage" style={{ marginBottom: 16 }}>{message}</div> : null}
       {res.usingFallback ? (
         <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
-          <strong>Live explore config unavailable.</strong> 지금 화면은 fallback/mock data일 수 있어.
+          <strong>실데이터 탐색 설정 불러오기 실패</strong> 지금 화면은 대체 데이터일 수 있어.
         </div>
       ) : null}
 
       <div className="exploreSummaryGrid" style={{ marginTop: 12 }}>
         <div className="exploreSummaryCell">
-          <span className="exploreSummaryLabel">Active mode</span>
+          <span className="exploreSummaryLabel">현재 상태</span>
           <strong className="exploreSummaryValue">{activeStateOption.label}</strong>
           <span className="exploreSummaryNote">{modePreviewHeadline}</span>
         </div>
         <div className="exploreSummaryCell">
-          <span className="exploreSummaryLabel">Active task</span>
+          <span className="exploreSummaryLabel">작업 화면</span>
           <strong className="exploreSummaryValue">{activeWorkspaceOption.label}</strong>
           <span className="exploreSummaryNote">{activeWorkspaceStat} · {activeWorkspaceOption.description}</span>
         </div>
         <div className="exploreSummaryCell">
-          <span className="exploreSummaryLabel">Visible sections</span>
+          <span className="exploreSummaryLabel">노출 섹션</span>
           <strong className="exploreSummaryValue">{enabledSections.length}</strong>
           <span className="exploreSummaryNote">{activeSectionLabels.slice(0, 3).join(' · ') || '-'}</span>
         </div>
         <div className="exploreSummaryCell">
-          <span className="exploreSummaryLabel">Offers / Picks</span>
-          <strong className="exploreSummaryValue">{currentStateRules.offerMaxSlots} / {form.editorialRecommendationsEnabled ? `${visibleRecommendationCount} of ${editorialPoolPreview.length}` : 'OFF'}</strong>
-          <span className="exploreSummaryNote">{features?.coupangPartnersAffiliateReady ? 'affiliate ready' : 'fallback/search mode'}</span>
+          <span className="exploreSummaryLabel">대안 / 추천</span>
+          <strong className="exploreSummaryValue">{currentStateRules.offerMaxSlots} / {form.editorialRecommendationsEnabled ? `${visibleRecommendationCount} / ${editorialPoolPreview.length}` : '중지'}</strong>
+          <span className="exploreSummaryNote">{features?.coupangPartnersAffiliateReady ? '제휴 준비 완료' : '검색 운영 모드'}</span>
         </div>
         <div className="exploreSummaryCell">
-          <span className="exploreSummaryLabel">Store promo</span>
-          <strong className="exploreSummaryValue">{form.storeContextEnabled ? 'ON' : 'OFF'}</strong>
-          <span className="exploreSummaryNote">{form.storeContextStoreName} · {storePromoPreview.length}개 preview</span>
+          <span className="exploreSummaryLabel">마트 행사</span>
+          <strong className="exploreSummaryValue">{form.storeContextEnabled ? '사용' : '중지'}</strong>
+          <span className="exploreSummaryNote">{form.storeContextStoreName} · {storePromoPreview.length}개 미리보기</span>
         </div>
       </div>
 
       <div className="metaRow compactMetaRow section" style={{ marginTop: 8 }}>
-        <span className="metaPill">mode {activeStateOption.label}</span>
-        <span className="metaPill">task {activeWorkspaceOption.label}</span>
-        <span className="metaPill">state mode {form.stateMode === 'auto' ? 'runtime auto' : `forced ${form.stateMode}`}</span>
-        <span className="metaPill">{isDirty ? 'unsaved changes' : 'saved'}</span>
-        <span className="metaPill">{res.usingFallback ? 'fallback runtime' : 'live runtime'}</span>
+        <span className="metaPill">상태 {activeStateOption.label}</span>
+        <span className="metaPill">화면 {activeWorkspaceOption.label}</span>
+        <span className="metaPill">상태 선택 {form.stateMode === 'auto' ? '자동' : `고정 ${form.stateMode}`}</span>
+        <span className="metaPill">{isDirty ? '미저장 변경' : '저장 완료'}</span>
+        <span className="metaPill">{res.usingFallback ? '대체 데이터' : '실데이터'}</span>
       </div>
 
       <div className="card exploreDenseCard exploreSheetCard" style={{ marginTop: 12, marginBottom: 12 }}>
         <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
           <div>
-            <h2 className="panelTitle" style={{ marginBottom: 6 }}>Mode</h2>
-            <p className="pageDesc" style={{ margin: 0 }}>작업 전환은 좌측 sidebar를 쓰고, 여기서는 현재 편집할 상태만 빠르게 바꿔.</p>
+            <h2 className="panelTitle" style={{ marginBottom: 6 }}>편집 상태</h2>
+            <p className="pageDesc" style={{ margin: 0 }}>좌측 메뉴에서 작업을 바꾸고, 여기서는 편집 상태만 고른다.</p>
           </div>
           <div className="metaRow" style={{ marginTop: 0 }}>
             <span className="metaPill">현재 작업 {activeWorkspaceOption.label}</span>
-            <span className="metaPill">preview는 상단 버튼에서만 실행</span>
+            <span className="metaPill">미리보기는 상단 버튼에서 실행</span>
           </div>
         </div>
         <div className="editorSubtabRow">
@@ -1937,20 +1937,20 @@ export default function ExploreAdminPage() {
           <div className="card" style={{ marginBottom: activeWorkspace === 'layout' ? 16 : 0, display: activeWorkspace === 'layout' ? 'block' : 'none' }}>
             <div className="sectionHeader" style={{ marginBottom: 10 }}>
               <div>
-                <h2 className="panelTitle" style={{ marginBottom: 0 }}>Layout</h2>
+                <h2 className="panelTitle" style={{ marginBottom: 0 }}>섹션 배치</h2>
               </div>
               <div className="metaRow" style={{ marginTop: 0 }}>
-                <span className="metaPill">mode {activeStateOption.label}</span>
-                <span className="metaPill">left rail 기준 편집</span>
+                <span className="metaPill">상태 {activeStateOption.label}</span>
+                <span className="metaPill">좌측 메뉴 기준 편집</span>
               </div>
             </div>
             <div className="tableWrap">
               <table className="dataTable exploreDenseTable">
                 <thead>
                   <tr>
-                    <th>ON</th>
+                    <th>사용</th>
                     <th>섹션</th>
-                    <th>Key</th>
+                    <th>키</th>
                     <th>순서</th>
                     <th>조작</th>
                   </tr>
@@ -1961,13 +1961,13 @@ export default function ExploreAdminPage() {
                     const orderIndex = orderedSections.indexOf(section.id)
                     return (
                       <tr key={section.id} className={enabled ? '' : 'exploreRowMuted'}>
-                        <td data-label="ON">
+                        <td data-label="사용">
                           <input type="checkbox" checked={enabled} onChange={() => toggleSection(section.id)} />
                         </td>
                         <td data-label="섹션">
                           <div style={{ fontWeight: 800, color: '#0f172a' }}>{section.label}</div>
                         </td>
-                        <td data-label="Key"><code>{section.id}</code></td>
+                        <td data-label="키"><code>{section.id}</code></td>
                         <td data-label="순서">{enabled ? `${orderIndex + 1}번째` : '숨김'}</td>
                         <td data-label="조작">
                           <div className="exploreRowActions">
@@ -1993,9 +1993,9 @@ export default function ExploreAdminPage() {
                   <input className="textInput" value={form[stateOrderKey(layoutState)]} onChange={(e) => update(stateOrderKey(layoutState), e.target.value)} />
                 </label>
                 <label className="field">
-                  <div className="fieldLabel">Explore state mode</div>
+                  <div className="fieldLabel">상태 선택</div>
                   <select className="textInput" value={form.stateMode} onChange={(e) => update('stateMode', e.target.value as ExploreSettings['stateMode'])}>
-                    <option value="auto">auto</option>
+                    <option value="auto">자동</option>
                     {EXPLORE_STATE_OPTIONS.map((state) => <option key={state.id} value={state.id}>{state.id}</option>)}
                   </select>
                 </label>
@@ -2057,9 +2057,9 @@ export default function ExploreAdminPage() {
               </div>
             </div>
             <div className="metaRow compactMetaRow" style={{ marginBottom: 10 }}>
-              <span className="metaPill">view {filteredRecommendationDraftRows.length + filteredHistoricalRecommendationRows.length}행</span>
-              <span className="metaPill">history {historicalRecommendationRows.length}개</span>
-              <span className="metaPill">selected {visibleSelectedRecommendationRowIds.length}개</span>
+              <span className="metaPill">표시 {filteredRecommendationDraftRows.length + filteredHistoricalRecommendationRows.length}행</span>
+              <span className="metaPill">이력 {historicalRecommendationRows.length}개</span>
+              <span className="metaPill">선택 {visibleSelectedRecommendationRowIds.length}개</span>
               {hasRecommendationSlotConflicts ? <span className="metaPill exploreMetaPillWarn">slot {recommendationDuplicateSlots.join(', ')} 중복</span> : null}
             </div>
             <div className="sectionGrid exploreSheetFilterGrid" style={{ marginBottom: 10 }}>
@@ -2129,7 +2129,7 @@ export default function ExploreAdminPage() {
                     <th>등록일</th>
                     <th>노출</th>
                     <th>입력값</th>
-                    <th>Provider</th>
+                    <th>판매처</th>
                     <th>상품명</th>
                     <th>가격</th>
                     <th>썸네일</th>
@@ -2184,7 +2184,7 @@ export default function ExploreAdminPage() {
                                 placeholder="URL 또는 iframe / HTML"
                               />
                             </td>
-                            <td data-label="Provider">{parsed?.provider ?? '-'}</td>
+                            <td data-label="판매처">{parsed?.provider ?? '-'}</td>
                             <td data-label="상품명">
                               <div className="exploreCellTitle">{parsed?.title ?? '-'}</div>
                             </td>
@@ -2252,7 +2252,7 @@ export default function ExploreAdminPage() {
                           <td data-label="등록일">{item.registeredAt || '-'}</td>
                           <td data-label="노출">{item.displaySlot ?? 999}</td>
                           <td data-label="입력값"><div className="exploreHistoryRaw">{item.raw || item.deeplinkUrl || item.url || '-'}</div></td>
-                          <td data-label="Provider">{item.provider || '-'}</td>
+                          <td data-label="판매처">{item.provider || '-'}</td>
                           <td data-label="상품명"><div className="exploreCellTitle">{item.title || '-'}</div></td>
                           <td data-label="가격">{item.price != null ? `₩${item.price.toLocaleString('ko-KR')}` : '-'}</td>
                           <td data-label="썸네일">
@@ -2320,11 +2320,11 @@ export default function ExploreAdminPage() {
           <div className="card exploreDenseCard exploreRuleSheetCard" style={{ marginBottom: activeWorkspace === 'rules' ? 16 : 0, display: activeWorkspace === 'rules' ? 'block' : 'none' }}>
             <div className="sectionHeader" style={{ marginBottom: 10 }}>
               <div>
-                <h2 className="panelTitle" style={{ marginBottom: 0 }}>Decision Rules</h2>
+                <h2 className="panelTitle" style={{ marginBottom: 0 }}>노출 규칙</h2>
               </div>
               <div className="metaRow" style={{ marginTop: 0 }}>
-                <span className="metaPill">mode {activeStateOption.label}</span>
-                <span className="metaPill">left rail 기준 편집</span>
+                <span className="metaPill">상태 {activeStateOption.label}</span>
+                <span className="metaPill">좌측 메뉴 기준 편집</span>
               </div>
             </div>
             <div className="tableWrap exploreRuleSheetWrap">
@@ -2342,12 +2342,12 @@ export default function ExploreAdminPage() {
                     <th>값</th>
                     <th>범위</th>
                     <th>우선순위</th>
-                    <th>CAP</th>
+                    <th>상한</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="exploreRuleSectionRow">
-                    <td colSpan={5}>Rules</td>
+                    <td colSpan={5}>기본</td>
                   </tr>
                   {STATE_RULE_FIELDS.map((field) => (
                     <tr key={field.key}>
@@ -2373,7 +2373,7 @@ export default function ExploreAdminPage() {
                     </tr>
                   ))}
                   <tr className="exploreRuleSectionRow">
-                    <td colSpan={5}>Policy</td>
+                    <td colSpan={5}>정책</td>
                   </tr>
                   {PROMO_POLICY_FIELDS.map((field) => (
                     <tr key={field.key}>
@@ -2415,7 +2415,7 @@ export default function ExploreAdminPage() {
                     </tr>
                   ))}
                   <tr className="exploreRuleSectionRow">
-                    <td colSpan={5}>Priority</td>
+                    <td colSpan={5}>우선순위</td>
                   </tr>
                   {DECISION_FIELDS.map((key) => (
                     <tr key={key}>
@@ -2442,8 +2442,8 @@ export default function ExploreAdminPage() {
 
           <div className="card exploreDenseCard exploreSheetCard exploreCopyWorkspaceCard" style={{ marginBottom: activeWorkspace === 'copy' ? 16 : 0, display: activeWorkspace === 'copy' ? 'block' : 'none' }}>
             <div className="sectionHeader exploreCopyHeader" style={{ marginBottom: 6 }}>
-              <h2 className="panelTitle" style={{ marginBottom: 0 }}>Decision Copy</h2>
-              <a className="editorExternalLink" href="/content?section=app">Content Surfaces</a>
+              <h2 className="panelTitle" style={{ marginBottom: 0 }}>문구</h2>
+              <a className="editorExternalLink" href="/content?section=app">브랜드·문구</a>
             </div>
             <div className="exploreCopyReferenceStrip">
               <div className="exploreCopyReferenceFields">
@@ -2452,13 +2452,13 @@ export default function ExploreAdminPage() {
                   <input className="textInput exploreCopyInput" value={liveTitle} disabled readOnly />
                 </label>
                 <label className="field exploreCopyMiniField">
-                  <div className="fieldLabel">도움 subtitle</div>
+                  <div className="fieldLabel">도움 설명</div>
                   <input className="textInput exploreCopyInput" value={liveSubtitle} disabled readOnly />
                 </label>
               </div>
             </div>
             <div className="exploreCopySectionTitleRow">
-              <strong>Decision inbox copy</strong>
+              <strong>결정 인박스 문구</strong>
             </div>
             <div className="tableWrap exploreCopySheetWrap">
               <table className="dataTable exploreCopySheetTable">
@@ -2495,7 +2495,7 @@ export default function ExploreAdminPage() {
               </table>
             </div>
             <div className="exploreCopySectionTitleRow">
-              <strong>Offer copy</strong>
+              <strong>대안 문구</strong>
               <span className="metaPill">{EXPLORE_STATE_OPTIONS.find((state) => state.id === layoutState)?.label}</span>
             </div>
             <div className="exploreCopyOfferGrid">
@@ -2513,71 +2513,71 @@ export default function ExploreAdminPage() {
           <div className="card" style={{ display: activeWorkspace === 'store' ? 'block' : 'none' }}>
             <div className="sectionHeader" style={{ marginBottom: 12 }}>
               <div>
-                <h2 className="panelTitle" style={{ marginBottom: 0 }}>Store context</h2>
+                <h2 className="panelTitle" style={{ marginBottom: 0 }}>마트 문맥</h2>
               </div>
             </div>
             <div className="metaRow compactMetaRow" style={{ marginBottom: 12 }}>
-              <span className="metaPill">{form.storeContextEnabled ? 'store lane on' : 'store lane off'}</span>
+              <span className="metaPill">{form.storeContextEnabled ? '행사 노출 사용' : '행사 노출 중지'}</span>
               <span className="metaPill">{form.storeContextStoreName}</span>
             </div>
             <div className="sectionGrid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
               <label className="field" style={{ gridColumn: '1 / -1' }}>
                 <div className="fieldLabel">
                   <input type="checkbox" checked={form.storeContextEnabled} onChange={(e) => update('storeContextEnabled', e.target.checked)} style={{ marginRight: 8 }} />
-                  store context 사용
+                  마트 문맥 사용
                 </div>
               </label>
               <label className="field">
-                <div className="fieldLabel">storeContextStoreName</div>
+                <div className="fieldLabel">마트명</div>
                 <input className="textInput" value={form.storeContextStoreName} onChange={(e) => update('storeContextStoreName', e.target.value)} />
               </label>
               <label className="field">
-                <div className="fieldLabel">storeContextMaxPromos</div>
+                <div className="fieldLabel">행사 최대 개수</div>
                 <input className="textInput" type="number" min={0} max={12} value={form.stateRules.storeContext.storeContextMaxPromos} onChange={(e) => setForm((prev) => ({ ...prev, stateRules: { ...prev.stateRules, storeContext: { ...prev.stateRules.storeContext, storeContextMaxPromos: Number(e.target.value || 0) } } }))} />
               </label>
               <label className="field" style={{ gridColumn: '1 / -1' }}>
-                <div className="fieldLabel">storeContextPromoTitle</div>
+                <div className="fieldLabel">행사 제목</div>
                 <input className="textInput" value={form.storeContextPromoTitle} onChange={(e) => update('storeContextPromoTitle', e.target.value)} />
               </label>
               <label className="field" style={{ gridColumn: '1 / -1' }}>
-                <div className="fieldLabel">storeContextPromoBody</div>
+                <div className="fieldLabel">행사 설명</div>
                 <textarea className="textInput" rows={3} value={form.storeContextPromoBody} onChange={(e) => update('storeContextPromoBody', e.target.value)} />
               </label>
               <label className="field" style={{ gridColumn: '1 / -1' }}>
-                <div className="fieldLabel">storeContextPromoSeedLabels</div>
+                <div className="fieldLabel">행사 기준 문구</div>
                 <input className="textInput" value={form.storeContextPromoSeedLabels} onChange={(e) => update('storeContextPromoSeedLabels', e.target.value)} />
               </label>
               <label className="field">
-                <div className="fieldLabel">storeContextPromoSourceType</div>
+                <div className="fieldLabel">행사 유형</div>
                 <select className="textInput" value={form.storeContextPromoSourceType} onChange={(e) => update('storeContextPromoSourceType', e.target.value as ExploreSettings['storeContextPromoSourceType'])}>
-                  <option value="storeSale">storeSale</option>
-                  <option value="sponsoredPlacement">sponsoredPlacement</option>
-                  <option value="editorialCuration">editorialCuration</option>
+                  <option value="storeSale">마트 행사</option>
+                  <option value="sponsoredPlacement">제휴 노출</option>
+                  <option value="editorialCuration">운영 추천</option>
                 </select>
               </label>
               <label className="field">
-                <div className="fieldLabel">storeContextPromoPriorityStart</div>
+                <div className="fieldLabel">행사 시작 우선순위</div>
                 <input className="textInput" type="number" min={0} max={1000} value={form.storeContextPromoPriorityStart} onChange={(e) => update('storeContextPromoPriorityStart', Number(e.target.value || 0))} />
               </label>
               <label className="field" style={{ gridColumn: '1 / -1' }}>
                 <div className="fieldLabel">
                   <input type="checkbox" checked={form.storeContextPromoSponsored} onChange={(e) => update('storeContextPromoSponsored', e.target.checked)} style={{ marginRight: 8 }} />
-                  sponsored promo
+                  제휴 행사
                 </div>
               </label>
               <label className="field">
-                <div className="fieldLabel">storeContextPromoSponsorLabel</div>
+                <div className="fieldLabel">제휴 표기</div>
                 <input className="textInput" value={form.storeContextPromoSponsorLabel} onChange={(e) => update('storeContextPromoSponsorLabel', e.target.value)} />
               </label>
               <label className="field">
-                <div className="fieldLabel">storeContextPromoCtaLabel</div>
+                <div className="fieldLabel">버튼 문구</div>
                 <input className="textInput" value={form.storeContextPromoCtaLabel} onChange={(e) => update('storeContextPromoCtaLabel', e.target.value)} />
               </label>
             </div>
             <div className="metaRow" style={{ marginTop: 12 }}>
-              <span className="metaPill">preview promos</span>
+              <span className="metaPill">미리보기 행사</span>
               {storePromoPreview.map((promo) => (
-                <span className="metaPill" key={promo.id}>{promo.badgeLabel} · {promo.sourceType} · p{promo.priority} · {promo.isSponsored ? 'sponsored' : 'organic'}</span>
+                <span className="metaPill" key={promo.id}>{promo.badgeLabel} · {promo.sourceType} · p{promo.priority} · {promo.isSponsored ? '제휴' : '일반'}</span>
               ))}
             </div>
           </div>

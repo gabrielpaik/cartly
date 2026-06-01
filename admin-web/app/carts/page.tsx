@@ -125,9 +125,9 @@ function cartUserLabel(cart: CartRow, t: (key: string, fallback?: string) => str
   if (cart.user?.displayName) return cart.user.displayName
   if (cart.userName) return cart.userName
   if (cart.user?.email) return cart.user.email
-  if (cart.user?.isGuest) return t('admin.carts.user.guest', 'Guest')
+  if (cart.user?.isGuest) return t('admin.carts.user.guest', '비회원')
   if (cart.userId) return cart.userId
-  return t('admin.carts.user.anonymous', 'Anonymous')
+  return t('admin.carts.user.anonymous', '익명')
 }
 
 function cartUserTypeKey(cart: CartRow): UserTypeFilter {
@@ -138,9 +138,9 @@ function cartUserTypeKey(cart: CartRow): UserTypeFilter {
 
 function cartUserType(cart: CartRow, t: (key: string, fallback?: string) => string) {
   const key = cartUserTypeKey(cart)
-  if (key === 'anonymous') return t('admin.carts.userType.anonymous', 'anonymous')
-  if (key === 'guest') return t('admin.carts.userType.guest', 'guest')
-  return t('admin.carts.userType.member', 'member')
+  if (key === 'anonymous') return t('admin.carts.userType.anonymous', '익명')
+  if (key === 'guest') return t('admin.carts.userType.guest', '비회원')
+  return t('admin.carts.userType.member', '회원')
 }
 
 function cartSavedDateKey(cart: CartRow) {
@@ -182,7 +182,7 @@ function merchantGroupLabel(merchantName?: string | null) {
 function receiptLabel(cart: CartRow) {
   const receipt = cart.receiptStatus
   if (!receipt?.hasReceipt) return '-'
-  return [merchantGroupLabel(receipt.merchantName), receipt.receiptStatus].filter(Boolean).join(' · ') || 'receipt'
+  return [merchantGroupLabel(receipt.merchantName), receipt.receiptStatus].filter(Boolean).join(' · ') || '영수증'
 }
 
 function receiptImageSrc(cartId: string) {
@@ -263,10 +263,10 @@ export default function CartsPage() {
   }, [query, savedDateFrom, savedDateTo, userType])
 
   const filterButtons: Array<[UserTypeFilter, string]> = [
-    ['all', `${t('admin.carts.filters.type.all', 'All')} (${formatNumber(summary.totalCarts ?? filtered.length)})`],
-    ['member', `${t('admin.carts.filters.type.member', 'Members')} (${formatNumber(summary.memberCarts ?? 0)})`],
-    ['guest', `${t('admin.carts.filters.type.guest', 'Guests')} (${formatNumber(summary.guestCarts ?? 0)})`],
-    ['anonymous', `${t('admin.carts.filters.type.anonymous', 'Anonymous')} (${formatNumber(summary.anonymousCarts ?? 0)})`],
+    ['all', `${t('admin.carts.filters.type.all', '전체')} (${formatNumber(summary.totalCarts ?? filtered.length)})`],
+    ['member', `${t('admin.carts.filters.type.member', '회원')} (${formatNumber(summary.memberCarts ?? 0)})`],
+    ['guest', `${t('admin.carts.filters.type.guest', '비회원')} (${formatNumber(summary.guestCarts ?? 0)})`],
+    ['anonymous', `${t('admin.carts.filters.type.anonymous', '익명')} (${formatNumber(summary.anonymousCarts ?? 0)})`],
   ]
 
   const selectedCart = useMemo(() => filtered.find((cart) => cart.id === selectedCartId) ?? carts.find((cart) => cart.id === selectedCartId) ?? null, [carts, filtered, selectedCartId])
@@ -337,11 +337,11 @@ export default function CartsPage() {
 
   async function saveItemCategories(itemIds: string[], categoryDraft: string) {
     if (res.usingFallback) {
-      setActionMessage('fallback/mock 상태에서는 카테고리 수정이 안 돼')
+      setActionMessage('대체 데이터 상태에서는 카테고리 수정이 안 돼')
       return
     }
     if (!itemIds.length) {
-      setActionMessage('먼저 수정할 item을 선택해줘')
+      setActionMessage('먼저 수정할 상품을 선택해줘')
       return
     }
     if (!categoryDraft) {
@@ -357,7 +357,7 @@ export default function CartsPage() {
         category: nextCategory,
       })
       if (!result.ok) {
-        throw new Error(result.error?.message || 'cart item 카테고리 저장 실패')
+        throw new Error(result.error?.message || '상품 카테고리 저장 실패')
       }
       setActionMessage(nextCategory ? `${itemIds.length}건 item 카테고리를 ${nextCategory}로 바꿨어` : `${itemIds.length}건 item 카테고리를 자동 추론으로 되돌렸어`)
       setSelectedItemIds([])
@@ -365,7 +365,7 @@ export default function CartsPage() {
       setRowCategoryDrafts({})
       await res.reload()
     } catch (error) {
-      setActionMessage(error instanceof Error ? error.message : 'cart item 카테고리 저장 실패')
+      setActionMessage(error instanceof Error ? error.message : '상품 카테고리 저장 실패')
     } finally {
       setSavingCategories(false)
     }
@@ -374,15 +374,15 @@ export default function CartsPage() {
   return (
     <div className="exploreCompactPage">
       <PageHeader
-        badge={res.usingFallback ? t('admin.common.badge.fallback', 'Fallback data') : res.loading ? t('admin.common.badge.loading', 'Loading...') : t('admin.common.badge.live', 'Live data')}
-        title={t('admin.carts.title', 'Carts')}
-        description={t('admin.carts.desc', 'saved cart lineage and operator history')}
+        badge={res.usingFallback ? t('admin.common.badge.fallback', '대체 데이터') : res.loading ? t('admin.common.badge.loading', '불러오는 중') : t('admin.common.badge.live', '실데이터')}
+        title={t('admin.carts.title', '저장 카트')}
+        description={t('admin.carts.desc', '저장 카트 흐름과 운영 이력')}
         onRefresh={() => void res.reload()}
         refreshing={res.loading}
         inlineRefresh
         actions={(
           <>
-            <a className="ghostBtn pageActionBtn" href={`/api/cartly-admin/admin/carts/export.xlsx${exportQuery}`}>Excel</a>
+            <a className="ghostBtn pageActionBtn" href={`/api/cartly-admin/admin/carts/export.xlsx${exportQuery}`}>엑셀</a>
             <a className="ghostBtn pageActionBtn" href={`/api/cartly-admin/admin/carts/export.csv${exportQuery}`}>CSV</a>
           </>
         )}
@@ -392,53 +392,53 @@ export default function CartsPage() {
       {actionMessage ? <div className="saveMessage" style={{ marginBottom: 16 }}>{actionMessage}</div> : null}
       {res.usingFallback ? (
         <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
-          <strong>{t('admin.carts.warning.fallbackTitle', 'Live cart data unavailable.')}</strong>{' '}
-          {t('admin.carts.warning.fallbackBody', '지금 목록은 fallback/mock data일 수 있어서 실제 저장 카트 현황과 다를 수 있어요.')}
+          <strong>{t('admin.carts.warning.fallbackTitle', '실데이터 저장 카트 불러오기 실패')}</strong>{' '}
+          {t('admin.carts.warning.fallbackBody', '지금 목록은 대체 데이터일 수 있어 실제 저장 카트 현황과 다를 수 있어요.')}
           {res.fallbackMessage ? ` (${res.fallbackMessage})` : ''}
         </div>
       ) : null}
 
       <div className="exploreSummaryGrid section" style={{ marginTop: 12 }}>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Carts</div>
+          <div className="exploreSummaryLabel">카트 수</div>
           <div className="exploreSummaryValue">{formatNumber(summary.totalCarts ?? filtered.length)}</div>
-          <div className="exploreSummaryNote">filtered {formatNumber(filtered.length)}</div>
+          <div className="exploreSummaryNote">조회 {formatNumber(filtered.length)}</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Members</div>
+          <div className="exploreSummaryLabel">회원 카트</div>
           <div className="exploreSummaryValue">{formatNumber(summary.memberCarts ?? 0)}</div>
-          <div className="exploreSummaryNote">guests {formatNumber(summary.guestCarts ?? 0)}</div>
+          <div className="exploreSummaryNote">비회원 {formatNumber(summary.guestCarts ?? 0)}</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Anonymous</div>
+          <div className="exploreSummaryLabel">익명 카트</div>
           <div className="exploreSummaryValue">{formatNumber(summary.anonymousCarts ?? 0)}</div>
-          <div className="exploreSummaryNote">no linked user</div>
+          <div className="exploreSummaryNote">연결 고객 없음</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Avg value</div>
+          <div className="exploreSummaryLabel">평균 금액</div>
           <div className="exploreSummaryValue">{formatWon(summary.avgCartValue ?? 0)}</div>
-          <div className="exploreSummaryNote">saved cart total</div>
+          <div className="exploreSummaryNote">저장 카트 총액</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Avg items</div>
+          <div className="exploreSummaryLabel">평균 상품수</div>
           <div className="exploreSummaryValue">{String(summary.avgItemCount ?? 0)}</div>
-          <div className="exploreSummaryNote">items per cart</div>
+          <div className="exploreSummaryNote">카트당 상품수</div>
         </div>
       </div>
 
       <div className="section sectionGrid twoCol" style={{ marginTop: 8 }}>
         <div className="card exploreDenseCard exploreSheetCard" style={{ gridColumn: '1 / -1' }}>
           <div className="sectionHeader exploreSheetHeader">
-            <h2 className="panelTitle" style={{ marginBottom: 0 }}>Insights</h2>
+            <h2 className="panelTitle" style={{ marginBottom: 0 }}>장바구니 분석</h2>
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <div className="metaPill">carts {formatNumber(filtered.length)}</div>
-              <div className="metaPill">receipts {formatNumber(cartInsights.receiptCount)}</div>
-              <div className="metaPill">items {formatNumber(cartInsights.itemCount)}</div>
+              <div className="metaPill">카트 {formatNumber(filtered.length)}</div>
+              <div className="metaPill">영수증 {formatNumber(cartInsights.receiptCount)}</div>
+              <div className="metaPill">상품 {formatNumber(cartInsights.itemCount)}</div>
             </div>
           </div>
           <div className="scanInsightsGrid">
             <section className="scanInsightsPane">
-              <div className="scanInsightsPaneTitle">Top 마트</div>
+              <div className="scanInsightsPaneTitle">상위 마트</div>
               <div className="scanInsightsList">
                 {cartInsights.topMerchants.map((row) => (
                   <div className="scanInsightsRow" key={`cart-merchant-${row.label}`}>
@@ -449,7 +449,7 @@ export default function CartsPage() {
               </div>
             </section>
             <section className="scanInsightsPane">
-              <div className="scanInsightsPaneTitle">Top 대카테고리</div>
+              <div className="scanInsightsPaneTitle">상위 대카테고리</div>
               <div className="scanInsightsList">
                 {cartInsights.topCategories.map((row) => (
                   <div className="scanInsightsRow" key={`cart-category-${row.label}`}>
@@ -460,7 +460,7 @@ export default function CartsPage() {
               </div>
             </section>
             <section className="scanInsightsPane" style={{ gridColumn: 'span 2' }}>
-              <div className="scanInsightsPaneTitle">Top 최종 상품</div>
+              <div className="scanInsightsPaneTitle">상위 최종 상품</div>
               <div className="scanInsightsList">
                 {cartInsights.topProducts.map((row) => (
                   <div className="scanInsightsRow scanInsightsRowProducts" key={`cart-product-${row.label}`}>
@@ -480,17 +480,17 @@ export default function CartsPage() {
       <div className="exploreActionBar exploreActionBarSingle section" style={{ marginTop: 8 }}>
         <div className="exploreActionPanel exploreActionPanelTight">
           <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 0 }}>
-            <h2 className="panelTitle" style={{ marginBottom: 0 }}>Filter</h2>
+            <h2 className="panelTitle" style={{ marginBottom: 0 }}>조회 조건</h2>
             <div className="metaRow" style={{ marginTop: 0 }}>
-              <div className="metaPill">type {userType}</div>
-              <div className="metaPill">query {query.trim() || '-'}</div>
-              <div className="metaPill">dblclick detail</div>
+              <div className="metaPill">유형 {userType === 'all' ? '전체' : userType === 'member' ? '회원' : userType === 'guest' ? '비회원' : '익명'}</div>
+              <div className="metaPill">검색 {query.trim() || '-'}</div>
+              <div className="metaPill">더블탭 상세</div>
             </div>
           </div>
           <div className="exploreSheetFilterGrid compactFilterGrid" style={{ gridTemplateColumns: 'minmax(260px, 1.8fr) minmax(180px, 0.9fr) repeat(2, minmax(150px, 0.8fr)) auto' }}>
             <label className="field" style={{ margin: 0 }}>
               <div className="exploreSheetFieldLabel">검색</div>
-              <input className="textInput exploreSheetInput" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('admin.carts.filters.searchPlaceholder', 'user / cart / merchant / item')} />
+              <input className="textInput exploreSheetInput" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('admin.carts.filters.searchPlaceholder', '고객 / 카트 / 마트 / 상품')} />
             </label>
             <label className="field" style={{ margin: 0 }}>
               <div className="exploreSheetFieldLabel">고객 유형</div>
@@ -519,7 +519,7 @@ export default function CartsPage() {
                   setSavedDateTo('')
                 }}
               >
-                Reset
+                초기화
               </button>
             </div>
           </div>
@@ -528,15 +528,15 @@ export default function CartsPage() {
 
       <div className="card exploreDenseCard exploreSheetCard section">
         <div className="sectionHeader exploreSheetHeader">
-          <h2 className="panelTitle" style={{ marginBottom: 0 }}>Category Ops</h2>
+          <h2 className="panelTitle" style={{ marginBottom: 0 }}>카테고리 작업</h2>
           <div className="metaRow" style={{ marginTop: 0 }}>
-            <span className="metaPill">visible items {formatNumber(filteredItems.length)}</span>
-            <span className="metaPill">selected {formatNumber(selectedItemIds.length)}</span>
-            <span className="metaPill">filtered carts 기준</span>
+            <span className="metaPill">현재 상품 {formatNumber(filteredItems.length)}</span>
+            <span className="metaPill">선택 {formatNumber(selectedItemIds.length)}</span>
+            <span className="metaPill">조회 카트 기준</span>
           </div>
         </div>
         <div style={{ display: 'grid', gap: 8, marginBottom: 10, gridTemplateColumns: 'auto auto minmax(180px, 240px) auto', alignItems: 'end' }}>
-          <button type="button" className="ghostBtn ghostBtnSmall" onClick={() => setSelectedItemIds(filteredItems.map((row) => row.item.id).filter((value): value is string => Boolean(value)))} disabled={!filteredItems.length || savingCategories}>보이는 item 전체 선택</button>
+          <button type="button" className="ghostBtn ghostBtnSmall" onClick={() => setSelectedItemIds(filteredItems.map((row) => row.item.id).filter((value): value is string => Boolean(value)))} disabled={!filteredItems.length || savingCategories}>보이는 상품 전체 선택</button>
           <button type="button" className="ghostBtn ghostBtnSmall" onClick={() => setSelectedItemIds([])} disabled={!selectedItemIds.length || savingCategories}>선택 해제</button>
           <label className="field" style={{ margin: 0 }}>
             <div className="exploreSheetFieldLabel">선택 카테고리</div>
@@ -549,11 +549,11 @@ export default function CartsPage() {
             </select>
           </label>
           <button type="button" className="ghostBtn pageActionBtn" onClick={() => void saveItemCategories(selectedItemIds, bulkCategory)} disabled={!selectedItemIds.length || !bulkCategory || savingCategories}>
-            {savingCategories ? '저장중...' : `선택 ${selectedItemIds.length}건 적용`}
+            {savingCategories ? '저장 중...' : `선택 ${selectedItemIds.length}건 적용`}
           </button>
         </div>
         {filteredItems.length === 0 ? (
-          <div className="emptyState">현재 필터 기준으로 수정할 item이 없어</div>
+          <div className="emptyState">현재 필터 기준으로 수정할 상품이 없어</div>
         ) : (
           <div className="tableWrap">
             <table className="dataTable exploreDenseTable">
@@ -563,7 +563,7 @@ export default function CartsPage() {
                   <th>상품</th>
                   <th>현재 카테고리</th>
                   <th>수정</th>
-                  <th>Cart</th>
+                  <th>카트</th>
                   <th>마트</th>
                   <th>수량</th>
                   <th>가격</th>
@@ -626,8 +626,8 @@ export default function CartsPage() {
         <div className="sectionHeader exploreSheetHeader">
           <h2 className="panelTitle" style={{ marginBottom: 0 }}>{t('admin.carts.history.title', '저장 카트 히스토리')}</h2>
           <div className="metaRow" style={{ marginTop: 0 }}>
-            <span className="metaPill">filtered {formatNumber(filtered.length)}</span>
-            <span className="metaPill">range {savedDateFrom || '-'} ~ {savedDateTo || '-'}</span>
+            <span className="metaPill">조회 {formatNumber(filtered.length)}</span>
+            <span className="metaPill">기간 {savedDateFrom || '-'} ~ {savedDateTo || '-'}</span>
           </div>
         </div>
         {filtered.length === 0 ? (
@@ -637,13 +637,13 @@ export default function CartsPage() {
             <table className="dataTable exploreDenseTable">
               <thead>
                 <tr>
-                  <th>{t('admin.carts.history.table.cart', 'Cart')}</th>
-                  <th>{t('admin.carts.history.table.user', 'User')}</th>
-                  <th>Receipt</th>
-                  <th>{t('admin.carts.history.table.items', 'Items')}</th>
-                  <th>{t('admin.carts.history.table.total', 'Total')}</th>
+                  <th>{t('admin.carts.history.table.cart', '카트')}</th>
+                  <th>{t('admin.carts.history.table.user', '고객')}</th>
+                  <th>영수증</th>
+                  <th>{t('admin.carts.history.table.items', '상품')}</th>
+                  <th>{t('admin.carts.history.table.total', '합계')}</th>
                   <th>구매</th>
-                  <th>Lineage</th>
+                  <th>이력</th>
                   <th>{t('admin.carts.history.table.savedAt', '저장 시각')}</th>
                 </tr>
               </thead>
@@ -654,7 +654,7 @@ export default function CartsPage() {
                       <div style={{ display: 'grid', gap: 4, minWidth: 180 }}>
                         <strong>{cartTitle(cart)}</strong>
                         <span style={{ color: '#64748b', fontSize: 12 }}>{cart.id ?? '-'}</span>
-                        <span className="metaPill">{cart.status ?? 'saved'}</span>
+                        <span className="metaPill">{cart.status ?? '저장'}</span>
                       </div>
                     </td>
                     <td>
@@ -691,8 +691,8 @@ export default function CartsPage() {
                     <td>
                       <div style={{ display: 'grid', gap: 4, minWidth: 140 }}>
                         <strong>{cart.sourceCartId ?? '-'}</strong>
-                        <span style={{ color: '#64748b', fontSize: 12 }}>retain {cart.retentionExtensionCount ?? 0}</span>
-                        {cart.isExpired ? <span className="metaPill">expired</span> : null}
+                        <span style={{ color: '#64748b', fontSize: 12 }}>보관 연장 {cart.retentionExtensionCount ?? 0}</span>
+                        {cart.isExpired ? <span className="metaPill">만료</span> : null}
                       </div>
                     </td>
                     <td>
@@ -714,10 +714,10 @@ export default function CartsPage() {
           <div className="confirmDialog" style={{ width: 'min(1040px, 100%)' }} onClick={(event) => event.stopPropagation()}>
             <div className="sectionHeader" style={{ marginBottom: 0 }}>
               <div>
-                <div className="confirmTitle">Cart detail</div>
+                <div className="confirmTitle">카트 상세</div>
               </div>
               <div className="metaRow" style={{ marginTop: 0 }}>
-                <span className="metaPill">{selectedCart.status ?? 'saved'}</span>
+                <span className="metaPill">{selectedCart.status ?? '저장'}</span>
                 <button type="button" className="ghostBtn ghostBtnSmall" onClick={() => setSelectedCartId(null)}>닫기</button>
               </div>
             </div>
@@ -726,22 +726,22 @@ export default function CartsPage() {
               <div className="tableWrap">
                 <table className="dataTable exploreDenseTable">
                   <tbody>
-                    <tr><td>Cart ID</td><td>{selectedCart.id ?? '-'}</td></tr>
+                    <tr><td>카트 ID</td><td>{selectedCart.id ?? '-'}</td></tr>
                     <tr><td>제목</td><td>{cartTitle(selectedCart)}</td></tr>
                     <tr><td>고객</td><td>{cartUserLabel(selectedCart, t)}</td></tr>
                     <tr><td>유형</td><td>{cartUserType(selectedCart, t)}</td></tr>
                     <tr><td>이메일 / ID</td><td>{selectedCart.user?.email ?? selectedCart.userId ?? '-'}</td></tr>
                     <tr><td>총 상품 수</td><td>{formatNumber(selectedCart.itemCount ?? selectedCart.totalCount ?? selectedCart.items?.length ?? 0)}</td></tr>
                     <tr><td>총액</td><td>{formatWon(selectedCart.totalValue ?? selectedCart.totalPrice ?? 0)}</td></tr>
-                    <tr><td>source cart</td><td>{selectedCart.sourceCartId ?? '-'}</td></tr>
+                    <tr><td>원본 카트</td><td>{selectedCart.sourceCartId ?? '-'}</td></tr>
                     <tr><td>저장일</td><td>{selectedCart.savedDate ?? cartSavedDateKey(selectedCart) ?? '-'}</td></tr>
                     <tr><td>저장 시각</td><td>{cartSavedLabel(selectedCart)}</td></tr>
-                    <tr><td>업데이트</td><td>{formatDate(selectedCart.updatedAt)}</td></tr>
+                    <tr><td>수정 시각</td><td>{formatDate(selectedCart.updatedAt)}</td></tr>
                     <tr><td>구매 상태</td><td>{purchaseStatusLabel(selectedCart)}</td></tr>
                     <tr><td>구매완료 시각</td><td>{formatDate(selectedCart.purchaseCompletedAt)}</td></tr>
                     <tr><td>완료 근거</td><td>{selectedCart.purchaseCompletionSource === 'receipt' ? '영수증 반영' : selectedCart.purchaseCompletionSource === 'inactive_timeout' ? '2일 무수정 추정' : '-'}</td></tr>
-                    <tr><td>만료</td><td>{formatDate(selectedCart.expiresAt)}{selectedCart.isExpired ? ' · expired' : ''}</td></tr>
-                    <tr><td>retention 연장</td><td>{selectedCart.retentionExtensionCount ?? 0}</td></tr>
+                    <tr><td>만료</td><td>{formatDate(selectedCart.expiresAt)}{selectedCart.isExpired ? ' · 만료' : ''}</td></tr>
+                    <tr><td>보관 연장</td><td>{selectedCart.retentionExtensionCount ?? 0}</td></tr>
                     <tr><td>영수증</td><td>{receiptLabel(selectedCart)}</td></tr>
                     <tr><td>영수증 ID</td><td>{selectedCart.receiptStatus?.receiptId ?? '-'}</td></tr>
                   </tbody>
@@ -754,7 +754,7 @@ export default function CartsPage() {
                     <h2 className="panelTitle" style={{ marginBottom: 0 }}>영수증 인증</h2>
                     <div className="metaRow" style={{ marginTop: 0 }}>
                       <span className="metaPill">{selectedCart.receiptStatus.receiptStatus ?? '-'}</span>
-                      {selectedCart.receiptStatus.completedAt ? <span className="metaPill">verified</span> : null}
+                      {selectedCart.receiptStatus.completedAt ? <span className="metaPill">확인 완료</span> : null}
                     </div>
                   </div>
                   <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(240px, 320px) minmax(0, 1fr)' }}>
@@ -769,24 +769,24 @@ export default function CartsPage() {
                     <div className="tableWrap">
                       <table className="dataTable exploreDenseTable">
                         <tbody>
-                          <tr><td>Receipt ID</td><td>{selectedCart.receiptStatus.receiptId ?? '-'}</td></tr>
+                          <tr><td>영수증 ID</td><td>{selectedCart.receiptStatus.receiptId ?? '-'}</td></tr>
                           <tr><td>상태</td><td>{selectedCart.receiptStatus.receiptStatus ?? '-'}</td></tr>
                           <tr><td>마트 구분</td><td>{merchantGroupLabel(selectedCart.receiptStatus.merchantName)}</td></tr>
                           <tr><td>원문 마트명</td><td>{selectedCart.receiptStatus.merchantName ?? '-'}</td></tr>
                           <tr><td>구매 시각</td><td>{formatDate(selectedCart.receiptStatus.purchasedAt)}</td></tr>
-                          <tr><td>Subtotal</td><td>{selectedCart.receiptStatus.subtotal != null ? formatWon(selectedCart.receiptStatus.subtotal) : '-'}</td></tr>
-                          <tr><td>Tax</td><td>{selectedCart.receiptStatus.tax != null ? formatWon(selectedCart.receiptStatus.tax) : '-'}</td></tr>
-                          <tr><td>Total</td><td>{selectedCart.receiptStatus.totalAmount != null ? formatWon(selectedCart.receiptStatus.totalAmount) : '-'}</td></tr>
-                          <tr><td>Discount</td><td>{selectedCart.receiptStatus.totalDiscountAmount != null ? formatWon(selectedCart.receiptStatus.totalDiscountAmount) : '-'}</td></tr>
+                          <tr><td>공급가액</td><td>{selectedCart.receiptStatus.subtotal != null ? formatWon(selectedCart.receiptStatus.subtotal) : '-'}</td></tr>
+                          <tr><td>세금</td><td>{selectedCart.receiptStatus.tax != null ? formatWon(selectedCart.receiptStatus.tax) : '-'}</td></tr>
+                          <tr><td>합계</td><td>{selectedCart.receiptStatus.totalAmount != null ? formatWon(selectedCart.receiptStatus.totalAmount) : '-'}</td></tr>
+                          <tr><td>할인</td><td>{selectedCart.receiptStatus.totalDiscountAmount != null ? formatWon(selectedCart.receiptStatus.totalDiscountAmount) : '-'}</td></tr>
                           <tr><td>완료 시각</td><td>{formatDate(selectedCart.receiptStatus.completedAt ?? selectedCart.receiptStatus.updatedAt)}</td></tr>
-                          <tr><td>Error</td><td style={{ whiteSpace: 'pre-wrap' }}>{selectedCart.receiptStatus.errorMessage ?? '-'}</td></tr>
+                          <tr><td>오류</td><td style={{ whiteSpace: 'pre-wrap' }}>{selectedCart.receiptStatus.errorMessage ?? '-'}</td></tr>
                         </tbody>
                       </table>
                     </div>
                   </div>
                   {selectedCart.receiptStatus.rawText ? (
                     <details style={{ marginTop: 10 }}>
-                      <summary style={{ cursor: 'pointer', fontWeight: 700 }}>receipt raw text</summary>
+                      <summary style={{ cursor: 'pointer', fontWeight: 700 }}>영수증 원문</summary>
                       <pre style={{ marginTop: 8, padding: 12, background: '#f8fafc', borderRadius: 10, overflowX: 'auto', fontSize: 12, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{selectedCart.receiptStatus.rawText}</pre>
                     </details>
                   ) : null}
@@ -795,7 +795,7 @@ export default function CartsPage() {
 
               <div className="card exploreDenseCard exploreSheetCard" style={{ padding: 12 }}>
                 <div className="sectionHeader exploreSheetHeader">
-                  <h2 className="panelTitle" style={{ marginBottom: 0 }}>Items</h2>
+                  <h2 className="panelTitle" style={{ marginBottom: 0 }}>상품</h2>
                   <span className="metaPill">{formatNumber(selectedCart.items?.length ?? 0)}</span>
                 </div>
                 {selectedCart.items?.length ? (
@@ -808,8 +808,8 @@ export default function CartsPage() {
                           <th>수량</th>
                           <th>가격</th>
                           <th>합계</th>
-                          <th>source</th>
-                          <th>scan job</th>
+                          <th>등록 경로</th>
+                          <th>스캔 작업</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -833,7 +833,7 @@ export default function CartsPage() {
                     </table>
                   </div>
                 ) : (
-                  <div className="emptyState">item 없음</div>
+                  <div className="emptyState">상품 없음</div>
                 )}
               </div>
             </div>

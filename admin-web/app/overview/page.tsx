@@ -56,11 +56,11 @@ const defaultPublicSiteCopy: PublicSiteCopy = {
   sectionOrder: 'hero,flow,status,partnerReview,linkPlacement',
 }
 const landingSectionLabels: Record<(typeof landingSectionIds)[number], string> = {
-  hero: 'hero',
-  flow: 'flow',
-  status: 'status',
-  partnerReview: 'partnerReview',
-  linkPlacement: 'linkPlacement',
+  hero: '메인',
+  flow: '이용 흐름',
+  status: '지원 범위',
+  partnerReview: '파트너 검토',
+  linkPlacement: '링크 위치',
 }
 
 function formatSignedNumber(value: number) {
@@ -255,7 +255,7 @@ export default function OverviewPage() {
 
   async function onRefreshSnapshot() {
     if (res.usingFallback) {
-      setRefreshMessage(t('admin.overview.refresh.blockedFallback', 'fallback/mock 상태에서는 snapshot refresh를 막아둘게'))
+      setRefreshMessage(t('admin.overview.refresh.blockedFallback', '대체 데이터 상태에서는 스냅샷 갱신을 막아둘게'))
       return
     }
     setRefreshingSnapshot(true)
@@ -391,8 +391,8 @@ export default function OverviewPage() {
     if (res.usingFallback || periodUsingFallback) {
       alerts.push({
         tone: 'warn',
-        title: t('admin.overview.ops.summaryFallbackTitle', '요약 지표가 fallback 상태야'),
-        detail: t('admin.overview.ops.summaryFallbackBody', 'overview 숫자 중 일부가 live가 아니라 운영 판단 전에 새로고침이나 API 상태 확인이 필요해.'),
+        title: t('admin.overview.ops.summaryFallbackTitle', '요약 지표 대체 데이터'),
+        detail: t('admin.overview.ops.summaryFallbackBody', '실데이터 재확인 필요'),
       })
     }
 
@@ -400,15 +400,15 @@ export default function OverviewPage() {
       if (!config.storageWritable) {
         alerts.push({
           tone: 'critical',
-          title: t('admin.overview.ops.storageBlockedTitle', 'storage가 writable 상태가 아니야'),
+          title: t('admin.overview.ops.storageBlockedTitle', '저장 경로 쓰기 차단'),
           detail: config.storageErrors.length > 0
-            ? `${t('admin.overview.ops.storageBlockedBody', '실패 사유를 먼저 봐야 해')}: ${config.storageErrors.join(' | ')}`
-            : t('admin.overview.ops.storageBlockedBodyNoDetail', '파일 저장 경로가 막혀 있으면 스캔/브랜딩/운영 로그가 같이 흔들릴 수 있어.'),
+            ? `${t('admin.overview.ops.storageBlockedBody', '오류 사유')}: ${config.storageErrors.join(' | ')}`
+            : t('admin.overview.ops.storageBlockedBodyNoDetail', '저장 경로 확인 필요'),
         })
       } else if (config.storageErrors.length > 0) {
         alerts.push({
           tone: 'warn',
-          title: t('admin.overview.ops.storageErrorsTitle', 'storage 경고가 남아 있어'),
+          title: t('admin.overview.ops.storageErrorsTitle', '저장 경로 경고'),
           detail: config.storageErrors.join(' | '),
         })
       }
@@ -416,18 +416,18 @@ export default function OverviewPage() {
       if (!config.publicSite.dynamicLandingEnabled) {
         alerts.push({
           tone: 'warn',
-          title: t('admin.overview.ops.publicSiteStaticTitle', '공개 랜딩이 dynamic surface로 안 잡혀 있어'),
-          detail: t('admin.overview.ops.publicSiteStaticBody', 'admin content와 공개면이 끊기면 운영에서 문구를 바꿔도 즉시 반영되지 않아.'),
+          title: t('admin.overview.ops.publicSiteStaticTitle', '랜딩 실노출 분리'),
+          detail: t('admin.overview.ops.publicSiteStaticBody', '랜딩 연동 확인 필요'),
         })
       }
 
       if (!config.coupangPartners.affiliateReady) {
         const detail = !config.coupangPartners.accessKeyConfigured || !config.coupangPartners.secretKeyConfigured
-          ? t('admin.overview.ops.coupangMissingKeysBody', '쿠팡 키가 아직 없어 live affiliate redirect는 아직 못 써.')
-          : t('admin.overview.ops.coupangNotEnabledBody', '키는 있어도 runtime enabled나 affiliate readiness가 아직 완전히 안 올라왔어.')
+          ? t('admin.overview.ops.coupangMissingKeysBody', '쿠팡 키 미설정')
+          : t('admin.overview.ops.coupangNotEnabledBody', '쿠팡 연동 준비 미완료')
         alerts.push({
           tone: 'warn',
-          title: t('admin.overview.ops.coupangNotReadyTitle', 'Coupang live redirect가 아직 준비 전이야'),
+          title: t('admin.overview.ops.coupangNotReadyTitle', '쿠팡 연동 준비 전'),
           detail,
         })
       }
@@ -439,15 +439,15 @@ export default function OverviewPage() {
         const lead = failedResults[0]
         alerts.push({
           tone: 'critical',
-          title: t('admin.overview.ops.smokeFailTitle', 'operator smoke에 실패한 항목이 있어'),
+          title: t('admin.overview.ops.smokeFailTitle', '점검 실패 항목'),
           detail: lead
             ? `${lead.label} · ${lead.status ?? 'ERR'}${lead.error ? ` · ${lead.error}` : ''}${failedResults.length > 1 ? ` (+${failedResults.length - 1})` : ''}`
-            : t('admin.overview.ops.smokeFailBody', '공개면, API, admin 진입점 중 최소 한 곳은 다시 확인이 필요해.'),
+            : t('admin.overview.ops.smokeFailBody', '공개면/API/어드민 재확인 필요'),
         })
       } else if (smokeMessage) {
         alerts.push({
           tone: 'info',
-          title: t('admin.overview.ops.smokeFallbackTitle', 'smoke 결과를 최신으로 못 가져왔어'),
+          title: t('admin.overview.ops.smokeFallbackTitle', '점검 결과 불러오기 실패'),
           detail: smokeMessage,
         })
       }
@@ -456,21 +456,21 @@ export default function OverviewPage() {
     if (recentSmokeFailureStreak > 0) {
       alerts.push({
         tone: recentSmokeFailureStreak >= 2 ? 'critical' : 'warn',
-        title: t('admin.overview.ops.smokeFailureStreakTitle', '최근 smoke 실패 streak이 이어지고 있어'),
-        detail: `${recentSmokeFailureStreak}회 연속 실패 · ${t('admin.overview.ops.smokeLastFailureLabel', '마지막 실패')} ${lastSmokeFailure ? formatDate(lastSmokeFailure.checkedAt) : '-'}`,
+        title: t('admin.overview.ops.smokeFailureStreakTitle', '점검 연속 실패'),
+        detail: `${recentSmokeFailureStreak}회 연속 · ${t('admin.overview.ops.smokeLastFailureLabel', '최근 실패')} ${lastSmokeFailure ? formatDate(lastSmokeFailure.checkedAt) : '-'}`,
       })
     }
 
     if (!publicSiteLoading && hiddenSections.length >= 2) {
       alerts.push({
         tone: 'warn',
-        title: t('admin.overview.ops.hiddenSectionsTitle', '공개 랜딩에서 숨긴 섹션이 많은 편이야'),
-        detail: `${hiddenSections.length}/${landingSectionIds.length} hidden · ${hiddenSections.map((sectionId) => landingSectionLabels[sectionId]).join(', ')}`,
+        title: t('admin.overview.ops.hiddenSectionsTitle', '랜딩 숨김 섹션 다수'),
+        detail: `${hiddenSections.length}/${landingSectionIds.length} 숨김 · ${hiddenSections.map((sectionId) => landingSectionLabels[sectionId]).join(', ')}`,
       })
     } else if (!publicSiteLoading && publicSiteMessage) {
       alerts.push({
         tone: 'info',
-        title: t('admin.overview.ops.publicSiteConfigFallbackTitle', '공개 랜딩 section config를 live로 못 읽었어'),
+        title: t('admin.overview.ops.publicSiteConfigFallbackTitle', '랜딩 설정 불러오기 실패'),
         detail: publicSiteMessage,
       })
     }
@@ -498,7 +498,7 @@ export default function OverviewPage() {
 
   const snapshotSummaryGroups = [
     {
-      title: t('admin.overview.snapshot.data', 'Data'),
+      title: t('admin.overview.snapshot.data', '이용'),
       items: [
         {
           label: 'DAU',
@@ -533,50 +533,50 @@ export default function OverviewPage() {
       ],
     },
     {
-      title: t('admin.overview.snapshot.scan', 'Scan'),
+      title: t('admin.overview.snapshot.scan', '스캔'),
       items: [
-        { label: t('admin.overview.snapshot.totalScans', 'Total Scans'), value: formatNumber(data.totalScans) },
-        { label: t('admin.overview.snapshot.scanSuccess', 'Scan Success'), value: formatPercent(data.scanSuccessRate) },
-        { label: t('admin.overview.snapshot.cartSaveRate', 'Cart Save Rate'), value: formatPercent(data.cartSaveRate) },
+        { label: t('admin.overview.snapshot.totalScans', '총 스캔'), value: formatNumber(data.totalScans) },
+        { label: t('admin.overview.snapshot.scanSuccess', '스캔 성공률'), value: formatPercent(data.scanSuccessRate) },
+        { label: t('admin.overview.snapshot.cartSaveRate', '카트 저장률'), value: formatPercent(data.cartSaveRate) },
       ],
     },
     {
-      title: t('admin.overview.snapshot.members', 'Members'),
+      title: t('admin.overview.snapshot.members', '회원'),
       items: [
-        { label: t('admin.overview.snapshot.activeMembers', 'Active Members'), value: formatNumber(data.lifecycle.activeMembers) },
-        { label: t('admin.overview.snapshot.guestProfiles', 'Guest Profiles'), value: formatNumber(data.lifecycle.guestProfiles) },
+        { label: t('admin.overview.snapshot.activeMembers', '활성 회원'), value: formatNumber(data.lifecycle.activeMembers) },
+        { label: t('admin.overview.snapshot.guestProfiles', '게스트'), value: formatNumber(data.lifecycle.guestProfiles) },
         {
-          label: t('admin.overview.snapshot.guestToMemberConversion', 'Guest to Member'),
+          label: t('admin.overview.snapshot.guestToMemberConversion', '게스트 전환률'),
           value: formatPercent(data.lifecycle.guestToMemberConversionRate),
         },
       ],
     },
     {
-      title: t('admin.overview.snapshot.ad', 'Ad'),
+      title: t('admin.overview.snapshot.ad', '광고'),
       items: [
-        { label: t('admin.overview.snapshot.adImpressions', 'Ad Impressions'), value: formatNumber(data.adImpressions) },
-        { label: t('admin.overview.snapshot.adClicks', 'Ad Clicks'), value: formatNumber(data.adClicks) },
-        { label: t('admin.overview.snapshot.adCtr', 'Ad CTR'), value: formatPercent(data.adCtr) },
+        { label: t('admin.overview.snapshot.adImpressions', '노출 수'), value: formatNumber(data.adImpressions) },
+        { label: t('admin.overview.snapshot.adClicks', '클릭 수'), value: formatNumber(data.adClicks) },
+        { label: t('admin.overview.snapshot.adCtr', '클릭률'), value: formatPercent(data.adCtr) },
       ],
     },
   ] as const
 
   const cumulativeSummaryGroups = [
     {
-      title: t('admin.overview.cumulative.users', 'Users'),
+      title: t('admin.overview.cumulative.users', '이용자'),
       columns: 2,
       items: [
-        [t('admin.overview.cumulative.activeUsers', 'Active Users'), formatNumber(periodData.activeUsers)],
-        [t('admin.overview.cumulative.newUsers', 'New Users'), formatNumber(periodData.newUsers)],
+        [t('admin.overview.cumulative.activeUsers', '활성 이용자'), formatNumber(periodData.activeUsers)],
+        [t('admin.overview.cumulative.newUsers', '신규 이용자'), formatNumber(periodData.newUsers)],
       ],
     },
     {
       title: t('admin.overview.cumulative.scan', 'Scan'),
       columns: 3,
       items: [
-        [t('admin.overview.cumulative.scans', 'Scans'), formatNumber(periodData.totalScans)],
-        [t('admin.overview.cumulative.successful', 'Successful'), formatNumber(periodData.successfulScans)],
-        [t('admin.overview.cumulative.cartSaves', 'Cart Saves'), formatNumber(periodData.cartSaves)],
+        [t('admin.overview.cumulative.scans', '스캔 수'), formatNumber(periodData.totalScans)],
+        [t('admin.overview.cumulative.successful', '성공 수'), formatNumber(periodData.successfulScans)],
+        [t('admin.overview.cumulative.cartSaves', '저장 수'), formatNumber(periodData.cartSaves)],
       ],
     },
   ] as const
@@ -591,9 +591,9 @@ export default function OverviewPage() {
   return (
     <div className="exploreCompactPage">
       <PageHeader
-        badge={overviewUsingFallback ? t('admin.common.badge.fallback', 'Fallback data') : overviewLoading ? t('admin.common.badge.loading', 'Loading...') : t('admin.common.badge.live', 'Live data')}
-        title={t('admin.overview.title', 'Overview')}
-        description={t('admin.overview.desc', '핵심 지표 요약')}
+        badge={overviewUsingFallback ? '대체 데이터' : overviewLoading ? '불러오는 중' : '실데이터'}
+        title={'대시보드'}
+        description={'핵심 지표'}
         onRefresh={() => void onRefreshOverview()}
         refreshing={refreshingSnapshot || configRes.loading || smokeLoading || publicSiteLoading}
         actionLabel={t('admin.common.refresh', '데이터 불러오기')}
@@ -605,8 +605,8 @@ export default function OverviewPage() {
       {refreshMessage ? <div className="saveMessage" style={{ marginBottom: 16 }}>{refreshMessage}</div> : null}
       {res.usingFallback ? (
         <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
-          <strong>{t('admin.overview.warning.fallbackTitle', 'Live summary unavailable.')}</strong>{' '}
-          {t('admin.overview.warning.fallbackBody', '지금 보이는 값은 fallback/mock data일 수 있어서 운영 판단 기준으로 쓰면 안 돼요.')}
+          <strong>실데이터 불러오기 실패</strong>{' '}
+          현재 값은 대체 데이터일 수 있어. 운영 판단 기준 사용 금지.
           {res.fallbackMessage ? ` (${res.fallbackMessage})` : ''}
         </div>
       ) : null}
@@ -628,44 +628,44 @@ export default function OverviewPage() {
           <div className="exploreSummaryNote">전월 비교 {summaryComparisons?.mau?.month != null ? formatSignedNumber(data.mau - summaryComparisons.mau.month) : '-'}</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Scan success</div>
+          <div className="exploreSummaryLabel">스캔 성공률</div>
           <div className="exploreSummaryValue">{formatPercent(data.scanSuccessRate)}</div>
-          <div className="exploreSummaryNote">total scans {formatNumber(data.totalScans)}</div>
+          <div className="exploreSummaryNote">총 스캔 {formatNumber(data.totalScans)}</div>
         </div>
         <div className="exploreSummaryCell">
-          <div className="exploreSummaryLabel">Smoke</div>
-          <div className="exploreSummaryValue">{smokeLoading ? 'CHECK' : smoke.ok ? 'OK' : 'FAIL'}</div>
-          <div className="exploreSummaryNote">streak {recentSmokeFailureStreak} · alerts {opsAlerts.length}</div>
+          <div className="exploreSummaryLabel">점검 상태</div>
+          <div className="exploreSummaryValue">{smokeLoading ? '점검중' : smoke.ok ? '정상' : '확인'}</div>
+          <div className="exploreSummaryNote">실패 연속 {recentSmokeFailureStreak} · 알림 {opsAlerts.length}</div>
         </div>
       </div>
 
       <div className="card exploreDenseCard exploreSheetCard overviewOpsCard" style={{ marginBottom: 12, borderColor: opsAlerts.length > 0 ? '#ffd6dc' : '#d9f4e3', background: opsAlerts.length > 0 ? 'linear-gradient(180deg, #fff, #fff7f8)' : 'linear-gradient(180deg, #fff, #f8fffb)' }}>
         <div className="sectionHeader exploreSheetHeader" style={{ marginBottom: 10 }}>
           <div>
-            <h2 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.overview.ops.title', 'Operator warnings')}</h2>
-            <p className="pageDesc" style={{ marginTop: 0, marginBottom: 0 }}>{t('admin.overview.ops.desc', 'overview 첫 화면에서 지금 바로 봐야 할 운영 신호만 모아둔 카드야.')}</p>
+            <h2 className="panelTitle" style={{ marginBottom: 6 }}>운영 알림</h2>
+            <p className="pageDesc" style={{ marginTop: 0, marginBottom: 0 }}>즉시 확인 신호</p>
           </div>
           <div className="metaRow" style={{ marginTop: 0, justifyContent: 'flex-end' }}>
-            <span className="metaPill">critical {criticalAlertCount}</span>
-            <span className="metaPill">warn {warnAlertCount}</span>
-            <span className="metaPill">info {infoAlertCount}</span>
-            <span className="metaPill">smoke {smokeLoading ? 'loading' : smoke.ok ? 'ok' : 'check'}</span>
-            <span className="metaPill">streak {recentSmokeFailureStreak}</span>
-            <span className="metaPill">last fail {lastSmokeFailure ? formatDate(lastSmokeFailure.checkedAt) : '-'}</span>
+            <span className="metaPill">긴급 {criticalAlertCount}</span>
+            <span className="metaPill">주의 {warnAlertCount}</span>
+            <span className="metaPill">안내 {infoAlertCount}</span>
+            <span className="metaPill">점검 {smokeLoading ? '불러오는 중' : smoke.ok ? '정상' : '확인'}</span>
+            <span className="metaPill">실패 연속 {recentSmokeFailureStreak}</span>
+            <span className="metaPill">최근 실패 {lastSmokeFailure ? formatDate(lastSmokeFailure.checkedAt) : '-'}</span>
           </div>
         </div>
 
         <div className="opsSignalGrid">
           {smokeHotSpotTargets.length === 0 ? (
             <div className="opsSignalCard" style={{ borderColor: 'rgba(34,197,94,0.18)', background: 'rgba(240,253,244,0.7)' }}>
-              <div className="opsSignalLabel">Hot spot summary</div>
+              <div className="opsSignalLabel">반복 오류</div>
               <div className="opsSignalValue">반복 실패 없음</div>
-              <div className="opsSignalHint">아직 누적된 smoke failure target이 없어. 지금은 운영면이 안정 상태야.</div>
+              <div className="opsSignalHint">누적 반복 실패 없음</div>
             </div>
           ) : (
             smokeHotSpotTargets.map((target) => (
               <div key={target.key} className="opsSignalCard" style={{ borderColor: 'rgba(245,158,11,0.24)', background: 'rgba(255,247,237,0.9)' }}>
-                <div className="opsSignalLabel">Hot spot</div>
+                <div className="opsSignalLabel">반복 오류</div>
                 <div className="opsSignalValue">{target.label}</div>
                 <div className="opsSignalHint">
                   {target.failCount}회 실패 / {target.totalChecks}회 점검
@@ -678,7 +678,7 @@ export default function OverviewPage() {
 
         {opsAlerts.length === 0 ? (
           <div style={{ padding: '12px 14px', borderRadius: 14, border: '1px solid rgba(34,197,94,0.18)', background: 'rgba(240,253,244,0.75)', color: '#166534', fontWeight: 700 }}>
-            {t('admin.overview.ops.empty', '지금은 눈에 띄는 운영 경고가 없어. smoke, storage, Coupang runtime, public landing section 상태가 모두 안정적이야.')}
+            {t('admin.overview.ops.empty', '운영 경고 없음')}
           </div>
         ) : (
           <div className="overviewAlertGrid">
@@ -710,7 +710,7 @@ export default function OverviewPage() {
               return (
                 <div key={`${alert.title}-${index}`} className="overviewAlertRow" style={{ border: toneStyles.border, background: toneStyles.background }}>
                   <span className="overviewAlertBadge" style={{ background: toneStyles.badgeBackground, color: toneStyles.badgeColor }}>
-                    {alert.tone}
+                    {alert.tone === 'critical' ? '긴급' : alert.tone === 'warn' ? '주의' : '안내'}
                   </span>
                   <div>
                     <div style={{ fontWeight: 800, color: toneStyles.textColor, marginBottom: 4 }}>{alert.title}</div>
@@ -724,7 +724,7 @@ export default function OverviewPage() {
 
         <div className="overviewSubsection">
           <div className="overviewSubsectionTitle">
-            Recent smoke history
+            최근 점검
           </div>
           <div className="overviewMiniLogGrid">
             {recentSmokeHistory.map((entry, index) => {
@@ -740,14 +740,14 @@ export default function OverviewPage() {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-                    <span className="metaPill">{entry.ok ? 'ok' : 'check'}</span>
-                    <span className="metaPill">fail {entry.failureCount}</span>
+                    <span className="metaPill">{entry.ok ? '정상' : '확인'}</span>
+                    <span className="metaPill">실패 {entry.failureCount}</span>
                   </div>
                   <div style={{ fontWeight: 800, color: '#0f172a', marginBottom: 6 }}>{formatDate(entry.checkedAt)}</div>
                   <div style={{ fontSize: 13, color: '#475569', fontWeight: 600, lineHeight: 1.5 }}>
                     {lead
                       ? `${lead.label} · ${lead.status ?? 'ERR'}${lead.error ? ` · ${lead.error}` : ''}`
-                      : '모든 점검 대상 정상'}
+                      : '전체 정상'}
                   </div>
                 </div>
               )
@@ -757,11 +757,11 @@ export default function OverviewPage() {
 
         <div className="overviewSubsection">
           <div className="overviewSubsectionTitle">
-            Frequent failing targets
+            반복 오류 대상
           </div>
           {failingSmokeTargets.length === 0 ? (
             <div style={{ padding: '12px 14px', borderRadius: 14, border: '1px solid rgba(34,197,94,0.18)', background: 'rgba(255,255,255,0.96)', color: '#166534', fontWeight: 700 }}>
-              아직 누적된 smoke target 실패가 없어.
+              누적 점검 실패 없음
             </div>
           ) : (
             <div className="overviewMiniLogGrid">
@@ -775,13 +775,13 @@ export default function OverviewPage() {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-                    <span className="metaPill">fail {target.failCount}</span>
-                    <span className="metaPill">checks {target.totalChecks}</span>
+                    <span className="metaPill">실패 {target.failCount}</span>
+                    <span className="metaPill">점검 {target.totalChecks}</span>
                   </div>
                   <div style={{ fontWeight: 800, color: '#0f172a', marginBottom: 6 }}>{target.label}</div>
                   <div style={{ fontSize: 13, color: '#475569', fontWeight: 600, lineHeight: 1.5 }}>
                     {target.lastFailureAt ? `마지막 실패 ${formatDate(target.lastFailureAt)}` : '마지막 실패 기록 없음'}
-                    {target.lastStatus != null ? ` · 최근 status ${target.lastStatus}` : ''}
+                    {target.lastStatus != null ? ` · 최근 상태 ${target.lastStatus}` : ''}
                     {target.topFailureReason ? ` · 대표 원인 ${target.topFailureReason}${target.topFailureReasonCount > 1 ? ` (${target.topFailureReasonCount}회)` : ''}` : ''}
                     {target.recentFailureSummary && target.recentFailureSummary !== target.topFailureReason ? ` · 최근 실패 ${target.recentFailureSummary}` : ''}
                   </div>
@@ -797,12 +797,12 @@ export default function OverviewPage() {
         <div className="metaPill">{t('admin.overview.meta.generatedAt', '생성시각')} {formatDate(data.snapshotGeneratedAt)}</div>
         <div className="metaPill">{t('admin.overview.meta.source', '소스')} {data.snapshotSource ?? '-'}</div>
         <div className="metaPill">{t('admin.overview.meta.mode', '모드')} {data.dataMode ?? '-'}</div>
-        <div className="metaPill">{t('admin.overview.meta.period', 'period')} {period}</div>
-        <div className="metaPill">{t('admin.overview.meta.periodState', 'period state')} {periodLoading ? t('admin.common.badge.loading', 'Loading...') : periodUsingFallback ? t('admin.common.badge.fallback', 'Fallback data') : t('admin.common.badge.live', 'Live data')}</div>
-        <div className="metaPill">landing {enabledSections.length}/{landingSectionIds.length}</div>
-        <div className="metaPill">smoke checked {formatDate(smoke.checkedAt)}</div>
-        <div className="metaPill">smoke streak {recentSmokeFailureStreak}</div>
-        <div className="metaPill">last smoke fail {lastSmokeFailure ? formatDate(lastSmokeFailure.checkedAt) : '-'}</div>
+        <div className="metaPill">기간 {period}</div>
+        <div className="metaPill">기간 상태 {periodLoading ? '불러오는 중' : periodUsingFallback ? '대체 데이터' : '실데이터'}</div>
+        <div className="metaPill">랜딩 {enabledSections.length}/{landingSectionIds.length}</div>
+        <div className="metaPill">점검 시각 {formatDate(smoke.checkedAt)}</div>
+        <div className="metaPill">실패 연속 {recentSmokeFailureStreak}</div>
+        <div className="metaPill">최근 실패 {lastSmokeFailure ? formatDate(lastSmokeFailure.checkedAt) : '-'}</div>
       </div>
 
       <div className="summaryClusterGrid overviewSummaryClusterGrid">
@@ -838,8 +838,8 @@ export default function OverviewPage() {
         <div className="card exploreDenseCard exploreSheetCard overviewPeriodCard">
           <div className="sectionHeader">
             <div>
-              <h2 className="panelTitle" style={{ marginBottom: 6 }}>{t('admin.overview.period.title', '누적 보기')}</h2>
-              <p className="pageDesc">{t('admin.overview.period.desc', '선택한 기간 안에서 집계된 누적 값')}</p>
+              <h2 className="panelTitle" style={{ marginBottom: 6 }}>누적 집계</h2>
+              <p className="pageDesc">선택 기간 누적값</p>
             </div>
             <div className="segmentedControl overviewSegmentedControl">
               {periodOptions.map((option) => (
@@ -857,16 +857,16 @@ export default function OverviewPage() {
 
           {periodError ? (
             <div className="loginError" style={{ marginBottom: 16, borderColor: '#b45309', background: '#fff7ed', color: '#9a3412' }}>
-              <strong>{t('admin.overview.warning.periodFallbackTitle', 'Period summary fallback active.')}</strong>{' '}
-              {t('admin.overview.warning.periodFallbackBody', '기간 집계도 live 응답이 아니라 fallback/mock data일 수 있어요.')}
+              <strong>기간 집계 대체 데이터</strong>{' '}
+              기간 집계도 대체 데이터일 수 있어.
               {` (${periodError})`}
             </div>
           ) : null}
 
           <div className="metaRow section" style={{ marginTop: 8, marginBottom: 12 }}>
             <div className="metaPill">{t('admin.overview.period.range', '기간')} {periodData.rangeStart} ~ {periodData.rangeEnd}</div>
-            <div className="metaPill">{t('admin.overview.period.state', '상태')} {periodLoading ? t('admin.common.badge.loading', 'Loading...') : periodUsingFallback ? t('admin.common.badge.fallback', 'Fallback data') : t('admin.common.badge.live', 'Live data')}</div>
-            <div className="metaPill">{t('admin.overview.period.deviceReady', 'device 준비')} {periodData.deviceBreakdownReady ? t('admin.common.ready', '완료') : t('admin.common.notReady', '미완료')}</div>
+            <div className="metaPill">{t('admin.overview.period.state', '상태')} {periodLoading ? '불러오는 중' : periodUsingFallback ? '대체 데이터' : '실데이터'}</div>
+            <div className="metaPill">{t('admin.overview.period.deviceReady', '기기 준비')} {periodData.deviceBreakdownReady ? '완료' : '미완료'}</div>
           </div>
 
           <div className="cumulativeClusterGrid overviewCumulativeClusterGrid">
@@ -885,28 +885,28 @@ export default function OverviewPage() {
             ))}
 
             <div className="card cumulativeClusterCard overviewSummaryClusterCard">
-              <div className="kpiLabel summaryClusterTitle">{t('admin.overview.cumulative.ad', 'Ad')}</div>
+              <div className="kpiLabel summaryClusterTitle">{t('admin.overview.cumulative.ad', '광고')}</div>
               <div className="cumulativeClusterInner cols3">
                 <div className="summaryMiniCard">
-                  <div className="kpiLabel summaryMiniLabel">{t('admin.overview.cumulative.adImpressions', 'Ad Impressions')}</div>
+                  <div className="kpiLabel summaryMiniLabel">{t('admin.overview.cumulative.adImpressions', '노출 수')}</div>
                   <div className="kpiValue summaryMiniValue">{formatNumber(periodData.adImpressions)}</div>
                 </div>
                 <div className="summaryMiniCard">
-                  <div className="kpiLabel summaryMiniLabel">{t('admin.overview.cumulative.adClicks', 'Ad Clicks')}</div>
+                  <div className="kpiLabel summaryMiniLabel">{t('admin.overview.cumulative.adClicks', '클릭 수')}</div>
                   <div className="kpiValue summaryMiniValue">{formatNumber(periodData.adClicks)}</div>
                 </div>
                 <div className="summaryMiniCard">
-                  <div className="kpiLabel summaryMiniLabel">{t('admin.overview.cumulative.adCtr', 'Ad CTR')}</div>
+                  <div className="kpiLabel summaryMiniLabel">{t('admin.overview.cumulative.adCtr', '클릭률')}</div>
                   <div className="kpiValue summaryMiniValue">{formatPercent(periodData.adCtr)}</div>
                 </div>
               </div>
 
               <div className="cumulativeAdRows">
                 <div className="cumulativeAdRow cumulativeAdRowHead" aria-hidden="true">
-                  <div className="cumulativeAdName">{t('admin.overview.cumulative.slot', 'Slot')}</div>
-                  <div className="cumulativeAdValue">{t('admin.overview.cumulative.impressions', 'Impressions')}</div>
-                  <div className="cumulativeAdValue">{t('admin.overview.cumulative.clicks', 'Clicks')}</div>
-                  <div className="cumulativeAdValue">{t('admin.overview.cumulative.ctr', 'CTR')}</div>
+                  <div className="cumulativeAdName">{t('admin.overview.cumulative.slot', '광고 위치')}</div>
+                  <div className="cumulativeAdValue">{t('admin.overview.cumulative.impressions', '노출')}</div>
+                  <div className="cumulativeAdValue">{t('admin.overview.cumulative.clicks', '클릭')}</div>
+                  <div className="cumulativeAdValue">{t('admin.overview.cumulative.ctr', '클릭률')}</div>
                 </div>
                 {cumulativeAdRows.map((row) => (
                   <div key={row.name} className="cumulativeAdRow">

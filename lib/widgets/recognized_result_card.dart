@@ -13,6 +13,7 @@ class RecognizedResultCard extends StatefulWidget {
   final bool startEditing;
   final bool showCancel;
   final VoidCallback? onCancel;
+  final String? cancelButtonText;
   final String addButtonText;
 
   const RecognizedResultCard({
@@ -23,6 +24,7 @@ class RecognizedResultCard extends StatefulWidget {
     this.startEditing = false,
     this.showCancel = false,
     this.onCancel,
+    this.cancelButtonText,
     this.addButtonText = '카트에 추가',
     this.title,
   });
@@ -221,7 +223,8 @@ class _RecognizedResultCardState extends State<RecognizedResultCard> {
                 TextButton(
                   onPressed: widget.onCancel,
                   child: Text(
-                    AppRuntimeCopy.text(['common', 'cancel'], '취소'),
+                    widget.cancelButtonText ??
+                        AppRuntimeCopy.text(['common', 'cancel'], '취소'),
                     style: const TextStyle(
                       color: Colors.black54,
                       fontWeight: FontWeight.w600,

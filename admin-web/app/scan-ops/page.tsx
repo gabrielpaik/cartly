@@ -7,6 +7,7 @@ import PageHeader from '../../components/PageHeader'
 import { useAdminCopy } from '../../components/AdminCopyProvider'
 import { postJson } from '../../lib/api'
 import { CATEGORY_CLEAR_VALUE, LARGE_CATEGORY_OPTIONS } from '../../lib/categoryOptions'
+import { csvTextFromObjects, downloadCsv } from '../../lib/csv'
 import { mockScanJobs } from '../../lib/mock'
 import { useAdminData } from '../../lib/useAdminData'
 
@@ -329,26 +330,6 @@ export default function ScanOpsPage() {
     setDownloadingWorkbook(true)
     setActionMessage(null)
     try {
-      const XLSX = await import('xlsx')
-      const workbook = XLSX.utils.book_new()
-
-      const summaryRows = [
-        {
-          jobsTotal: summary.jobsTotal ?? 0,
-          queuedJobs: summary.queuedJobs ?? 0,
-          processingJobs: summary.processingJobs ?? 0,
-          doneJobs: summary.doneJobs ?? 0,
-          failedJobs: summary.failedJobs ?? 0,
-          quarantinedJobs: summary.quarantinedJobs ?? 0,
-          oldestQueuedAt: fmt(summary.oldestQueuedAt),
-          workerRunning: summary.workerRunning ? '동작' : '중지',
-          feedbackTotal: summary.feedbackTotal ?? 0,
-          feedbackAccepted: summary.feedbackAccepted ?? 0,
-          feedbackCorrected: summary.feedbackCorrected ?? 0,
-          failureLogs: summary.failureLogs ?? 0,
-        },
-      ]
-
       const jobRows = jobs.map((row) => {
         const primaryResult = row.reviewedResult ?? row.result
         return {
@@ -384,17 +365,27 @@ export default function ScanOpsPage() {
         }
       })
 
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), '요약')
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(insights.topProducts ?? []), '상위 상품')
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(insights.topCategories ?? []), '상위 카테고리')
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(insights.hourlyActivity ?? []), '시간대')
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(insights.weekdayActivity ?? []), '요일')
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(insights.dailyActivity ?? []), '일자')
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(jobRows), '작업 목록')
-      XLSX.writeFile(workbook, 'cartly-scan-ops.xlsx')
-      setActionMessage('스캔 운영 데이터를 엑셀로 내려받았어')
+      const csvText = csvTextFromObjects(jobRows, {
+        commentLines: [
+          '스캔 운영 데이터',
+          `jobsTotal: ${summary.jobsTotal ?? 0}`,
+          `queuedJobs: ${summary.queuedJobs ?? 0}`,
+          `processingJobs: ${summary.processingJobs ?? 0}`,
+          `doneJobs: ${summary.doneJobs ?? 0}`,
+          `failedJobs: ${summary.failedJobs ?? 0}`,
+          `quarantinedJobs: ${summary.quarantinedJobs ?? 0}`,
+          `oldestQueuedAt: ${fmt(summary.oldestQueuedAt)}`,
+          `workerRunning: ${summary.workerRunning ? '동작' : '중지'}`,
+          `feedbackTotal: ${summary.feedbackTotal ?? 0}`,
+          `feedbackAccepted: ${summary.feedbackAccepted ?? 0}`,
+          `feedbackCorrected: ${summary.feedbackCorrected ?? 0}`,
+          `failureLogs: ${summary.failureLogs ?? 0}`,
+        ],
+      })
+      downloadCsv('cartly-scan-ops.csv', csvText)
+      setActionMessage('스캔 운영 데이터를 CSV로 내려받았어')
     } catch (error) {
-      setActionMessage(error instanceof Error ? error.message : '엑셀 다운로드 실패')
+      setActionMessage(error instanceof Error ? error.message : 'CSV 다운로드 실패')
     } finally {
       setDownloadingWorkbook(false)
     }
@@ -411,7 +402,7 @@ export default function ScanOpsPage() {
         inlineRefresh
         actions={(
           <button className="ghostBtn pageActionBtn" type="button" onClick={() => void downloadWorkbook()} disabled={downloadingWorkbook}>
-            {downloadingWorkbook ? '엑셀 준비중...' : '엑셀'}
+            {downloadingWorkbook ? 'CSV 준비중...' : 'CSV'}
           </button>
         )}
       />

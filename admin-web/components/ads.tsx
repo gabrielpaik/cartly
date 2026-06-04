@@ -881,9 +881,9 @@ export function SlotHistory({
               >
                 <a
                   className="ghostBtn pageActionBtn"
-                  href={`/api/cartly-admin/admin/ads/campaigns/${campaign.id}/export.xlsx`}
+                  href={`/api/cartly-admin/admin/ads/campaigns/${campaign.id}/export.csv`}
                 >
-                  {t("admin.ads.history.downloadSingle", "엑셀 다운로드")}
+                  {t("admin.ads.history.downloadSingle", "CSV 다운로드")}
                 </a>
               </td>
             </tr>

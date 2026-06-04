@@ -2,10 +2,10 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
-import * as XLSX from 'xlsx'
 
 import PageHeader from '../../components/PageHeader'
 import { useAdminCopy } from '../../components/AdminCopyProvider'
+import { csvTextFromObjects, downloadCsv } from '../../lib/csv'
 import { formatDate, formatNumber } from '../../lib/format'
 import { KOREA_CITIES, buildRegionKey, regionOptionsForLevel, regionSummaryFromKeys, type RegionLevel } from '../../lib/koreaRegions'
 import { useAdminData } from '../../lib/useAdminData'
@@ -357,21 +357,8 @@ export default function UsersPage() {
   }
 
   function downloadPushAudienceSheet() {
-    const workbook = XLSX.utils.book_new()
     const exportedAt = new Date().toISOString()
-    const summarySheet = XLSX.utils.aoa_to_sheet([
-      ['고객 세그먼트 내보내기'],
-      ['내보낸 시각', exportedAt],
-      ['조회 고객', summary?.filteredUsers ?? users.length],
-      ['푸시 가능 고객', readyPushUsers],
-      ['조건', activeFilterPills.join(' | ')],
-      [],
-      ['안내'],
-      ['이 파일은 알림 운영 > 직접 업로드에서 사용'],
-      ['userId를 기준으로 쓰고 installId는 기본값으로 비워둠'],
-      ['미리보기/발송 시 실기기 상태를 다시 확인함'],
-    ])
-    const audienceSheet = XLSX.utils.json_to_sheet(
+    const csvText = csvTextFromObjects(
       users.map((user) => ({
         userId: user.id ?? '',
         installId: '',
@@ -399,11 +386,20 @@ export default function UsersPage() {
         householdMemberCount: user.householdMemberCount ?? 0,
         lastDevicePlatform: user.lastDevicePlatform ?? '',
         lastAppVersion: user.lastAppVersion ?? '',
-      }))
+      })),
+      {
+        commentLines: [
+          '고객 세그먼트 내보내기',
+          `내보낸 시각: ${exportedAt}`,
+          `조회 고객: ${summary?.filteredUsers ?? users.length}`,
+          `푸시 가능 고객: ${readyPushUsers}`,
+          `조건: ${activeFilterPills.join(' | ') || '-'}`,
+          '이 파일은 알림 운영 > 직접 업로드에서 사용',
+          'userId를 기준으로 쓰고 installId는 기본값으로 비워둠',
+        ],
+      },
     )
-    XLSX.utils.book_append_sheet(workbook, summarySheet, '요약')
-    XLSX.utils.book_append_sheet(workbook, audienceSheet, '대상목록')
-    XLSX.writeFile(workbook, `cartly-users-segment-${exportedAt.slice(0, 10)}.xlsx`)
+    downloadCsv(`cartly-users-segment-${exportedAt.slice(0, 10)}.csv`, csvText)
   }
 
   async function reloadAll() {

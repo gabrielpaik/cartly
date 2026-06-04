@@ -10,7 +10,9 @@ from ..services.ad_slot_service import (
     cancel_ad_campaign,
     create_ad_campaign,
     delete_ad_campaign,
+    export_ad_campaign_csv,
     export_ad_campaign_xlsx,
+    export_ad_campaigns_csv,
     export_ad_campaigns_xlsx,
     get_ad_performance_summary,
     get_ad_slot_workspace,
@@ -139,6 +141,36 @@ def list_ad_campaigns_route(
     }
 
 
+@router.get('/ads/campaigns/export.csv')
+def export_ad_campaigns_csv_route(
+    slotKey: Optional[str] = Query(default=None),
+    limit: int = Query(default=500, ge=1, le=1000),
+    query: str = Query(default=''),
+    variant: str = Query(default='all'),
+    status: str = Query(default='all'),
+    periodFrom: str = Query(default=''),
+    periodTo: str = Query(default=''),
+    db: OrmSession = Depends(db_dep),
+):
+    body, filename = export_ad_campaigns_csv(
+        db,
+        slot_key=slotKey,
+        limit=limit,
+        query=query,
+        variant=variant,
+        status=status,
+        period_from=periodFrom,
+        period_to=periodTo,
+    )
+    return Response(
+        content=body,
+        media_type='text/csv; charset=utf-8',
+        headers={
+            'Content-Disposition': f'attachment; filename="{filename}"',
+        },
+    )
+
+
 @router.get('/ads/campaigns/export.xlsx')
 def export_ad_campaigns_xlsx_route(
     slotKey: Optional[str] = Query(default=None),
@@ -163,6 +195,18 @@ def export_ad_campaigns_xlsx_route(
     return Response(
         content=body,
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={
+            'Content-Disposition': f'attachment; filename="{filename}"',
+        },
+    )
+
+
+@router.get('/ads/campaigns/{campaign_id}/export.csv')
+def export_ad_campaign_csv_route(campaign_id: str, db: OrmSession = Depends(db_dep)):
+    body, filename = export_ad_campaign_csv(db, campaign_id)
+    return Response(
+        content=body,
+        media_type='text/csv; charset=utf-8',
         headers={
             'Content-Disposition': f'attachment; filename="{filename}"',
         },

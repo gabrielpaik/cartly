@@ -680,7 +680,7 @@ export const mockContentSettings = {
   receiptCompareEntryAction: "영수증 반영하기",
   receiptCompareSavedCartOnlyBadge: "저장 카트 전용",
   receiptReminderDelayMinutes: 60,
-  publicSiteEyebrow: "Cartly · 앱 버전 1.0.4 (27)",
+  publicSiteEyebrow: "Cartly · 앱 버전 1.0.8 (18)",
   publicSiteHeroTitle: "장보기 기록과 대체안",
   publicSiteHeroBody:
     "스캔한 상품, 현재 카트, 저장한 기록을 한 흐름으로 정리합니다.",
@@ -695,7 +695,7 @@ export const mockContentSettings = {
     "스캔, 카트 검토, 저장, 다시 비교를 한 흐름으로 잇습니다.",
   publicSiteStatusTitle: "지원 범위",
   publicSiteStatusPoints:
-    "앱 버전 1.0.4 (27)\niPhone 중심 제공, iPad 사용 가능\nOCR 스캔, 현재 카트, 저장 카트, 영수증 연동",
+    "앱 버전 1.0.8 (18)\niPhone 중심 제공, iPad 사용 가능\nOCR 스캔, 현재 카트, 저장 카트, 영수증 연동",
   publicSitePartnerReviewTitle: "외부 링크 원칙",
   publicSitePartnerReviewPoints:
     "장보기 판단 맥락 안에서만 노출됩니다.\n사용자 선택 없이 외부 링크를 열지 않습니다.\n같은 구매 의도를 유지하는 후보만 다룹니다.",
@@ -715,7 +715,7 @@ export const mockContentSettings = {
     "외부 쇼핑 링크는 탐색에서 특정 후보를 선택했을 때만 열립니다. 자동 리디렉션은 사용하지 않습니다.",
   publicSitePrivacyStatusTitle: "현재 상태",
   publicSitePrivacyStatusBody:
-    "현재 안내는 앱 버전 1.0.4 (27) 기준입니다. 외부 링크는 비교와 검토를 돕는 경우에만 사용됩니다.",
+    "현재 안내는 앱 버전 1.0.8 (18) 기준입니다. 외부 링크는 비교와 검토를 돕는 경우에만 사용됩니다.",
   publicSitePrivacyBackAction: "메인 페이지로 돌아가기",
   scanCaptureButton: "가격표 인식하기",
   scanUploadButton: "이미지 파일을 업로드 하세요",

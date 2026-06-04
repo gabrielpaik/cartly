@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:package_info_plus/package_info_plus.dart';
+
 import '../models/auth_provider_type.dart';
 import '../models/user_session.dart';
 import 'api_base.dart';
@@ -16,6 +18,7 @@ class RemoteAuthRepository implements AuthRepository {
   static const Duration _requestTimeout = Duration(seconds: 8);
 
   final HttpClient _httpClient;
+  String? _cachedAppVersion;
 
   Uri _uri(String path) => Uri.parse('${getCartlyApiBaseUrl()}$path');
 
@@ -25,12 +28,30 @@ class RemoteAuthRepository implements AuthRepository {
     final response = await _postJson('/v1/auth/guest', {
       'deviceId': installId,
       'platform': Platform.operatingSystem,
-      'appVersion': '0.1.0',
+      'appVersion': await _resolveAppVersion(),
     });
     return _sessionFromResponse(
       response,
       fallbackProvider: AuthProviderType.guest,
     );
+  }
+
+  Future<String?> _resolveAppVersion() async {
+    if ((_cachedAppVersion ?? '').isNotEmpty) {
+      return _cachedAppVersion;
+    }
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final version = info.version.trim();
+      final buildNumber = info.buildNumber.trim();
+      final resolved = buildNumber.isNotEmpty
+          ? '$version+$buildNumber'
+          : version;
+      _cachedAppVersion = resolved.isNotEmpty ? resolved : null;
+    } catch (_) {
+      _cachedAppVersion = null;
+    }
+    return _cachedAppVersion;
   }
 
   @override

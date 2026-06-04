@@ -1,3 +1,4 @@
+import csv
 import io
 import json
 from dataclasses import dataclass
@@ -1468,6 +1469,60 @@ def record_ad_click(db: OrmSession, *, impression_id: str) -> Dict[str, Any]:
     }
 
 
+def export_ad_campaign_csv(db: OrmSession, campaign_id: str) -> tuple[str, str]:
+    campaign = db.get(AdCampaign, campaign_id)
+    if campaign is None:
+        raise ValueError('campaign_not_found')
+
+    slot = db.get(AdSlot, campaign.slot_id)
+    if slot is None:
+        raise ValueError('slot_not_found')
+
+    impressions = int(db.scalar(select(func.count(AdImpression.id)).where(AdImpression.campaign_id == campaign.id)) or 0)
+    clicks = int(
+        db.scalar(
+            select(func.count(AdClick.id))
+            .join(AdImpression, AdImpression.id == AdClick.impression_id)
+            .where(AdImpression.campaign_id == campaign.id)
+        )
+        or 0
+    )
+    ctr = 0.0 if impressions == 0 else clicks / impressions
+
+    rows = [
+        ('campaign_id', campaign.id),
+        ('slot_key', slot.slot_key),
+        ('variant', campaign.variant),
+        ('status', campaign.status),
+        ('title', campaign.title),
+        ('message', campaign.message),
+        ('cta_label', campaign.cta_label or ''),
+        ('target_url', campaign.target_url or ''),
+        ('image_url', campaign.image_url or ''),
+        ('audience_type', _campaign_audience_type(campaign)),
+        ('target_region_level', _campaign_region_level(campaign)),
+        ('target_city', _clean_region_string(campaign.target_city) or ''),
+        ('target_district', _clean_region_string(campaign.target_district) or ''),
+        ('target_neighborhood', _clean_region_string(campaign.target_neighborhood) or ''),
+        ('target_region_keys', ', '.join(_campaign_region_keys(campaign))),
+        ('target_label', _campaign_target_label(_campaign_audience_type(campaign), _campaign_region_level(campaign), _campaign_region_keys(campaign), _clean_region_string(campaign.target_city), _clean_region_string(campaign.target_district), _clean_region_string(campaign.target_neighborhood))),
+        ('start_at', campaign.start_at.isoformat() if campaign.start_at else ''),
+        ('end_at', campaign.end_at.isoformat() if campaign.end_at else ''),
+        ('created_at', campaign.created_at.isoformat() if campaign.created_at else ''),
+        ('updated_at', campaign.updated_at.isoformat() if campaign.updated_at else ''),
+        ('impressions', impressions),
+        ('clicks', clicks),
+        ('ctr', round(ctr, 4)),
+    ]
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(['field', 'value'])
+    writer.writerows(rows)
+    filename = _safe_xlsx_filename(f'{slot.slot_key}-{campaign.variant}-{campaign.title or campaign.id}') + '.csv'
+    return buffer.getvalue(), filename
+
+
 def export_ad_campaign_xlsx(db: OrmSession, campaign_id: str) -> tuple[bytes, str]:
     campaign = db.get(AdCampaign, campaign_id)
     if campaign is None:
@@ -1561,6 +1616,117 @@ def export_ad_campaign_xlsx(db: OrmSession, campaign_id: str) -> tuple[bytes, st
     workbook.save(output)
     filename = _safe_xlsx_filename(f'{slot.slot_key}-{campaign.variant}-{campaign.title or campaign.id}') + '.xlsx'
     return output.getvalue(), filename
+
+
+def export_ad_campaigns_csv(
+    db: OrmSession,
+    *,
+    slot_key: Optional[str] = None,
+    query: Optional[str] = None,
+    variant: Optional[str] = None,
+    status: Optional[str] = None,
+    period_from: Optional[str] = None,
+    period_to: Optional[str] = None,
+    limit: int = 500,
+) -> tuple[str, str]:
+    campaigns = list_ad_campaigns(
+        db,
+        slot_key=slot_key,
+        limit=limit,
+        query=query,
+        variant=variant,
+        status=status,
+        period_from=period_from,
+        period_to=period_to,
+    )
+
+    slot_query = select(AdSlot)
+    if slot_key:
+        slot_query = slot_query.where(AdSlot.slot_key == slot_key)
+    slot_rows = db.scalars(slot_query).all()
+    slot_map = {slot_row.slot_key: slot_row for slot_row in slot_rows}
+    default_slot_map = {slot['slotKey']: slot for slot in DEFAULT_AD_SLOTS}
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow([
+        'slot_key',
+        'slot_name',
+        'slot_description',
+        'placement_type',
+        'screen',
+        'position',
+        'placement_note',
+        'campaign_id',
+        'variant',
+        'status',
+        'title',
+        'message',
+        'cta_label',
+        'target_url',
+        'image_url',
+        'audience_type',
+        'target_region_level',
+        'target_city',
+        'target_district',
+        'target_neighborhood',
+        'target_region_keys',
+        'target_label',
+        'start_at',
+        'end_at',
+        'impressions',
+        'clicks',
+        'ctr',
+        'created_at',
+        'updated_at',
+    ])
+
+    for campaign in campaigns:
+        raw_slot_key = campaign.get('slotKey') or 'unknown'
+        fallback_slot = default_slot_map.get(raw_slot_key)
+        slot_config: Dict[str, Any] = fallback_slot['config'].copy() if fallback_slot else {}
+        slot_row = slot_map.get(raw_slot_key)
+        if slot_row and slot_row.config_json:
+            try:
+                slot_config.update(json.loads(slot_row.config_json) or {})
+            except Exception:
+                pass
+        slot_config = _normalize_slot_config(slot_config, include_reserved=True)
+        writer.writerow([
+            raw_slot_key,
+            slot_config.get('slotLabel') or raw_slot_key,
+            slot_config.get('slotDescription') or '-',
+            slot_row.placement_type if slot_row else fallback_slot['placementType'] if fallback_slot else '-',
+            slot_config.get('screen') or '-',
+            slot_config.get('position') or '-',
+            slot_config.get('placementNote') or '-',
+            campaign.get('id'),
+            campaign.get('variant'),
+            campaign.get('status'),
+            campaign.get('title'),
+            campaign.get('message'),
+            campaign.get('ctaLabel'),
+            campaign.get('targetUrl'),
+            campaign.get('imageUrl'),
+            campaign.get('audienceType'),
+            campaign.get('targetRegionLevel'),
+            campaign.get('targetCity'),
+            campaign.get('targetDistrict'),
+            campaign.get('targetNeighborhood'),
+            ', '.join(campaign.get('targetRegionKeys') or []),
+            campaign.get('targetLabel'),
+            campaign.get('startAt'),
+            campaign.get('endAt'),
+            campaign.get('impressions'),
+            campaign.get('clicks'),
+            campaign.get('ctr'),
+            campaign.get('createdAt'),
+            campaign.get('updatedAt'),
+        ])
+
+    suffix = f'{period_from or "all"}_{period_to or "all"}'
+    filename = _safe_xlsx_filename(f'cartly-ad-campaigns-{suffix}') + '.csv'
+    return buffer.getvalue(), filename
 
 
 def export_ad_campaigns_xlsx(

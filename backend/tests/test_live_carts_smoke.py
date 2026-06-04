@@ -7,6 +7,7 @@ from typing import Optional
 
 BASE_URL = os.environ.get('CARTLY_LIVE_API_BASE_URL', 'http://127.0.0.1:8011')
 ENABLED = os.environ.get('CARTLY_LIVE_CARTS_SMOKE') == '1'
+USER_AGENT = os.environ.get('CARTLY_LIVE_SMOKE_USER_AGENT', 'curl/8.7.1').strip() or 'curl/8.7.1'
 
 
 @unittest.skipUnless(ENABLED, 'set CARTLY_LIVE_CARTS_SMOKE=1 to run live carts smoke tests')
@@ -15,6 +16,7 @@ class LiveCartsSmokeTests(unittest.TestCase):
         data = json.dumps(body).encode('utf-8') if body is not None else None
         request = urllib.request.Request(f'{BASE_URL}{path}', data=data, method=method)
         request.add_header('Accept', 'application/json')
+        request.add_header('User-Agent', USER_AGENT)
         if body is not None:
             request.add_header('Content-Type', 'application/json')
         if token:

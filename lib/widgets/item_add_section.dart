@@ -379,6 +379,24 @@ class _ItemAddSectionState extends State<ItemAddSection> {
     _promoteNextReadyItem();
   }
 
+  void _discardRecognizedResult() {
+    final activeQueueEntryId = _activeQueueEntryId;
+    if (activeQueueEntryId != null) {
+      for (final entry in _scanInbox) {
+        if (entry.id == activeQueueEntryId) {
+          _removeQueueEntry(entry);
+          return;
+        }
+      }
+    }
+
+    final item = recognized;
+    _clearRecognizedResult();
+    if (item != null) {
+      widget.onDismissRecognized?.call(item);
+    }
+  }
+
   Future<void> _addToParent(RecognizedItem item) async {
     final activeQueueEntryId = _activeQueueEntryId;
     final added = await widget.onAdd(item);
@@ -907,6 +925,9 @@ class _ItemAddSectionState extends State<ItemAddSection> {
           RecognizedResultCard(
             title: _scanText('recognizedTitle', '지금 검토할 항목'),
             item: recognized!,
+            showCancel: true,
+            onCancel: _discardRecognizedResult,
+            cancelButtonText: _scanText('discardAction', '버리기'),
             onChanged: (u) {
               setState(() {
                 recognized = u;

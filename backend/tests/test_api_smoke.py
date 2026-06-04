@@ -5,7 +5,7 @@ from unittest.mock import patch
 from fastapi import HTTPException
 
 from app import main
-from app.routers import receipts
+from app.routers import explore, receipts
 
 
 class ApiSmokeTests(unittest.TestCase):
@@ -50,6 +50,17 @@ class ApiSmokeTests(unittest.TestCase):
     def test_receipt_auth_guard_passes_through_user(self):
         user = SimpleNamespace(id='user-1')
         self.assertIs(receipts._require_current_user(user), user)
+
+    def test_explore_auth_guard_rejects_missing_user(self):
+        with self.assertRaises(HTTPException) as ctx:
+            explore._require_current_user(None)
+
+        self.assertEqual(ctx.exception.status_code, 401)
+        self.assertEqual(ctx.exception.detail['code'], 'UNAUTHORIZED')
+
+    def test_explore_auth_guard_passes_through_user(self):
+        user = SimpleNamespace(id='user-1')
+        self.assertIs(explore._require_current_user(user), user)
 
 
 if __name__ == '__main__':

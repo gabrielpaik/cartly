@@ -29,7 +29,7 @@ const dynamicPrivacyRoutes = new Set(['/privacy', '/privacy/'])
 const dynamicSupportRoutes = new Set(['/support', '/support/'])
 const supportEmail = 'cartly.support@gmail.com'
 const businessEmail = 'gabriel.paik@gmail.com'
-const currentAppVersionLabel = '앱 버전 1.0.4 (27)'
+const currentAppVersionLabel = '앱 버전 1.0.8 (18)'
 const defaultLogoImageUrl = 'https://scan-api.seoa-nas.com/assets/branding/cartly_logo_vectorized.svg'
 const defaultSplashImageUrl = 'https://scan-api.seoa-nas.com/assets/branding/cartly_splash_default.png'
 const fallbackLogoUrl = '/assets/branding/cartly_logo_vectorized.svg'
@@ -92,6 +92,46 @@ const fallbackAppConfig = {
 function isAllowedPath(pathname) {
   if (allowedExact.has(pathname)) return true
   return allowedPrefixes.some((prefix) => pathname.startsWith(prefix))
+}
+
+function pathRequiresAuthorization(pathname) {
+  return pathname.startsWith('/v1/explore/')
+}
+
+function getAuthorizationHeader(req) {
+  const authorization = req.headers.authorization
+  return Array.isArray(authorization) ? authorization.join(', ') : authorization || ''
+}
+
+function hasBearerAuthorization(req) {
+  return getAuthorizationHeader(req).trim().toLowerCase().startsWith('bearer ')
+}
+
+async function verifyAuthorizedUser(req) {
+  const authorization = getAuthorizationHeader(req).trim()
+  if (!authorization) return false
+
+  const upstream = await fetch(`${backendBase}/v1/auth/me`, {
+    method: 'GET',
+    headers: {
+      accept: 'application/json',
+      authorization,
+      'user-agent': Array.isArray(req.headers['user-agent'])
+        ? req.headers['user-agent'].join(', ')
+        : req.headers['user-agent'] || 'cartly-app-public-proxy',
+    },
+  })
+
+  if (!upstream.ok) {
+    return false
+  }
+
+  try {
+    const payload = await upstream.json()
+    return payload?.ok === true && !!payload?.data?.user?.id
+  } catch {
+    return false
+  }
 }
 
 function contentTypeFor(filePath) {
@@ -770,6 +810,17 @@ const server = http.createServer(async (req, res) => {
           message: '허용되지 않은 public app route야',
         },
       })
+    }
+
+    if (pathRequiresAuthorization(url.pathname)) {
+      if (!hasBearerAuthorization(req) || !(await verifyAuthorizedUser(req))) {
+        return writeJson(res, 401, {
+          detail: {
+            code: 'UNAUTHORIZED',
+            message: '로그인이 필요해',
+          },
+        })
+      }
     }
 
     const upstreamUrl = `${backendBase}${url.pathname}${url.search}`

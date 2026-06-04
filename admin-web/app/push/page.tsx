@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../../components/PageHeader'
 import { useAdminCopy } from '../../components/AdminCopyProvider'
 import { postJson, putJson } from '../../lib/api'
+import { csvTextFromObjects, downloadCsv, readCsvObjects } from '../../lib/csv'
 import { KOREA_CITIES, regionOptionsForLevel, regionSummaryFromKeys, type RegionLevel } from '../../lib/koreaRegions'
 import { mockPushAdmin } from '../../lib/mock'
 import { useAdminData } from '../../lib/useAdminData'
@@ -560,23 +561,18 @@ export default function PushPage() {
   async function downloadAudienceTemplate() {
     setSendMessage(null)
     try {
-      const XLSX = await import('xlsx')
-      const workbook = XLSX.utils.book_new()
-      const template = XLSX.utils.json_to_sheet([
+      const csvText = csvTextFromObjects([
         { userId: '11111111-1111-1111-1111-111111111111', installId: '', name: '홍길동', memo: 'VIP 재안내' },
         { userId: '', installId: 'cartly-install-abc', name: '', memo: '설치 기준 타겟' },
-      ], { header: ['userId', 'installId', 'name', 'memo'] })
-      template['!cols'] = [{ wch: 38 }, { wch: 28 }, { wch: 18 }, { wch: 28 }]
-      XLSX.utils.book_append_sheet(workbook, template, '발송대상')
-      const guide = XLSX.utils.aoa_to_sheet([
-        ['기준'],
-        ['필수 항목', 'userId 또는 installId 중 하나 입력'],
-        ['선택 항목', 'name, memo'],
-        ['주의', 'push token 제외, 사용자 또는 설치 식별자만 입력'],
-      ])
-      guide['!cols'] = [{ wch: 18 }, { wch: 68 }]
-      XLSX.utils.book_append_sheet(workbook, guide, '입력안내')
-      XLSX.writeFile(workbook, 'cartly-push-audience-template.xlsx')
+      ], {
+        headers: ['userId', 'installId', 'name', 'memo'],
+        commentLines: [
+          '필수 항목: userId 또는 installId 중 하나 입력',
+          '선택 항목: name, memo',
+          '주의: push token 제외, 사용자 또는 설치 식별자만 입력',
+        ],
+      })
+      downloadCsv('cartly-push-audience-template.csv', csvText)
       setSendMessage('직접 업로드 템플릿 다운로드 완료')
     } catch (error) {
       setSendMessage(error instanceof Error ? error.message : '템플릿 다운로드 실패')
@@ -588,14 +584,10 @@ export default function PushPage() {
     setUploadingAudience(true)
     setSendMessage(null)
     try {
-      const XLSX = await import('xlsx')
-      const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' })
-      const firstSheetName = workbook.SheetNames[0]
-      if (!firstSheetName) {
-        throw new Error('첫 번째 시트 없음')
+      if (!/\.csv$/i.test(file.name)) {
+        throw new Error('CSV 파일만 업로드할 수 있어')
       }
-      const worksheet = workbook.Sheets[firstSheetName]
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' })
+      const rows = await readCsvObjects(file)
       const entries = buildUploadedAudienceEntries(rows)
       if (entries.length === 0) {
         throw new Error('업로드 대상 행 없음')
@@ -1022,10 +1014,10 @@ export default function PushPage() {
                     양식
                   </button>
                   <label className="ghostBtn ghostBtnSmall" style={{ width: 'auto', cursor: 'pointer' }}>
-                    {uploadingAudience ? '분석 중...' : '엑셀 / CSV 업로드'}
+                    {uploadingAudience ? '분석 중...' : 'CSV 업로드'}
                     <input
                       type="file"
-                      accept=".xlsx,.xls,.csv"
+                      accept=".csv,text/csv"
                       onChange={(event) => void uploadAudienceSheet(event.target.files?.[0] ?? null)}
                       style={{ display: 'none' }}
                       disabled={uploadingAudience}
@@ -1100,7 +1092,7 @@ export default function PushPage() {
                   </div>
                 </>
               ) : (
-                <div className="emptyState" style={{ margin: 0 }}>엑셀 / CSV 업로드 후 발송 가능 모수 확인</div>
+                <div className="emptyState" style={{ margin: 0 }}>CSV 업로드 후 발송 가능 모수 확인</div>
               )}
             </div>
           ) : null}

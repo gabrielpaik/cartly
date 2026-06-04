@@ -223,7 +223,7 @@ DEFAULT_APP_COPY: Dict[str, Any] = {
         'savedCartOnlyBadge': '저장 카트 전용',
     },
     'publicSite': {
-        'eyebrow': 'Cartly · 앱 버전 1.0.4 (27)',
+        'eyebrow': 'Cartly · 앱 버전 1.0.8 (18)',
         'heroTitle': '장보기 기록과 대체안',
         'heroBody': '스캔한 상품, 현재 카트, 저장한 기록을 한 흐름으로 정리합니다.',
         'primaryCtaLabel': '기능 보기',
@@ -234,7 +234,7 @@ DEFAULT_APP_COPY: Dict[str, Any] = {
         'flowTitle': '핵심 흐름',
         'flowBody': '스캔, 카트 검토, 저장, 다시 비교를 한 흐름으로 잇습니다.',
         'statusTitle': '지원 범위',
-        'statusPoints': '앱 버전 1.0.4 (27)\niPhone 중심 제공, iPad 사용 가능\nOCR 스캔, 현재 카트, 저장 카트, 영수증 연동',
+        'statusPoints': '앱 버전 1.0.8 (18)\niPhone 중심 제공, iPad 사용 가능\nOCR 스캔, 현재 카트, 저장 카트, 영수증 연동',
         'partnerReviewTitle': '외부 링크 원칙',
         'partnerReviewPoints': '장보기 판단 맥락 안에서만 노출됩니다.\n사용자 선택 없이 외부 링크를 열지 않습니다.\n같은 구매 의도를 유지하는 후보만 다룹니다.',
         'linkPlacementTitle': '후보를 다시 보는 위치',
@@ -247,7 +247,7 @@ DEFAULT_APP_COPY: Dict[str, Any] = {
         'privacyExternalTitle': '외부 링크',
         'privacyExternalBody': '외부 쇼핑 링크는 탐색에서 특정 후보를 선택했을 때만 열립니다. 자동 리디렉션은 사용하지 않습니다.',
         'privacyStatusTitle': '현재 상태',
-        'privacyStatusBody': '현재 안내는 앱 버전 1.0.4 (27) 기준입니다. 외부 링크는 비교와 검토를 돕는 경우에만 사용됩니다.',
+        'privacyStatusBody': '현재 안내는 앱 버전 1.0.8 (18) 기준입니다. 외부 링크는 비교와 검토를 돕는 경우에만 사용됩니다.',
         'privacyBackAction': '메인 페이지로 돌아가기',
     },
     'cartDetail': {

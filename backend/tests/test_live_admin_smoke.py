@@ -6,6 +6,7 @@ import urllib.request
 BASE_URL = os.environ.get('CARTLY_LIVE_API_BASE_URL', 'http://127.0.0.1:8011')
 ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN', '').strip()
 ENABLED = os.environ.get('CARTLY_LIVE_ADMIN_SMOKE') == '1' and bool(ADMIN_TOKEN)
+USER_AGENT = os.environ.get('CARTLY_LIVE_SMOKE_USER_AGENT', 'curl/8.7.1').strip() or 'curl/8.7.1'
 
 
 @unittest.skipUnless(
@@ -17,6 +18,7 @@ class LiveAdminSmokeTests(unittest.TestCase):
         request = urllib.request.Request(f'{BASE_URL}{path}')
         request.add_header('Authorization', f'Bearer {ADMIN_TOKEN}')
         request.add_header('Accept', 'application/json')
+        request.add_header('User-Agent', USER_AGENT)
         with urllib.request.urlopen(request, timeout=10) as response:
             self.assertGreaterEqual(response.status, 200)
             self.assertLess(response.status, 300)

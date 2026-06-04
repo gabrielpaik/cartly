@@ -381,10 +381,7 @@ export default function CartsPage() {
         refreshing={res.loading}
         inlineRefresh
         actions={(
-          <>
-            <a className="ghostBtn pageActionBtn" href={`/api/cartly-admin/admin/carts/export.xlsx${exportQuery}`}>엑셀</a>
-            <a className="ghostBtn pageActionBtn" href={`/api/cartly-admin/admin/carts/export.csv${exportQuery}`}>CSV</a>
-          </>
+          <a className="ghostBtn pageActionBtn" href={`/api/cartly-admin/admin/carts/export.csv${exportQuery}`}>CSV</a>
         )}
       />
 

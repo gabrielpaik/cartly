@@ -7,6 +7,7 @@ import { CampaignRow, fallbackSlots, SlotHistory, SlotRow } from '../../componen
 import { useAdminCopy } from '../../components/AdminCopyProvider'
 import PageHeader from '../../components/PageHeader'
 import { deleteJson, fetchJsonSafe, isUnauthorizedError, postFormData, postJson, putJson } from '../../lib/api'
+import { csvTextFromObjects, downloadCsv, readCsvObjects } from '../../lib/csv'
 import { formatDate, formatNumber, formatPercent } from '../../lib/format'
 import { KOREA_CITIES, KOREA_DISTRICTS_BY_CITY, KOREA_REGION_LOOKUP, RegionLevel, buildRegionKey, parseRegionTokens, regionKeysFromTokens, regionOptionsForLevel, regionSummaryFromKeys } from '../../lib/koreaRegions'
 
@@ -854,10 +855,8 @@ export default function AdsConsole({ view }: { view: AdsView }) {
   }
 
   async function downloadSetupTemplate() {
-    const XLSX = await import('xlsx')
-    const workbook = XLSX.utils.book_new()
     const availableSlots = slots.length > 0 ? slots : fallbackSlots
-    const templateSheet = XLSX.utils.json_to_sheet([
+    const csvText = csvTextFromObjects([
       {
         정렬: '1',
         슬롯종류: availableSlots[0]?.slotKey ?? '',
@@ -874,20 +873,14 @@ export default function AdsConsole({ view }: { view: AdsView }) {
         랜딩페이지: '',
         배너: '',
       },
-    ])
-    const slotGuideSheet = XLSX.utils.json_to_sheet(
-      availableSlots.map((slot) => ({
-        슬롯종류: slot.slotKey,
-        슬롯이름: slot.config.slotLabel?.trim() || slot.slotKey,
-        위치: slot.config.placementNote?.trim() || '-',
-        화면: slot.config.screen ?? '',
-        포지션: slot.config.position ?? '',
-        날짜입력예시: 'YYYY-MM-DD 00:00',
-      })),
-    )
-    XLSX.utils.book_append_sheet(workbook, templateSheet, 'AdsSetupTemplate')
-    XLSX.utils.book_append_sheet(workbook, slotGuideSheet, 'SlotGuide')
-    XLSX.writeFile(workbook, 'cartly-ads-setup-template.xlsx')
+    ], {
+      headers: ['정렬', '슬롯종류', '연결상태', '고객구분', '지역단위', '지역선택', '시작일', '종료일', '제목', '문구', 'CTA', '링크URL', '랜딩페이지', '배너'],
+      commentLines: [
+        '날짜입력예시: YYYY-MM-DD 00:00',
+        ...availableSlots.map((slot) => `슬롯 ${slot.slotKey}: ${(slot.config.slotLabel?.trim() || slot.slotKey)} / ${(slot.config.placementNote?.trim() || '-').replace(/\s+/g, ' ')}`),
+      ],
+    })
+    downloadCsv('cartly-ads-setup-template.csv', csvText)
   }
 
   function openBannerUploadModal(rowId: string, isNew: boolean, slotKey: string) {
@@ -1027,7 +1020,6 @@ export default function AdsConsole({ view }: { view: AdsView }) {
   }
 
   async function downloadSetupSheet() {
-    const XLSX = await import('xlsx')
     const rows = visibleSetupRows.map((row) => ({
       정렬: row.draft.sortOrder,
       슬롯종류: row.draft.slotKey,
@@ -1045,20 +1037,19 @@ export default function AdsConsole({ view }: { view: AdsView }) {
       랜딩페이지: row.draft.landingCode,
       배너: row.draft.imageUrl,
     }))
-    const workbook = XLSX.utils.book_new()
-    const sheet = XLSX.utils.json_to_sheet(rows)
-    XLSX.utils.book_append_sheet(workbook, sheet, 'AdsSetup')
-    XLSX.writeFile(workbook, 'cartly-ads-setup-sheet.xlsx')
+    const csvText = csvTextFromObjects(rows, {
+      headers: ['정렬', '슬롯종류', '연결상태', '고객구분', '지역단위', '지역선택', '지역요약', '시작일', '종료일', '제목', '문구', 'CTA', '링크URL', '랜딩페이지', '배너'],
+    })
+    downloadCsv('cartly-ads-setup-sheet.csv', csvText)
   }
 
   async function uploadSetupSheet(file: File | null) {
     if (!file) return
     try {
-      const XLSX = await import('xlsx')
-      const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' })
-      const firstSheetName = workbook.SheetNames[0]
-      const worksheet = workbook.Sheets[firstSheetName]
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' })
+      if (!/\.csv$/i.test(file.name)) {
+        throw new Error('CSV 파일만 업로드할 수 있어')
+      }
+      const rows = await readCsvObjects(file)
       const nextSlotStatuses: Record<string, 'active' | 'inactive'> = {}
       const imported: NewCampaignRow[] = rows
         .map((row, index) => {
@@ -1128,7 +1119,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
   if (historyStatusFilter !== 'all') bulkExportParams.set('status', historyStatusFilter)
   if (historyPeriodFrom) bulkExportParams.set('periodFrom', historyPeriodFrom)
   if (historyPeriodTo) bulkExportParams.set('periodTo', historyPeriodTo)
-  const bulkExportHref = `/api/cartly-admin/admin/ads/campaigns/export.xlsx${bulkExportParams.toString() ? `?${bulkExportParams.toString()}` : ''}`
+  const bulkExportHref = `/api/cartly-admin/admin/ads/campaigns/export.csv${bulkExportParams.toString() ? `?${bulkExportParams.toString()}` : ''}`
 
   return (
     <div className="exploreCompactPage">
@@ -1240,7 +1231,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
             <input className="textInput exploreSheetInput compactInlineInput" value={historyQuery} onChange={(e) => setHistoryQuery(e.target.value)} placeholder="광고 제목, 문구, CTA" />
           </label>
           <div className="compactFilterActionCell">
-            <a className="ghostBtn ghostBtnSmall" href={bulkExportHref}>엑셀</a>
+            <a className="ghostBtn ghostBtnSmall" href={bulkExportHref}>CSV</a>
           </div>
         </div>
       </form>
@@ -1631,7 +1622,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
             <div className="adsModalBody">
               <div className="adsModalInfoCard">
                 <strong>권장 순서</strong>
-                <span>1) 양식 받기 → 2) 엑셀/CSV 작성 → 3) 파일 선택 → 4) 시트 반영</span>
+                <span>1) 양식 받기 → 2) CSV 작성 → 3) 파일 선택 → 4) 시트 반영</span>
               </div>
               <div className="adsModalActionRow">
                 <button className="ghostBtn ghostBtnSmall" type="button" onClick={() => void downloadSetupTemplate()}>양식 받기</button>
@@ -1639,7 +1630,7 @@ export default function AdsConsole({ view }: { view: AdsView }) {
                   파일 선택
                   <input
                     type="file"
-                    accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                    accept=".csv,text/csv"
                     className="hiddenInput"
                     onChange={(e) => setSetupUploadFile(e.target.files?.[0] ?? null)}
                   />

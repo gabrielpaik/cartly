@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type WheelEvent } from 'react'
 import PageHeader from '../../components/PageHeader'
 import { useAdminCopy } from '../../components/AdminCopyProvider'
 import { postJson, putJson } from '../../lib/api'
+import { csvTextFromObjects, downloadCsv, readCsvObjects } from '../../lib/csv'
 import { mockExploreSettings } from '../../lib/mock'
 import { useAdminData } from '../../lib/useAdminData'
 
@@ -1315,41 +1316,19 @@ export default function ExploreAdminPage() {
   async function downloadRecommendationSheet() {
     setMessage(null)
     try {
-      const XLSX = await import('xlsx')
-      const workbook = XLSX.utils.book_new()
-      const worksheet = XLSX.utils.json_to_sheet(buildRecommendationSheetRows(recommendationDraftRows), {
-        header: RECOMMENDATION_SHEET_COLUMNS,
+      const csvText = csvTextFromObjects(buildRecommendationSheetRows(recommendationDraftRows), {
+        headers: RECOMMENDATION_SHEET_COLUMNS,
+        commentLines: [
+          '필수 컬럼: 노출 순번, URL, 등록일시, 종료일시',
+          '날짜 형식: YYYY-MM-DD 00:00',
+          '종료일시는 빈칸 허용',
+          '상품명, 가격, 썸네일 URL을 비우면 URL 기준 결과를 사용함',
+        ],
       })
-      worksheet['!cols'] = [
-        { wch: 10 },
-        { wch: 54 },
-        { wch: 18 },
-        { wch: 18 },
-        { wch: 36 },
-        { wch: 12 },
-        { wch: 36 },
-        { wch: 14 },
-      ]
-      XLSX.utils.book_append_sheet(workbook, worksheet, '추천상품')
-      const guide = XLSX.utils.aoa_to_sheet([
-        ['기준'],
-        ['필수 컬럼', '노출 순번', 'URL', '등록일시', '종료일시'],
-        ['형식', '', '', 'YYYY-MM-DD 00:00', 'YYYY-MM-DD 00:00'],
-        ['종료일시', '빈칸 허용'],
-        [],
-        ['선택 컬럼'],
-        ['상품명', '가격', '썸네일 URL', '판매처(Provider)'],
-        [],
-        ['동작'],
-        ['상품명, 가격, 썸네일 URL을 비우면 URL 기준 결과를 사용함'],
-        ['노출 시작 시각은 등록일시를 기준으로 자동 생성됨'],
-      ])
-      guide['!cols'] = [{ wch: 22 }, { wch: 42 }, { wch: 22 }, { wch: 22 }]
-      XLSX.utils.book_append_sheet(workbook, guide, '입력안내')
-      XLSX.writeFile(workbook, 'cartly-recommendations.xlsx')
-      setMessage('추천 상품 엑셀 다운로드 완료')
+      downloadCsv('cartly-recommendations.csv', csvText)
+      setMessage('추천 상품 CSV 다운로드 완료')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '추천 상품 엑셀 다운로드 실패')
+      setMessage(error instanceof Error ? error.message : '추천 상품 CSV 다운로드 실패')
     }
   }
 
@@ -1358,22 +1337,18 @@ export default function ExploreAdminPage() {
     setImportingRecommendationSheet(true)
     setMessage(null)
     try {
-      const XLSX = await import('xlsx')
-      const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' })
-      const firstSheetName = workbook.SheetNames[0]
-      if (!firstSheetName) {
-        throw new Error('첫 번째 시트를 찾지 못했어')
+      if (!/\.csv$/i.test(file.name)) {
+        throw new Error('CSV 파일만 업로드할 수 있어')
       }
-      const worksheet = workbook.Sheets[firstSheetName]
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' })
+      const rows = await readCsvObjects(file)
       const importedRows = buildRecommendationRowsFromSheet(rows)
       if (importedRows.length === 0) {
         throw new Error('업로드할 추천 상품 행이 없어')
       }
       applyRecommendationDraftRows(importedRows)
-      setMessage(`추천 상품 엑셀 업로드 완료, ${importedRows.length}개 행 반영됨`)
+      setMessage(`추천 상품 CSV 업로드 완료, ${importedRows.length}개 행 반영됨`)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '추천 상품 엑셀 업로드 실패')
+      setMessage(error instanceof Error ? error.message : '추천 상품 CSV 업로드 실패')
     } finally {
       if (recommendationSheetInputRef.current) {
         recommendationSheetInputRef.current.value = ''
@@ -2033,13 +2008,13 @@ export default function ExploreAdminPage() {
                   양식 다운로드
                 </button>
                 <button className="ghostBtnSmall exploreSheetBtn" type="button" onClick={() => recommendationSheetInputRef.current?.click()} disabled={importingRecommendationSheet}>
-                  {importingRecommendationSheet ? '엑셀 업로드중' : '엑셀 업로드'}
+                  {importingRecommendationSheet ? 'CSV 업로드중' : 'CSV 업로드'}
                 </button>
                 <input
                   ref={recommendationSheetInputRef}
                   className="hiddenInput"
                   type="file"
-                  accept=".xlsx,.xls,.csv"
+                  accept=".csv,text/csv"
                   onChange={(event) => void uploadRecommendationSheet(event.currentTarget.files?.[0] ?? null)}
                 />
                 <button className="ghostBtnSmall exploreSheetBtn" type="button" onClick={() => void bulkResolveRecommendationRows()} disabled={!hasSelectedRecommendationRows || isRecommendationActionBusy}>

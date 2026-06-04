@@ -18,8 +18,8 @@ It is a personal decision-support tool for real grocery planning and review.
 
 ### Customer app
 - iOS public release is now live on the App Store as `카트리`: `https://apps.apple.com/kr/app/카트리/id6763728346`
-- Latest shipped iOS public release line is still `1.0.5 (10)`.
-- Latest submitted iOS App Store review candidate is now `1.0.8 (18)`.
+- Latest shipped iOS public release line is now `1.0.8 (18)`.
+- Public App Store lookup now confirms the live customer-facing version is `1.0.8`.
 - Latest iOS delivery UUID is `65b9c131-01e8-495f-86bf-762f0e6c5477`.
 - Latest uploaded Android internal-testing build: `1.0.8 (47)`.
 - Latest locally verified Android release artifact is `1.0.8 (47)`.
@@ -85,18 +85,17 @@ To harden this, source now includes:
 - bundled local SVG fallback in `lib/widgets/brand_mark.dart`
 - increased header title height in `lib/pages/home_tab_view.dart`
 
-This fix path is now carried forward through the current submitted review build `1.0.8 (18)`.
+This fix path is now carried forward through the current public iOS build line `1.0.8 (18)`.
 
 ## Store/release status
 
 ### iOS / App Store Connect
 - Current shipped public iOS app: `카트리`
 - Public App Store URL: `https://apps.apple.com/kr/app/카트리/id6763728346`
-- Latest shipped public iOS build line: `1.0.5 (10)`
-- Latest submitted App Store review build is now `1.0.8 (18)` with delivery UUID `65b9c131-01e8-495f-86bf-762f0e6c5477`.
-- App Store version `1.0.8` is attached to build `18` and is now in `WAITING_FOR_REVIEW` after completing the API-based review submission flow again.
-- The newly submitted `1.0.8 (18)` build carries forward the current guest/bootstrap and cart-default fixes, the iOS location-permission mitigation, the utility-first Explore cleanup, ranked single-pool recommendation flow, admin-curated plus search alternative blending, Flutter-side full-banner promo rendering updates, current-cart alternative routing cleanup, the pending-scan persistence/recovery fix, and the Home duplicate-scan suppression fix.
-- Metadata, privacy URL, support URL, review contact, and App Review notes were updated successfully for `1.0.8`; screenshot refresh was intentionally deferred to the next app version.
+- Latest shipped public iOS build line: `1.0.8 (18)`
+- Public App Store verification on 2026-06-04 confirms the live customer-facing version is `1.0.8`, matching delivery UUID `65b9c131-01e8-495f-86bf-762f0e6c5477` as the latest uploaded iOS App Store build.
+- The current public `1.0.8 (18)` build carries forward the guest/bootstrap and cart-default fixes, the iOS location-permission mitigation, the utility-first Explore cleanup, ranked single-pool recommendation flow, admin-curated plus search alternative blending, Flutter-side full-banner promo rendering updates, current-cart alternative routing cleanup, the pending-scan persistence/recovery fix, and the Home duplicate-scan suppression fix.
+- Metadata, privacy URL, support URL, review contact, and release notes were updated successfully for `1.0.8`; screenshot refresh was intentionally deferred to the next app version.
 - Immediate post-release nuance: direct App Store URL is live, but search/discovery indexing can lag for a while after release, so early promotion should prefer the direct link.
 - Remaining caution: if the admin splash changes again later, the iPhone native first screen still requires a fresh bundled-asset rebuild and new upload.
 
@@ -125,8 +124,8 @@ This fix path is now carried forward through the current submitted review build 
 - Use this document as the primary current-state entry point instead of chaining multiple handoff/checkpoint notes.
 
 ## Open next actions
-1. Monitor App Review for the now-submitted iOS build `1.0.8 (18)` and be ready to answer any reviewer follow-up quickly.
-2. Validate that fresh installs on `1.0.8 (18)` now keep pending scan/review items across backgrounding/restart, suppress live duplicate scan display on Home, create guest users immediately, produce authenticated `app_open` activity, and reflect the restored admin-truth Explore behavior on-device.
+1. Validate that fresh installs on the now-public iOS build `1.0.8 (18)` keep pending scan/review items across backgrounding/restart, suppress live duplicate scan display on Home, create guest users immediately, produce authenticated `app_open` activity, and reflect the restored admin-truth Explore behavior on-device.
+2. Monitor real production usage on the public `1.0.8 (18)` line for any follow-up issues in scan review, guest bootstrap, Explore, and receipt flow.
 3. Continue from the now-uploaded Android internal + alpha build `1.0.8 (47)` toward the Play closed-test requirement, including 12 opted-in testers and the 14-day gate.
 4. If Google Play install/listing surfaces still look generic during the closed-test period, keep cleaning up the Play listing high-res icon and store metadata separately from the binary.
 5. Keep the admin customer table clean during early rollout; as of 2026-05-20 morning, old test accounts were cleaned out and only `백승대` and `이지민` remained as active pre-launch accounts.

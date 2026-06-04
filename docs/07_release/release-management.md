@@ -19,10 +19,10 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 
 ### 현재 기준 버전
 - current working app version/build: `1.0.8+18`
-- latest shipped iOS public release line: `1.0.5 (10)`
+- latest shipped iOS public release line: `1.0.8 (18)`
 - current public App Store URL: `https://apps.apple.com/kr/app/카트리/id6763728346`
 - latest uploaded iOS App Store build: `1.0.8 (18)` / delivery UUID `65b9c131-01e8-495f-86bf-762f0e6c5477`
-- latest App Store review-attached iOS candidate is now also `1.0.8 (18)` / delivery UUID `65b9c131-01e8-495f-86bf-762f0e6c5477`
+- the same `1.0.8 (18)` line is now publicly live on the App Store, with delivery UUID `65b9c131-01e8-495f-86bf-762f0e6c5477`
 - most recent later iOS validation uploads in the same pass: `1.0.7 (15)` / `80957366-da62-4f31-9ddb-5fb5420f6e60`, `1.0.7 (16)` / `134ece29-f48f-4bc7-87ae-8a2665a1507f`, `1.0.7 (17)` / `e5fb66ce-38b8-4b11-b3b8-4cb08bfe0d4b`, `1.0.8 (18)` / `65b9c131-01e8-495f-86bf-762f0e6c5477`
 - most recent earlier iOS validation uploads in the same pass: `1.0.6 (10)` / `aa51303b-a5bc-4410-a5c0-e3e88eeda483`, `1.0.6 (9)` / `28566327-afb0-48c3-9951-11b8b099dbe9`, `1.0.6 (8)` / `d176d4a8-f775-4a2e-8edd-47b518873c3c`, `1.0.6 (7)` / `9fac0cc3-5b5e-4afc-8f5c-7dc72218007c`
 - latest visible iOS TestFlight Cartly build on device before this reset: `1.0.4 (29)`
@@ -84,11 +84,11 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - latest uploaded delivery UUID: `65b9c131-01e8-495f-86bf-762f0e6c5477`
 - latest uploaded build line: `1.0.8 (18)`
 - current live App Store version id: `a173b232-fe9b-4fdd-9557-a784bd7a36d2` (`1.0` / public live)
-- current submitted App Store version id: `d2511728-acf2-4373-aea3-ccd45bb83a2c` (`1.0.8` / `WAITING_FOR_REVIEW`)
-- submitted App Store version localization id: `facf2f69-6135-4355-9e2a-48dd2516f57c`
+- historical submitted App Store version id used for the `1.0.8` release flow: `d2511728-acf2-4373-aea3-ccd45bb83a2c`
+- historical submitted App Store version localization id: `facf2f69-6135-4355-9e2a-48dd2516f57c`
 - App info localization id: `57760505-1949-4e93-b21c-9502891d493c`
-- submitted App Store review detail id: `ad720b53-50fc-411e-96f2-0753b4dd3f3f`
-- active review submission id: `4802007b-99aa-45e2-a873-3c17ec61d84b`
+- historical submitted App Store review detail id: `ad720b53-50fc-411e-96f2-0753b4dd3f3f`
+- historical review submission id for the `1.0.8` release flow: `4802007b-99aa-45e2-a873-3c17ec61d84b`
 
 ### review contact
 - email: `cartly.support@gmail.com`
@@ -199,7 +199,7 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 - `1.0.8 (18)` IPA 빌드와 업로드도 완료되었고, delivery UUID는 `65b9c131-01e8-495f-86bf-762f0e6c5477` 이다.
 - `1.0.8` App Store version `d2511728-acf2-4373-aea3-ccd45bb83a2c` 를 새로 만들고, build relationship을 `18` 로 연결한 뒤, Korean `What's New` 와 review notes를 현재 scan reliability fix 기준으로 갱신했다.
 - `reviewSubmissions` 3-step flow를 다시 실행해 review submission `4802007b-99aa-45e2-a873-3c17ec61d84b` 를 만들고 제출까지 완료했다.
-- 현재 App Store version 상태는 build `18` 기준 `WAITING_FOR_REVIEW` 다.
+- 이후 공개 App Store 조회 기준으로 `1.0.8` 이 실제 live 상태임이 확인되었으므로, 위 review-submission ids 는 현재 상태가 아니라 release automation history 로 취급한다.
 
 ## 7. Android / Google Play release 흐름
 

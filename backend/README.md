@@ -9,6 +9,14 @@ Cartly backend for app runtime, admin runtime, and scan processing.
 - Background scan worker (`worker.py` / `worker_daemon.py`)
 - App runtime config at `GET /v1/app-config`
 
+## Local operator runtime baseline
+- Canonical local backend runtime: Homebrew Python `3.12.x`
+- Current migrated baseline: Python `3.12.13` with `OpenSSL 3.6.2`
+- Backend and worker launch scripts resolve through `backend/.venv`
+- After changing backend dependencies or recreating the venv, run `/Users/sdpaik/dev/cartly/scripts/Cartly Runtime Refresh.command`
+
+Do not treat the older Xcode/system Python `3.9.x` + `LibreSSL` environment as the intended ongoing runtime baseline anymore.
+
 ## Scan pipeline
 App flow is intentionally stable:
 1. app uploads image to `POST /v1/scan/jobs`

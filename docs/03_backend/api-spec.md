@@ -216,7 +216,7 @@ Use this doc when: adding routes, integrating clients, or validating endpoint be
 - public app proxy가 필요한 `/v1/*` route를 실제로 allowlist했는지
 - `/v1/app-config`가 최신 branding/copy를 내려주는지
 - admin 수정 후 live served API/UI가 새 코드인지
-- Python 3.9 호환성 문제가 router/schema에 없는지
+- Python 3.12 runtime + current dependency set 기준으로 router/schema compatibility 문제가 없는지
 
 ## Related notes
 - [[03_backend/backend-architecture]]

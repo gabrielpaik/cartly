@@ -1,6 +1,6 @@
 # Cartly Current State
 
-Last updated: 2026-05-29
+Last updated: 2026-06-04
 Status: canonical current-state document
 
 ## What Cartly is now
@@ -53,6 +53,12 @@ Implemented/accepted state includes:
 - Users: customer DB + segmentation console
 - Push: campaign console with direct-upload audience flow, server-side device-state re-resolution, and a live recurring weekly schedule surface persisted server-side
 - Ads: campaign-row source-of-truth, targeting, region handling, and live runtime verification flow
+
+### Local backend/runtime baseline
+- Local Cartly backend runtime is now standardized on Homebrew Python `3.12.13` with `OpenSSL 3.6.2`.
+- The previous Xcode/system Python `3.9.6` + `LibreSSL 2.8.3` venv was retired because it produced EOL/runtime warning noise and no longer matches the intended local operator baseline.
+- Runtime-managed backend/worker entrypoints continue to use `backend/.venv`, so backend Python upgrades are applied by recreating that venv in place and then running the canonical runtime refresh.
+- The previous 3.9 environment is currently preserved only as rollback backup at `backend/.venv-py39-backup-20260604` and is not referenced by runtime scripts.
 
 ### Public/business web
 The public site has been reworked toward proposal-grade presentation rather than a temporary support page.
@@ -113,6 +119,7 @@ This fix path is now carried forward through the current submitted review build 
 ## Canonical working rules
 - Treat live-served runtime behavior as the source of truth for admin/public verification.
 - After admin-web/public-site changes, refresh the served runtime before reporting success.
+- Backend/admin/runtime changes do not require a Flutter app rebuild unless Flutter or native app code also changed.
 - For screenshot-driven public-site presentation, prefer real app captures over mock or invented compositions.
 - Release cadence rule: run iOS TestFlight and Android internal testing together by default, then align final platform approval/submission together unless the user explicitly wants a split rollout.
 - Use this document as the primary current-state entry point instead of chaining multiple handoff/checkpoint notes.

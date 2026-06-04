@@ -214,7 +214,7 @@ Use this doc when: adding tables/fields, reasoning about source of truth, or val
 - household teardown 시 orphan cleanup 여부
 - admin export / KPI 집계 영향 여부
 - app-config / runtime derivation 영향 여부
-- Python 3.9 및 현 운영 DB 마이그레이션 안전성 여부
+- Python 3.12 local runtime 및 현 운영 DB 마이그레이션 안전성 여부
 
 ## Related notes
 - [[03_backend/backend-architecture]]

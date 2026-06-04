@@ -68,6 +68,7 @@ Cartly는 현재 Mac mini 중심의 pragmatic single-host 운영 구조다.
 - runtime supervisor runner: `/Users/sdpaik/dev/cartly/scripts/run-runtime-supervisor-login-session.sh`
 - backend one-shot runner: `/Users/sdpaik/dev/cartly/scripts/run-backend-once-login-session.sh`
 - NAS mount helper: `/Users/sdpaik/dev/cartly/scripts/ensure-nas-mount.sh`
+- current local Python baseline: Homebrew `python@3.12` via `/Users/sdpaik/dev/cartly/backend/.venv`
 
 주요 env 예시:
 - `ADMIN_TOKEN`

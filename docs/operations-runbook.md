@@ -8,6 +8,7 @@
 - Reason: direct launchd backend writes to `/Volumes/AI/Cartly` fail with `PermissionError`, while the same backend launched from the user login session writes successfully
 - Actual login-session entrypoint now starts a lightweight **runtime supervisor** that keeps backend and worker alive inside that same Terminal/login-session context
 - The backend process also owns in-process schedulers, including the admin dashboard snapshot scheduler and the recurring push scheduler
+- Current local Python baseline is Homebrew Python `3.12.x` through `backend/.venv`; the old Xcode/system Python `3.9.x` + `LibreSSL` path is no longer the intended operator baseline
 
 ### Scan worker
 - Runs as a **Terminal login-session daemon** on the Mac mini

@@ -148,8 +148,9 @@ Cartly backend는 단순 API 서버가 아니라 아래 4가지를 동시에 맡
 - asset upload
 
 ## 8. Python/runtime 제약
-- live backend runtime은 Python 3.9 호환성을 고려해야 한다.
-- router/schema 코드에 PEP 604 스타일(`str | None`)을 함부로 쓰지 않는다.
+- live backend runtime baseline은 Homebrew Python 3.12 계열이다.
+- router/schema/service 추가 시 Python 3.12 runtime + current dependency set 기준으로 검토한다.
+- backend/worker launch path는 `backend/.venv` 고정이므로, Python 업그레이드는 스크립트 경로 수정이 아니라 venv 재생성 + runtime refresh로 처리한다.
 
 ## 9. 운영상 중요한 backend 규칙
 - admin/public 수정 후 served runtime을 재기동/검증한다.

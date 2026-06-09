@@ -86,7 +86,7 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 - current live App Store version id: `a173b232-fe9b-4fdd-9557-a784bd7a36d2` (`1.0` / public live)
 - historical submitted App Store version id used for the `1.0.8` release flow: `d2511728-acf2-4373-aea3-ccd45bb83a2c`
 - historical submitted App Store version localization id: `facf2f69-6135-4355-9e2a-48dd2516f57c`
-- App info localization id: `57760505-1949-4e93-b21c-9502891d493c`
+- App info localization id: `00c18510-7548-4bc9-a806-3d08d6b0d1b6`
 - historical submitted App Store review detail id: `ad720b53-50fc-411e-96f2-0753b4dd3f3f`
 - historical review submission id for the `1.0.8` release flow: `4802007b-99aa-45e2-a873-3c17ec61d84b`
 
@@ -98,9 +98,15 @@ Use this doc when: building, uploading, patching store metadata, or preparing su
 ### metadata 기준
 - display name: `카트리`
 - subtitle: `장보기 기록과 대체안 탐색`
-- privacy URL: `https://scan-api.seoa-nas.com/privacy`
-- support URL: `https://scan-api.seoa-nas.com/support`
-- marketing URL: `https://scan-api.seoa-nas.com/`
+- live App Store metadata URLs currently still exposed on the listing:
+  - privacy URL: `https://scan-api.seoa-nas.com/privacy`
+  - support URL: `https://scan-api.seoa-nas.com/support`
+  - marketing URL: `https://scan-api.seoa-nas.com/`
+- canonical shared-site URLs for the next editable Cartly metadata wave:
+  - privacy URL: `https://apps.seoa-nas.com/cartly/privacy/`
+  - support URL: `https://apps.seoa-nas.com/cartly/support/`
+  - marketing URL: `https://apps.seoa-nas.com/cartly/`
+- 2026-06-09 verification: direct PATCH attempts against the live `1.0.8` localization returned App Store Connect `409 INVALID_STATE/STATE_ERROR`, so these URL fields cannot be changed again until the next editable Cartly version line.
 
 ## 4. App Store screenshot 운영
 
@@ -170,6 +176,11 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 현재 `/tmp` 스크립트는 durable하지 않다.
 향후에는 repo 안 `scripts/release/`로 옮겨 정식화하는 것이 좋다.
 하지만 **이미 API 자동화가 가능하다는 사실 자체는 release 시스템의 일부로 간주**한다.
+
+### 2026-06-09 Cartly URL migration note
+- shared public site `https://apps.seoa-nas.com/cartly/` is live
+- Cartly should be treated as a migration of the already-built public/support/privacy surface, not a brand-new web presence
+- App Store Connect live `1.0.8` metadata URL fields are temporarily locked by Apple state, so legacy `scan-api.seoa-nas.com` links remain active compatibility entrypoints until the next Cartly release metadata pass
 
 ## 6. iOS review readiness 체크리스트
 코드/제품 기준 완료된 것:

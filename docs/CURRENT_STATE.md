@@ -1,6 +1,6 @@
 # Cartly Current State
 
-Last updated: 2026-06-04
+Last updated: 2026-06-09
 Status: canonical current-state document
 
 ## What Cartly is now
@@ -96,6 +96,7 @@ This fix path is now carried forward through the current public iOS build line `
 - Public App Store verification on 2026-06-04 confirms the live customer-facing version is `1.0.8`, matching delivery UUID `65b9c131-01e8-495f-86bf-762f0e6c5477` as the latest uploaded iOS App Store build.
 - The current public `1.0.8 (18)` build carries forward the guest/bootstrap and cart-default fixes, the iOS location-permission mitigation, the utility-first Explore cleanup, ranked single-pool recommendation flow, admin-curated plus search alternative blending, Flutter-side full-banner promo rendering updates, current-cart alternative routing cleanup, the pending-scan persistence/recovery fix, and the Home duplicate-scan suppression fix.
 - Metadata, privacy URL, support URL, review contact, and release notes were updated successfully for `1.0.8`; screenshot refresh was intentionally deferred to the next app version.
+- As of 2026-06-09, the new shared public site is live at `https://apps.seoa-nas.com/cartly/`, but Apple currently rejects live-state metadata URL edits for Cartly `1.0.8`, so the App Store listing still points at the older `scan-api.seoa-nas.com` URLs until the next editable Cartly release line.
 - Immediate post-release nuance: direct App Store URL is live, but search/discovery indexing can lag for a while after release, so early promotion should prefer the direct link.
 - Remaining caution: if the admin splash changes again later, the iPhone native first screen still requires a fresh bundled-asset rebuild and new upload.
 
@@ -110,9 +111,18 @@ This fix path is now carried forward through the current public iOS build line `
 - The Android test tracks are now aligned to `1.0.8 (47)` on both internal and alpha, and this tester build now includes the ranked Explore recommendation release wave, the Flutter-side full-banner/direct-banner rendering changes, current-cart alternative routing cleanup, the auth-backed Explore-offer fetch path, and the pending-scan persistence/duplicate-suppression reliability fix. Immediate Android release work remains tester recruitment, active closed-test operation, and waiting out the Play-required test window.
 
 ## Public URLs
+
+### Canonical store-facing public URLs
+- Marketing: `https://apps.seoa-nas.com/cartly/`
+- Privacy: `https://apps.seoa-nas.com/cartly/privacy/`
+- Support: `https://apps.seoa-nas.com/cartly/support/`
+
+### Legacy compatibility URLs still live
 - App/public root: `https://scan-api.seoa-nas.com/`
 - Privacy: `https://scan-api.seoa-nas.com/privacy`
 - Support: `https://scan-api.seoa-nas.com/support`
+
+### Other public surface
 - Public admin: `https://cartly-admin.seoa-nas.com`
 
 ## Canonical working rules

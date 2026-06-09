@@ -13,15 +13,23 @@ Cartly web은 단순 홍보 페이지가 아니다.
 3. app review / store metadata에서 참조하는 공식 URL surface
 
 ## 2. 현재 공개 URL
+
+### Canonical store-facing URLs
+- root: `https://apps.seoa-nas.com/cartly/`
+- privacy: `https://apps.seoa-nas.com/cartly/privacy/`
+- support: `https://apps.seoa-nas.com/cartly/support/`
+
+### Legacy compatibility URLs still live
 - root: `https://scan-api.seoa-nas.com/`
 - privacy: `https://scan-api.seoa-nas.com/privacy`
 - support: `https://scan-api.seoa-nas.com/support`
 
 ## 3. 서빙 구조
-- public hostname `scan-api.seoa-nas.com`
-- Cloudflare Tunnel
-- `app_public_proxy` on `127.0.0.1:3100`
-- proxy가 app-safe API route와 public pages를 함께 제공
+- canonical shared-site hostname `apps.seoa-nas.com`
+- legacy Cartly runtime/public hostname `scan-api.seoa-nas.com`
+- Cloudflare Pages serves the shared static public/support/privacy surface
+- Cloudflare Tunnel + `app_public_proxy` on `127.0.0.1:3100` continue to serve the legacy public/runtime surface and app-safe API routes
+- this is a migration of the already-built Cartly public surface to a shared host, not a greenfield second website
 
 ## 4. current route model
 
@@ -82,6 +90,7 @@ public site는 두 레이어가 있다.
 ## 9. app review와의 관계
 - privacy URL은 App Store Connect에 연결됨
 - support URL은 App Store Connect에 연결됨
+- 2026-06-09 기준 canonical target은 shared-site (`apps.seoa-nas.com/cartly/...`) 이지만, live Cartly `1.0.8` metadata URL fields are state-locked in App Store Connect, so the old `scan-api.seoa-nas.com` links remain the active listing values until the next editable release line
 - guest mode, location usage, account deletion 등 설명과 충돌하지 않게 유지해야 함
 
 ## 10. 운영 규칙

@@ -182,6 +182,25 @@ Cartly는 단순 수동 클릭이 아니라 **App Store Connect API를 붙여 me
 - Cartly should be treated as a migration of the already-built public/support/privacy surface, not a brand-new web presence
 - App Store Connect live `1.0.8` metadata URL fields are temporarily locked by Apple state, so legacy `scan-api.seoa-nas.com` links remain active compatibility entrypoints until the next Cartly release metadata pass
 
+### Next editable Cartly metadata wave, exact URL switch target
+When the next editable iOS App Store version line is opened, switch these fields immediately:
+
+#### appInfoLocalization
+- resource id: `00c18510-7548-4bc9-a806-3d08d6b0d1b6`
+- field: `privacyPolicyUrl`
+- next value: `https://apps.seoa-nas.com/cartly/privacy/`
+
+#### appStoreVersionLocalization
+- resource id: `facf2f69-6135-4355-9e2a-48dd2516f57c` for the historical `1.0.8` submission, but use the new version-line localization id when the next version is created
+- fields:
+  - `marketingUrl` -> `https://apps.seoa-nas.com/cartly/`
+  - `supportUrl` -> `https://apps.seoa-nas.com/cartly/support/`
+
+#### practical rule
+- do not create a new Cartly public/support/privacy surface
+- keep legacy `scan-api.seoa-nas.com` links alive as compatibility endpoints
+- treat `apps.seoa-nas.com/cartly/...` as the canonical store-facing destination from the next editable release onward
+
 ## 6. iOS review readiness 체크리스트
 코드/제품 기준 완료된 것:
 - guest mode 있음
